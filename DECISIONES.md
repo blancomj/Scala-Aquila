@@ -163,3 +163,49 @@ explícitamente pospuesto — el GC-001 verificado hasta ahora solo cubre CUOTA_
 cerradas en `PLAN §4.2-4.3.2`, nada que inventar. `novedades`, `pagos`, `liquidaciones`,
 `liquidacion_lineas`, `saldos` se diseñan en F5, junto con el grafo y el pipeline que los
 llenan.
+
+---
+
+## D-14 — F5 "v0": núcleo mínimo de orquestación, no la especificación V1 completa de Docs 17/18/20
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F5       |
+| **Estado** | Aceptada |
+| **Decide** | Agente   |
+
+**Contexto.** Docs 17 (Snapshot/Lifecycle), 18 (Grafo/Calculation Context) y 20
+(Resultado/Trace/Audit) suman **~750 secciones**: idempotencia, locks de concurrencia,
+timeout/cancelación, replay, streaming/paginación para tenants grandes, enmascarado de
+PII, firma y exportación de paquetes de auditoría, localización de explicaciones. Es
+especificación de nivel V1/producción — construirla entera ahora repite el error que
+AD-21 ya evitó para AEL (evaluador completo con IR/bytecode/VM en vez del evaluador de
+expresiones que el caso real pedía).
+
+**Decisión.** F5 "v0" implementa solo lo que el criterio de salida exige
+("primera liquidación real reconciliada", `PLAN §5.3`) y lo que ya está cerrado en
+`PLAN §6.1-6.5`:
+
+```text
+DENTRO       DataSnapshot (tipo puro + builder desde Supabase)
+             grafo de dependencias entre conceptos (parseo de CONCEPTO.X, orden
+               topológico, desempate por prioridad, detección de ciclos)
+             plan de cálculo secuencial (sin paralelismo — 18 §28 FINANCIAL DEFAULT)
+             ejecución vía ael-runtime + allocate() de financial-kernel, replicando
+               PLAN §6.5 (reparto anual→12 periodos→inmuebles, ambos pasos con
+               allocate() y mayor resto)
+             resultado con reconciliación R1/R3/R4/R6/R7 (PLAN §6.4-6.5)
+             resultHash determinista (serialización canónica) — cierra la puerta
+               F5→F6 ("mismo snapshot ⇒ mismo resultHash")
+             persistencia mínima en liquidaciones/liquidacion_lineas (sin la máquina
+               de estados de 15 transiciones de Doc 20 §61-68 — un estado simple)
+
+FUERA        idempotencia/locks/timeout/cancelación/replay
+             ejecución paralela
+             pagos, novedades, saldo anterior (D-13: GC-001 extendido, pospuesto)
+             enmascarado de PII, firma/exportación de auditoría, localización
+             streaming/paginación para snapshots grandes
+```
+
+**Justificación de alcance cerrado (AD-23):** se amplía cuando un caso real lo exija, no
+antes. Ningún caso real hoy necesita replay ni locks de concurrencia.

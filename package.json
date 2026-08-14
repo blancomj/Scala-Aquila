@@ -23,6 +23,8 @@
     "db:types": "node scripts/db-types.mjs"
   },
   "dependencies": {
+    "@aquila/financial-kernel": "workspace:*",
+    "@aquila/liquidation-engine": "workspace:*",
     "@aquila/shared": "workspace:*"
   },
   "devDependencies": {

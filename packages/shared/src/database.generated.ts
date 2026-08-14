@@ -327,6 +327,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fondo_movimientos_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fondo_movimientos_periodo_id_fkey"
             columns: ["periodo_id"]
             isOneToOne: false
@@ -580,6 +587,124 @@ export type Database = {
           },
           {
             foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liquidacion_lineas: {
+        Row: {
+          concepto_id: string
+          created_at: string
+          id: string
+          inmueble_id: string
+          liquidacion_id: string
+          monto: number
+          tenant_id: string
+        }
+        Insert: {
+          concepto_id: string
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          liquidacion_id: string
+          monto: number
+          tenant_id: string
+        }
+        Update: {
+          concepto_id?: string
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          liquidacion_id?: string
+          monto?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacion_lineas_concepto_id_fkey"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_lineas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_lineas_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_lineas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_lineas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liquidaciones: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["liquidacion_estado_t"]
+          id: string
+          periodo_id: string
+          result_hash: string
+          tenant_id: string
+          tenant_total: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
+          id?: string
+          periodo_id: string
+          result_hash: string
+          tenant_id: string
+          tenant_total: number
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
+          id?: string
+          periodo_id?: string
+          result_hash?: string
+          tenant_id?: string
+          tenant_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidaciones_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1199,6 +1324,7 @@ export type Database = {
         | "deposito"
         | "otro"
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
+      liquidacion_estado_t: "completada" | "fallida"
       member_status_t: "active" | "revoked"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
@@ -1377,6 +1503,7 @@ export const Constants = {
         "otro",
       ],
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
+      liquidacion_estado_t: ["completada", "fallida"],
       member_status_t: ["active", "revoked"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],

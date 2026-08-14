@@ -125,6 +125,38 @@ export default tseslint.config(
     },
   },
 
+  // ── liquidation-engine: el núcleo puro no toca Supabase (D-14) ─────────
+  // Solo snapshot-supabase.ts (el "Snapshot Builder", Docs/17 §27-29) puede
+  // hablar con la base de datos. graph/executor/result/hash/liquidar son
+  // funciones puras sobre un DataSnapshot ya construido — mismo principio
+  // que ael-language/ael-runtime nunca tocan decimal.js directamente.
+  {
+    files: ['packages/liquidation-engine/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@supabase/*', '@aquila/shared'],
+              message:
+                'D-14: el núcleo de liquidation-engine es puro — solo snapshot-supabase.ts habla con Supabase.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'packages/liquidation-engine/src/snapshot-supabase.ts',
+      'packages/liquidation-engine/src/persistencia-supabase.ts',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+
   {
     files: ['**/*.test.ts', '**/*.spec.ts'],
     rules: {

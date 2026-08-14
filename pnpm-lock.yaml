@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@aquila/financial-kernel':
+        specifier: workspace:*
+        version: link:packages/financial-kernel
+      '@aquila/liquidation-engine':
+        specifier: workspace:*
+        version: link:packages/liquidation-engine
       '@aquila/shared':
         specifier: workspace:*
         version: link:packages/shared
@@ -77,6 +83,24 @@ importers:
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
+
+  packages/liquidation-engine:
+    dependencies:
+      '@aquila/ael-core':
+        specifier: workspace:*
+        version: link:../ael-core
+      '@aquila/ael-language':
+        specifier: workspace:*
+        version: link:../ael-language
+      '@aquila/ael-runtime':
+        specifier: workspace:*
+        version: link:../ael-runtime
+      '@aquila/financial-kernel':
+        specifier: workspace:*
+        version: link:../financial-kernel
+      '@aquila/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shared:
     dependencies:

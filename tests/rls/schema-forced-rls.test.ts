@@ -43,6 +43,8 @@ const TABLAS_ESPERADAS = [
   'presupuesto_rubros',
   'fondos',
   'fondo_movimientos',
+  'liquidaciones',
+  'liquidacion_lineas',
 ]
 
 d('T-SEC-01: toda tabla de public tiene RLS ENABLE + FORCE', () => {
