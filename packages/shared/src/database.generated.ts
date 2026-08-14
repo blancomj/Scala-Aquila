@@ -1220,6 +1220,24 @@ export type Database = {
           },
         ]
       }
+      rate_limit_hits: {
+        Row: {
+          bucket: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
       tenants: {
         Row: {
           created_at: string
@@ -1405,6 +1423,10 @@ export type Database = {
           out_role: Database["public"]["Enums"]["tenant_role_t"]
           out_tenant_id: string
         }[]
+      }
+      check_rate_limit: {
+        Args: { p_bucket: string; p_max_hits: number; p_window: string }
+        Returns: boolean
       }
       create_tenant: {
         Args: { p_name: string; p_slug: string }
