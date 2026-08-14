@@ -121,7 +121,7 @@ copropiedad concreta.
 │  Invariantes reconciliación  │   │  diagnósticos                │
 │                              │   │                              │
 │  docs 16, 19                 │   │  docs 01, 02, 03, 07         │
-│  SIN dependencia de B        │   │  SIN dependencia de A        │
+│  A NO depende de B           │   │  B SÍ depende de A (dinero)  │
 └──────────────┬───────────────┘   └──────────────┬───────────────┘
                │                                   │
                └─────────────┬─────────────────────┘
@@ -139,11 +139,28 @@ copropiedad concreta.
 `sourceAmount × basis(i) / totalBasis` sobre un vector de bases — aritmética pura.
 `19 §95` exige que pase por `FinancialOperationService`, un servicio, no una regla.
 El redondeo, el residual por mayor resto y la reconciliación son idénticos exista AEL o
-no. `23 §26` autoriza trabajo paralelo cuando los contratos son independientes.
+no. `23 §26` autoriza trabajo paralelo cuando los contratos son independientes. "Paralelo"
+significa que **F3 no espera a F4** ni viceversa durante la construcción — la interfaz
+pública de A (Money, FinancialOperationService) queda fija al cerrar F3, y F4 la consume
+sin tocar sus internos.
 
-**Regla de frontera (vinculante):** la Capa B **nunca** implementa aritmética monetaria.
-Toda operación sobre `Money` la delega en la Capa A. Duplicar redondeo en el evaluador es
-una violación de `21 §6`.
+**Regla de frontera (vinculante, corregida tras iniciar F4):** la Capa B **nunca**
+implementa aritmética monetaria — ni decimal ni Money. Toda operación sobre `Money` la
+delega en la Capa A. Duplicar redondeo en el evaluador es una violación de `21 §6`.
+
+Esto es una **dependencia real y unidireccional B→A**, no independencia mutua — la
+redacción anterior ("SIN dependencia de A" en B) era imprecisa y quedó corregida arriba.
+Dentro de la Capa B, la dependencia se aísla al borde de ejecución:
+
+```text
+ael-core       → SIN dependencia de financial-kernel (tipos estáticos: Tipo, Dimension, Unit)
+ael-language   → depende de ael-core (AST tipado, análisis estático) — SIN financial-kernel
+ael-runtime    → depende de ael-core + ael-language + financial-kernel (valores en tiempo
+                  de ejecución: TypedValue con Money/Decimal reales)
+```
+
+`ael-core` y `ael-language` siguen sin saber que `financial-kernel` existe — solo
+`ael-runtime`, el borde donde el AST se convierte en valores reales, lo importa.
 
 ---
 

@@ -1,0 +1,5 @@
+export { evaluar, type ResultadoEvaluador } from './evaluator.js'
+export { FUNCIONES } from './functions.js'
+export type { ExecutionContext } from './context.js'
+export { ContractoNoResueltoError, InvarianteEvaluadorError } from './errors.js'
+export { numero, dinero, booleano, type TypedValue } from './typed-value.js'

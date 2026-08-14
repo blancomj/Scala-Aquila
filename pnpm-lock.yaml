@@ -54,6 +54,24 @@ importers:
 
   packages/ael-core: {}
 
+  packages/ael-language:
+    dependencies:
+      '@aquila/ael-core':
+        specifier: workspace:*
+        version: link:../ael-core
+
+  packages/ael-runtime:
+    dependencies:
+      '@aquila/ael-core':
+        specifier: workspace:*
+        version: link:../ael-core
+      '@aquila/ael-language':
+        specifier: workspace:*
+        version: link:../ael-language
+      '@aquila/financial-kernel':
+        specifier: workspace:*
+        version: link:../financial-kernel
+
   packages/financial-kernel:
     dependencies:
       decimal.js:

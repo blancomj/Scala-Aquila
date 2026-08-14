@@ -79,10 +79,10 @@ Ningún otro paquete queda autorizado. Toda nueva autorización se registra aqu�
 
 ## D-11 — `pnpm db:types` requiere Docker/Podman; resuelto vía Management API
 
-| | |
-|---|---|
-| **Fase** | F1 |
-| **Estado** | **Resuelta** |
+|            |                  |
+| ---------- | ---------------- |
+| **Fase**   | F1               |
+| **Estado** | **Resuelta**     |
 | **Decide** | Agente + Usuario |
 
 **Contexto.** Fase I §3.3: los tipos de BD se generan, nunca se escriben a mano.
@@ -102,3 +102,31 @@ del esquema aplicado en F1. `packages/shared` se reconstruyó (ya no está prema
 ahora tiene un consumidor real) con `crearClienteAquila()` tipado sobre `Database`.
 `tests/rls/helpers.ts` migró del `Cliente` con esquema `any` al tipo real; la excepción
 de ESLint para `no-explicit-any` en ese archivo se retiró.
+
+---
+
+## D-12 — `REDONDEAR_DINERO` tenía la aridad equivocada en F4
+
+|            |           |
+| ---------- | --------- |
+| **Fase**   | F4        |
+| **Estado** | Corregida |
+| **Decide** | Agente    |
+
+**Contexto.** Al construir `packages/ael-runtime` (el evaluador), se contrastó cada
+función del catálogo contra el corpus antes de implementarla. `07 §"FUNCTION EXAMPLE"`
+y `06 §"REDONDEAR_DINERO(total, 0)"` definen la función con **dos** argumentos —
+`REDONDEAR_DINERO(Money<C>, Number)`, donde el segundo es la escala — pero
+`ael-language/src/analyzer.ts` (escrito antes, en la primera pasada de F4) la había
+registrado con un solo parámetro (`MONEY`), y `paso0/reglas/INTERES_MORA.ael` la
+invocaba como `REDONDEAR_DINERO(interes)`.
+
+**Decisión.** Corregir ambos antes de construir el evaluador: `analyzer.ts` ahora exige
+`(MONEY, NUMBER)`; `INTERES_MORA.ael` pasa `REDONDEAR_DINERO(interes, 0)`. El modo de
+redondeo (HALF_UP/…) no es un argumento de la llamada — lo aporta
+`ExecutionContext.modoRedondeoDinero`, consistente con `16 §44 ROUNDING`
+("debe ser una política explícita... versionable").
+
+**Consecuencias.** Se añadió un test de aridad dedicado a `REDONDEAR_DINERO` en
+`analyzer.test.ts` (no existía ninguno antes, a diferencia de MIN/MAX/PORCENTAJE) para
+que esta clase de desviación no vuelva a pasar sin que un test la señale.

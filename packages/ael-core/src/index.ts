@@ -8,3 +8,5 @@ export {
 } from './diagnostics.js'
 
 export type { Severidad, Posicion, Span, Diagnostico } from './diagnostics.js'
+
+export { TIPOS, esTipoValido, type Tipo } from './types.js'

@@ -28,7 +28,7 @@ DEFINIR interes =
     saldo_vencido * tasa_aplicable * dias_cobrables / base_dias
 
 SI dias_cobrables > 0 ENTONCES
-    RETORNAR REDONDEAR_DINERO(interes)
+    RETORNAR REDONDEAR_DINERO(interes, 0)
 SINO
-    RETORNAR 0
+    RETORNAR 0 COP
 FIN

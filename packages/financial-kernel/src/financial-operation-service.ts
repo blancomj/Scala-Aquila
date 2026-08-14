@@ -8,7 +8,7 @@
  */
 import { Decimal, type DecimalValue } from './decimal.js'
 import { money, type Money } from './money.js'
-import { CurrencyMismatchError, NonIntegerResidualError } from './errors.js'
+import { CurrencyMismatchError, NonFiniteDecimalError, NonIntegerResidualError } from './errors.js'
 
 export type { DecimalValue } from './decimal.js'
 export type { Decimal } from './decimal.js'
@@ -100,6 +100,46 @@ export function contarUnidadesResiduales(residual: Money, escala: number): numbe
 
 export function sumarDecimales(valores: readonly DecimalValue[]): Decimal {
   return valores.reduce<Decimal>((acc, v) => acc.plus(v), new Decimal(0))
+}
+
+export function restarDecimales(a: DecimalValue, b: DecimalValue): Decimal {
+  return new Decimal(a).minus(b)
+}
+
+export function multiplicarDecimales(a: DecimalValue, b: DecimalValue): Decimal {
+  return new Decimal(a).times(b)
+}
+
+/**
+ * A diferencia de `dividir()` (Money), este resultado no pasa por `money()`
+ * — nada valida aquí que sea finito. decimal.js no lanza en división por
+ * cero (produce Infinity), así que lo comprobamos explícitamente: 0AEL §20
+ * "detect → report → block", nunca propagar un NUMBER no finito en silencio.
+ */
+export function dividirDecimales(a: DecimalValue, b: DecimalValue): Decimal {
+  const resultado = new Decimal(a).dividedBy(b)
+  if (!resultado.isFinite()) {
+    throw new NonFiniteDecimalError(`${String(a)} / ${String(b)}`)
+  }
+  return resultado
+}
+
+export function compararDecimales(a: DecimalValue, b: DecimalValue): number {
+  return new Decimal(a).comparedTo(b)
+}
+
+export function negarDecimal(a: DecimalValue): Decimal {
+  return new Decimal(a).negated()
+}
+
+/**
+ * Único punto autorizado para parsear un lexema NUMBER crudo a Decimal
+ * (19 §19 NO PARSEFLOAT). Lo necesita ael-runtime para materializar un
+ * `NumeroLiteral` — no existe otro paquete que deba construir un Decimal
+ * "pelado" desde texto.
+ */
+export function crearDecimal(valor: DecimalValue): Decimal {
+  return new Decimal(valor)
 }
 
 export function esNegativoDecimal(valor: DecimalValue): boolean {

@@ -38,6 +38,18 @@ export class CurrencyMismatchError extends Error {
   }
 }
 
+/**
+ * Docs/19 §19 NO EPSILON / precisión decimal: un resultado no finito
+ * (p.ej. división por cero) indica una operación inválida y nunca debe
+ * propagarse en silencio (0AEL §20 detect → report → block).
+ */
+export class NonFiniteDecimalError extends Error {
+  constructor(operacion: string) {
+    super(`La operación "${operacion}" produjo un resultado no finito (¿división por cero?)`)
+    this.name = 'NonFiniteDecimalError'
+  }
+}
+
 /** Docs/19 §12-13 BASIS VALIDATION / EMPTY TARGETS. */
 export class EmptyTargetsError extends Error {
   constructor() {

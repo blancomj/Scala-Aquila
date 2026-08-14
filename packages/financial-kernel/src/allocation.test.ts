@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { allocate, obtener, verificarSumaReconciliada, type AllocationRequest } from './allocation.js'
+import {
+  allocate,
+  obtener,
+  verificarSumaReconciliada,
+  type AllocationRequest,
+} from './allocation.js'
 import {
   DuplicateTargetError,
   EmptyTargetsError,
@@ -101,10 +106,7 @@ describe('allocate() — coefficient', () => {
       ],
       policy: POLICY,
     })
-    expect(resultado.entries.map((e) => e.allocatedAmount.amount.toString())).toEqual([
-      '50',
-      '50',
-    ])
+    expect(resultado.entries.map((e) => e.allocatedAmount.amount.toString())).toEqual(['50', '50'])
   })
 
   it('no asume que la suma de coeficientes debe ser 1.0 (16 §82)', () => {
@@ -118,10 +120,7 @@ describe('allocate() — coefficient', () => {
       ],
       policy: POLICY,
     })
-    expect(resultado.entries.map((e) => e.allocatedAmount.amount.toString())).toEqual([
-      '50',
-      '50',
-    ])
+    expect(resultado.entries.map((e) => e.allocatedAmount.amount.toString())).toEqual(['50', '50'])
   })
 })
 

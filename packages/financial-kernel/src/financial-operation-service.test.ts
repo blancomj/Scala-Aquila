@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CurrencyMismatchError, NonIntegerResidualError } from './errors.js'
+import { CurrencyMismatchError, NonFiniteDecimalError, NonIntegerResidualError } from './errors.js'
 import * as fos from './financial-operation-service.js'
 import { money } from './money.js'
 
@@ -36,24 +36,24 @@ describe('operaciones sobre Money', () => {
 
 describe('redondear (16 §44-45)', () => {
   it('HALF_UP a 0 decimales', () => {
-    expect(fos.redondear(money('1250000.5', 'COP'), { modo: 'HALF_UP', escala: 0 }).amount.toString()).toBe(
-      '1250001',
-    )
+    expect(
+      fos.redondear(money('1250000.5', 'COP'), { modo: 'HALF_UP', escala: 0 }).amount.toString(),
+    ).toBe('1250001')
   })
 
   it('DOWN (floor) — usado internamente por el método de mayor resto', () => {
-    expect(fos.redondear(money('1250000.99', 'COP'), { modo: 'DOWN', escala: 0 }).amount.toString()).toBe(
-      '1250000',
-    )
+    expect(
+      fos.redondear(money('1250000.99', 'COP'), { modo: 'DOWN', escala: 0 }).amount.toString(),
+    ).toBe('1250000')
   })
 
   it('UP', () => {
-    expect(fos.redondear(money('1250000.01', 'COP'), { modo: 'UP', escala: 0 }).amount.toString()).toBe(
-      '1250001',
-    )
+    expect(
+      fos.redondear(money('1250000.01', 'COP'), { modo: 'UP', escala: 0 }).amount.toString(),
+    ).toBe('1250001')
   })
 
-  it('HALF_EVEN (banker\'s rounding) en el punto medio', () => {
+  it("HALF_EVEN (banker's rounding) en el punto medio", () => {
     expect(
       fos.redondear(money('2.5', 'COP'), { modo: 'HALF_EVEN', escala: 0 }).amount.toString(),
     ).toBe('2')
@@ -94,9 +94,9 @@ describe('contarUnidadesResiduales', () => {
 
 describe('operaciones sobre Decimal puro (coeficientes, 16 §43)', () => {
   it('sumarDecimales suma exactamente', () => {
-    expect(fos.sumarDecimales(['0.15', '0.15', '0.165', '0.165', '0.185', '0.185']).toString()).toBe(
-      '1',
-    )
+    expect(
+      fos.sumarDecimales(['0.15', '0.15', '0.165', '0.165', '0.185', '0.185']).toString(),
+    ).toBe('1')
     expect(fos.sumarDecimales([]).toString()).toBe('0')
   })
 
@@ -105,5 +105,27 @@ describe('operaciones sobre Decimal puro (coeficientes, 16 §43)', () => {
     expect(fos.esNegativoDecimal(1)).toBe(false)
     expect(fos.esCeroDecimal(0)).toBe(true)
     expect(fos.esCeroDecimal(0.0001)).toBe(false)
+  })
+
+  it('restarDecimales / multiplicarDecimales / dividirDecimales / compararDecimales', () => {
+    expect(fos.restarDecimales(10, 3).toString()).toBe('7')
+    expect(fos.multiplicarDecimales('2.5', 4).toString()).toBe('10')
+    expect(fos.dividirDecimales(10, 4).toString()).toBe('2.5')
+    expect(fos.compararDecimales(1, 2)).toBeLessThan(0)
+    expect(fos.compararDecimales(2, 2)).toBe(0)
+    expect(fos.compararDecimales(3, 2)).toBeGreaterThan(0)
+  })
+
+  it('dividirDecimales rechaza un resultado no finito (división por cero, 0AEL §20)', () => {
+    expect(() => fos.dividirDecimales(1, 0)).toThrow(NonFiniteDecimalError)
+  })
+
+  it('negarDecimal', () => {
+    expect(fos.negarDecimal(5).toString()).toBe('-5')
+    expect(fos.negarDecimal(-5).toString()).toBe('5')
+  })
+
+  it('crearDecimal parsea un lexema crudo sin parseFloat (19 §19)', () => {
+    expect(fos.crearDecimal('100.50').toString()).toBe('100.5')
   })
 })
