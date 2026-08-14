@@ -30,7 +30,9 @@ export const useAuthStore = defineStore('auth', () => {
    * `invalid input syntax for type uuid: "undefined"` aun con el usuario ya
    * autenticado), mientras que `getUser()` siempre valida contra Supabase.
    */
-  async function cargarPerfil(): Promise<ProfileRow | null> {
+  async function cargarPerfil(opciones?: { forzar?: boolean }): Promise<ProfileRow | null> {
+    if (profile.value && !opciones?.forzar) return profile.value
+
     const cliente = useSupabaseClient<Database>()
     const {
       data: { user: usuario },

@@ -277,3 +277,40 @@ depende `@nuxt/eslint`; sin su postinstall, `nuxt typecheck` y el lint de `apps/
 arrancan. `vue-demi` es el shim de compatibilidad de Pinia (detecta la versión de Vue
 instalada); postinstall inocuo, requerido por `@pinia/nuxt`. Autorizados en
 `pnpm-workspace.yaml` → `allowBuilds`.
+
+---
+
+## D-18 — `create_tenant()` como RPC de Postgres, no como Edge Function (AD-05)
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6 (E3)  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+AD-05 exige que toda operación que cruce el límite de un tenant o use `service_role`
+viva en una Edge Function. `create-tenant` está en esa lista (§6.3), y la política RLS
+de `tenants`/`memberships` deniega INSERT a todo rol salvo Edge Function (comentario
+explícito en `20260813190300_rls_policies.sql`). apps/web no tiene infraestructura de
+Edge Functions todavía — D-08 fijó "sin stack local, sin `supabase link`, sin token de
+CLI" para las migraciones, y eso mismo bloquea `supabase functions deploy`.
+
+`create_tenant(p_name, p_slug)` se implementó en su lugar como función
+`SECURITY DEFINER` (`20260814120000_tenancy_rpc.sql`) que inserta `tenant` +
+`membership(role='agent')` + `profiles.active_tenant_id` en una sola transacción,
+forzando `created_by`/`user_id`/`role` desde `auth.uid()` (nunca desde el payload del
+cliente). No usa `service_role` ni cruza un tenant ya existente — en el momento de la
+llamada el usuario todavía no pertenece a ninguno — así que la propiedad de seguridad
+que AD-05 protege (que el cliente no pueda fabricar tenant/membership arbitrarios)
+queda igual de garantizada.
+
+`switch_tenant(p_tenant_id)` sí se implementó fiel al plan (RPC, `20260814120000_...`),
+pero sin `SECURITY DEFINER`: `profiles_update_propio` (RLS) ya autoriza `id = auth.uid()`
+y el trigger `guard_active_tenant` ya valida la membresía activa, así que envolverlo en
+`SECURITY DEFINER` sería una escalada de privilegios innecesaria.
+
+**Revisar cuando E5 (invitaciones) llegue** — `invite-user` sí necesita `service_role`
+de verdad (envío de email vía Brevo, AD-07), momento en el que habrá que levantar la
+infraestructura de Edge Functions de cualquier forma; evaluar entonces si migrar
+`create-tenant` a Edge Function por consistencia, o dejar el precedente de RPC para
+operaciones que no requieran secretos de servidor.

@@ -1290,6 +1290,29 @@ export type Database = {
       }
     }
     Functions: {
+      create_tenant: {
+        Args: { p_name: string; p_slug: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          direccion: string | null
+          id: string
+          moneda: string
+          name: string
+          nit: string | null
+          settings: Json
+          slug: string
+          status: Database["public"]["Enums"]["tenant_status_t"]
+          updated_at: string | null
+          zona_horaria: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_tenant_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1301,6 +1324,7 @@ export type Database = {
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       shares_tenant_with: { Args: { p_user: string }; Returns: boolean }
+      switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
     }
     Enums: {
       concepto_estado_t: "borrador" | "activo" | "archivado"
