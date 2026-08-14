@@ -98,6 +98,33 @@ export default tseslint.config(
     },
   },
 
+  // ── allocation.ts nunca toca la librería decimal directamente (19 §96) ──
+  // Solo financial-operation-service.ts (y money.ts/decimal.ts, que este
+  // último usa internamente) puede instanciar decimal.js. allocation.ts
+  // opera exclusivamente a través de las funciones exportadas por el FOS.
+  {
+    files: ['packages/financial-kernel/src/allocation.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'decimal.js',
+              message: '19 §96 NO DIRECT DECIMAL LIBRARY: usa financial-operation-service.ts.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['./decimal.js', './decimal'],
+              message: '19 §96 NO DIRECT DECIMAL LIBRARY: usa financial-operation-service.ts.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   {
     files: ['**/*.test.ts', '**/*.spec.ts'],
     rules: {
