@@ -7,6 +7,7 @@
 // ctx.supabase (@supabase/server no expone un nombre de tipo documentado
 // para él) — cualquier cliente con `.rpc()` compatible sirve.
 import { errorResponse } from './http.ts'
+import { logEvent } from './logger.ts'
 
 interface ClienteConRpc {
   rpc(
@@ -20,6 +21,7 @@ export async function enforceRateLimit(
   bucket: string,
   maxHits: number,
   ventana: string,
+  correlationId: string,
 ): Promise<Response | null> {
   const { data: permitido, error } = await cliente.rpc('check_rate_limit', {
     p_bucket: bucket,
@@ -28,10 +30,24 @@ export async function enforceRateLimit(
   })
 
   if (error) {
-    return errorResponse(500, 'INTERNAL_ERROR', `check_rate_limit: ${error.message}`)
+    logEvent({
+      level: 'error',
+      action: 'rate_limit.check_failed',
+      correlationId,
+      message: error.message,
+      meta: { bucket },
+    })
+    return errorResponse(500, 'INTERNAL_ERROR', `check_rate_limit: ${error.message}`, undefined, correlationId)
   }
   if (!permitido) {
-    return errorResponse(429, 'RATE_LIMITED', 'Demasiados intentos. Vuelve a intentarlo más tarde.')
+    logEvent({ level: 'warn', action: 'security.rate_limited', correlationId, meta: { bucket, max_hits: maxHits } })
+    return errorResponse(
+      429,
+      'RATE_LIMITED',
+      'Demasiados intentos. Vuelve a intentarlo más tarde.',
+      undefined,
+      correlationId,
+    )
   }
   return null
 }

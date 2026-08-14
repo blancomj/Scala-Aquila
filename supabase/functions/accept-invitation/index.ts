@@ -18,6 +18,7 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 import { hashToken } from '../_shared/tokens.ts'
 
@@ -30,30 +31,42 @@ const payloadSchema = z.object({
 
 export default {
   fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
+    const correlationId = crypto.randomUUID()
+    const actorId = ctx.userClaims?.id ?? null
+
     if (req.method !== 'POST') {
-      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.')
+      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.', undefined, correlationId)
     }
 
     let payload: unknown
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.')
+      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
     }
 
     const parseo = payloadSchema.safeParse(payload)
     if (!parseo.success) {
-      return errorResponse(400, 'INVALID_PAYLOAD', parseo.error.issues[0]?.message ?? 'Payload inválido.')
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        parseo.error.issues[0]?.message ?? 'Payload inválido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const bloqueo = await enforceRateLimit(
       ctx.supabase,
-      `accept_invitation:${ctx.userClaims?.id}`,
+      `accept_invitation:${actorId}`,
       RATE_LIMIT_MAX_HITS,
       RATE_LIMIT_VENTANA,
+      correlationId,
     )
     if (bloqueo) return bloqueo
 
+    // Nunca se loguea el token en sí (§11.2) — ni siquiera su hash, para no
+    // dar ninguna pista útil sobre el valor original.
     const tokenHash = await hashToken(parseo.data.token)
 
     const { data, error: errorAceptar } = await ctx.supabase
@@ -62,21 +75,28 @@ export default {
 
     if (errorAceptar) {
       const { code, message } = parsearErrorRpc(errorAceptar.message)
+      logEvent({ level: 'warn', action: 'accept_invitation.rpc_error', correlationId, actorId, meta: { code } })
       const status = code === 'INV_NOT_FOUND' ? 404 : code === 'UNAUTHENTICATED' ? 401 : 409
-      return errorResponse(status, code, message)
+      return errorResponse(status, code, message, undefined, correlationId)
     }
     if (!data) {
-      return errorResponse(500, 'INTERNAL_ERROR', 'accept_invitation no devolvió una fila.')
+      logEvent({ level: 'error', action: 'accept_invitation.no_row', correlationId, actorId })
+      return errorResponse(500, 'INTERNAL_ERROR', 'accept_invitation no devolvió una fila.', undefined, correlationId)
     }
 
-    const usuarioId = ctx.userClaims?.id
-    if (usuarioId) {
-      const { error: errorConfirmar } = await ctx.supabaseAdmin.auth.admin.updateUserById(usuarioId, {
+    if (actorId) {
+      const { error: errorConfirmar } = await ctx.supabaseAdmin.auth.admin.updateUserById(actorId, {
         email_confirm: true,
       })
       if (errorConfirmar) {
-        // eslint-disable-next-line no-console -- diagnóstico server-side, no bloquea la respuesta (ver comentario de arriba).
-        console.error('[accept-invitation] no se pudo marcar email_confirm', errorConfirmar)
+        logEvent({
+          level: 'error',
+          action: 'accept_invitation.email_confirm_failed',
+          correlationId,
+          actorId,
+          tenantId: data.out_tenant_id,
+          message: errorConfirmar.message,
+        })
       }
     }
 
@@ -85,6 +105,6 @@ export default {
     // memberships.tenant_id/.role dentro de la función, ver
     // 20260814140100_accept_invitation_fix_ambiguous_column.sql). El
     // contrato de la Edge Function (§8) sigue siendo { tenant_id, role }.
-    return jsonResponse({ tenant_id: data.out_tenant_id, role: data.out_role })
+    return jsonResponse({ tenant_id: data.out_tenant_id, role: data.out_role }, 200, correlationId)
   }),
 }

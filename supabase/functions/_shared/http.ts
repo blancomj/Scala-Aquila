@@ -10,12 +10,28 @@ const HEADERS_SEGURIDAD = {
   'Cache-Control': 'no-store',
 } as const
 
-export function jsonResponse(data: unknown, status = 200): Response {
-  return Response.json(data, { status, headers: HEADERS_SEGURIDAD })
+// correlationId (E7 · observabilidad, §11.2): se devuelve en el header de
+// TODA respuesta — éxito o error — para poder rastrear un request puntual
+// en los logs sin exponer nada sensible en la respuesta misma.
+function headersConCorrelacion(correlationId?: string): Record<string, string> {
+  return correlationId ? { ...HEADERS_SEGURIDAD, 'X-Correlation-Id': correlationId } : { ...HEADERS_SEGURIDAD }
 }
 
-export function errorResponse(status: number, code: string, message: string, details?: unknown): Response {
-  return Response.json({ error: { code, message, details: details ?? null } }, { status, headers: HEADERS_SEGURIDAD })
+export function jsonResponse(data: unknown, status = 200, correlationId?: string): Response {
+  return Response.json(data, { status, headers: headersConCorrelacion(correlationId) })
+}
+
+export function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+  correlationId?: string,
+): Response {
+  return Response.json(
+    { error: { code, message, details: details ?? null } },
+    { status, headers: headersConCorrelacion(correlationId) },
+  )
 }
 
 // Las RPC de este proyecto lanzan errores con formato "CODIGO: mensaje"

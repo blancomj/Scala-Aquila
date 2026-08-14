@@ -5,6 +5,7 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 
 const RATE_LIMIT_MAX_HITS = 30
@@ -16,27 +17,37 @@ const payloadSchema = z.object({
 
 export default {
   fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
+    const correlationId = crypto.randomUUID()
+    const actorId = ctx.userClaims?.id ?? null
+
     if (req.method !== 'POST') {
-      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.')
+      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.', undefined, correlationId)
     }
 
     let payload: unknown
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.')
+      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
     }
 
     const parseo = payloadSchema.safeParse(payload)
     if (!parseo.success) {
-      return errorResponse(400, 'INVALID_PAYLOAD', parseo.error.issues[0]?.message ?? 'Payload inválido.')
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        parseo.error.issues[0]?.message ?? 'Payload inválido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const bloqueo = await enforceRateLimit(
       ctx.supabase,
-      `revoke_invitation:${ctx.userClaims?.id}`,
+      `revoke_invitation:${actorId}`,
       RATE_LIMIT_MAX_HITS,
       RATE_LIMIT_VENTANA,
+      correlationId,
     )
     if (bloqueo) return bloqueo
 
@@ -46,10 +57,11 @@ export default {
 
     if (errorRevocar) {
       const { code, message } = parsearErrorRpc(errorRevocar.message)
+      logEvent({ level: 'warn', action: 'revoke_invitation.rpc_error', correlationId, actorId, meta: { code } })
       const status = code === 'INV_NOT_FOUND' ? 404 : code === 'FORBIDDEN' ? 403 : 409
-      return errorResponse(status, code, message)
+      return errorResponse(status, code, message, undefined, correlationId)
     }
 
-    return jsonResponse({ ok: true })
+    return jsonResponse({ ok: true }, 200, correlationId)
   }),
 }

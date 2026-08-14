@@ -13,6 +13,7 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 
 const RATE_LIMIT_MAX_HITS = 10
@@ -32,31 +33,46 @@ const payloadSchema = z.object({
 
 export default {
   fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
+    const correlationId = crypto.randomUUID()
+    const actorId = ctx.userClaims?.id ?? null
+
     if (req.method !== 'POST') {
-      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.')
+      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.', undefined, correlationId)
     }
 
     let payload: unknown
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.')
+      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
     }
 
     const parseo = payloadSchema.safeParse(payload)
     if (!parseo.success) {
-      return errorResponse(400, 'SLUG_INVALID', parseo.error.issues[0]?.message ?? 'Payload inválido.', {
-        issues: parseo.error.issues,
+      logEvent({
+        level: 'warn',
+        action: 'create_tenant.invalid_payload',
+        correlationId,
+        actorId,
+        meta: { issues: parseo.error.issues },
       })
+      return errorResponse(
+        400,
+        'SLUG_INVALID',
+        parseo.error.issues[0]?.message ?? 'Payload inválido.',
+        { issues: parseo.error.issues },
+        correlationId,
+      )
     }
 
     const { name, slug } = parseo.data
 
     const bloqueo = await enforceRateLimit(
       ctx.supabase,
-      `create_tenant:${ctx.userClaims?.id}`,
+      `create_tenant:${actorId}`,
       RATE_LIMIT_MAX_HITS,
       RATE_LIMIT_VENTANA,
+      correlationId,
     )
     if (bloqueo) return bloqueo
 
@@ -69,27 +85,36 @@ export default {
 
     if (errorCrear) {
       const { code, message } = parsearErrorRpc(errorCrear.message)
+      logEvent({ level: 'warn', action: 'create_tenant.rpc_error', correlationId, actorId, meta: { code, slug } })
       const status = code === 'SLUG_TAKEN' || code === 'SLUG_INVALID' ? 409 : 400
-      return errorResponse(status, code, message)
+      return errorResponse(status, code, message, undefined, correlationId)
     }
     if (!tenant) {
-      return errorResponse(500, 'INTERNAL_ERROR', 'create_tenant no devolvió una fila.')
+      logEvent({ level: 'error', action: 'create_tenant.no_row', correlationId, actorId })
+      return errorResponse(500, 'INTERNAL_ERROR', 'create_tenant no devolvió una fila.', undefined, correlationId)
     }
 
-    const usuarioId = ctx.userClaims?.id
     const { data: membership, error: errorMembership } = await ctx.supabase
       .from('memberships')
       .select('*')
       .eq('tenant_id', tenant.id)
-      .eq('user_id', usuarioId ?? '')
+      .eq('user_id', actorId ?? '')
       .single()
 
     if (errorMembership) {
       // El tenant y la membership ya se crearon (RPC exitosa); esto es solo
       // el fetch de confirmación fallando — no se revierte nada.
-      return errorResponse(500, 'MEMBERSHIP_FETCH_FAILED', errorMembership.message)
+      logEvent({
+        level: 'error',
+        action: 'create_tenant.membership_fetch_failed',
+        correlationId,
+        actorId,
+        tenantId: tenant.id,
+        message: errorMembership.message,
+      })
+      return errorResponse(500, 'MEMBERSHIP_FETCH_FAILED', errorMembership.message, undefined, correlationId)
     }
 
-    return jsonResponse({ tenant, membership })
+    return jsonResponse({ tenant, membership }, 200, correlationId)
   }),
 }
