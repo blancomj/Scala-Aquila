@@ -1,0 +1,10 @@
+REGLA CUOTA_BASICA
+
+DEFINIR presupuesto_anual =
+    PARAMETER.PRESUPUESTO_ANUAL
+
+DEFINIR otros_ingresos_anual =
+    PARAMETER.OTROS_INGRESOS_ANUAL
+
+RETORNAR
+    presupuesto_anual - otros_ingresos_anual

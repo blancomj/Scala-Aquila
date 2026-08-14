@@ -1,0 +1,19 @@
+# ─────────────────────────────────────────────────────────────
+#  Corpus canónico — material NORMATIVO.
+#  No se reformatea: 21 §38 prohíbe cambios silenciosos sobre
+#  los documentos de arquitectura.
+# ─────────────────────────────────────────────────────────────
+Docs/
+00_GUIA_DE_COLOCACION_01-24.md
+arquitectura_saas_engineering.md
+
+# Reglas AEL: el formato es significativo, lo fija Docs/02
+paso0/reglas/
+
+# generados
+pnpm-lock.yaml
+node_modules/
+dist/
+coverage/
+.nuxt/
+.output/

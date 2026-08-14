@@ -1,0 +1,34 @@
+REGLA INTERES_MORA
+
+DEFINIR saldo_vencido =
+    UNIT.SALDO_VENCIDO
+
+DEFINIR dias_mora =
+    UNIT.DIAS_MORA
+
+DEFINIR dias_gracia =
+    PARAMETER.INTERES_DIAS_GRACIA
+
+DEFINIR base_dias =
+    PARAMETER.INTERES_BASE_DIAS
+
+DEFINIR tasa =
+    PARAMETER.INTERES_TASA_MENSUAL
+
+DEFINIR tope =
+    PARAMETER.INTERES_TOPE_MENSUAL
+
+DEFINIR tasa_aplicable =
+    MIN(tasa, tope)
+
+DEFINIR dias_cobrables =
+    MAX(dias_mora - dias_gracia, 0)
+
+DEFINIR interes =
+    saldo_vencido * tasa_aplicable * dias_cobrables / base_dias
+
+SI dias_cobrables > 0 ENTONCES
+    RETORNAR REDONDEAR_DINERO(interes)
+SINO
+    RETORNAR 0
+FIN

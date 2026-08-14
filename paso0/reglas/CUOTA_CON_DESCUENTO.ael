@@ -1,0 +1,16 @@
+REGLA CUOTA_CON_DESCUENTO
+
+DEFINIR cuota =
+    CONCEPTO.CUOTA_BASICA
+
+DEFINIR porcentaje_descuento =
+    PARAMETER.DESCUENTO_PRONTO_PAGO
+
+DEFINIR descuento =
+    PORCENTAJE(cuota, porcentaje_descuento)
+
+SI UNIT.PAGO_OPORTUNO == VERDADERO ENTONCES
+    RETORNAR cuota - descuento
+SINO
+    RETORNAR cuota
+FIN

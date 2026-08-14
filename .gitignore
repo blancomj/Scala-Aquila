@@ -1,0 +1,33 @@
+# dependencias
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+build/
+.output/
+.nuxt/
+*.tsbuildinfo
+
+# entorno — nunca versionar secretos
+.env
+.env.*
+!.env.example
+
+# supabase
+.branches/
+.temp/
+
+# test / cobertura
+coverage/
+.vitest/
+
+# editor / SO
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# material histórico
+Originales.rar

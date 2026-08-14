@@ -1,0 +1,7 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+allowBuilds:
+  # esbuild: dependencia de Vite/Vitest. Su postinstall enlaza el binario de
+  # plataforma; sin él el test runner no arranca.
+  esbuild: true
