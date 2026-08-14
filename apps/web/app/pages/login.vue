@@ -72,6 +72,12 @@ async function iniciarSesion(): Promise<void> {
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
       <UButton type="submit" block :loading="cargando">Entrar</UButton>
+
+      <p class="text-sm text-gray-500 text-center">
+        <NuxtLink to="/forgot-password" class="text-primary-500 font-medium">
+          ¿Olvidaste tu contraseña?
+        </NuxtLink>
+      </p>
     </form>
 
     <template #footer>
