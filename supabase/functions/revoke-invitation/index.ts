@@ -5,6 +5,10 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { enforceRateLimit } from '../_shared/rate_limit.ts'
+
+const RATE_LIMIT_MAX_HITS = 30
+const RATE_LIMIT_VENTANA = '1 hour'
 
 const payloadSchema = z.object({
   invitation_id: z.string().uuid(),
@@ -27,6 +31,14 @@ export default {
     if (!parseo.success) {
       return errorResponse(400, 'INVALID_PAYLOAD', parseo.error.issues[0]?.message ?? 'Payload inválido.')
     }
+
+    const bloqueo = await enforceRateLimit(
+      ctx.supabase,
+      `revoke_invitation:${ctx.userClaims?.id}`,
+      RATE_LIMIT_MAX_HITS,
+      RATE_LIMIT_VENTANA,
+    )
+    if (bloqueo) return bloqueo
 
     const { error: errorRevocar } = await ctx.supabase.rpc('revoke_invitation', {
       p_invitation_id: parseo.data.invitation_id,

@@ -10,9 +10,12 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { enforceRateLimit } from '../_shared/rate_limit.ts'
 import { generarToken, hashToken } from '../_shared/tokens.ts'
 
 const EXPIRACION_HORAS = 48
+const RATE_LIMIT_MAX_HITS = 20
+const RATE_LIMIT_VENTANA = '1 hour'
 
 const payloadSchema = z.object({
   tenant_id: z.string().uuid(),
@@ -84,6 +87,15 @@ export default {
       })
     }
     const { tenant_id: tenantId, email, role } = parseo.data
+
+    // Antes de cualquier efecto secundario — un request bloqueado no llega a Brevo.
+    const bloqueo = await enforceRateLimit(
+      ctx.supabase,
+      `invite_user:${ctx.userClaims?.id}`,
+      RATE_LIMIT_MAX_HITS,
+      RATE_LIMIT_VENTANA,
+    )
+    if (bloqueo) return bloqueo
 
     const { data: tenant, error: errorTenant } = await ctx.supabase
       .from('tenants')

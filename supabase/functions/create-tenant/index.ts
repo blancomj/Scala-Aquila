@@ -12,6 +12,11 @@
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
+import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { enforceRateLimit } from '../_shared/rate_limit.ts'
+
+const RATE_LIMIT_MAX_HITS = 10
+const RATE_LIMIT_VENTANA = '1 hour'
 
 const payloadSchema = z.object({
   name: z.string().trim().min(1, 'El nombre no puede estar vacío.'),
@@ -24,20 +29,6 @@ const payloadSchema = z.object({
       'El slug debe ser minúsculas, números y guiones (3-50 caracteres).',
     ),
 })
-
-function errorResponse(status: number, code: string, message: string, details?: unknown): Response {
-  return Response.json({ error: { code, message, details: details ?? null } }, { status })
-}
-
-// La RPC lanza errores con formato "CODIGO: mensaje" (ver create_tenant() en
-// la migración) — se parsean aquí para no filtrar el "PostgrestError" crudo.
-function parsearErrorRpc(mensaje: string): { code: string; message: string } {
-  const coincidencia = /^([A-Z_]+):\s*(.*)$/.exec(mensaje)
-  if (coincidencia) {
-    return { code: coincidencia[1], message: coincidencia[2] }
-  }
-  return { code: 'INTERNAL_ERROR', message: mensaje }
-}
 
 export default {
   fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
@@ -60,6 +51,14 @@ export default {
     }
 
     const { name, slug } = parseo.data
+
+    const bloqueo = await enforceRateLimit(
+      ctx.supabase,
+      `create_tenant:${ctx.userClaims?.id}`,
+      RATE_LIMIT_MAX_HITS,
+      RATE_LIMIT_VENTANA,
+    )
+    if (bloqueo) return bloqueo
 
     // create_tenant() devuelve una fila compuesta (isSetofReturn: false), no
     // un arreglo — sin .single(), que espera envolver/desenvolver un array.

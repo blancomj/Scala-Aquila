@@ -821,6 +821,7 @@ Prohibido empezar por el paso 5.
 | GAP-07 | Residencia y retención                        | **sa-east-1 (São Paulo)**, `audit_log` retenido **24 meses**                                                                                                                                           |
 | GAP-08 | ¿Verificar email antes de aceptar invitación? | **No**: el token recibido en el buzón prueba control del email (AD-11)                                                                                                                                 |
 | GAP-09 | Alcance del `admin` de plataforma             | **Solo metadatos**, nunca datos de la copropiedad. `profiles.is_platform_admin` + políticas separadas (SEC-10)                                                                                         |
+| GAP-12 | Rate limiting (E7) sin cuenta de Upstash creada | **Postgres nativo**: tabla `rate_limit_hits` + función `check_rate_limit()` (20260814170000_rate_limiting.sql), mismo contrato de resultado que pedía §13/§17. Revertible sin coste si se crea la cuenta de Upstash más adelante — las Edge Functions solo conocen `check_rate_limit()`, no su implementación. |
 
 ## 15.2 Defaults del agente — revertibles sin coste
 
