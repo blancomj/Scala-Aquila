@@ -50,9 +50,20 @@ d('Aislamiento de dominio PH entre tenants (SEC-11/12)', () => {
     await crearMembership(admin, tenantB.id, userB.id, 'agent')
     clienteA = await clienteComo(env!, userA)
 
+    // 'apartamento' ahora vive en lista_tipos (plataforma, tenant_id NULL) —
+    // ver 20260814160000_tipos_lista_tipos.sql.
+    const { data: tipoApartamento, error: errTipo } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'TIPO_INMUEBLE')
+      .eq('codigo', 'apartamento')
+      .is('tenant_id', null)
+      .single<{ id: number }>()
+    if (errTipo) throw new Error(`fixture tipo_id apartamento: ${errTipo.message}`)
+
     const { data: inmA, error: errA } = await admin
       .from('inmuebles')
-      .insert({ tenant_id: tenantA.id, codigo: 'INM-A', tipo: 'apartamento' })
+      .insert({ tenant_id: tenantA.id, codigo: 'INM-A', tipo_id: tipoApartamento.id })
       .select('id')
       .single<{ id: string }>()
     if (errA) throw new Error(`fixture inmueble A: ${errA.message}`)
@@ -60,7 +71,7 @@ d('Aislamiento de dominio PH entre tenants (SEC-11/12)', () => {
 
     const { data: inmB, error: errB } = await admin
       .from('inmuebles')
-      .insert({ tenant_id: tenantB.id, codigo: 'INM-B', tipo: 'apartamento' })
+      .insert({ tenant_id: tenantB.id, codigo: 'INM-B', tipo_id: tipoApartamento.id })
       .select('id')
       .single<{ id: string }>()
     if (errB) throw new Error(`fixture inmueble B: ${errB.message}`)

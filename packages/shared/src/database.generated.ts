@@ -476,7 +476,7 @@ export type Database = {
           id: string
           matricula_inmobiliaria: string | null
           tenant_id: string
-          tipo: Database["public"]["Enums"]["inmueble_tipo_t"]
+          tipo_id: number
           updated_at: string | null
         }
         Insert: {
@@ -488,7 +488,7 @@ export type Database = {
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id: string
-          tipo: Database["public"]["Enums"]["inmueble_tipo_t"]
+          tipo_id: number
           updated_at?: string | null
         }
         Update: {
@@ -500,7 +500,7 @@ export type Database = {
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id?: string
-          tipo?: Database["public"]["Enums"]["inmueble_tipo_t"]
+          tipo_id?: number
           updated_at?: string | null
         }
         Relationships: [
@@ -516,6 +516,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -709,6 +716,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      lista_tipos: {
+        Row: {
+          activo: boolean
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: number
+          nombre: string
+          orden: number
+          tenant_id: string | null
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre: string
+          orden?: number
+          tenant_id?: string | null
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre?: string
+          orden?: number
+          tenant_id?: string | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lista_tipos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lista_tipos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lista_tipos_tipo_fkey"
+            columns: ["tipo"]
+            isOneToOne: false
+            referencedRelation: "tipos"
+            referencedColumns: ["codigo"]
           },
         ]
       }
@@ -924,7 +992,7 @@ export type Database = {
       }
       presupuesto_rubros: {
         Row: {
-          categoria: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          categoria_id: number
           codigo: string
           created_at: string
           id: string
@@ -935,7 +1003,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          categoria: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          categoria_id: number
           codigo: string
           created_at?: string
           id?: string
@@ -946,7 +1014,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          categoria?: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          categoria_id?: number
           codigo?: string
           created_at?: string
           id?: string
@@ -957,6 +1025,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuesto_rubros_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "presupuesto_rubros_presupuesto_id_fkey"
             columns: ["presupuesto_id"]
@@ -1198,6 +1273,33 @@ export type Database = {
           },
         ]
       }
+      tipos: {
+        Row: {
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: number
+          nombre: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       zonas_comunes: {
         Row: {
           area: number | null
@@ -1206,7 +1308,7 @@ export type Database = {
           id: string
           nombre: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          tipo_id: number
           updated_at: string | null
           uso_exclusivo_inmueble_id: string | null
         }
@@ -1217,7 +1319,7 @@ export type Database = {
           id?: string
           nombre: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          tipo_id: number
           updated_at?: string | null
           uso_exclusivo_inmueble_id?: string | null
         }
@@ -1228,7 +1330,7 @@ export type Database = {
           id?: string
           nombre?: string
           tenant_id?: string
-          tipo?: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          tipo_id?: number
           updated_at?: string | null
           uso_exclusivo_inmueble_id?: string | null
         }
@@ -1245,6 +1347,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zonas_comunes_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
           {
@@ -1379,41 +1488,17 @@ export type Database = {
       fondo_movimiento_tipo_t: "aporte" | "uso"
       fondo_tipo_t: "imprevistos" | "otro"
       inmueble_estado_t: "activo" | "inactivo"
-      inmueble_tipo_t:
-        | "apartamento"
-        | "casa"
-        | "local"
-        | "oficina"
-        | "parqueadero"
-        | "deposito"
-        | "otro"
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
       liquidacion_estado_t: "completada" | "fallida"
       member_status_t: "active" | "revoked"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
-      presupuesto_rubro_categoria_t:
-        | "administracion"
-        | "vigilancia"
-        | "aseo"
-        | "mantenimiento"
-        | "servicios_publicos"
-        | "seguros"
-        | "otros"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       residual_metodo_t: "mayor_resto"
       tenant_role_t: "agent" | "auditor"
       tenant_status_t: "active" | "suspended" | "deleted"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
-      zona_comun_tipo_t:
-        | "recreativa"
-        | "tecnica"
-        | "transito"
-        | "servicio"
-        | "parqueadero"
-        | "deposito"
-        | "otra"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1557,44 +1642,17 @@ export const Constants = {
       fondo_movimiento_tipo_t: ["aporte", "uso"],
       fondo_tipo_t: ["imprevistos", "otro"],
       inmueble_estado_t: ["activo", "inactivo"],
-      inmueble_tipo_t: [
-        "apartamento",
-        "casa",
-        "local",
-        "oficina",
-        "parqueadero",
-        "deposito",
-        "otro",
-      ],
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
       liquidacion_estado_t: ["completada", "fallida"],
       member_status_t: ["active", "revoked"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
-      presupuesto_rubro_categoria_t: [
-        "administracion",
-        "vigilancia",
-        "aseo",
-        "mantenimiento",
-        "servicios_publicos",
-        "seguros",
-        "otros",
-      ],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       residual_metodo_t: ["mayor_resto"],
       tenant_role_t: ["agent", "auditor"],
       tenant_status_t: ["active", "suspended", "deleted"],
       user_status_t: ["active", "suspended"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
-      zona_comun_tipo_t: [
-        "recreativa",
-        "tecnica",
-        "transito",
-        "servicio",
-        "parqueadero",
-        "deposito",
-        "otra",
-      ],
     },
   },
 } as const
