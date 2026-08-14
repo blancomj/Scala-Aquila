@@ -10,6 +10,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 24 §42 — escaneo de secretos. Falla si una clave llega a un archivo versionado.
+  # SEC-02: la service_role key jamás debe salir de .env (ignorado por git).
+  secretos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ningún JWT en archivos versionados
+        run: |
+          if git ls-files -z | xargs -0 grep -l 'eyJhbGciOi' 2>/dev/null; then
+            echo "::error::Se encontró un JWT en un archivo versionado. Los secretos van en .env, nunca en el repositorio."
+            exit 1
+          fi
+          echo "OK: ningún JWT en archivos versionados."
+
+      - name: .env.example sin valores
+        run: |
+          if grep -E '^(SUPABASE_|BREVO_|UPSTASH_)[A-Z_]+=.+' .env.example; then
+            echo "::error::.env.example contiene valores. Es una plantilla versionada: debe tener las claves vacías."
+            exit 1
+          fi
+          echo "OK: .env.example solo contiene plantillas."
+
+      - name: .env no versionado
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env está versionado. Debe estar ignorado por git."
+            exit 1
+          fi
+          echo "OK: .env no está versionado."
+
   verify:
     runs-on: ubuntu-latest
     steps:
