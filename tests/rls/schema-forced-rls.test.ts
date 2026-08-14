@@ -24,7 +24,26 @@ interface FilaTabla {
   relforcerowsecurity: boolean
 }
 
-const TABLAS_ESPERADAS = ['tenants', 'profiles', 'memberships', 'invitations', 'audit_log']
+const TABLAS_ESPERADAS = [
+  'tenants',
+  'profiles',
+  'memberships',
+  'invitations',
+  'audit_log',
+  'inmuebles',
+  'zonas_comunes',
+  'coeficiente_sets',
+  'coeficientes',
+  'propietarios',
+  'inmueble_propietario',
+  'periodos',
+  'conceptos',
+  'politicas_financieras',
+  'presupuestos',
+  'presupuesto_rubros',
+  'fondos',
+  'fondo_movimientos',
+]
 
 d('T-SEC-01: toda tabla de public tiene RLS ENABLE + FORCE', () => {
   it('enumera pg_class y falla si alguna tabla no cumple', async () => {

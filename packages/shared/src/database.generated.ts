@@ -104,6 +104,415 @@ export type Database = {
           },
         ]
       }
+      coeficiente_sets: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          suma_total: number
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          suma_total: number
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          suma_total?: number
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coeficiente_sets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coeficiente_sets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coeficientes: {
+        Row: {
+          created_at: string
+          id: string
+          inmueble_id: string
+          set_id: string
+          tenant_id: string
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          set_id: string
+          tenant_id: string
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          set_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coeficientes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coeficientes_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "coeficiente_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coeficientes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coeficientes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conceptos: {
+        Row: {
+          codigo: string
+          created_at: string
+          estado: Database["public"]["Enums"]["concepto_estado_t"]
+          formula_ael: string | null
+          id: string
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          nombre: string
+          prioridad: number
+          tenant_id: string
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["concepto_estado_t"]
+          formula_ael?: string | null
+          id?: string
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          nombre: string
+          prioridad?: number
+          tenant_id: string
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
+          updated_at?: string | null
+          version?: number
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["concepto_estado_t"]
+          formula_ael?: string | null
+          id?: string
+          modo_calculo?: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          nombre?: string
+          prioridad?: number
+          tenant_id?: string
+          tipo_base?: Database["public"]["Enums"]["concepto_tipo_base_t"]
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conceptos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conceptos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondo_movimientos: {
+        Row: {
+          autorizado_por: string | null
+          created_at: string
+          descripcion: string | null
+          fondo_id: string
+          id: string
+          liquidacion_id: string | null
+          monto: number
+          periodo_id: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
+        }
+        Insert: {
+          autorizado_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fondo_id: string
+          id?: string
+          liquidacion_id?: string | null
+          monto: number
+          periodo_id?: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
+        }
+        Update: {
+          autorizado_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fondo_id?: string
+          id?: string
+          liquidacion_id?: string | null
+          monto?: number
+          periodo_id?: string | null
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_movimientos_autorizado_por_fkey"
+            columns: ["autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondos: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          saldo_actual: number
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          saldo_actual?: number
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          saldo_actual?: number
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["fondo_tipo_t"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inmueble_propietario: {
+        Row: {
+          created_at: string
+          desde: string
+          hasta: string | null
+          id: string
+          inmueble_id: string
+          porcentaje: number
+          propietario_id: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          desde: string
+          hasta?: string | null
+          id?: string
+          inmueble_id: string
+          porcentaje: number
+          propietario_id: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          desde?: string
+          hasta?: string | null
+          id?: string
+          inmueble_id?: string
+          porcentaje?: number
+          propietario_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmueble_propietario_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_propietario_propietario_id_fkey"
+            columns: ["propietario_id"]
+            isOneToOne: false
+            referencedRelation: "propietarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inmuebles: {
+        Row: {
+          area_comun: number | null
+          area_privada: number | null
+          codigo: string
+          created_at: string
+          estado: Database["public"]["Enums"]["inmueble_estado_t"]
+          id: string
+          matricula_inmobiliaria: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["inmueble_tipo_t"]
+          updated_at: string | null
+        }
+        Insert: {
+          area_comun?: number | null
+          area_privada?: number | null
+          codigo: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"]
+          id?: string
+          matricula_inmobiliaria?: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["inmueble_tipo_t"]
+          updated_at?: string | null
+        }
+        Update: {
+          area_comun?: number | null
+          area_privada?: number | null
+          codigo?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"]
+          id?: string
+          matricula_inmobiliaria?: string | null
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["inmueble_tipo_t"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -240,6 +649,272 @@ export type Database = {
           },
         ]
       }
+      periodos: {
+        Row: {
+          anio: number
+          cerrado_at: string | null
+          cerrado_por: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["periodo_estado_t"]
+          fecha_vencimiento: string | null
+          id: string
+          mes: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          cerrado_at?: string | null
+          cerrado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["periodo_estado_t"]
+          fecha_vencimiento?: string | null
+          id?: string
+          mes: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          cerrado_at?: string | null
+          cerrado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["periodo_estado_t"]
+          fecha_vencimiento?: string | null
+          id?: string
+          mes?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "periodos_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "periodos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "periodos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      politicas_financieras: {
+        Row: {
+          coeficientes_suma_esperada: number
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
+          fondo_imprevistos_porcentaje: number | null
+          id: string
+          imputacion_orden: Json
+          interes_dias_gracia: number
+          interes_tasa_mensual: number | null
+          interes_tope_mensual: number | null
+          policy_hash: string
+          redondeo_escala: number
+          redondeo_modo: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo: Database["public"]["Enums"]["residual_metodo_t"]
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          coeficientes_suma_esperada?: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base?:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
+          fondo_imprevistos_porcentaje?: number | null
+          id?: string
+          imputacion_orden?: Json
+          interes_dias_gracia?: number
+          interes_tasa_mensual?: number | null
+          interes_tope_mensual?: number | null
+          policy_hash: string
+          redondeo_escala?: number
+          redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          coeficientes_suma_esperada?: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base?:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
+          fondo_imprevistos_porcentaje?: number | null
+          id?: string
+          imputacion_orden?: Json
+          interes_dias_gracia?: number
+          interes_tasa_mensual?: number | null
+          interes_tope_mensual?: number | null
+          policy_hash?: string
+          redondeo_escala?: number
+          redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politicas_financieras_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "politicas_financieras_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presupuesto_rubros: {
+        Row: {
+          categoria: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          codigo: string
+          created_at: string
+          id: string
+          monto_anual: number
+          nombre: string
+          presupuesto_id: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          codigo: string
+          created_at?: string
+          id?: string
+          monto_anual: number
+          nombre: string
+          presupuesto_id: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["presupuesto_rubro_categoria_t"]
+          codigo?: string
+          created_at?: string
+          id?: string
+          monto_anual?: number
+          nombre?: string
+          presupuesto_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuesto_rubros_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
+            isOneToOne: false
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_rubros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_rubros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presupuestos: {
+        Row: {
+          acta_asamblea: string | null
+          anio: number
+          created_at: string
+          estado: Database["public"]["Enums"]["presupuesto_estado_t"]
+          fecha_aprobacion: string | null
+          id: string
+          monto_total: number
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          acta_asamblea?: string | null
+          anio: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
+          fecha_aprobacion?: string | null
+          id?: string
+          monto_total: number
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          acta_asamblea?: string | null
+          anio?: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
+          fecha_aprobacion?: string | null
+          id?: string
+          monto_total?: number
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_tenant_id: string | null
@@ -294,36 +969,99 @@ export type Database = {
           },
         ]
       }
-      tenants: {
+      propietarios: {
         Row: {
           created_at: string
-          created_by: string | null
+          email: string | null
           id: string
-          name: string
-          settings: Json
-          slug: string
-          status: Database["public"]["Enums"]["tenant_status_t"]
+          nombre: string
+          numero_documento: string
+          telefono: string | null
+          tenant_id: string
+          tipo_documento: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
+          email?: string | null
           id?: string
-          name: string
-          settings?: Json
-          slug: string
-          status?: Database["public"]["Enums"]["tenant_status_t"]
+          nombre: string
+          numero_documento: string
+          telefono?: string | null
+          tenant_id: string
+          tipo_documento: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string
-          created_by?: string | null
+          email?: string | null
           id?: string
+          nombre?: string
+          numero_documento?: string
+          telefono?: string | null
+          tenant_id?: string
+          tipo_documento?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propietarios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propietarios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          direccion: string | null
+          id: string
+          moneda: string
+          name: string
+          nit: string | null
+          settings: Json
+          slug: string
+          status: Database["public"]["Enums"]["tenant_status_t"]
+          updated_at: string | null
+          zona_horaria: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          direccion?: string | null
+          id?: string
+          moneda?: string
+          name: string
+          nit?: string | null
+          settings?: Json
+          slug: string
+          status?: Database["public"]["Enums"]["tenant_status_t"]
+          updated_at?: string | null
+          zona_horaria?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          direccion?: string | null
+          id?: string
+          moneda?: string
           name?: string
+          nit?: string | null
           settings?: Json
           slug?: string
           status?: Database["public"]["Enums"]["tenant_status_t"]
           updated_at?: string | null
+          zona_horaria?: string
         }
         Relationships: [
           {
@@ -331,6 +1069,64 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zonas_comunes: {
+        Row: {
+          area: number | null
+          codigo: string
+          created_at: string
+          id: string
+          nombre: string
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          updated_at: string | null
+          uso_exclusivo_inmueble_id: string | null
+        }
+        Insert: {
+          area?: number | null
+          codigo: string
+          created_at?: string
+          id?: string
+          nombre: string
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          updated_at?: string | null
+          uso_exclusivo_inmueble_id?: string | null
+        }
+        Update: {
+          area?: number | null
+          codigo?: string
+          created_at?: string
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["zona_comun_tipo_t"]
+          updated_at?: string | null
+          uso_exclusivo_inmueble_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zonas_comunes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zonas_comunes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zonas_comunes_uso_exclusivo_inmueble_id_fkey"
+            columns: ["uso_exclusivo_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
             referencedColumns: ["id"]
           },
         ]
@@ -382,11 +1178,52 @@ export type Database = {
       shares_tenant_with: { Args: { p_user: string }; Returns: boolean }
     }
     Enums: {
+      concepto_estado_t: "borrador" | "activo" | "archivado"
+      concepto_modo_calculo_t: "directo" | "distribucion"
+      concepto_tipo_base_t:
+        | "fijo"
+        | "coeficiente"
+        | "cantidad"
+        | "porcentaje"
+        | "saldo"
+      fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
+      fondo_movimiento_tipo_t: "aporte" | "uso"
+      fondo_tipo_t: "imprevistos" | "otro"
+      inmueble_estado_t: "activo" | "inactivo"
+      inmueble_tipo_t:
+        | "apartamento"
+        | "casa"
+        | "local"
+        | "oficina"
+        | "parqueadero"
+        | "deposito"
+        | "otro"
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
       member_status_t: "active" | "revoked"
+      periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
+      presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
+      presupuesto_rubro_categoria_t:
+        | "administracion"
+        | "vigilancia"
+        | "aseo"
+        | "mantenimiento"
+        | "servicios_publicos"
+        | "seguros"
+        | "otros"
+      redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
+      residual_metodo_t: "mayor_resto"
       tenant_role_t: "agent" | "auditor"
       tenant_status_t: "active" | "suspended" | "deleted"
       user_status_t: "active" | "suspended"
+      vigencia_estado_t: "borrador" | "vigente" | "historica"
+      zona_comun_tipo_t:
+        | "recreativa"
+        | "tecnica"
+        | "transito"
+        | "servicio"
+        | "parqueadero"
+        | "deposito"
+        | "otra"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -517,11 +1354,56 @@ export const Constants = {
   },
   public: {
     Enums: {
+      concepto_estado_t: ["borrador", "activo", "archivado"],
+      concepto_modo_calculo_t: ["directo", "distribucion"],
+      concepto_tipo_base_t: [
+        "fijo",
+        "coeficiente",
+        "cantidad",
+        "porcentaje",
+        "saldo",
+      ],
+      fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
+      fondo_movimiento_tipo_t: ["aporte", "uso"],
+      fondo_tipo_t: ["imprevistos", "otro"],
+      inmueble_estado_t: ["activo", "inactivo"],
+      inmueble_tipo_t: [
+        "apartamento",
+        "casa",
+        "local",
+        "oficina",
+        "parqueadero",
+        "deposito",
+        "otro",
+      ],
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
       member_status_t: ["active", "revoked"],
+      periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
+      presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
+      presupuesto_rubro_categoria_t: [
+        "administracion",
+        "vigilancia",
+        "aseo",
+        "mantenimiento",
+        "servicios_publicos",
+        "seguros",
+        "otros",
+      ],
+      redondeo_modo_t: ["half_up", "half_even", "down", "up"],
+      residual_metodo_t: ["mayor_resto"],
       tenant_role_t: ["agent", "auditor"],
       tenant_status_t: ["active", "suspended", "deleted"],
       user_status_t: ["active", "suspended"],
+      vigencia_estado_t: ["borrador", "vigente", "historica"],
+      zona_comun_tipo_t: [
+        "recreativa",
+        "tecnica",
+        "transito",
+        "servicio",
+        "parqueadero",
+        "deposito",
+        "otra",
+      ],
     },
   },
 } as const

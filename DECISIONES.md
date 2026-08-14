@@ -130,3 +130,36 @@ redondeo (HALF_UP/…) no es un argumento de la llamada — lo aporta
 **Consecuencias.** Se añadió un test de aridad dedicado a `REDONDEAR_DINERO` en
 `analyzer.test.ts` (no existía ninguno antes, a diferencia de MIN/MAX/PORCENTAJE) para
 que esta clase de desviación no vuelva a pasar sin que un test la señale.
+
+---
+
+## D-13 — F2 se implementa antes que F5; `liquidaciones`/`liquidacion_lineas`/`saldos`/`novedades`/`pagos` quedan fuera de su alcance
+
+|            |                  |
+| ---------- | ---------------- |
+| **Fase**   | F2               |
+| **Estado** | Aceptada         |
+| **Decide** | Usuario + Agente |
+
+**Contexto.** `PLAN_MAESTRO_IMPLEMENTACION.md §5.1` ordena `F0→F1→F2→(F3∥F4)→F5`. Se
+construyeron F3 y F4 sin F2 (usando fixtures de test en memoria en vez de datos
+persistidos), una desviación no anunciada del orden del plan. El usuario, al pedir
+continuar con F5, decidió corregirla: F2 se hace ahora, antes de F5.
+
+**Decisión sobre el alcance de F2.** `PLAN §4.3` lista `novedades`, `pagos`,
+`liquidaciones`, `liquidacion_lineas`, `saldos` como "tablas nuevas de F2" pero dice
+textualmente que "se especifican en detalle durante F2" citando `20 §5-18` — que es,
+según la propia tabla de fases (`§5.3`), la documentación de **F5**, no de F2. Diseñar
+`liquidaciones`/`liquidacion_lineas` (resultado, trace, `resultHash`) a ciegas antes de
+que F5 defina el grafo de dependencias y el pipeline de cálculo arriesga tener que
+rehacer el esquema. `novedades` y `pagos` son inputs de un GC-001 extendido
+("con novedad, pago parcial e interés") que `paso0/INFORME_PASO_0.md §3.4` deja
+explícitamente pospuesto — el GC-001 verificado hasta ahora solo cubre CUOTA_ADMIN base.
+
+**Resolución.** F2 construye solo el dominio de **entrada**: extensión de `tenants`,
+`inmuebles`, `zonas_comunes`, `coeficiente_sets`/`coeficientes`, `propietarios`/
+`inmueble_propietario`, `periodos`, `conceptos`, `politicas_financieras`,
+`presupuestos`/`presupuesto_rubros`, `fondos`/`fondo_movimientos` — todas con columnas ya
+cerradas en `PLAN §4.2-4.3.2`, nada que inventar. `novedades`, `pagos`, `liquidaciones`,
+`liquidacion_lineas`, `saldos` se diseñan en F5, junto con el grafo y el pipeline que los
+llenan.
