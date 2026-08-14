@@ -13,6 +13,9 @@ export default tseslint.config(
       '**/.nuxt/**',
       '**/.output/**',
       '**/coverage/**',
+      // apps/web tiene su propia config (@nuxt/eslint, vue-eslint-parser) —
+      // se lintea con `pnpm --filter @aquila/web lint`, no con esta config.
+      'apps/web/**',
       // Utilidades de Node ejecutadas directamente, fuera de todo tsconfig.
       'scripts/**/*.mjs',
       // Generado por `supabase gen types` (Fase I §3.3): no se edita ni se

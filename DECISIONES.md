@@ -209,3 +209,71 @@ FUERA        idempotencia/locks/timeout/cancelación/replay
 
 **Justificación de alcance cerrado (AD-23):** se amplía cuando un caso real lo exija, no
 antes. Ningún caso real hoy necesita replay ni locks de concurrencia.
+
+---
+
+## D-15 — Nuxt 4 en vez de Nuxt 3
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6       |
+| **Estado** | Aceptada |
+| **Decide** | Agente   |
+
+**Contexto.** `PROMPT_MAESTRO_FASE1.md §4.1` fija "Nuxt 3 (Vue 3, Composition API)". Al
+iniciar F6, el registro de npm ofrece Nuxt **4.5.2** como última estable — Nuxt 3 ya no es
+la versión que un proyecto nuevo instalaría hoy.
+
+**Decisión.** Usar Nuxt 4. La intención del documento es "framework moderno con SSR y
+Composition API", no fijar un major concreto por razones técnicas — Nuxt 4 es
+mayoritariamente compatible (cambios de defaults, no una reescritura) y es lo que
+`@nuxt/ui` v4 (también citado en el plan) espera como peer. Instalar la 3 hoy sería
+empezar un proyecto nuevo ya desactualizado.
+
+**Consecuencias.** Si algún patrón de `PROMPT_MAESTRO_FASE1.md §10` (estructura de
+carpetas) no aplica igual en Nuxt 4 (p. ej. `app/` como raíz por defecto en vez de la
+raíz del proyecto), se adapta y se documenta en el propio código, no aquí.
+
+---
+
+## D-16 — `@nuxtjs/supabase` para la sesión SSR, en vez de `supabase-js` a pelo
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6       |
+| **Estado** | Aceptada |
+| **Decide** | Agente   |
+
+**Contexto.** `PROMPT_MAESTRO_FASE1.md §4.1/§10.1` exige SSR completo con rutas
+protegidas por middleware — el middleware `auth.global.ts` necesita saber si hay sesión
+**antes** de renderizar en el servidor. `supabase-js` puro guarda la sesión en
+`localStorage`, invisible en el servidor: sin sincronía de sesión vía cookies, el SSR de
+rutas protegidas no funciona correctamente (parpadeo de contenido no autenticado, o
+redirecciones incorrectas en el primer render).
+
+**Decisión.** Usar `@nuxtjs/supabase` (envuelve `@supabase/ssr`, el paquete oficial de
+Supabase para exactamente este problema) en vez de instanciar `supabase-js` a mano con
+un plugin casero. No contradice el stack del plan —sigue siendo Supabase Auth +
+`supabase-js` por debajo— solo evita reimplementar la sincronía de cookies
+servidor/cliente, que es fácil de hacer mal de forma sutil.
+
+**Consecuencias.** Los composables `useSupabaseClient()` / `useSupabaseUser()` que trae
+el módulo sustituyen a un `composables/useAuth.ts` casero para el acceso al cliente; la
+lógica de negocio propia (perfil, tenant activo, permisos) sigue viviendo en
+`stores/auth.ts`/`stores/tenant.ts` como especifica el plan.
+
+---
+
+## D-17 — `unrs-resolver` y `vue-demi` autorizados a ejecutar su build script
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6       |
+| **Estado** | Aceptada |
+| **Decide** | Agente   |
+
+Mismo patrón que D-10 (`esbuild`). `unrs-resolver` es el resolutor nativo (oxc) del que
+depende `@nuxt/eslint`; sin su postinstall, `nuxt typecheck` y el lint de `apps/web` no
+arrancan. `vue-demi` es el shim de compatibilidad de Pinia (detecta la versión de Vue
+instalada); postinstall inocuo, requerido por `@pinia/nuxt`. Autorizados en
+`pnpm-workspace.yaml` → `allowBuilds`.

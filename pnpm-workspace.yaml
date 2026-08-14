@@ -5,3 +5,10 @@ allowBuilds:
   # esbuild: dependencia de Vite/Vitest. Su postinstall enlaza el binario de
   # plataforma; sin él el test runner no arranca.
   esbuild: true
+  # unrs-resolver: resolutor nativo (oxc) del que depende @nuxt/eslint. Sin
+  # su postinstall (enlaza el binario de plataforma), `nuxt typecheck`/lint
+  # no arrancan (D-17, apps/web).
+  unrs-resolver: true
+  # vue-demi: shim de compatibilidad que usa Pinia. Postinstall inocuo
+  # (detecta la versión de Vue instalada), requerido por @pinia/nuxt.
+  vue-demi: true
