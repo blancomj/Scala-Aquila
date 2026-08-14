@@ -17,14 +17,22 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:push": "node scripts/db-push.mjs",
+    "db:push:dry": "node scripts/db-push.mjs --dry-run",
+    "db:types": "node scripts/db-types.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@supabase/supabase-js": "^2.112.3",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.21.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "dotenv": "^17.4.2",
     "eslint": "^9.17.0",
+    "pg": "^8.23.0",
     "prettier": "^3.4.2",
+    "supabase": "^2.114.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
     "vitest": "^2.1.8"

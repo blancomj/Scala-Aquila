@@ -74,3 +74,32 @@ pnpm 11 bloquea build scripts por defecto. `esbuild` es dependencia de Vite/Vite
 Autorizado en `pnpm-workspace.yaml` → `allowBuilds`.
 
 Ningún otro paquete queda autorizado. Toda nueva autorización se registra aquí.
+
+---
+
+## D-11 — `pnpm db:types` requiere Docker/Podman; no disponible bajo D-08
+
+| | |
+|---|---|
+| **Fase** | F1 |
+| **Estado** | Aceptada — pendiente |
+| **Decide** | Agente |
+
+**Contexto.** Fase I §3.3: los tipos de BD se generan, nunca se escriben a mano.
+`supabase gen types typescript --db-url` levanta un contenedor de introspección
+(shadow database), igual que `db diff`. Es una vía distinta a `db push`, que ejecuta SQL
+directo sin contenedor. Bajo D-08 no hay Docker/Podman, así que el comando falla con
+`LegacyContainerRuntimeNotFoundError`.
+
+**Alternativa disponible:** `--project-id` vía Management API, que no requiere Docker
+pero sí un access token personal de la cuenta Supabase del usuario (`supabase login` o
+`SUPABASE_ACCESS_TOKEN`). No se solicita al usuario sin que lo pida explícitamente: es
+una credencial de cuenta, más sensible que las claves de proyecto ya en uso.
+
+**Decisión.** Se retira `packages/shared` (creado prematuramente, fuera del alcance de
+E1). `scripts/db-types.mjs` y `pnpm db:types` quedan escritos y listos, pero no se
+ejecutan hasta que exista Docker/Podman o el usuario aporte un access token.
+
+**Consecuencia.** Ningún código de aplicación consume tipos generados todavía —no hay
+drift posible porque no hay consumidor. Se resuelve antes de que algo dependa de
+`@aquila/shared` (Edge Functions en F5, o el frontend en F6).

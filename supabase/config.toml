@@ -1,0 +1,13 @@
+# Configuración mínima del proyecto Supabase.
+#
+# D-08: no hay stack local (sin Docker). Las migraciones se aplican al
+# proyecto remoto con `pnpm db:push`, que usa --db-url y no requiere
+# `supabase link` ni access token.
+#
+# La región del proyecto es sa-east-1 (São Paulo) por residencia de datos
+# (PLAN §11.3, habeas data Ley 1581).
+
+project_id = "hwjmlyzzvpmhadldavbq"
+
+[db]
+major_version = 15
