@@ -71,14 +71,16 @@ d('SEC-07: guarda del último agent activo', () => {
   }, 30_000)
 
   it('control positivo: permite degradar un agent si queda otro activo', async () => {
+    // dos degrada a uno (no a sí mismo) para no chocar con SELF_MODIFY (E6),
+    // que bloquea que cualquiera modifique su propia membresía.
     const uno = await crearUsuario(admin, 'dup-uno')
     const dos = await crearUsuario(admin, 'dup-dos')
     const tenant = await crearTenant(admin, 'dup', uno.id)
     const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'agent')
     await crearMembership(admin, tenant.id, dos.id, 'agent')
 
-    const clienteUno: Cliente = await clienteComo(env!, uno)
-    const { error } = await clienteUno
+    const clienteDos: Cliente = await clienteComo(env!, dos)
+    const { error } = await clienteDos
       .from('memberships')
       .update({ role: 'auditor' })
       .eq('id', membresiaUno)
