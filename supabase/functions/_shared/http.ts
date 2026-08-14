@@ -2,8 +2,20 @@
 // uniforme de error, PROMPT_MAESTRO_FASE1.md §8:
 // `{ error: { code, message, details } }`.
 
+// E7 · headers de seguridad mínimos en toda respuesta JSON: nosniff (no hay
+// razón para que el navegador reinterprete el content-type) y no-store
+// (estas respuestas son sensibles a tenant/sesión, nunca cacheables).
+const HEADERS_SEGURIDAD = {
+  'X-Content-Type-Options': 'nosniff',
+  'Cache-Control': 'no-store',
+} as const
+
+export function jsonResponse(data: unknown, status = 200): Response {
+  return Response.json(data, { status, headers: HEADERS_SEGURIDAD })
+}
+
 export function errorResponse(status: number, code: string, message: string, details?: unknown): Response {
-  return Response.json({ error: { code, message, details: details ?? null } }, { status })
+  return Response.json({ error: { code, message, details: details ?? null } }, { status, headers: HEADERS_SEGURIDAD })
 }
 
 // Las RPC de este proyecto lanzan errores con formato "CODIGO: mensaje"

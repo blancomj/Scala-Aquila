@@ -17,7 +17,7 @@
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
-import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 import { hashToken } from '../_shared/tokens.ts'
 
@@ -85,6 +85,6 @@ export default {
     // memberships.tenant_id/.role dentro de la función, ver
     // 20260814140100_accept_invitation_fix_ambiguous_column.sql). El
     // contrato de la Edge Function (§8) sigue siendo { tenant_id, role }.
-    return Response.json({ tenant_id: data.out_tenant_id, role: data.out_role })
+    return jsonResponse({ tenant_id: data.out_tenant_id, role: data.out_role })
   }),
 }

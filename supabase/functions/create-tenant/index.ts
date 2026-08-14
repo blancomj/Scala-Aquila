@@ -12,7 +12,7 @@
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
-import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 
 const RATE_LIMIT_MAX_HITS = 10
@@ -90,6 +90,6 @@ export default {
       return errorResponse(500, 'MEMBERSHIP_FETCH_FAILED', errorMembership.message)
     }
 
-    return Response.json({ tenant, membership })
+    return jsonResponse({ tenant, membership })
   }),
 }

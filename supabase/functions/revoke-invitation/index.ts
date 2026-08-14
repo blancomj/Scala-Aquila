@@ -4,7 +4,7 @@
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
-import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 
 const RATE_LIMIT_MAX_HITS = 30
@@ -50,6 +50,6 @@ export default {
       return errorResponse(status, code, message)
     }
 
-    return Response.json({ ok: true })
+    return jsonResponse({ ok: true })
   }),
 }

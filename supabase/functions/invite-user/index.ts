@@ -9,7 +9,7 @@
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
-import { errorResponse, parsearErrorRpc } from '../_shared/http.ts'
+import { errorResponse, jsonResponse, parsearErrorRpc } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 import { generarToken, hashToken } from '../_shared/tokens.ts'
 
@@ -133,6 +133,6 @@ export default {
       return errorResponse(502, 'EMAIL_SEND_FAILED', envio.error)
     }
 
-    return Response.json({ invitation_id: invitation.id, expires_at: invitation.expires_at })
+    return jsonResponse({ invitation_id: invitation.id, expires_at: invitation.expires_at })
   }),
 }
