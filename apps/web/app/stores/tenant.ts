@@ -10,6 +10,7 @@
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
+import { ROLE_PERMISSIONS, hasPermission, type Permission, type TenantRole } from '~/types/permissions'
 
 type TenantRow = Database['public']['Tables']['tenants']['Row']
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
@@ -46,6 +47,24 @@ export const useTenantStore = defineStore('tenant', () => {
   // anidados reactivamente — siempre reemplazamos el arreglo entero.
   const memberships = shallowRef<Membresia[]>([])
   const loading = ref(false)
+
+  // §7.1/§10.3: el rol viene de la membership de la copropiedad ACTIVA
+  // (profiles.active_tenant_id), no de una membership cualquiera — un
+  // usuario puede tener roles distintos en copropiedades distintas.
+  const membresiaActiva = computed<Membresia | null>(() => {
+    const authStore = useAuthStore()
+    const tenantId = authStore.profile?.active_tenant_id
+    if (!tenantId) return null
+    return memberships.value.find((m) => m.tenant_id === tenantId) ?? null
+  })
+
+  const activeTenant = computed<TenantRow | null>(() => membresiaActiva.value?.tenant ?? null)
+  const role = computed<TenantRole | null>(() => membresiaActiva.value?.role ?? null)
+  const permissions = computed<readonly Permission[]>(() => (role.value ? ROLE_PERMISSIONS[role.value] : []))
+
+  function puede(permiso: Permission): boolean {
+    return role.value !== null && hasPermission(role.value, permiso)
+  }
 
   async function cargarMemberships(): Promise<Membresia[]> {
     loading.value = true
@@ -91,5 +110,16 @@ export const useTenantStore = defineStore('tenant', () => {
     memberships.value = []
   }
 
-  return { memberships, loading, cargarMemberships, crearTenant, cambiarTenant, limpiar }
+  return {
+    memberships,
+    loading,
+    activeTenant,
+    role,
+    permissions,
+    puede,
+    cargarMemberships,
+    crearTenant,
+    cambiarTenant,
+    limpiar,
+  }
 })

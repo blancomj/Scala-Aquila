@@ -9,10 +9,6 @@ const tenantStore = useTenantStore()
 
 await useAsyncData('perfil', () => authStore.cargarPerfil())
 await useAsyncData('memberships', () => tenantStore.cargarMemberships())
-
-const tenantActivo = computed(() =>
-  tenantStore.memberships.find((m) => m.tenant_id === authStore.profile?.active_tenant_id)?.tenant,
-)
 </script>
 
 <template>
@@ -22,8 +18,8 @@ const tenantActivo = computed(() =>
     <p v-if="authStore.profile" class="text-sm text-gray-400 mt-1">
       {{ authStore.profile.full_name ?? 'Sin nombre registrado' }}
     </p>
-    <p v-if="tenantActivo" class="text-sm text-gray-400 mt-1">
-      Copropiedad activa: {{ tenantActivo.name }}
+    <p v-if="tenantStore.activeTenant" class="text-sm text-gray-400 mt-1">
+      Copropiedad activa: {{ tenantStore.activeTenant.name }} ({{ tenantStore.role }})
     </p>
   </div>
 </template>

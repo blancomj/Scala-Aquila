@@ -376,3 +376,38 @@ Probado en vivo contra la función desplegada: creación exitosa (`{tenant, memb
 exacto al contrato de §8), `SLUG_TAKEN` (409, slug duplicado), `SLUG_INVALID` (400, Zod
 antes de tocar la base), `INVALID_CREDENTIALS` (401, sin JWT), y el registro de
 `tenant.created` en `audit_log` confirmado por consulta directa.
+
+---
+
+## D-20 — T-MATRIX (E4) cubre solo los permisos con operación RLS 1:1 hoy
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6 (E4)  |
+| **Estado** | Aceptada |
+| **Decide** | Agente   |
+
+`types/permissions.ts` implementa la matriz completa de §7.3/§7.4 (los 12 permisos de
+copropiedad + 3 de plataforma). El test T-MATRIX (`tests/rbac/t-matrix.test.ts`,
+§12.2) que valida TS↔SQL solo cubre 5: `users:read`, `users:manage`, `data:read`,
+`settings:manage`, `audit:view` — los que hoy tienen una tabla/operación RLS concreta
+contra la cual ejecutar el permiso real y comparar con `hasPermission()`.
+
+Fuera de esa cobertura, por razones concretas (no pereza):
+
+- `users:invite` — solo existe vía Edge Function (E5, no construida todavía); no hay
+  política RLS de INSERT sobre `invitations` que probar directamente.
+- `tenant:delete` — la matriz TS lo otorga a `agent`, pero no existe ninguna política
+  DELETE sobre `tenants` para ningún rol (ver `20260813190300_rls_policies.sql`, "Sin
+  INSERT ni DELETE"). Es una operación aspiracional del plan, no implementada aún —
+  divergencia real y conocida, no oculta.
+- `data:create/update/delete` — "data" no es una tabla única; ya se prueba por tabla
+  de dominio en `tests/rls/domain-isolation.test.ts` (SEC-11), no tiene sentido
+  duplicarlo aquí.
+- `dashboard:view`, `metrics:view` — visibilidad de UI, no una operación de BD.
+
+**Revisar cuando E5 (invitaciones) o el CRUD de dominio con permisos granulares
+lleguen** — en ese punto sí habrá una operación real contra la cual extender T-MATRIX
+para `users:invite` y `data:*`. `tenant:delete` queda pendiente de una decisión propia
+(¿se implementa alguna vez, o se retira de la matriz?) — no es responsabilidad de E4
+resolverlo.
