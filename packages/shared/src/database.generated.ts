@@ -1290,6 +1290,13 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: {
+        Args: { p_token_hash: string }
+        Returns: {
+          out_role: Database["public"]["Enums"]["tenant_role_t"]
+          out_tenant_id: string
+        }[]
+      }
       create_tenant: {
         Args: { p_name: string; p_slug: string }
         Returns: {
@@ -1321,8 +1328,41 @@ export type Database = {
         }
         Returns: boolean
       }
+      invite_user: {
+        Args: {
+          p_email: string
+          p_expires_at: string
+          p_role: Database["public"]["Enums"]["tenant_role_t"]
+          p_tenant_id: string
+          p_token_hash: string
+        }
+        Returns: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status: Database["public"]["Enums"]["invite_status_t"]
+          tenant_id: string
+          token_hash: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invitations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      revoke_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
       shares_tenant_with: { Args: { p_user: string }; Returns: boolean }
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
     }

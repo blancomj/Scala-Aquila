@@ -22,3 +22,21 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/create-tenant/deno.json"
 entrypoint = "./functions/create-tenant/index.ts"
+
+[functions.invite-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/invite-user/deno.json"
+entrypoint = "./functions/invite-user/index.ts"
+
+[functions.accept-invitation]
+enabled = true
+verify_jwt = true
+import_map = "./functions/accept-invitation/deno.json"
+entrypoint = "./functions/accept-invitation/index.ts"
+
+[functions.revoke-invitation]
+enabled = true
+verify_jwt = true
+import_map = "./functions/revoke-invitation/deno.json"
+entrypoint = "./functions/revoke-invitation/index.ts"

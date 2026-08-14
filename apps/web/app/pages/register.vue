@@ -5,6 +5,7 @@ definePageMeta({ layout: 'auth', publico: true })
 
 const cliente = useSupabaseClient()
 const usuario = useSupabaseUser()
+const route = useRoute()
 
 const nombreCompleto = ref('')
 const email = ref('')
@@ -45,7 +46,8 @@ async function registrar(): Promise<void> {
       return
     }
     await esperarSesion()
-    await navigateTo('/dashboard')
+    const destino = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+    await navigateTo(destino)
   } finally {
     cargando.value = false
   }

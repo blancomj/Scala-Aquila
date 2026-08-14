@@ -411,3 +411,57 @@ lleguen** — en ese punto sí habrá una operación real contra la cual extende
 para `users:invite` y `data:*`. `tenant:delete` queda pendiente de una decisión propia
 (¿se implementa alguna vez, o se retira de la matriz?) — no es responsabilidad de E4
 resolverlo.
+
+---
+
+## D-21 — E5 (invitaciones): rate limiting diferido, Brevo pendiente de credenciales
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6 (E5)  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+Dos piezas de E5 quedan fuera del alcance de esta iteración, ambas por decisión
+explícita del usuario, no por omisión silenciosa:
+
+**Rate limiting (Upstash Redis, SEC-09).** No está en la lista de tests obligatorios
+del plan (T-SEC-01…T-SEC-10, T-MATRIX, T-INV-01 — §12.2), así que `invite-user` no
+tiene throttling todavía. Punto de extensión: agregar un chequeo de Upstash al inicio
+de `supabase/functions/invite-user/index.ts`, por actor y por copropiedad, antes de
+llamar a la RPC.
+
+**Brevo.** El usuario tiene cuenta pero aún no generó la API key transaccional al
+momento de este commit. `invite-user` está completo y probado (RPC, checks
+`ALREADY_MEMBER`/`INVITE_PENDING`, rollback de la invitación si el envío falla) — el
+único cable pendiente es configurar los secrets:
+
+```bash
+npx supabase secrets set BREVO_API_KEY=... BREVO_SENDER_EMAIL=... BREVO_SENDER_NAME="Aquila PH" --project-ref hwjmlyzzvpmhadldavbq
+```
+
+Sin esto, `invite-user` responde `502 EMAIL_SEND_FAILED` de forma controlada (probado
+manualmente — la invitación se revoca automáticamente, no queda una fila fantasma).
+
+**Dos bugs reales encontrados por `tests/invitations/invitations.test.ts`** (no por
+inspección — el test falló primero):
+
+1. `accept_invitation()` original declaraba `RETURNS TABLE (tenant_id uuid, role
+   tenant_role_t)` — esos nombres colisionan con columnas reales de `memberships`
+   usadas dentro del cuerpo de la función (el `INSERT ... ON CONFLICT (user_id,
+   tenant_id)`), y Postgres no podía resolver la ambigüedad (`42702`). Corregido
+   renombrando las columnas de salida a `out_tenant_id`/`out_role`
+   (`20260814140100_...`) — la Edge Function `accept-invitation` mapea de vuelta a
+   `{tenant_id, role}` para no filtrar el nombre interno al contrato público (§8).
+2. El intento de "marcar perezosamente" una invitación vencida como `status =
+   'expired'` antes de `RAISE EXCEPTION INV_EXPIRED` no funcionaba: un `RAISE
+   EXCEPTION` no capturado revierte toda la invocación de la función, incluido ese
+   `UPDATE` — no hay sub-transacciones autónomas en PL/pgSQL. Corregido quitando el
+   intento (`20260814140200_...`): el rechazo se basa solo en `expires_at < now()`,
+   sin necesidad de mutar `status`.
+
+**No implementado (a propósito):** `update-membership` — la tabla de Edge Functions
+del plan (§8) lo lista, pero la propia fase E5 (línea "E5 · Invitaciones: invite-user,
+accept-invitation, revoke, emails Brevo, rate limit Upstash") no lo incluye. Queda
+para cuando se construya la gestión de usuarios existentes (editar rol, revocar
+membership).
