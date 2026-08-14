@@ -15,6 +15,9 @@ export default tseslint.config(
       '**/coverage/**',
       // Utilidades de Node ejecutadas directamente, fuera de todo tsconfig.
       'scripts/**/*.mjs',
+      // Generado por `supabase gen types` (Fase I §3.3): no se edita ni se
+      // lintea a mano. Se regenera con `pnpm db:types`.
+      '**/database.generated.ts',
     ],
   },
   js.configs.recommended,
@@ -99,19 +102,6 @@ export default tseslint.config(
     files: ['**/*.test.ts', '**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
-    },
-  },
-
-  // ── Excepción única y documentada: schema `any` en el cliente de fixtures ──
-  // El proyecto es DB-first (el esquema en Postgres manda; los tipos se
-  // generan de él, nunca al revés — Fase I §3.3). Esto NO es un tipo de BD
-  // escrito a mano: es la ausencia deliberada de tipado hasta que D-11 se
-  // resuelva (pnpm db:types requiere Docker/Podman, no disponible bajo D-08).
-  // Se retira en cuanto @aquila/shared exista con tipos generados reales.
-  {
-    files: ['tests/rls/helpers.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 )

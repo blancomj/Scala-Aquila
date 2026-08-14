@@ -58,6 +58,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Debe ir primero: @aquila/shared se resuelve vía dist/ (package.json
+      # "types"/"main"), y tanto tsc como Vitest lo necesitan construido.
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -69,9 +74,6 @@ jobs:
 
       - name: Test
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
   # Docs/09 y PLAN §9.1 exigen cobertura ≥80% global
   # y 100% en financial-kernel y ael-runtime.

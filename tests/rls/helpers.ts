@@ -10,19 +10,13 @@
  * explícito — nunca se declaran en verde sin haber corrido (0AEL §28).
  */
 import 'dotenv/config'
-import { createClient } from '@supabase/supabase-js'
+import { crearClienteAquila, type AquilaClient } from '@aquila/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 
 export const RUN_ID = randomUUID().slice(0, 8)
 
-/**
- * Sin `packages/shared/database.generated.ts` (D-11: gen types requiere
- * Docker, no disponible bajo D-08), el cliente se tipa con esquema `any`.
- * No es un tipo de BD escrito a mano (Fase I §3.3 prohíbe eso); es la
- * ausencia deliberada de tipado de esquema. Cada consulta que importa
- * usa su propio genérico explícito (`.single<T>()`) para el shape real.
- */
-export type Cliente = ReturnType<typeof createClient<any, any, any>>
+/** D-11 resuelto: tipos generados desde el esquema real (DB-first). */
+export type Cliente = AquilaClient
 
 export interface Entorno {
   url: string
@@ -40,7 +34,7 @@ export function leerEntorno(): Entorno | null {
 
 /** service_role — tiene BYPASSRLS. Se usa solo para preparar fixtures. */
 export function clienteAdmin(env: Entorno): Cliente {
-  return createClient<any, any, any>(env.url, env.serviceKey, {
+  return crearClienteAquila(env.url, env.serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
@@ -122,7 +116,7 @@ export async function crearMembership(
 
 /** Cliente autenticado como el usuario de prueba (usa la anon key + JWT de sesión). */
 export async function clienteComo(env: Entorno, usuario: UsuarioPrueba): Promise<Cliente> {
-  const cliente = createClient<any, any, any>(env.url, env.anonKey, {
+  const cliente = crearClienteAquila(env.url, env.anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
   const { error } = await cliente.auth.signInWithPassword({
@@ -137,7 +131,7 @@ export async function clienteComo(env: Entorno, usuario: UsuarioPrueba): Promise
 
 /** Cliente sin sesión — representa al rol `anon`. */
 export function clienteAnonimo(env: Entorno): Cliente {
-  return createClient<any, any, any>(env.url, env.anonKey, {
+  return crearClienteAquila(env.url, env.anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }

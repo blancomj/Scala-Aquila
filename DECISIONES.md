@@ -77,29 +77,28 @@ Ningún otro paquete queda autorizado. Toda nueva autorización se registra aqu�
 
 ---
 
-## D-11 — `pnpm db:types` requiere Docker/Podman; no disponible bajo D-08
+## D-11 — `pnpm db:types` requiere Docker/Podman; resuelto vía Management API
 
 | | |
 |---|---|
 | **Fase** | F1 |
-| **Estado** | Aceptada — pendiente |
-| **Decide** | Agente |
+| **Estado** | **Resuelta** |
+| **Decide** | Agente + Usuario |
 
 **Contexto.** Fase I §3.3: los tipos de BD se generan, nunca se escriben a mano.
 `supabase gen types typescript --db-url` levanta un contenedor de introspección
-(shadow database), igual que `db diff`. Es una vía distinta a `db push`, que ejecuta SQL
-directo sin contenedor. Bajo D-08 no hay Docker/Podman, así que el comando falla con
+(shadow database), igual que `db diff`. Bajo D-08 no hay Docker/Podman, así que falla con
 `LegacyContainerRuntimeNotFoundError`.
 
-**Alternativa disponible:** `--project-id` vía Management API, que no requiere Docker
-pero sí un access token personal de la cuenta Supabase del usuario (`supabase login` o
-`SUPABASE_ACCESS_TOKEN`). No se solicita al usuario sin que lo pida explícitamente: es
-una credencial de cuenta, más sensible que las claves de proyecto ya en uso.
+**Resolución.** El usuario generó un personal access token de su cuenta Supabase
+(`https://supabase.com/dashboard/account/tokens`) y lo puso en `.env` como
+`SUPABASE_ACCESS_TOKEN`. `scripts/db-types.mjs` se reescribió para usar
+`--project-id <ref>` vía Management API en lugar de `--db-url`: no requiere contenedor.
+El token se pasa por variable de entorno al proceso hijo, nunca como argumento de línea
+de comandos ni en texto de commit.
 
-**Decisión.** Se retira `packages/shared` (creado prematuramente, fuera del alcance de
-E1). `scripts/db-types.mjs` y `pnpm db:types` quedan escritos y listos, pero no se
-ejecutan hasta que exista Docker/Podman o el usuario aporte un access token.
-
-**Consecuencia.** Ningún código de aplicación consume tipos generados todavía —no hay
-drift posible porque no hay consumidor. Se resuelve antes de que algo dependa de
-`@aquila/shared` (Edge Functions en F5, o el frontend en F6).
+**Resultado.** `packages/shared/src/database.generated.ts` existe con los tipos reales
+del esquema aplicado en F1. `packages/shared` se reconstruyó (ya no está prematuro:
+ahora tiene un consumidor real) con `crearClienteAquila()` tipado sobre `Database`.
+`tests/rls/helpers.ts` migró del `Cliente` con esquema `any` al tipo real; la excepción
+de ESLint para `no-explicit-any` en ese archivo se retiró.
