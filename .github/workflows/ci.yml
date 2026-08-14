@@ -43,6 +43,15 @@ jobs:
 
   verify:
     runs-on: ubuntu-latest
+    # E7: sin esto, leerEntorno() (tests/rls/helpers.ts) no encuentra
+    # credenciales y las suites que golpean Supabase remoto se saltan en
+    # silencio — "verde" sin haber corrido de verdad. Los VALORES de estos
+    # secretos hay que cargarlos en GitHub → Settings → Secrets → Actions;
+    # este archivo solo los referencia.
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -76,9 +85,13 @@ jobs:
         run: pnpm test
 
   # Docs/09 y PLAN §9.1 exigen cobertura ≥80% global
-  # y 100% en financial-kernel y ael-runtime.
+  # y 100% en financial-kernel, ael-runtime y types/permissions.ts (§12.3).
   coverage:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -90,3 +103,21 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
+
+  # E7 · cobertura de las Edge Functions (Deno) — Vitest no puede
+  # instrumentar este runtime. Cubre solo _shared/*.ts (lógica pura); los
+  # 4 index.ts (orquestación) se cubren vía tests/tenancy/create-tenant.test.ts
+  # y tests/invitations/*.test.ts, que golpean las funciones desplegadas.
+  edge-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: deno test --no-check --coverage=coverage/edge supabase/functions/_shared/
+      - run: deno coverage --lcov --output=coverage/edge/lcov.info coverage/edge/
+      - run: node scripts/check-edge-coverage.mjs

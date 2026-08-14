@@ -20,7 +20,8 @@
     "verify": "pnpm build && pnpm typecheck && pnpm lint && pnpm test",
     "db:push": "node scripts/db-push.mjs",
     "db:push:dry": "node scripts/db-push.mjs --dry-run",
-    "db:types": "node scripts/db-types.mjs"
+    "db:types": "node scripts/db-types.mjs",
+    "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs"
   },
   "dependencies": {
     "@aquila/financial-kernel": "workspace:*",
