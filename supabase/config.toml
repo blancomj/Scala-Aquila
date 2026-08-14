@@ -1,8 +1,9 @@
 # Configuración mínima del proyecto Supabase.
 #
-# D-08: no hay stack local (sin Docker). Las migraciones se aplican al
-# proyecto remoto con `pnpm db:push`, que usa --db-url y no requiere
-# `supabase link` ni access token.
+# D-08: las migraciones se aplican al proyecto remoto con `pnpm db:push`
+# (--db-url, sin depender del CLI). D-19: `supabase link` sí se usa para
+# Edge Functions — su deploy no tiene equivalente a una conexión directa
+# por DATABASE_URL.
 #
 # La región del proyecto es sa-east-1 (São Paulo) por residencia de datos
 # (PLAN §11.3, habeas data Ley 1581).
@@ -11,3 +12,13 @@ project_id = "hwjmlyzzvpmhadldavbq"
 
 [db]
 major_version = 15
+
+# D-19: verify_jwt = true (default) — la función usa auth: 'user'
+# (@supabase/server), que requiere un JWT de usuario real. El scaffold de
+# `supabase functions new` lo pone en false por defecto (pensado para
+# auth: 'apikey'/'publishable'); se corrigió explícitamente aquí.
+[functions.create-tenant]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-tenant/deno.json"
+entrypoint = "./functions/create-tenant/index.ts"

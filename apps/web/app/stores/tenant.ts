@@ -2,9 +2,11 @@
  * Estado de tenancy — PROMPT_MAESTRO_FASE1.md §9.3, §9.4, §10.2.
  *
  * `memberships` trae el tenant embebido (join) para poblar el selector sin
- * una segunda consulta. `crearTenant`/`cambiarTenant` llaman a las RPC de
- * `20260814120000_tenancy_rpc.sql` (D-18) y refrescan `profiles` después,
- * porque `active_tenant_id` vive ahí, no en este store.
+ * una segunda consulta. `crearTenant` llama a la Edge Function `create-tenant`
+ * (D-19: infraestructura real, ver supabase/functions/create-tenant);
+ * `cambiarTenant` sigue usando la RPC `switch_tenant` (D-18: no necesita
+ * service_role, RLS + guard_active_tenant ya la protegen). Ambas refrescan
+ * `profiles` después, porque `active_tenant_id` vive ahí, no en este store.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -12,6 +14,30 @@ import type { Database } from '@aquila/shared'
 type TenantRow = Database['public']['Tables']['tenants']['Row']
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
 type Membresia = MembershipRow & { tenant: TenantRow }
+
+interface CrearTenantRespuesta {
+  tenant: TenantRow
+  membership: MembershipRow
+}
+
+// La Edge Function responde `{ error: { code, message, details } }` (formato
+// uniforme, PROMPT_MAESTRO_FASE1.md §8) en cualquier fallo con status != 2xx.
+// supabase-js envuelve eso en un FunctionsHttpError cuyo `.context` es el
+// Response crudo — hay que leerlo a mano para no perder el mensaje real.
+async function extraerErrorFuncion(error: unknown): Promise<Error> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const contexto = (error as { context: unknown }).context
+    if (contexto instanceof Response) {
+      try {
+        const cuerpo = (await contexto.clone().json()) as { error?: { message?: string } }
+        if (cuerpo.error?.message) return new Error(cuerpo.error.message)
+      } catch {
+        // El cuerpo no era JSON con la forma esperada — cae al mensaje genérico.
+      }
+    }
+  }
+  return error instanceof Error ? error : new Error('No se pudo completar la operación.')
+}
 
 export const useTenantStore = defineStore('tenant', () => {
   // shallowRef: `tenant.settings` es `Json` (tipo recursivo). `ref<T>` fuerza
@@ -39,16 +65,17 @@ export const useTenantStore = defineStore('tenant', () => {
 
   async function crearTenant(nombre: string, slug: string): Promise<TenantRow> {
     const cliente = useSupabaseClient<Database>()
-    const { data, error: errorCrear } = await cliente.rpc('create_tenant', {
-      p_name: nombre,
-      p_slug: slug,
-    })
-    if (errorCrear) throw errorCrear
+    const { data, error: errorCrear } = await cliente.functions.invoke<CrearTenantRespuesta>(
+      'create-tenant',
+      { body: { name: nombre, slug } },
+    )
+    if (errorCrear) throw await extraerErrorFuncion(errorCrear)
+    if (!data) throw new Error('create-tenant no devolvió datos.')
 
     const authStore = useAuthStore()
     await authStore.cargarPerfil({ forzar: true })
     await cargarMemberships()
-    return data as TenantRow
+    return data.tenant
   }
 
   async function cambiarTenant(tenantId: string): Promise<void> {

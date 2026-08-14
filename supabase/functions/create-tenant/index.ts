@@ -1,0 +1,96 @@
+// PROMPT_MAESTRO_FASE1.md §8 — contrato: valida JWT → valida payload (Zod) →
+// verifica permiso → ejecuta → registra en audit_log → responde.
+//
+// D-18/D-19: la parte "ejecuta" delega en la RPC `create_tenant()`
+// (supabase/migrations/20260814120000_tenancy_rpc.sql), que ya hace el
+// insert atómico de tenant + membership(agent) + active_tenant_id y su
+// propio registro en audit_log ('tenant.created', 'membership.created').
+// Esta función es la capa de validación/contrato que pide AD-05, usando el
+// cliente del propio usuario (ctx.supabase, RLS aplica) — no hace falta
+// service_role porque la RPC ya es SECURITY DEFINER y controla todo lo que
+// inserta.
+import { withSupabase } from '@supabase/server'
+import { z } from 'zod'
+import type { Database } from '../../../packages/shared/src/database.generated.ts'
+
+const payloadSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre no puede estar vacío.'),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^[a-z0-9]([a-z0-9-]{1,48}[a-z0-9])$/,
+      'El slug debe ser minúsculas, números y guiones (3-50 caracteres).',
+    ),
+})
+
+function errorResponse(status: number, code: string, message: string, details?: unknown): Response {
+  return Response.json({ error: { code, message, details: details ?? null } }, { status })
+}
+
+// La RPC lanza errores con formato "CODIGO: mensaje" (ver create_tenant() en
+// la migración) — se parsean aquí para no filtrar el "PostgrestError" crudo.
+function parsearErrorRpc(mensaje: string): { code: string; message: string } {
+  const coincidencia = /^([A-Z_]+):\s*(.*)$/.exec(mensaje)
+  if (coincidencia) {
+    return { code: coincidencia[1], message: coincidencia[2] }
+  }
+  return { code: 'INTERNAL_ERROR', message: mensaje }
+}
+
+export default {
+  fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
+    if (req.method !== 'POST') {
+      return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.')
+    }
+
+    let payload: unknown
+    try {
+      payload = await req.json()
+    } catch {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.')
+    }
+
+    const parseo = payloadSchema.safeParse(payload)
+    if (!parseo.success) {
+      return errorResponse(400, 'SLUG_INVALID', parseo.error.issues[0]?.message ?? 'Payload inválido.', {
+        issues: parseo.error.issues,
+      })
+    }
+
+    const { name, slug } = parseo.data
+
+    // create_tenant() devuelve una fila compuesta (isSetofReturn: false), no
+    // un arreglo — sin .single(), que espera envolver/desenvolver un array.
+    const { data: tenant, error: errorCrear } = await ctx.supabase.rpc('create_tenant', {
+      p_name: name,
+      p_slug: slug,
+    })
+
+    if (errorCrear) {
+      const { code, message } = parsearErrorRpc(errorCrear.message)
+      const status = code === 'SLUG_TAKEN' || code === 'SLUG_INVALID' ? 409 : 400
+      return errorResponse(status, code, message)
+    }
+    if (!tenant) {
+      return errorResponse(500, 'INTERNAL_ERROR', 'create_tenant no devolvió una fila.')
+    }
+
+    const usuarioId = ctx.userClaims?.id
+    const { data: membership, error: errorMembership } = await ctx.supabase
+      .from('memberships')
+      .select('*')
+      .eq('tenant_id', tenant.id)
+      .eq('user_id', usuarioId ?? '')
+      .single()
+
+    if (errorMembership) {
+      // El tenant y la membership ya se crearon (RPC exitosa); esto es solo
+      // el fetch de confirmación fallando — no se revierte nada.
+      return errorResponse(500, 'MEMBERSHIP_FETCH_FAILED', errorMembership.message)
+    }
+
+    return Response.json({ tenant, membership })
+  }),
+}

@@ -314,3 +314,65 @@ de verdad (envío de email vía Brevo, AD-07), momento en el que habrá que leva
 infraestructura de Edge Functions de cualquier forma; evaluar entonces si migrar
 `create-tenant` a Edge Function por consistencia, o dejar el precedente de RPC para
 operaciones que no requieran secretos de servidor.
+
+**Resuelto por D-19** — se adelantó la revisión: el usuario pidió levantar la
+infraestructura de Edge Functions de inmediato en vez de esperar a E5.
+
+---
+
+## D-19 — Infraestructura de Edge Functions levantada; `create-tenant` migrado
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | F6 (E3)  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario (pidió adelantar la infraestructura, ver D-18) |
+
+El usuario cuestionó por qué D-18 dejaba `create-tenant` como RPC en vez de Edge
+Function, dado que AD-05 las marca como pieza central de la arquitectura. La causa
+real: D-08 (F1) evitó `supabase link`/token de CLI para simplificar el push de
+migraciones (conexión directa por `DATABASE_URL`), pero ese mismo atajo bloqueaba
+también el despliegue de Edge Functions — que sí requiere el CLI autenticado. No fue
+una decisión de "no hacen falta", fue un efecto colateral no anticipado de D-08.
+
+**Resuelto:**
+
+1. Usuario autenticó el CLI (`npx supabase login`, token de cuenta, nunca visto por el
+   agente) y se corrió `supabase link --project-ref hwjmlyzzvpmhadldavbq`. Las 14
+   migraciones ya aplicadas por `db-push.mjs` coincidían exactamente con el historial
+   remoto — sin conflicto.
+2. `create-tenant` migrado de RPC-directa-desde-cliente a Edge Function real
+   (`supabase/functions/create-tenant/`), usando `@supabase/server`'s `withSupabase({
+   auth: 'user' })`: JWT verificado por la plataforma, cliente `ctx.supabase` con el
+   JWT del usuario (RLS aplica, sin `service_role`), payload validado con Zod (mismo
+   patrón de slug que la constraint SQL, pero con mensajes tempranos y claros),
+   respuesta con el contrato uniforme de §8 (`{ error: { code, message, details } }`).
+   La función sigue invocando la RPC `create_tenant()` de D-18 internamente — el patrón
+   "RPC invocada por la Edge Function" que el propio plan pide para `accept-invitation`
+   (§8) resultó ser exactamente el correcto aquí también.
+3. Se agregó `20260814130000_create_tenant_audit.sql`: `create_tenant()` no registraba
+   `tenant.created` en `audit_log` (el trigger `audit_membership_change` solo cubre
+   `membership.created`). Corregido con `CREATE OR REPLACE FUNCTION`, dentro de la
+   misma transacción atómica.
+4. `apps/web/app/stores/tenant.ts`: `crearTenant()` ahora llama
+   `cliente.functions.invoke('create-tenant', ...)` en vez de `.rpc()` directo.
+5. `eslint.config.js`: `supabase/functions/**` excluido del lint de raíz (corre en
+   Deno, fuera de todo tsconfig del workspace pnpm).
+
+**Bug real encontrado y corregido:** `supabase functions new` escribió
+`verify_jwt = false` en `supabase/config.toml` (default genérico del scaffold, pensado
+para `auth: 'apikey'`/`'publishable'`). Con `auth: 'user'` eso es incorrecto — deja que
+cualquier request sin JWT llegue al código de la función antes de ser rechazada (el
+chequeo de `@supabase/server` seguía bloqueándola, así que no era un hueco de
+seguridad real, pero sí una capa de defensa de menos). Corregido a `verify_jwt = true`
+y redesplegado; verificado que ahora el rechazo ocurre en la plataforma
+(`UNAUTHORIZED_NO_AUTH_HEADER`) antes de invocar la función.
+
+**`switch_tenant` se queda como RPC** (no como Edge Function) — el razonamiento de
+D-18 sigue vigente: no necesita `service_role`, RLS + `guard_active_tenant` ya lo
+protegen, y envolverlo sería ceremonia sin ganancia de seguridad real.
+
+Probado en vivo contra la función desplegada: creación exitosa (`{tenant, membership}`
+exacto al contrato de §8), `SLUG_TAKEN` (409, slug duplicado), `SLUG_INVALID` (400, Zod
+antes de tocar la base), `INVALID_CREDENTIALS` (401, sin JWT), y el registro de
+`tenant.created` en `audit_log` confirmado por consulta directa.
