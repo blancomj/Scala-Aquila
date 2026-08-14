@@ -1490,6 +1490,7 @@ export type Database = {
       }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      purge_audit_log_antiguo: { Args: never; Returns: undefined }
       revoke_invitation: {
         Args: { p_invitation_id: string }
         Returns: undefined
