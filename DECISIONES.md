@@ -414,7 +414,7 @@ resolverlo.
 
 ---
 
-## D-21 — E5 (invitaciones): rate limiting diferido, Brevo pendiente de credenciales
+## D-21 — E5 (invitaciones): rate limiting diferido; Brevo configurado y verificado
 
 |            |          |
 | ---------- | -------- |
@@ -422,26 +422,33 @@ resolverlo.
 | **Estado** | Aceptada |
 | **Decide** | Usuario (confirmado vía pregunta explícita) |
 
-Dos piezas de E5 quedan fuera del alcance de esta iteración, ambas por decisión
-explícita del usuario, no por omisión silenciosa:
+**Rate limiting (Upstash Redis, SEC-09)** queda fuera del alcance de esta iteración,
+por decisión explícita del usuario, no por omisión silenciosa. No está en la lista de
+tests obligatorios del plan (T-SEC-01…T-SEC-10, T-MATRIX, T-INV-01 — §12.2), así que
+`invite-user` no tiene throttling todavía. Punto de extensión: agregar un chequeo de
+Upstash al inicio de `supabase/functions/invite-user/index.ts`, por actor y por
+copropiedad, antes de llamar a la RPC.
 
-**Rate limiting (Upstash Redis, SEC-09).** No está en la lista de tests obligatorios
-del plan (T-SEC-01…T-SEC-10, T-MATRIX, T-INV-01 — §12.2), así que `invite-user` no
-tiene throttling todavía. Punto de extensión: agregar un chequeo de Upstash al inicio
-de `supabase/functions/invite-user/index.ts`, por actor y por copropiedad, antes de
-llamar a la RPC.
+**Brevo: configurado y probado con envío real.** El usuario puso las credenciales en
+el `.env` raíz; ese archivo solo alimenta `scripts/db-push.mjs` (vía `dotenv`), no los
+secrets de Edge Functions — hacía falta `supabase secrets set` explícito, que el
+usuario pidió que se corriera por él (los valores nunca se pegaron en el chat, se
+leyeron directo del `.env` local). Dos problemas reales en el camino:
 
-**Brevo.** El usuario tiene cuenta pero aún no generó la API key transaccional al
-momento de este commit. `invite-user` está completo y probado (RPC, checks
-`ALREADY_MEMBER`/`INVITE_PENDING`, rollback de la invitación si el envío falla) — el
-único cable pendiente es configurar los secrets:
+1. `BREVO_SENDER_NAME=Scala - Aquila` (sin comillas, con espacios) se corrompía a solo
+   `Scala` al leerse con `source .env` en Bash — el shell interpreta ` - Aquila` como
+   un comando aparte. Corregido leyendo el valor completo con
+   `grep '^KEY=' .env | cut -d '=' -f2-` en vez de `source`.
+2. Aun con los tres `BREVO_*` configurados, `invite-user` seguía respondiendo "Brevo
+   no está configurado": el código también exige `APP_URL` (o `NUXT_PUBLIC_APP_URL`)
+   para construir el enlace `{APP_URL}/invite?token=...`, y esa variable solo vivía en
+   `apps/web/.env` (config de Nuxt) — nunca se había puesto como secret de Edge
+   Function. Corregido con `supabase secrets set APP_URL=http://localhost:3000`
+   (**actualizar a la URL de producción real al desplegar**, ver AD-10/Hostinger).
 
-```bash
-npx supabase secrets set BREVO_API_KEY=... BREVO_SENDER_EMAIL=... BREVO_SENDER_NAME="Aquila PH" --project-ref hwjmlyzzvpmhadldavbq
-```
-
-Sin esto, `invite-user` responde `502 EMAIL_SEND_FAILED` de forma controlada (probado
-manualmente — la invitación se revoca automáticamente, no queda una fila fantasma).
+Verificado con un envío real a una casilla de prueba (mailinator.com): remitente
+`noreplay@construescala.com` / "Scala - Aquila" correctos, asunto y enlace de
+"Aceptar invitación" presentes en el HTML recibido.
 
 **Dos bugs reales encontrados por `tests/invitations/invitations.test.ts`** (no por
 inspección — el test falló primero):
