@@ -52,6 +52,14 @@ export {
   type PoliticaMora,
 } from './cuenta-corriente.js'
 
+export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
+
+export {
+  construirContextoPrueba,
+  type OpcionesContextoPrueba,
+  type ContextoPrueba,
+} from './prueba-formula-supabase.js'
+
 export {
   obtenerCargosAbiertos,
   obtenerPoliticaMora,

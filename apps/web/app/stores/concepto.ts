@@ -8,11 +8,26 @@
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
+import { extraerErrorFuncion } from '~/utils/edge-function-error'
 
 type ConceptoRow = Database['public']['Tables']['conceptos']['Row']
 type ConceptoTipoBase = Database['public']['Enums']['concepto_tipo_base_t']
 type ConceptoModoCalculo = Database['public']['Enums']['concepto_modo_calculo_t']
 type ConceptoEstado = Database['public']['Enums']['concepto_estado_t']
+
+export interface DiagnosticoPrueba {
+  readonly codigo: string
+  readonly mensaje: string
+  readonly linea: number
+  readonly columna: number
+}
+
+export interface ResultadoPruebaFormula {
+  readonly valido: boolean
+  readonly resultado: string | boolean | null
+  readonly tipo: string | null
+  readonly diagnosticos: readonly DiagnosticoPrueba[]
+}
 
 export const useConceptoStore = defineStore('concepto', () => {
   const conceptos = shallowRef<ConceptoRow[]>([])
@@ -101,6 +116,29 @@ export const useConceptoStore = defineStore('concepto', () => {
     await cargarConceptos(tenantId)
   }
 
+  async function probarFormula(params: {
+    tenantId: string
+    inmuebleId: string
+    periodoId: string
+    formulaAel: string
+  }): Promise<ResultadoPruebaFormula> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoPruebaFormula>(
+      'probar-formula',
+      {
+        body: {
+          tenant_id: params.tenantId,
+          inmueble_id: params.inmuebleId,
+          periodo_id: params.periodoId,
+          formula_ael: params.formulaAel,
+        },
+      },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('probar-formula no devolvió datos.')
+    return data
+  }
+
   function limpiar(): void {
     conceptos.value = []
   }
@@ -112,6 +150,7 @@ export const useConceptoStore = defineStore('concepto', () => {
     crearConcepto,
     actualizarConcepto,
     cambiarEstado,
+    probarFormula,
     limpiar,
   }
 })

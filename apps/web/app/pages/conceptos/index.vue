@@ -6,11 +6,14 @@
 // El catálogo de validación es una aproximación (ver utils/ael-validate.ts);
 // la autoridad real sigue siendo liquidar-periodo contra el snapshot real.
 import { validarFormulaAel } from '~/utils/ael-validate'
+import type { ResultadoPruebaFormula } from '~/stores/concepto'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
 const conceptoStore = useConceptoStore()
+const cuentaStore = useCuentaCorrienteStore()
+const liquidacionStore = useLiquidacionStore()
 
 const editandoId = ref<string | null>(null)
 const codigo = ref('')
@@ -23,9 +26,15 @@ const guardando = ref(false)
 const error = ref<string | null>(null)
 const cambiandoEstadoId = ref<string | null>(null)
 
-await useAsyncData('conceptos', () => {
+await useAsyncData('conceptos', async () => {
   const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? conceptoStore.cargarConceptos(tenantId) : Promise.resolve([])
+  if (!tenantId) return []
+  const [conceptos] = await Promise.all([
+    conceptoStore.cargarConceptos(tenantId),
+    cuentaStore.cargarInmuebles(tenantId),
+    liquidacionStore.cargarPeriodos(tenantId),
+  ])
+  return conceptos
 })
 
 const diagnosticosFormula = computed(() => {
@@ -93,6 +102,41 @@ async function guardar(): Promise<void> {
     error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar el concepto.'
   } finally {
     guardando.value = false
+  }
+}
+
+// ── probar fórmula (AEL-004 Fase 1) ─────────────────────────────────────
+const inmuebleIdPrueba = ref<string | null>(null)
+const periodoIdPrueba = ref<string | null>(null)
+const probando = ref(false)
+const errorPrueba = ref<string | null>(null)
+const resultadoPrueba = ref<ResultadoPruebaFormula | null>(null)
+
+const etiquetaTipo: Record<string, string> = {
+  MONEY: 'Dinero',
+  NUMBER: 'Número',
+  BOOLEAN: 'Verdadero/falso',
+}
+
+async function probar(): Promise<void> {
+  errorPrueba.value = null
+  resultadoPrueba.value = null
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !inmuebleIdPrueba.value || !periodoIdPrueba.value || !formulaAel.value) return
+
+  probando.value = true
+  try {
+    resultadoPrueba.value = await conceptoStore.probarFormula({
+      tenantId,
+      inmuebleId: inmuebleIdPrueba.value,
+      periodoId: periodoIdPrueba.value,
+      formulaAel: formulaAel.value,
+    })
+  } catch (excepcion) {
+    errorPrueba.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo probar la fórmula.'
+  } finally {
+    probando.value = false
   }
 }
 
@@ -238,6 +282,74 @@ RETORNAR presupuesto_anual - otros_ingresos_anual"
             {{ diag.codigo }} ({{ diag.span.inicio.linea }}:{{ diag.span.inicio.columna }}):
             {{ diag.mensaje }}
           </p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
+          <p class="text-sm font-medium">Probar fórmula</p>
+          <p class="text-xs text-gray-500">
+            Evalúa el texto de arriba (guardado o no) contra un inmueble y periodo reales — AEL-004
+            Fase 1.
+          </p>
+          <div class="flex items-end gap-4 flex-wrap">
+            <UFormField label="Inmueble" name="inmueble_prueba">
+              <select
+                v-model="inmuebleIdPrueba"
+                class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+              >
+                <option :value="null" disabled>— Elegir —</option>
+                <option v-for="i in cuentaStore.inmuebles" :key="i.id" :value="i.id">
+                  {{ i.codigo }}
+                </option>
+              </select>
+            </UFormField>
+            <UFormField label="Periodo" name="periodo_prueba">
+              <select
+                v-model="periodoIdPrueba"
+                class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+              >
+                <option :value="null" disabled>— Elegir —</option>
+                <option v-for="p in liquidacionStore.periodos" :key="p.id" :value="p.id">
+                  {{ p.anio }}-{{ String(p.mes).padStart(2, '0') }}
+                </option>
+              </select>
+            </UFormField>
+            <UButton
+              type="button"
+              size="sm"
+              variant="soft"
+              :loading="probando"
+              :disabled="!inmuebleIdPrueba || !periodoIdPrueba || !formulaAel"
+              @click="probar"
+            >
+              Probar fórmula
+            </UButton>
+          </div>
+
+          <UAlert v-if="errorPrueba" color="error" variant="soft" :title="errorPrueba" />
+
+          <div v-if="resultadoPrueba" class="text-sm">
+            <p v-if="resultadoPrueba.valido">
+              Resultado:
+              <span class="font-medium">{{ resultadoPrueba.resultado }}</span>
+              <span class="text-gray-500">
+                ({{
+                  resultadoPrueba.tipo
+                    ? (etiquetaTipo[resultadoPrueba.tipo] ?? resultadoPrueba.tipo)
+                    : '—'
+                }})
+              </span>
+            </p>
+            <div v-else class="space-y-1">
+              <p class="text-amber-500">La fórmula no es válida:</p>
+              <p
+                v-for="(diag, i) in resultadoPrueba.diagnosticos"
+                :key="i"
+                class="text-xs text-red-500"
+              >
+                {{ diag.codigo }} ({{ diag.linea }}:{{ diag.columna }}): {{ diag.mensaje }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <UAlert v-if="error" color="error" variant="soft" :title="error" />

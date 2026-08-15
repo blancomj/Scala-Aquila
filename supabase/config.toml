@@ -88,3 +88,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/calcular-intereses/deno.json"
 entrypoint = "./functions/calcular-intereses/index.ts"
+
+[functions.probar-formula]
+enabled = true
+verify_jwt = true
+import_map = "./functions/probar-formula/deno.json"
+entrypoint = "./functions/probar-formula/index.ts"
