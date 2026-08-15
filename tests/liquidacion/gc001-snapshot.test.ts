@@ -1,9 +1,12 @@
 /**
- * F5: construye un DataSnapshot real desde el proyecto Supabase (los datos
- * que sembró 20260814100400_seed_gc001.sql) y confirma que el gap conocido
- * de OTROS_INGRESOS_ANUAL se reporta explícito — nunca en silencio
- * (17 §37 SNAPSHOT INCOMPLETE, 0AEL §20).
+ * F5/F6: construye un DataSnapshot real desde el proyecto Supabase (los
+ * datos que sembró 20260814100400_seed_gc001.sql, más
+ * 20260815000000_seed_gc001_otros_ingresos.sql para el GAP-19) y confirma
+ * que liquidar() ya resuelve PARAMETER.OTROS_INGRESOS_ANUAL desde
+ * fuente_financiacion — el gap está cerrado, ya no lanza
+ * ContractoNoResueltoError (17 §37 SNAPSHOT INCOMPLETE, 0AEL §20).
  */
+import { money } from '@aquila/financial-kernel'
 import { construirSnapshotDesdeSupabase, liquidar } from '@aquila/liquidation-engine'
 import { describe, expect, it } from 'vitest'
 import 'dotenv/config'
@@ -47,7 +50,7 @@ d('DataSnapshot real desde Supabase (seed de GC-001)', () => {
     expect(presupuestoAnual.valor.amount.toString()).toBe('120000000')
   })
 
-  it('liquidar() falla con un error explícito: falta OTROS_INGRESOS_ANUAL (gap conocido de F2)', async () => {
+  it('OTROS_INGRESOS_ANUAL viene de fuente_financiacion; liquidar() reproduce el golden case (GAP-19)', async () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     if (!tenant) throw new Error('falta el tenant gc-001')
 
@@ -57,7 +60,13 @@ d('DataSnapshot real desde Supabase (seed de GC-001)', () => {
       mes: 1,
     })
 
-    // El evaluador debe reportar el Contract faltante — no asumir 0 en silencio.
-    expect(() => liquidar(snapshot)).toThrow(/OTROS_INGRESOS_ANUAL/)
+    const otrosIngresos = snapshot.parametros.OTROS_INGRESOS_ANUAL
+    if (otrosIngresos?.tipo !== 'MONEY') throw new Error('se esperaba MONEY')
+    expect(otrosIngresos.valor.amount.toString()).toBe(money(20_000_000, 'COP').amount.toString())
+
+    // paso0/INFORME_PASO_0.md §3.1-3.2: 120M - 20M = 100M a recuperar, enero
+    // recibe 8.333.334 (uno de los 4 primeros meses con el residual).
+    const { resultado } = liquidar(snapshot)
+    expect(resultado.tenantTotal.amount.toString()).toBe('8333334')
   })
 })

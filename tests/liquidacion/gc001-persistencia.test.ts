@@ -1,9 +1,9 @@
 /**
- * F5: liquidar() + guardarLiquidacion() contra la base real, con el gap de
- * OTROS_INGRESOS_ANUAL suplido a mano en el test (representa lo que F6
- * tendrá que resolver formalmente: de dónde sale ese PARAMETER). Verifica
- * la puerta F5→F6 (PLAN §5.4): el resultado queda persistido y su
- * `result_hash` es reproducible.
+ * F5/F6: liquidar() + guardarLiquidacion() contra la base real —
+ * OTROS_INGRESOS_ANUAL ya viene resuelto por construirSnapshotDesdeSupabase
+ * desde fuente_financiacion (GAP-19, 20260815000000_seed_gc001_otros_ingresos.sql),
+ * sin suplir nada a mano. Verifica la puerta F5→F6 (PLAN §5.4): el
+ * resultado queda persistido y su `result_hash` es reproducible.
  *
  * Idempotente por diseño, no por limpieza: `liquidaciones`/
  * `liquidacion_lineas` son inmutables y RESTRICT bloquea su DELETE incluso
@@ -17,7 +17,6 @@ import {
   guardarLiquidacion,
   liquidar,
 } from '@aquila/liquidation-engine'
-import { money } from '@aquila/financial-kernel'
 import { describe, expect, it } from 'vitest'
 import 'dotenv/config'
 import { clienteAdmin, leerEntorno } from '../rls/helpers.js'
@@ -36,22 +35,11 @@ d('liquidar() + guardarLiquidacion() — puerta F5→F6 (PLAN §5.4)', () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     if (!tenant) throw new Error('falta el tenant gc-001')
 
-    const snapshotReal = await construirSnapshotDesdeSupabase(admin, {
+    const snapshot = await construirSnapshotDesdeSupabase(admin, {
       tenantId: tenant.id,
       anio: 2026,
       mes: 1,
     })
-
-    // GAP conocido (D-14, seed de F2): OTROS_INGRESOS_ANUAL no tiene fuente
-    // en el esquema todavía — se suple aquí para demostrar la persistencia
-    // de punta a punta; F6 debe resolverlo formalmente.
-    const snapshot = {
-      ...snapshotReal,
-      parametros: {
-        ...snapshotReal.parametros,
-        OTROS_INGRESOS_ANUAL: { tipo: 'MONEY' as const, valor: money(20_000_000, 'COP') },
-      },
-    }
 
     const calculado = liquidar(snapshot)
     expect(calculado.resultado.tenantTotal.amount.toString()).toBe('8333334')

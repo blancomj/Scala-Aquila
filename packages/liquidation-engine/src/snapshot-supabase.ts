@@ -6,10 +6,14 @@
  * (D-14, vigilado por eslint.config.js) — el resto del paquete es puro y
  * opera solo sobre el `DataSnapshot` que esta función produce.
  *
- * GAP abierto (heredado de 20260814100400_seed_gc001.sql, F2): no existe
- * columna para `PARAMETER.OTROS_INGRESOS_ANUAL`. No se inventa aquí — si
- * una fórmula lo referencia, el evaluador lanzará `ContractoNoResueltoError`
- * explícito (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en silencio.
+ * PARAMETER.OTROS_INGRESOS_ANUAL (GAP-19, E-16 §5 fase 6 "neteo"): se
+ * resuelve como Σ fuente_financiacion.valor_aplicado (tipo='otros_ingresos')
+ * del presupuesto vigente — el mismo dato que ya alimenta
+ * presupuesto-previsualizar. Antes de `fuente_financiacion`
+ * (20260814200000_motor_presupuestal_financiacion.sql) este parámetro no
+ * tenía fuente en el esquema y el evaluador fallaba explícito
+ * (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en silencio — ese gap
+ * ya está cerrado.
  *
  * Nota de tipos: PostgrestResponse/PostgrestSingleResponse son uniones
  * discriminadas por `error` — tras `if (error) throw`, `data` queda
@@ -159,6 +163,20 @@ export async function construirSnapshotDesdeSupabase(
     parametros.PRESUPUESTO_ANUAL = {
       tipo: 'MONEY',
       valor: money(presupuesto.monto_total, tenant.moneda),
+    }
+
+    const { data: fuentes, error: errorFuentes } = await cliente
+      .from('fuente_financiacion')
+      .select('valor_aplicado')
+      .eq('presupuesto_id', presupuesto.id)
+      .eq('tipo', 'otros_ingresos')
+    if (errorFuentes)
+      throw new Error(`No se pudieron leer las fuentes de financiación: ${errorFuentes.message}`)
+
+    const otrosIngresosAplicados = fuentes.reduce((acc, f) => acc + f.valor_aplicado, 0)
+    parametros.OTROS_INGRESOS_ANUAL = {
+      tipo: 'MONEY',
+      valor: money(otrosIngresosAplicados, tenant.moneda),
     }
   }
 

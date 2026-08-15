@@ -146,7 +146,12 @@ tablas paralelas de E-10/E-11.
 
 9. ACTIVAR (VIGENTE)
    → el liquidation-engine empieza a leerlo tal cual lo hace hoy
-     (presupuestoVigente.montoTotal + conceptos) — sin cambios en snapshot.ts
+     (presupuestoVigente.montoTotal + conceptos) — sin cambios en
+     snapshot.ts (el DataSnapshot y el algoritmo puro). El único cambio
+     real (GAP-19, neteo) fue en snapshot-supabase.ts — el adaptador de
+     I/O que ya tenía licencia exclusiva para hablar con Supabase —
+     resolviendo PARAMETER.OTROS_INGRESOS_ANUAL desde
+     Σ fuente_financiacion. Ver REC-008.
 
 10. CERRAR
     → fin de vigencia; disponible como histórico para versión siguiente
@@ -314,8 +319,15 @@ GAP-19**, adoptado.
 inmutabilidad y reconciliación existentes se extienden, no se reescriben.
 
 ### REC-008
-El `liquidation-engine` (`packages/liquidation-engine`, `snapshot.ts`
-incluido) no requiere ningún cambio para que este bloque funcione.
+El `liquidation-engine` (`packages/liquidation-engine`, `snapshot.ts` y el
+algoritmo puro incluidos) no requiere ningún cambio para que este bloque
+funcione. **Excepción explícita, ya implementada**: `snapshot-supabase.ts`
+—el único adaptador con licencia para hablar con Supabase, D-14— se
+extendió para resolver `PARAMETER.OTROS_INGRESOS_ANUAL` desde
+`Σ fuente_financiacion.valor_aplicado` (GAP-19, neteo). No es un segundo
+motor ni un cambio al algoritmo: es la misma responsabilidad de
+"construir el snapshot desde datos reales" que ya tenía, con una fuente
+de datos nueva para un PARAMETER que antes no tenía ninguna.
 
 ---
 
