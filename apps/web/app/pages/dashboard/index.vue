@@ -57,6 +57,9 @@ await useAsyncData('auditoria-reciente', () => {
       <NuxtLink to="/politicas" class="text-sm text-primary-500">Políticas financieras →</NuxtLink>
       <NuxtLink to="/liquidacion" class="text-sm text-primary-500">Liquidación →</NuxtLink>
       <NuxtLink to="/conceptos" class="text-sm text-primary-500">Conceptos →</NuxtLink>
+      <NuxtLink to="/cuenta-corriente" class="text-sm text-primary-500"
+        >Cuenta corriente →</NuxtLink
+      >
     </div>
 
     <div>
