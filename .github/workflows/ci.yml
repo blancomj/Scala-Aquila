@@ -18,8 +18,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Ningún JWT en archivos versionados
+        # Excluye este propio workflow: contiene el patrón como texto
+        # literal (el grep de abajo), así que se detectaría a sí mismo.
         run: |
-          if git ls-files -z | xargs -0 grep -l 'eyJhbGciOi' 2>/dev/null; then
+          if git ls-files -z -- ':!.github/workflows/ci.yml' | xargs -0 grep -l 'eyJhbGciOi' 2>/dev/null; then
             echo "::error::Se encontró un JWT en un archivo versionado. Los secretos van en .env, nunca en el repositorio."
             exit 1
           fi
@@ -56,9 +58,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Sin `with: version:` — pnpm/action-setup@v4 ya lee la versión del
+      # campo "packageManager" de package.json; declararla dos veces causa
+      # "Multiple versions of pnpm specified" (visto en CI real).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -96,9 +99,10 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
+      # Sin `with: version:` — pnpm/action-setup@v4 ya lee la versión del
+      # campo "packageManager" de package.json; declararla dos veces causa
+      # "Multiple versions of pnpm specified" (visto en CI real).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -138,9 +142,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Sin `with: version:` — pnpm/action-setup@v4 ya lee la versión del
+      # campo "packageManager" de package.json; declararla dos veces causa
+      # "Multiple versions of pnpm specified" (visto en CI real).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
