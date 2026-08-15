@@ -11,7 +11,7 @@ export default defineConfig({
   // de recursos modestos (visto: "Fatal process out of memory" real).
   workers: 1,
   retries: 0,
-  reporter: 'list',
+  reporter: process.env.CI ? 'html' : 'list',
   timeout: 45_000,
   use: {
     baseURL: 'http://localhost:3000',
