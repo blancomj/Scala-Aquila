@@ -178,6 +178,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'cargos_novedad_id_fkey'
+            columns: ['novedad_id']
+            isOneToOne: false
+            referencedRelation: 'novedades'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'cargos_periodo_id_fkey'
             columns: ['periodo_id']
             isOneToOne: false
@@ -1060,6 +1067,100 @@ export type Database = {
           },
         ]
       }
+      novedades: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          concepto_id: string | null
+          created_at: string
+          created_by: string
+          descripcion: string
+          estado: Database['public']['Enums']['novedad_estado_t']
+          fecha_efectiva: string
+          id: string
+          inmueble_id: string
+          monto: number
+          rejected_reason: string | null
+          tenant_id: string
+          tipo: Database['public']['Enums']['novedad_tipo_t']
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          concepto_id?: string | null
+          created_at?: string
+          created_by: string
+          descripcion: string
+          estado?: Database['public']['Enums']['novedad_estado_t']
+          fecha_efectiva: string
+          id?: string
+          inmueble_id: string
+          monto: number
+          rejected_reason?: string | null
+          tenant_id: string
+          tipo: Database['public']['Enums']['novedad_tipo_t']
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          concepto_id?: string | null
+          created_at?: string
+          created_by?: string
+          descripcion?: string
+          estado?: Database['public']['Enums']['novedad_estado_t']
+          fecha_efectiva?: string
+          id?: string
+          inmueble_id?: string
+          monto?: number
+          rejected_reason?: string | null
+          tenant_id?: string
+          tipo?: Database['public']['Enums']['novedad_tipo_t']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'novedades_approved_by_fkey'
+            columns: ['approved_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'novedades_concepto_id_fkey'
+            columns: ['concepto_id']
+            isOneToOne: false
+            referencedRelation: 'conceptos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'novedades_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'novedades_inmueble_id_fkey'
+            columns: ['inmueble_id']
+            isOneToOne: false
+            referencedRelation: 'inmuebles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'novedades_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'novedades_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       pago_aplicaciones: {
         Row: {
           cargo_id: string
@@ -1848,6 +1949,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'cargos_novedad_id_fkey'
+            columns: ['novedad_id']
+            isOneToOne: false
+            referencedRelation: 'novedades'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'cargos_periodo_id_fkey'
             columns: ['periodo_id']
             isOneToOne: false
@@ -1907,6 +2015,56 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_aprobar_novedad: {
+        Args: { p_actor_id: string; p_novedad_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          concepto_id: string | null
+          created_at: string
+          created_by: string
+          descripcion: string
+          estado: Database['public']['Enums']['novedad_estado_t']
+          fecha_efectiva: string
+          id: string
+          inmueble_id: string
+          monto: number
+          rejected_reason: string | null
+          tenant_id: string
+          tipo: Database['public']['Enums']['novedad_tipo_t']
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'novedades'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_rechazar_novedad: {
+        Args: { p_motivo: string; p_novedad_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          concepto_id: string | null
+          created_at: string
+          created_by: string
+          descripcion: string
+          estado: Database['public']['Enums']['novedad_estado_t']
+          fecha_efectiva: string
+          id: string
+          inmueble_id: string
+          monto: number
+          rejected_reason: string | null
+          tenant_id: string
+          tipo: Database['public']['Enums']['novedad_tipo_t']
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'novedades'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_registrar_fuente_financiacion: {
         Args: {
           p_descripcion?: string
@@ -1997,6 +2155,8 @@ export type Database = {
       invite_status_t: 'pending' | 'accepted' | 'revoked' | 'expired'
       liquidacion_estado_t: 'completada' | 'fallida'
       member_status_t: 'active' | 'revoked'
+      novedad_estado_t: 'pendiente' | 'aprobada' | 'rechazada'
+      novedad_tipo_t: 'CHARGE' | 'DISCOUNT' | 'ADJUSTMENT' | 'REFUND' | 'CREDIT' | 'DEBIT'
       periodo_estado_t: 'abierto' | 'en_liquidacion' | 'cerrado' | 'bloqueado'
       politica_imputacion_estrategia_t: 'deuda_mas_antigua' | 'periodo_actual'
       presupuesto_estado_t: 'borrador' | 'aprobado' | 'vigente' | 'cerrado'
@@ -2149,6 +2309,8 @@ export const Constants = {
       invite_status_t: ['pending', 'accepted', 'revoked', 'expired'],
       liquidacion_estado_t: ['completada', 'fallida'],
       member_status_t: ['active', 'revoked'],
+      novedad_estado_t: ['pendiente', 'aprobada', 'rechazada'],
+      novedad_tipo_t: ['CHARGE', 'DISCOUNT', 'ADJUSTMENT', 'REFUND', 'CREDIT', 'DEBIT'],
       periodo_estado_t: ['abierto', 'en_liquidacion', 'cerrado', 'bloqueado'],
       politica_imputacion_estrategia_t: ['deuda_mas_antigua', 'periodo_actual'],
       presupuesto_estado_t: ['borrador', 'aprobado', 'vigente', 'cerrado'],
