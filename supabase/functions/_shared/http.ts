@@ -1,6 +1,12 @@
 // Helpers comunes a todas las Edge Functions de este proyecto — contrato
 // uniforme de error, PROMPT_MAESTRO_FASE1.md §8:
 // `{ error: { code, message, details } }`.
+//
+// Doc 14 (registro de errores): el catálogo completo de códigos vive en
+// packages/shared/src/error-codes.ts (ERROR_CODES) — se mantiene aparte,
+// sin tipar `code` aquí como ErrorCode, para no romper la firma pública
+// que ya consumen ~10 Edge Functions. tests/governance/error-codes-coverage.test.ts
+// es quien realmente hace cumplir que todo código nuevo se registre ahí.
 
 // E7 · headers de seguridad mínimos en toda respuesta JSON: nosniff (no hay
 // razón para que el navegador reinterprete el content-type) y no-store

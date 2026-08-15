@@ -1,0 +1,102 @@
+/**
+ * Registro central de códigos de error (Doc 14 — cierra el gap de
+ * auditoría del corpus 01-24: sin esto, los ~35+ códigos existentes solo
+ * vivían como convención textual dispersa entre SQL (`raise exception
+ * 'CODIGO: mensaje'`) y TS (`errorResponse(status, 'CODIGO', ...)`),
+ * verificable solo por grep, nunca por el compilador ni por un test.
+ *
+ * Sin dependencias runtime — importable tanto desde paquetes Node
+ * (vía dist/) como directo desde Deno (Edge Functions), igual que
+ * database.generated.ts.
+ *
+ * AD-35 (Doc 14, mitad "versionado"): sin versionado de API en v0 — un
+ * único cliente propietario (apps/web) desplegado junto a las Edge
+ * Functions; se adopta cuando exista un segundo consumidor externo real
+ * (AD-23). Un código de error que cambia de semántica se retira (nunca se
+ * reutiliza el nombre) y se añade uno nuevo — no hace falta un esquema de
+ * versión aparte mientras el único consumidor se despliega en el mismo
+ * commit que el servidor.
+ *
+ * tests/governance/error-codes-coverage.test.ts escanea `supabase/` y
+ * falla si aparece un código nuevo que no esté aquí — mantener esta lista
+ * al día no es opcional, es lo que el test verifica.
+ *
+ * GENERADO A MANO, no por introspección — a diferencia de
+ * database.generated.ts, no hay una fuente única de verdad estructural
+ * para extraer esto (los códigos viven en strings SQL y TS). Regenerar
+ * manualmente si el test-guardia falla.
+ */
+
+export const ERROR_CODES = {
+  // ── Transversal (rate limiting, contrato HTTP, autenticación) ─────────
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INVALID_PAYLOAD: 'INVALID_PAYLOAD',
+  METHOD_NOT_ALLOWED: 'METHOD_NOT_ALLOWED',
+  RATE_LIMITED: 'RATE_LIMITED',
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  FORBIDDEN: 'FORBIDDEN',
+
+  // ── Tenancy / membresías / invitaciones (Fase I) ───────────────────────
+  ALREADY_MEMBER: 'ALREADY_MEMBER',
+  EMAIL_SEND_FAILED: 'EMAIL_SEND_FAILED',
+  INVITE_PENDING: 'INVITE_PENDING',
+  INV_EMAIL_MISMATCH: 'INV_EMAIL_MISMATCH',
+  INV_EXPIRED: 'INV_EXPIRED',
+  INV_NOT_FOUND: 'INV_NOT_FOUND',
+  INV_NOT_PENDING: 'INV_NOT_PENDING',
+  INV_USED: 'INV_USED',
+  LAST_AGENT: 'LAST_AGENT',
+  MEMBERSHIP_FETCH_FAILED: 'MEMBERSHIP_FETCH_FAILED',
+  NO_MEMBERSHIP: 'NO_MEMBERSHIP',
+  PRIVILEGE_ESCALATION: 'PRIVILEGE_ESCALATION',
+  SELF_MODIFY: 'SELF_MODIFY',
+  SLUG_INVALID: 'SLUG_INVALID',
+  SLUG_TAKEN: 'SLUG_TAKEN',
+  TENANT_NOT_FOUND: 'TENANT_NOT_FOUND',
+
+  // ── Guards de dominio genéricos ─────────────────────────────────────────
+  APPEND_ONLY: 'APPEND_ONLY',
+  INVALID_TRANSITION: 'INVALID_TRANSITION',
+  INVALID_UPDATE: 'INVALID_UPDATE',
+
+  // ── Motor Presupuestal (GAP-19) ─────────────────────────────────────────
+  BUDGET_NOT_RECONCILED: 'BUDGET_NOT_RECONCILED',
+  COEFICIENTE_SET_NO_VIGENTE: 'COEFICIENTE_SET_NO_VIGENTE',
+  DISTRIBUCION_INVALIDA: 'DISTRIBUCION_INVALIDA',
+  FINANCIACION_EXCEDE_PRESUPUESTO: 'FINANCIACION_EXCEDE_PRESUPUESTO',
+  FONDO_IMPREVISTOS_NO_EXISTE: 'FONDO_IMPREVISTOS_NO_EXISTE',
+  FONDO_INSUFICIENTE: 'FONDO_INSUFICIENTE',
+  IMMUTABLE_BUDGET: 'IMMUTABLE_BUDGET',
+  IMMUTABLE_COEFFICIENT_SET: 'IMMUTABLE_COEFFICIENT_SET',
+  IMMUTABLE_POLICY: 'IMMUTABLE_POLICY',
+  NECESIDAD_NEGATIVA: 'NECESIDAD_NEGATIVA',
+  POLITICA_NO_VIGENTE: 'POLITICA_NO_VIGENTE',
+  PRESUPUESTO_NO_ENCONTRADO: 'PRESUPUESTO_NO_ENCONTRADO',
+  SIN_COEFICIENTE: 'SIN_COEFICIENTE',
+  SIN_INMUEBLES: 'SIN_INMUEBLES',
+
+  // ── Liquidación (F5/F6) ──────────────────────────────────────────────────
+  LIQUIDACION_INVALIDA: 'LIQUIDACION_INVALIDA',
+  PERIODO_NO_ABIERTO: 'PERIODO_NO_ABIERTO',
+  PERIODO_NO_ENCONTRADO: 'PERIODO_NO_ENCONTRADO',
+  PERIODO_YA_LIQUIDADO: 'PERIODO_YA_LIQUIDADO',
+  SNAPSHOT_INCOMPLETO: 'SNAPSHOT_INCOMPLETO',
+
+  // ── Cuenta corriente: pagos / intereses (E1-E6) ─────────────────────────
+  CARGO_SOBREAPLICADO: 'CARGO_SOBREAPLICADO',
+  CUENTA_CORRIENTE_INCOMPLETA: 'CUENTA_CORRIENTE_INCOMPLETA',
+  IMPUTACION_INVALIDA: 'IMPUTACION_INVALIDA',
+  INMUEBLE_NO_ENCONTRADO: 'INMUEBLE_NO_ENCONTRADO',
+  INTERES_INVALIDO: 'INTERES_INVALIDO',
+  PAGO_SOBREAPLICADO: 'PAGO_SOBREAPLICADO',
+  POLITICA_MORA_NO_CONFIGURADA: 'POLITICA_MORA_NO_CONFIGURADA',
+  TENANT_NO_ENCONTRADO: 'TENANT_NO_ENCONTRADO',
+
+  // ── Novedades (E4) ───────────────────────────────────────────────────────
+  ADJUSTMENT_ZERO_AMOUNT: 'ADJUSTMENT_ZERO_AMOUNT',
+  NOVEDAD_NO_ENCONTRADA: 'NOVEDAD_NO_ENCONTRADA',
+  NOVEDAD_NO_PENDIENTE: 'NOVEDAD_NO_PENDIENTE',
+  PERIODO_NO_ENCONTRADO_PARA_FECHA_EFECTIVA: 'PERIODO_NO_ENCONTRADO_PARA_FECHA_EFECTIVA',
+} as const satisfies Record<string, string>
+
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
