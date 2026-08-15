@@ -59,7 +59,12 @@ d('purge_audit_log_antiguo(): purga solo lo viejo, nadie más puede borrar', () 
 
     const { data: reciente, error: errorReciente } = await admin
       .from('audit_log')
-      .insert({ tenant_id: tenant.id, actor_id: usuario.id, action: 'security.rate_limited', entity_type: 'test' })
+      .insert({
+        tenant_id: tenant.id,
+        actor_id: usuario.id,
+        action: 'security.rate_limited',
+        entity_type: 'test',
+      })
       .select('id')
       .single<{ id: string }>()
     if (errorReciente) throw new Error(`fixture fila reciente: ${errorReciente.message}`)
@@ -82,10 +87,18 @@ d('purge_audit_log_antiguo(): purga solo lo viejo, nadie más puede borrar', () 
     const { error } = await admin.rpc('purge_audit_log_antiguo')
     expect(error).toBeNull()
 
-    const { data: vieja } = await admin.from('audit_log').select('id').eq('id', filaViejaId).maybeSingle()
+    const { data: vieja } = await admin
+      .from('audit_log')
+      .select('id')
+      .eq('id', filaViejaId)
+      .maybeSingle()
     expect(vieja).toBeNull()
 
-    const { data: reciente } = await admin.from('audit_log').select('id').eq('id', filaRecienteId).maybeSingle()
+    const { data: reciente } = await admin
+      .from('audit_log')
+      .select('id')
+      .eq('id', filaRecienteId)
+      .maybeSingle()
     expect(reciente).not.toBeNull()
   }, 30_000)
 })

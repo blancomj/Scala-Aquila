@@ -1,4 +1,11 @@
-export { PALABRAS_RESERVADAS, esPalabraReservada, TIPOS_TOKEN, type PalabraReservada, type TipoToken, type Token } from './tokens.js'
+export {
+  PALABRAS_RESERVADAS,
+  esPalabraReservada,
+  TIPOS_TOKEN,
+  type PalabraReservada,
+  type TipoToken,
+  type Token,
+} from './tokens.js'
 
 export { tokenizar, type ResultadoLexer } from './lexer.js'
 

@@ -168,9 +168,7 @@ export function allocate(request: AllocationRequest): AllocationResult {
     // validarTargetsUnicos ya garantizó a.id !== b.id — el empate 0 es imposible aquí.
     return a.id < b.id ? -1 : 1
   })
-  const idsConResidual = new Set(
-    ordenParaResidual.slice(0, numUnidadesResiduales).map((t) => t.id),
-  )
+  const idsConResidual = new Set(ordenParaResidual.slice(0, numUnidadesResiduales).map((t) => t.id))
   const unidadMinima = fos.unidadMinima(policy.escala, fuente.currency)
 
   const entries: AllocationEntry[] = targets.map((t) => {

@@ -68,7 +68,12 @@ d('lista_tipos: aislamiento y protección de filas de plataforma', () => {
 
     const { data: filaPropia, error: errPropia } = await admin
       .from('lista_tipos')
-      .insert({ tipo: 'TIPO_INMUEBLE', codigo: 'penthouse', nombre: 'Penthouse', tenant_id: tenant.id })
+      .insert({
+        tipo: 'TIPO_INMUEBLE',
+        codigo: 'penthouse',
+        nombre: 'Penthouse',
+        tenant_id: tenant.id,
+      })
       .select('id')
       .single<{ id: number }>()
     if (errPropia) throw new Error(`fixture fila propia: ${errPropia.message}`)
@@ -84,14 +89,20 @@ d('lista_tipos: aislamiento y protección de filas de plataforma', () => {
   })
 
   it('un tenant ve las filas de plataforma más las suyas, no las de otro tenant', async () => {
-    const { data, error } = await clienteAgent.from('lista_tipos').select('id, tenant_id').eq('tipo', 'TIPO_INMUEBLE')
+    const { data, error } = await clienteAgent
+      .from('lista_tipos')
+      .select('id, tenant_id')
+      .eq('tipo', 'TIPO_INMUEBLE')
 
     expect(error).toBeNull()
     const ids = (data ?? []).map((f) => f.id)
     expect(ids).toContain(filaPlataformaId)
     expect(ids).toContain(filaPropiaId)
 
-    const { data: vistaOtro } = await clienteOtro.from('lista_tipos').select('id').eq('id', filaPropiaId)
+    const { data: vistaOtro } = await clienteOtro
+      .from('lista_tipos')
+      .select('id')
+      .eq('id', filaPropiaId)
     expect(vistaOtro).toEqual([])
   })
 
@@ -105,12 +116,20 @@ d('lista_tipos: aislamiento y protección de filas de plataforma', () => {
     expect(error).toBeNull()
     expect(data).toEqual([])
 
-    const { data: verificacion } = await admin.from('lista_tipos').select('nombre').eq('id', filaPlataformaId).single()
+    const { data: verificacion } = await admin
+      .from('lista_tipos')
+      .select('nombre')
+      .eq('id', filaPlataformaId)
+      .single()
     expect(verificacion?.nombre).toBe('Apartamento')
   })
 
   it('ningún tenant puede borrar una fila de plataforma (0 filas afectadas)', async () => {
-    const { data, error } = await clienteAgent.from('lista_tipos').delete().eq('id', filaPlataformaId).select('id')
+    const { data, error } = await clienteAgent
+      .from('lista_tipos')
+      .delete()
+      .eq('id', filaPlataformaId)
+      .select('id')
 
     expect(error).toBeNull()
     expect(data).toEqual([])
@@ -123,10 +142,17 @@ d('lista_tipos: aislamiento y protección de filas de plataforma', () => {
       .eq('id', filaPropiaId)
     expect(errUpdate).toBeNull()
 
-    const { error: errDelete } = await clienteAgent.from('lista_tipos').delete().eq('id', filaPropiaId)
+    const { error: errDelete } = await clienteAgent
+      .from('lista_tipos')
+      .delete()
+      .eq('id', filaPropiaId)
     expect(errDelete).toBeNull()
 
-    const { data: verificacion } = await admin.from('lista_tipos').select('id').eq('id', filaPropiaId).maybeSingle()
+    const { data: verificacion } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('id', filaPropiaId)
+      .maybeSingle()
     expect(verificacion).toBeNull()
   })
 

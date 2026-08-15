@@ -52,9 +52,15 @@ await useAsyncData('auditoria-reciente', () => {
         <h2 class="text-lg font-semibold">Actividad reciente</h2>
         <NuxtLink to="/auditoria" class="text-sm text-primary-500">Ver todo</NuxtLink>
       </div>
-      <p v-if="auditStore.eventos.length === 0" class="text-gray-500 text-sm">Sin actividad todavía.</p>
+      <p v-if="auditStore.eventos.length === 0" class="text-gray-500 text-sm">
+        Sin actividad todavía.
+      </p>
       <ul v-else class="space-y-1 text-sm">
-        <li v-for="evento in auditStore.eventos" :key="evento.id" class="text-gray-600 dark:text-gray-300">
+        <li
+          v-for="evento in auditStore.eventos"
+          :key="evento.id"
+          class="text-gray-600 dark:text-gray-300"
+        >
           {{ evento.action }} — {{ new Date(evento.created_at).toLocaleString('es-CO') }}
         </li>
       </ul>

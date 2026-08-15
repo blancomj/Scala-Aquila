@@ -8,12 +8,24 @@ function clienteConResultado(data: boolean | null, error: { message: string } | 
 }
 
 Deno.test('enforceRateLimit(): permitido → null (no bloquea)', async () => {
-  const resultado = await enforceRateLimit(clienteConResultado(true, null), 'bucket-1', 5, '1 hour', 'corr-1')
+  const resultado = await enforceRateLimit(
+    clienteConResultado(true, null),
+    'bucket-1',
+    5,
+    '1 hour',
+    'corr-1',
+  )
   assertEquals(resultado, null)
 })
 
 Deno.test('enforceRateLimit(): bloqueado → 429 RATE_LIMITED con el correlationId', async () => {
-  const resultado = await enforceRateLimit(clienteConResultado(false, null), 'bucket-1', 5, '1 hour', 'corr-2')
+  const resultado = await enforceRateLimit(
+    clienteConResultado(false, null),
+    'bucket-1',
+    5,
+    '1 hour',
+    'corr-2',
+  )
   assertExists(resultado)
   assertEquals(resultado.status, 429)
   assertEquals(resultado.headers.get('X-Correlation-Id'), 'corr-2')

@@ -32,7 +32,9 @@ await useAsyncData('auditoria-completa', () => {
           :key="evento.id"
           class="border-b border-gray-100 dark:border-gray-900"
         >
-          <td class="py-1.5 whitespace-nowrap">{{ new Date(evento.created_at).toLocaleString('es-CO') }}</td>
+          <td class="py-1.5 whitespace-nowrap">
+            {{ new Date(evento.created_at).toLocaleString('es-CO') }}
+          </td>
           <td class="py-1.5">{{ evento.action }}</td>
           <td class="py-1.5 text-gray-500">{{ evento.entity_type ?? '—' }}</td>
         </tr>

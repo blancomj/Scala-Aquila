@@ -22,7 +22,9 @@ const env = leerEntorno()
 const d = env ? describe : describe.skip
 
 if (!env) {
-  console.warn('SALTADO tests/rls/platform-admin-metadata-only: faltan credenciales Supabase en .env')
+  console.warn(
+    'SALTADO tests/rls/platform-admin-metadata-only: faltan credenciales Supabase en .env',
+  )
 }
 
 d('SEC-10: el admin de plataforma no accede a datos de tenant', () => {

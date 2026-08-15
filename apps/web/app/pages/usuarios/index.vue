@@ -37,7 +37,8 @@ async function invitar(): Promise<void> {
     exito.value = `Invitación enviada a ${email.value}.`
     email.value = ''
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo enviar la invitación.'
+    error.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo enviar la invitación.'
   } finally {
     cargando.value = false
   }
@@ -49,14 +50,18 @@ async function revocarInvitacion(invitationId: string): Promise<void> {
   await invitationsStore.revocar(invitationId, tenantId)
 }
 
-async function cambiarRolMiembro(membershipId: string, nuevoRol: 'agent' | 'auditor'): Promise<void> {
+async function cambiarRolMiembro(
+  membershipId: string,
+  nuevoRol: 'agent' | 'auditor',
+): Promise<void> {
   errorMiembros.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
   try {
     await membersStore.cambiarRol(membershipId, nuevoRol, tenantId)
   } catch (excepcion) {
-    errorMiembros.value = excepcion instanceof Error ? excepcion.message : 'No se pudo cambiar el rol.'
+    errorMiembros.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo cambiar el rol.'
   }
 }
 
@@ -76,7 +81,13 @@ async function revocarMiembro(membershipId: string): Promise<void> {
   <div class="space-y-8">
     <div>
       <h1 class="text-xl font-semibold mb-2">Miembros</h1>
-      <UAlert v-if="errorMiembros" color="error" variant="soft" :title="errorMiembros" class="mb-2" />
+      <UAlert
+        v-if="errorMiembros"
+        color="error"
+        variant="soft"
+        :title="errorMiembros"
+        class="mb-2"
+      />
       <table class="w-full text-sm">
         <thead>
           <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
@@ -97,7 +108,12 @@ async function revocarMiembro(membershipId: string): Promise<void> {
                 :value="miembro.role"
                 :disabled="miembro.user_id === authStore.profile?.id"
                 class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-1.5 py-1 text-sm"
-                @change="cambiarRolMiembro(miembro.id, ($event.target as HTMLSelectElement).value as 'agent' | 'auditor')"
+                @change="
+                  cambiarRolMiembro(
+                    miembro.id,
+                    ($event.target as HTMLSelectElement).value as 'agent' | 'auditor',
+                  )
+                "
               >
                 <option value="agent">agent</option>
                 <option value="auditor">auditor</option>
@@ -128,7 +144,10 @@ async function revocarMiembro(membershipId: string): Promise<void> {
         </UFormField>
 
         <UFormField label="Rol" name="role">
-          <select v-model="role" class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5">
+          <select
+            v-model="role"
+            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+          >
             <option value="agent">Administrador (agent)</option>
             <option value="auditor">Auditor (auditor)</option>
           </select>
@@ -151,7 +170,9 @@ async function revocarMiembro(membershipId: string): Promise<void> {
           class="flex items-center justify-between text-sm border-b border-gray-200 dark:border-gray-800 pb-2"
         >
           <span>{{ invitacion.email }} — {{ invitacion.role }}</span>
-          <UButton size="xs" variant="ghost" color="error" @click="revocarInvitacion(invitacion.id)">Revocar</UButton>
+          <UButton size="xs" variant="ghost" color="error" @click="revocarInvitacion(invitacion.id)"
+            >Revocar</UButton
+          >
         </li>
       </ul>
     </div>

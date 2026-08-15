@@ -266,7 +266,9 @@ d('E5 — invitaciones (RPC)', () => {
     })
 
     const clienteInvitado = await clienteComo(env!, invitado)
-    const { error } = await clienteInvitado.rpc('accept_invitation', { p_token_hash: hash }).single()
+    const { error } = await clienteInvitado
+      .rpc('accept_invitation', { p_token_hash: hash })
+      .single()
     expect(error).not.toBeNull()
     expect(error?.message).toMatch(/^INV_EXPIRED:/)
 
@@ -295,7 +297,9 @@ d('E5 — invitaciones (RPC)', () => {
       p_expires_at: expiresAt,
     })
 
-    const { error } = await clienteAgent.rpc('revoke_invitation', { p_invitation_id: invitacion!.id })
+    const { error } = await clienteAgent.rpc('revoke_invitation', {
+      p_invitation_id: invitacion!.id,
+    })
     expect(error).toBeNull()
 
     const { data: invitacionFinal } = await admin
@@ -317,7 +321,9 @@ d('E5 — invitaciones (RPC)', () => {
       p_expires_at: expiresAt,
     })
 
-    const { error } = await clienteAuditor.rpc('revoke_invitation', { p_invitation_id: invitacion!.id })
+    const { error } = await clienteAuditor.rpc('revoke_invitation', {
+      p_invitation_id: invitacion!.id,
+    })
     expect(error).not.toBeNull()
     expect(error?.message).toMatch(/^FORBIDDEN:/)
   })
@@ -334,7 +340,9 @@ d('E5 — invitaciones (RPC)', () => {
     })
     await clienteAgent.rpc('revoke_invitation', { p_invitation_id: invitacion!.id })
 
-    const { error } = await clienteAgent.rpc('revoke_invitation', { p_invitation_id: invitacion!.id })
+    const { error } = await clienteAgent.rpc('revoke_invitation', {
+      p_invitation_id: invitacion!.id,
+    })
     expect(error).not.toBeNull()
     expect(error?.message).toMatch(/^INV_NOT_PENDING:/)
   })

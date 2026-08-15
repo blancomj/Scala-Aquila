@@ -74,7 +74,11 @@ async function crear(): Promise<void> {
         <UInput v-model="nombre" required class="w-full" />
       </UFormField>
 
-      <UFormField label="Identificador (slug)" name="slug" help="Solo minúsculas, números y guiones.">
+      <UFormField
+        label="Identificador (slug)"
+        name="slug"
+        help="Solo minúsculas, números y guiones."
+      >
         <UInput v-model="slug" required class="w-full" @input="onSlugInput" />
       </UFormField>
 

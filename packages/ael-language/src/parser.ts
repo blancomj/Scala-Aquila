@@ -228,7 +228,11 @@ export function parsear(fuente: string, origen = '<fuente>'): ResultadoParser {
   function parsearRetorno(): Retorno {
     const inicio = esperar('RETORNAR', 'RETORNAR')
     const expresion = parsearExpresion()
-    return { tipo: 'Retorno', expresion, span: { inicio: inicio.span.inicio, fin: expresion.span.fin } }
+    return {
+      tipo: 'Retorno',
+      expresion,
+      span: { inicio: inicio.span.inicio, fin: expresion.span.fin },
+    }
   }
 
   function parsearCondicional(): Condicional {

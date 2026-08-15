@@ -12,9 +12,13 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
 <template>
   <div>
     <h1 class="text-xl font-semibold mb-4">Consola de plataforma</h1>
-    <p class="text-sm text-gray-500 mb-4">Solo metadatos — ningún dato operativo de las copropiedades.</p>
+    <p class="text-sm text-gray-500 mb-4">
+      Solo metadatos — ningún dato operativo de las copropiedades.
+    </p>
 
-    <p v-if="platformStore.tenants.length === 0" class="text-gray-500 text-sm">Sin copropiedades.</p>
+    <p v-if="platformStore.tenants.length === 0" class="text-gray-500 text-sm">
+      Sin copropiedades.
+    </p>
     <table v-else class="w-full text-sm">
       <thead>
         <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
@@ -36,7 +40,11 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
           <td class="py-1.5">{{ tenant.status }}</td>
           <td class="py-1.5">{{ tenant.member_count }}</td>
           <td class="py-1.5 whitespace-nowrap">
-            {{ tenant.last_activity_at ? new Date(tenant.last_activity_at).toLocaleString('es-CO') : '—' }}
+            {{
+              tenant.last_activity_at
+                ? new Date(tenant.last_activity_at).toLocaleString('es-CO')
+                : '—'
+            }}
           </td>
         </tr>
       </tbody>

@@ -61,9 +61,12 @@ d('create-tenant (Edge Function)', () => {
     // No se desestructura `error`: @supabase/functions-js lo tipa como `any`
     // (gap de la librería) — `data`/`response` sí están bien tipados y
     // bastan para verificar tanto el éxito como los códigos de error.
-    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>('create-tenant', {
-      body: { name: 'Tenant HTTP feliz', slug: `t-${RUN_ID}-ct-feliz` },
-    })
+    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>(
+      'create-tenant',
+      {
+        body: { name: 'Tenant HTTP feliz', slug: `t-${RUN_ID}-ct-feliz` },
+      },
+    )
 
     expect(response?.status).toBe(200)
     expect(data?.tenant.slug).toBe(`t-${RUN_ID}-ct-feliz`)
@@ -75,9 +78,12 @@ d('create-tenant (Edge Function)', () => {
   it('SLUG_INVALID: el payload no pasa el schema de Zod (400)', async () => {
     const cliente = await usuarioDePrueba('ct-invalido')
 
-    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>('create-tenant', {
-      body: { name: 'X', slug: 'AB' },
-    })
+    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>(
+      'create-tenant',
+      {
+        body: { name: 'X', slug: 'AB' },
+      },
+    )
 
     expect(data).toBeNull()
     expect(response?.status).toBe(400)
@@ -88,16 +94,22 @@ d('create-tenant (Edge Function)', () => {
 
     // Límite real de create-tenant: 10/hora (supabase/functions/create-tenant/index.ts).
     for (let i = 0; i < 10; i++) {
-      const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>('create-tenant', {
-        body: { name: `Tenant rate ${String(i)}`, slug: `t-${RUN_ID}-ct-rate-${String(i)}` },
-      })
+      const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>(
+        'create-tenant',
+        {
+          body: { name: `Tenant rate ${String(i)}`, slug: `t-${RUN_ID}-ct-rate-${String(i)}` },
+        },
+      )
       expect(response?.status).toBe(200)
       tenantsCreados.push(data!.tenant.id)
     }
 
-    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>('create-tenant', {
-      body: { name: 'Tenant rate 11', slug: `t-${RUN_ID}-ct-rate-11` },
-    })
+    const { data, response } = await cliente.functions.invoke<RespuestaCrearTenant>(
+      'create-tenant',
+      {
+        body: { name: 'Tenant rate 11', slug: `t-${RUN_ID}-ct-rate-11` },
+      },
+    )
 
     expect(data).toBeNull()
     expect(response?.status).toBe(429)

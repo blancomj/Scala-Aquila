@@ -15,7 +15,13 @@ function parsearLcov(texto) {
   for (const linea of texto.split('\n')) {
     if (linea.startsWith('SF:')) {
       // Windows genera rutas absolutas con backslash (SF:E:\...\_shared\http.ts).
-      actual = { archivo: linea.slice(3).trim().replaceAll('\\', '/'), lf: 0, lh: 0, fnf: 0, fnh: 0 }
+      actual = {
+        archivo: linea.slice(3).trim().replaceAll('\\', '/'),
+        lf: 0,
+        lh: 0,
+        fnf: 0,
+        fnh: 0,
+      }
     } else if (linea.startsWith('LF:')) {
       actual.lf = Number(linea.slice(3))
     } else if (linea.startsWith('LH:')) {
@@ -45,7 +51,9 @@ for (const a of archivos) {
   const lineas = a.lf === 0 ? 100 : (a.lh / a.lf) * 100
   const funciones = a.fnf === 0 ? 100 : (a.fnh / a.fnf) * 100
   const ok = lineas === 100 && funciones === 100
-  console.log(`${ok ? 'OK  ' : 'FAIL'} ${a.archivo} — líneas ${lineas.toFixed(1)}% · funciones ${funciones.toFixed(1)}%`)
+  console.log(
+    `${ok ? 'OK  ' : 'FAIL'} ${a.archivo} — líneas ${lineas.toFixed(1)}% · funciones ${funciones.toFixed(1)}%`,
+  )
   if (!ok) falla = true
 }
 

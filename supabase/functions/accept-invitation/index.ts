@@ -42,7 +42,13 @@ export default {
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'El cuerpo debe ser JSON válido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const parseo = payloadSchema.safeParse(payload)
@@ -75,13 +81,25 @@ export default {
 
     if (errorAceptar) {
       const { code, message } = parsearErrorRpc(errorAceptar.message)
-      logEvent({ level: 'warn', action: 'accept_invitation.rpc_error', correlationId, actorId, meta: { code } })
+      logEvent({
+        level: 'warn',
+        action: 'accept_invitation.rpc_error',
+        correlationId,
+        actorId,
+        meta: { code },
+      })
       const status = code === 'INV_NOT_FOUND' ? 404 : code === 'UNAUTHENTICATED' ? 401 : 409
       return errorResponse(status, code, message, undefined, correlationId)
     }
     if (!data) {
       logEvent({ level: 'error', action: 'accept_invitation.no_row', correlationId, actorId })
-      return errorResponse(500, 'INTERNAL_ERROR', 'accept_invitation no devolvió una fila.', undefined, correlationId)
+      return errorResponse(
+        500,
+        'INTERNAL_ERROR',
+        'accept_invitation no devolvió una fila.',
+        undefined,
+        correlationId,
+      )
     }
 
     if (actorId) {

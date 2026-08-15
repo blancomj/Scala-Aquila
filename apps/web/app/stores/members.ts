@@ -41,7 +41,11 @@ export const useMembersStore = defineStore('members', () => {
     }
   }
 
-  async function cambiarRol(membershipId: string, role: TenantRole, tenantId: string): Promise<void> {
+  async function cambiarRol(
+    membershipId: string,
+    role: TenantRole,
+    tenantId: string,
+  ): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const { error } = await cliente.from('memberships').update({ role }).eq('id', membershipId)
     if (error) throw error
@@ -50,7 +54,10 @@ export const useMembersStore = defineStore('members', () => {
 
   async function revocar(membershipId: string, tenantId: string): Promise<void> {
     const cliente = useSupabaseClient<Database>()
-    const { error } = await cliente.from('memberships').update({ status: 'revoked' }).eq('id', membershipId)
+    const { error } = await cliente
+      .from('memberships')
+      .update({ status: 'revoked' })
+      .eq('id', membershipId)
     if (error) throw error
     await cargarMiembros(tenantId)
   }

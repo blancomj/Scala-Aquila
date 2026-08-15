@@ -37,10 +37,21 @@ export async function enforceRateLimit(
       message: error.message,
       meta: { bucket },
     })
-    return errorResponse(500, 'INTERNAL_ERROR', `check_rate_limit: ${error.message}`, undefined, correlationId)
+    return errorResponse(
+      500,
+      'INTERNAL_ERROR',
+      `check_rate_limit: ${error.message}`,
+      undefined,
+      correlationId,
+    )
   }
   if (!permitido) {
-    logEvent({ level: 'warn', action: 'security.rate_limited', correlationId, meta: { bucket, max_hits: maxHits } })
+    logEvent({
+      level: 'warn',
+      action: 'security.rate_limited',
+      correlationId,
+      meta: { bucket, max_hits: maxHits },
+    })
     return errorResponse(
       429,
       'RATE_LIMITED',

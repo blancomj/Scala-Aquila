@@ -56,7 +56,9 @@ async function enviarEnlace(): Promise<void> {
 
     <template #footer>
       <p class="text-sm text-gray-500">
-        <NuxtLink to="/login" class="text-primary-500 font-medium">Volver a iniciar sesión</NuxtLink>
+        <NuxtLink to="/login" class="text-primary-500 font-medium"
+          >Volver a iniciar sesión</NuxtLink
+        >
       </p>
     </template>
   </UCard>

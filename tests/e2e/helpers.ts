@@ -32,8 +32,15 @@ import type { Cliente } from '../rls/helpers.js'
  * manda a /onboarding/create-tenant en vez de dejar pasar a /dashboard
  * (visto en corridas reales de esta suite).
  */
-export async function fijarTenantActivo(admin: Cliente, usuarioId: string, tenantId: string): Promise<void> {
-  const { error } = await admin.from('profiles').update({ active_tenant_id: tenantId }).eq('id', usuarioId)
+export async function fijarTenantActivo(
+  admin: Cliente,
+  usuarioId: string,
+  tenantId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from('profiles')
+    .update({ active_tenant_id: tenantId })
+    .eq('id', usuarioId)
   if (error) throw new Error(`fijarTenantActivo: ${error.message}`)
 }
 
@@ -58,5 +65,7 @@ export async function loginUI(page: Page, email: string, password: string): Prom
     await page.getByRole('button', { name: 'Entrar' }).click()
     if (!page.url().includes('email=')) return
   }
-  throw new Error('loginUI: el formulario siguió navegando por GET nativo tras varios intentos (hidratación no enganchó a tiempo).')
+  throw new Error(
+    'loginUI: el formulario siguió navegando por GET nativo tras varios intentos (hidratación no enganchó a tiempo).',
+  )
 }

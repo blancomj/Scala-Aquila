@@ -40,16 +40,25 @@ test('cambio de copropiedad: el selector actualiza el tenant activo y el dashboa
     // getByText simple choca con <option> del <select> (mismo texto) —
     // se acota al párrafo "Copropiedad activa: ..." (strict mode violation
     // visto en corridas reales).
-    await expect(page.getByText('Copropiedad activa:', { exact: false })).toContainText('e2e-switch-a')
+    await expect(page.getByText('Copropiedad activa:', { exact: false })).toContainText(
+      'e2e-switch-a',
+    )
 
     const selector = page.locator('header select')
     await selector.selectOption({ value: tenantB.id })
 
-    await expect(page.getByText('Copropiedad activa:', { exact: false })).toContainText('e2e-switch-b', {
-      timeout: 10_000,
-    })
+    await expect(page.getByText('Copropiedad activa:', { exact: false })).toContainText(
+      'e2e-switch-b',
+      {
+        timeout: 10_000,
+      },
+    )
 
-    const { data: perfil } = await admin.from('profiles').select('active_tenant_id').eq('id', usuario.id).single()
+    const { data: perfil } = await admin
+      .from('profiles')
+      .select('active_tenant_id')
+      .eq('id', usuario.id)
+      .single()
     expect(perfil?.active_tenant_id).toBe(tenantB.id)
   } finally {
     if (tenantA) await eliminarTenant(admin, tenantA.id)

@@ -27,7 +27,9 @@ test.skip(!env, 'faltan variables de Supabase en .env')
 const CORREO_INVITACION_REAL = process.env.E2E_INVITE_EMAIL ?? 'blancomj5@gmail.com'
 
 test.describe('invitación completa', () => {
-  test('(a) un agent invita por UI — Brevo real, la invitación queda pendiente', async ({ page }) => {
+  test('(a) un agent invita por UI — Brevo real, la invitación queda pendiente', async ({
+    page,
+  }) => {
     const admin = clienteAdmin(env!)
     const agente = await crearUsuario(admin, 'e2e-inv-agent')
     const tenant = await crearTenant(admin, 'e2e-inv', agente.id)
@@ -69,7 +71,10 @@ test.describe('invitación completa', () => {
     // resincronice en un cambio posterior, así que se actualiza a mano con
     // el cliente admin (guard_privileged_columns solo bloquea cuando
     // auth.uid() no es null, no en contexto service_role).
-    await admin.auth.admin.updateUserById(invitado.id, { email: emailInvitado, email_confirm: true })
+    await admin.auth.admin.updateUserById(invitado.id, {
+      email: emailInvitado,
+      email_confirm: true,
+    })
     await admin.from('profiles').update({ email: emailInvitado }).eq('id', invitado.id)
 
     const token = randomUUID().replace(/-/g, '')

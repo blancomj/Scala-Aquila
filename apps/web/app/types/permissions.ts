@@ -28,7 +28,8 @@ export type Permission =
   | 'settings:manage'
   | 'tenant:delete'
 
-export type PlatformPermission = 'platform:tenants:read' | 'platform:tenants:suspend' | 'platform:metrics:view'
+export type PlatformPermission =
+  'platform:tenants:read' | 'platform:tenants:suspend' | 'platform:metrics:view'
 
 // §7.3 — matriz de permisos de copropiedad.
 export const ROLE_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
@@ -67,6 +68,9 @@ export function hasAnyPermission(role: TenantRole, permisos: Permission[]): bool
 
 // §7.4: is_platform_admin es un booleano, no un rol — cualquier permiso de
 // plataforma requiere is_platform_admin === true, sin distinción de niveles.
-export function hasPlatformPermission(isPlatformAdmin: boolean, _permiso: PlatformPermission): boolean {
+export function hasPlatformPermission(
+  isPlatformAdmin: boolean,
+  _permiso: PlatformPermission,
+): boolean {
   return isPlatformAdmin
 }

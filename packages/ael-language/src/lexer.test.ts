@@ -7,12 +7,7 @@ function tipos(fuente: string): string[] {
 
 describe('tokenizar — palabras reservadas y estructura básica', () => {
   it('reconoce REGLA, DEFINIR, RETORNAR', () => {
-    expect(tipos('REGLA DEFINIR RETORNAR')).toEqual([
-      'REGLA',
-      'DEFINIR',
-      'RETORNAR',
-      'FIN_ARCHIVO',
-    ])
+    expect(tipos('REGLA DEFINIR RETORNAR')).toEqual(['REGLA', 'DEFINIR', 'RETORNAR', 'FIN_ARCHIVO'])
   })
 
   it('reconoce SI ENTONCES SINO FIN y MIENTRAS', () => {

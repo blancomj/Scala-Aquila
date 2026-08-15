@@ -108,6 +108,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Mismo motivo que en `verify`: @aquila/shared y @aquila/liquidation-engine
+      # se resuelven vía dist/ — sin build previo, Vitest no puede resolverlos
+      # en un checkout limpio (visto en CI real: "Failed to resolve entry for
+      # package").
+      - run: pnpm build
       - run: pnpm test:coverage
 
   # E7 · cobertura de las Edge Functions (Deno) — Vitest no puede

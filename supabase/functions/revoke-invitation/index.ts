@@ -28,7 +28,13 @@ export default {
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'El cuerpo debe ser JSON válido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const parseo = payloadSchema.safeParse(payload)
@@ -57,7 +63,13 @@ export default {
 
     if (errorRevocar) {
       const { code, message } = parsearErrorRpc(errorRevocar.message)
-      logEvent({ level: 'warn', action: 'revoke_invitation.rpc_error', correlationId, actorId, meta: { code } })
+      logEvent({
+        level: 'warn',
+        action: 'revoke_invitation.rpc_error',
+        correlationId,
+        actorId,
+        meta: { code },
+      })
       const status = code === 'INV_NOT_FOUND' ? 404 : code === 'FORBIDDEN' ? 403 : 409
       return errorResponse(status, code, message, undefined, correlationId)
     }

@@ -14,7 +14,9 @@ const HEADERS_SEGURIDAD = {
 // TODA respuesta — éxito o error — para poder rastrear un request puntual
 // en los logs sin exponer nada sensible en la respuesta misma.
 function headersConCorrelacion(correlationId?: string): Record<string, string> {
-  return correlationId ? { ...HEADERS_SEGURIDAD, 'X-Correlation-Id': correlationId } : { ...HEADERS_SEGURIDAD }
+  return correlationId
+    ? { ...HEADERS_SEGURIDAD, 'X-Correlation-Id': correlationId }
+    : { ...HEADERS_SEGURIDAD }
 }
 
 export function jsonResponse(data: unknown, status = 200, correlationId?: string): Response {

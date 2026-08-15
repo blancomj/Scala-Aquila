@@ -23,7 +23,8 @@ async function aceptar(): Promise<void> {
     await authStore.cargarPerfil({ forzar: true })
     await navigateTo('/dashboard')
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo aceptar la invitación.'
+    error.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo aceptar la invitación.'
   } finally {
     procesando.value = false
   }
@@ -58,9 +59,18 @@ onMounted(async () => {
     </div>
 
     <div v-else-if="!usuario" class="space-y-4">
-      <p class="text-gray-500">Para aceptar la invitación, inicia sesión o crea una cuenta con el correo al que te invitaron.</p>
-      <UButton block :to="{ path: '/login', query: { redirect: rutaConToken } }">Ya tengo cuenta</UButton>
-      <UButton block variant="outline" :to="{ path: '/register', query: { redirect: rutaConToken } }">
+      <p class="text-gray-500">
+        Para aceptar la invitación, inicia sesión o crea una cuenta con el correo al que te
+        invitaron.
+      </p>
+      <UButton block :to="{ path: '/login', query: { redirect: rutaConToken } }"
+        >Ya tengo cuenta</UButton
+      >
+      <UButton
+        block
+        variant="outline"
+        :to="{ path: '/register', query: { redirect: rutaConToken } }"
+      >
         Soy nuevo
       </UButton>
     </div>

@@ -282,10 +282,10 @@ instalada); postinstall inocuo, requerido por `@pinia/nuxt`. Autorizados en
 
 ## D-18 — `create_tenant()` como RPC de Postgres, no como Edge Function (AD-05)
 
-|            |          |
-| ---------- | -------- |
-| **Fase**   | F6 (E3)  |
-| **Estado** | Aceptada |
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | F6 (E3)                                     |
+| **Estado** | Aceptada                                    |
 | **Decide** | Usuario (confirmado vía pregunta explícita) |
 
 AD-05 exige que toda operación que cruce el límite de un tenant o use `service_role`
@@ -322,10 +322,10 @@ infraestructura de Edge Functions de inmediato en vez de esperar a E5.
 
 ## D-19 — Infraestructura de Edge Functions levantada; `create-tenant` migrado
 
-|            |          |
-| ---------- | -------- |
-| **Fase**   | F6 (E3)  |
-| **Estado** | Aceptada |
+|            |                                                        |
+| ---------- | ------------------------------------------------------ |
+| **Fase**   | F6 (E3)                                                |
+| **Estado** | Aceptada                                               |
 | **Decide** | Usuario (pidió adelantar la infraestructura, ver D-18) |
 
 El usuario cuestionó por qué D-18 dejaba `create-tenant` como RPC en vez de Edge
@@ -343,7 +343,7 @@ una decisión de "no hacen falta", fue un efecto colateral no anticipado de D-08
    remoto — sin conflicto.
 2. `create-tenant` migrado de RPC-directa-desde-cliente a Edge Function real
    (`supabase/functions/create-tenant/`), usando `@supabase/server`'s `withSupabase({
-   auth: 'user' })`: JWT verificado por la plataforma, cliente `ctx.supabase` con el
+auth: 'user' })`: JWT verificado por la plataforma, cliente `ctx.supabase` con el
    JWT del usuario (RLS aplica, sin `service_role`), payload validado con Zod (mismo
    patrón de slug que la constraint SQL, pero con mensajes tempranos y claros),
    respuesta con el contrato uniforme de §8 (`{ error: { code, message, details } }`).
@@ -416,10 +416,10 @@ resolverlo.
 
 ## D-21 — E5 (invitaciones): rate limiting diferido; Brevo configurado y verificado
 
-|            |          |
-| ---------- | -------- |
-| **Fase**   | F6 (E5)  |
-| **Estado** | Aceptada |
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | F6 (E5)                                     |
+| **Estado** | Aceptada                                    |
 | **Decide** | Usuario (confirmado vía pregunta explícita) |
 
 **Rate limiting (Upstash Redis, SEC-09)** queda fuera del alcance de esta iteración,
@@ -454,15 +454,15 @@ Verificado con un envío real a una casilla de prueba (mailinator.com): remitent
 inspección — el test falló primero):
 
 1. `accept_invitation()` original declaraba `RETURNS TABLE (tenant_id uuid, role
-   tenant_role_t)` — esos nombres colisionan con columnas reales de `memberships`
+tenant_role_t)` — esos nombres colisionan con columnas reales de `memberships`
    usadas dentro del cuerpo de la función (el `INSERT ... ON CONFLICT (user_id,
-   tenant_id)`), y Postgres no podía resolver la ambigüedad (`42702`). Corregido
+tenant_id)`), y Postgres no podía resolver la ambigüedad (`42702`). Corregido
    renombrando las columnas de salida a `out_tenant_id`/`out_role`
    (`20260814140100_...`) — la Edge Function `accept-invitation` mapea de vuelta a
    `{tenant_id, role}` para no filtrar el nombre interno al contrato público (§8).
 2. El intento de "marcar perezosamente" una invitación vencida como `status =
-   'expired'` antes de `RAISE EXCEPTION INV_EXPIRED` no funcionaba: un `RAISE
-   EXCEPTION` no capturado revierte toda la invocación de la función, incluido ese
+'expired'` antes de `RAISE EXCEPTION INV_EXPIRED` no funcionaba: un `RAISE
+EXCEPTION` no capturado revierte toda la invocación de la función, incluido ese
    `UPDATE` — no hay sub-transacciones autónomas en PL/pgSQL. Corregido quitando el
    intento (`20260814140200_...`): el rechazo se basa solo en `expires_at < now()`,
    sin necesidad de mutar `status`.

@@ -10,7 +10,12 @@
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
-import { ROLE_PERMISSIONS, hasPermission, type Permission, type TenantRole } from '~/types/permissions'
+import {
+  ROLE_PERMISSIONS,
+  hasPermission,
+  type Permission,
+  type TenantRole,
+} from '~/types/permissions'
 
 type TenantRow = Database['public']['Tables']['tenants']['Row']
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
@@ -41,7 +46,9 @@ export const useTenantStore = defineStore('tenant', () => {
 
   const activeTenant = computed<TenantRow | null>(() => membresiaActiva.value?.tenant ?? null)
   const role = computed<TenantRole | null>(() => membresiaActiva.value?.role ?? null)
-  const permissions = computed<readonly Permission[]>(() => (role.value ? ROLE_PERMISSIONS[role.value] : []))
+  const permissions = computed<readonly Permission[]>(() =>
+    role.value ? ROLE_PERMISSIONS[role.value] : [],
+  )
 
   function puede(permiso: Permission): boolean {
     return role.value !== null && hasPermission(role.value, permiso)

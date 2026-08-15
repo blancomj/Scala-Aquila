@@ -44,7 +44,13 @@ export default {
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'El cuerpo debe ser JSON válido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const parseo = payloadSchema.safeParse(payload)
@@ -85,13 +91,25 @@ export default {
 
     if (errorCrear) {
       const { code, message } = parsearErrorRpc(errorCrear.message)
-      logEvent({ level: 'warn', action: 'create_tenant.rpc_error', correlationId, actorId, meta: { code, slug } })
+      logEvent({
+        level: 'warn',
+        action: 'create_tenant.rpc_error',
+        correlationId,
+        actorId,
+        meta: { code, slug },
+      })
       const status = code === 'SLUG_TAKEN' || code === 'SLUG_INVALID' ? 409 : 400
       return errorResponse(status, code, message, undefined, correlationId)
     }
     if (!tenant) {
       logEvent({ level: 'error', action: 'create_tenant.no_row', correlationId, actorId })
-      return errorResponse(500, 'INTERNAL_ERROR', 'create_tenant no devolvió una fila.', undefined, correlationId)
+      return errorResponse(
+        500,
+        'INTERNAL_ERROR',
+        'create_tenant no devolvió una fila.',
+        undefined,
+        correlationId,
+      )
     }
 
     const { data: membership, error: errorMembership } = await ctx.supabase
@@ -112,7 +130,13 @@ export default {
         tenantId: tenant.id,
         message: errorMembership.message,
       })
-      return errorResponse(500, 'MEMBERSHIP_FETCH_FAILED', errorMembership.message, undefined, correlationId)
+      return errorResponse(
+        500,
+        'MEMBERSHIP_FETCH_FAILED',
+        errorMembership.message,
+        undefined,
+        correlationId,
+      )
     }
 
     return jsonResponse({ tenant, membership }, 200, correlationId)

@@ -81,7 +81,13 @@ export default {
     try {
       payload = await req.json()
     } catch {
-      return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON válido.', undefined, correlationId)
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'El cuerpo debe ser JSON válido.',
+        undefined,
+        correlationId,
+      )
     }
 
     const parseo = payloadSchema.safeParse(payload)
@@ -119,7 +125,13 @@ export default {
       .eq('id', tenantId)
       .single()
     if (errorTenant || !tenant) {
-      return errorResponse(404, 'TENANT_NOT_FOUND', 'Copropiedad no encontrada.', undefined, correlationId)
+      return errorResponse(
+        404,
+        'TENANT_NOT_FOUND',
+        'Copropiedad no encontrada.',
+        undefined,
+        correlationId,
+      )
     }
 
     const token = generarToken()
@@ -149,7 +161,13 @@ export default {
     }
     if (!invitation) {
       logEvent({ level: 'error', action: 'invite_user.no_row', correlationId, actorId, tenantId })
-      return errorResponse(500, 'INTERNAL_ERROR', 'invite_user no devolvió una fila.', undefined, correlationId)
+      return errorResponse(
+        500,
+        'INTERNAL_ERROR',
+        'invite_user no devolvió una fila.',
+        undefined,
+        correlationId,
+      )
     }
 
     // Nunca en meta: el token (§11.2) ni el correo del invitado (PII innecesaria en logs).
@@ -167,6 +185,10 @@ export default {
       return errorResponse(502, 'EMAIL_SEND_FAILED', envio.error, undefined, correlationId)
     }
 
-    return jsonResponse({ invitation_id: invitation.id, expires_at: invitation.expires_at }, 200, correlationId)
+    return jsonResponse(
+      { invitation_id: invitation.id, expires_at: invitation.expires_at },
+      200,
+      correlationId,
+    )
   }),
 }

@@ -45,11 +45,18 @@ export const useInvitationsStore = defineStore('invitations', () => {
     }
   }
 
-  async function invitar(tenantId: string, email: string, role: TenantRole): Promise<InvitarRespuesta> {
+  async function invitar(
+    tenantId: string,
+    email: string,
+    role: TenantRole,
+  ): Promise<InvitarRespuesta> {
     const cliente = useSupabaseClient<Database>()
-    const { data, error: errorInvitar } = await cliente.functions.invoke<InvitarRespuesta>('invite-user', {
-      body: { tenant_id: tenantId, email, role },
-    })
+    const { data, error: errorInvitar } = await cliente.functions.invoke<InvitarRespuesta>(
+      'invite-user',
+      {
+        body: { tenant_id: tenantId, email, role },
+      },
+    )
     if (errorInvitar) throw await extraerErrorFuncion(errorInvitar)
     if (!data) throw new Error('invite-user no devolvió datos.')
 
