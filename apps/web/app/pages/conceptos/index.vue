@@ -37,15 +37,29 @@ await useAsyncData('conceptos', async () => {
   return conceptos
 })
 
+const editorRef = ref<{ irAPosicion: (linea: number, columna: number) => void } | null>(null)
+
+const codigosConceptosExistentes = computed(() =>
+  conceptoStore.conceptos.map((c) => c.codigo).filter((c) => c !== codigo.value),
+)
+
 const diagnosticosFormula = computed(() => {
   if (!formulaAel.value.trim()) return []
-  const codigosExistentes = conceptoStore.conceptos
-    .map((c) => c.codigo)
-    .filter((c) => c !== codigo.value)
-  return validarFormulaAel(formulaAel.value, codigosExistentes)
+  return validarFormulaAel(formulaAel.value, codigosConceptosExistentes.value)
 })
 
-function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]): void {
+// ── historial de versiones + diff visual (AEL-004 Fase 3) ───────────────
+const versionCompararA = ref<string | null>(null)
+const versionCompararB = ref<string | null>(null)
+
+const versionA = computed(
+  () => conceptoStore.versiones.find((v) => v.id === versionCompararA.value) ?? null,
+)
+const versionB = computed(
+  () => conceptoStore.versiones.find((v) => v.id === versionCompararB.value) ?? null,
+)
+
+async function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]): Promise<void> {
   editandoId.value = concepto.id
   codigo.value = concepto.codigo
   nombre.value = concepto.nombre
@@ -54,6 +68,10 @@ function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]): voi
   formulaAel.value = concepto.formula_ael ?? ''
   prioridad.value = concepto.prioridad
   error.value = null
+
+  versionCompararA.value = null
+  versionCompararB.value = null
+  await conceptoStore.cargarVersiones(concepto.id)
 }
 
 function cancelarEdicion(): void {
@@ -63,6 +81,9 @@ function cancelarEdicion(): void {
   formulaAel.value = ''
   prioridad.value = 100
   error.value = null
+  conceptoStore.versiones = []
+  versionCompararA.value = null
+  versionCompararB.value = null
 }
 
 async function guardar(): Promise<void> {
@@ -265,23 +286,29 @@ async function cambiarEstado(
         </UFormField>
 
         <UFormField label="Fórmula AEL" name="formula_ael">
-          <textarea
+          <AelEditor
+            ref="editorRef"
             v-model="formulaAel"
-            rows="6"
-            required
-            placeholder="REGLA CUOTA_BASICA
-DEFINIR presupuesto_anual = PARAMETER.PRESUPUESTO_ANUAL
-DEFINIR otros_ingresos_anual = PARAMETER.OTROS_INGRESOS_ANUAL
-RETORNAR presupuesto_anual - otros_ingresos_anual"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 font-mono text-xs"
+            :conceptos-disponibles="codigosConceptosExistentes"
+            :diagnosticos="diagnosticosFormula"
           />
         </UFormField>
 
         <div v-if="diagnosticosFormula.length > 0" class="space-y-1">
-          <p v-for="(diag, i) in diagnosticosFormula" :key="i" class="text-xs text-red-500">
+          <p class="text-xs font-medium text-gray-500">
+            {{ diagnosticosFormula.length }}
+            {{ diagnosticosFormula.length === 1 ? 'diagnóstico' : 'diagnósticos' }}
+          </p>
+          <button
+            v-for="(diag, i) in diagnosticosFormula"
+            :key="i"
+            type="button"
+            class="block w-full text-left text-xs text-red-500 hover:underline"
+            @click="editorRef?.irAPosicion(diag.span.inicio.linea, diag.span.inicio.columna)"
+          >
             {{ diag.codigo }} ({{ diag.span.inicio.linea }}:{{ diag.span.inicio.columna }}):
             {{ diag.mensaje }}
-          </p>
+          </button>
         </div>
 
         <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
@@ -361,6 +388,74 @@ RETORNAR presupuesto_anual - otros_ingresos_anual"
           <UButton v-if="editandoId" variant="ghost" @click="cancelarEdicion">Cancelar</UButton>
         </div>
       </form>
+    </div>
+
+    <div v-if="editandoId">
+      <h2 class="text-lg font-semibold mb-2">Historial de versiones</h2>
+      <p v-if="conceptoStore.versiones.length === 0" class="text-gray-500 text-sm">
+        Sin versiones registradas todavía.
+      </p>
+      <template v-else>
+        <table class="w-full text-sm mb-4">
+          <thead>
+            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
+              <th class="py-1 font-medium">Versión</th>
+              <th class="py-1 font-medium">Fecha</th>
+              <th class="py-1 font-medium">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="v in conceptoStore.versiones"
+              :key="v.id"
+              class="border-b border-gray-100 dark:border-gray-900"
+            >
+              <td class="py-1.5">{{ v.version }}</td>
+              <td class="py-1.5 text-gray-500">
+                {{ new Date(v.created_at).toLocaleString() }}
+              </td>
+              <td class="py-1.5 text-gray-500">{{ v.estado_concepto }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="flex items-end gap-4 flex-wrap mb-2">
+          <UFormField label="Comparar — versión A (original)" name="version_a">
+            <select
+              v-model="versionCompararA"
+              class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+            >
+              <option :value="null" disabled>— Elegir —</option>
+              <option v-for="v in conceptoStore.versiones" :key="v.id" :value="v.id">
+                Versión {{ v.version }} — {{ new Date(v.created_at).toLocaleString() }}
+              </option>
+            </select>
+          </UFormField>
+          <UFormField label="Comparar — versión B (nueva)" name="version_b">
+            <select
+              v-model="versionCompararB"
+              class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+            >
+              <option :value="null" disabled>— Elegir —</option>
+              <option v-for="v in conceptoStore.versiones" :key="v.id" :value="v.id">
+                Versión {{ v.version }} — {{ new Date(v.created_at).toLocaleString() }}
+              </option>
+            </select>
+          </UFormField>
+        </div>
+
+        <div v-if="versionA && versionB" class="space-y-2">
+          <p class="text-xs text-gray-500">
+            Comparando versión {{ versionA.version }} (izquierda/original) → versión
+            {{ versionB.version }} (derecha/nueva).
+          </p>
+          <AelVersionDiff
+            :original="versionA.formula_ael ?? ''"
+            :modificado="versionB.formula_ael ?? ''"
+          />
+        </div>
+        <p v-else class="text-xs text-gray-500">Elige una versión A y una B para ver el diff.</p>
+      </template>
     </div>
   </div>
 </template>

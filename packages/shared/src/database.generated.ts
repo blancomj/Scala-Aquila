@@ -317,6 +317,83 @@ export type Database = {
           },
         ]
       }
+      concepto_versiones: {
+        Row: {
+          concepto_id: string
+          created_at: string
+          created_by: string
+          estado_concepto: Database['public']['Enums']['concepto_estado_t']
+          formula_ael: string | null
+          hash: string
+          id: string
+          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          nombre: string
+          prioridad: number
+          tenant_id: string
+          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          version: number
+        }
+        Insert: {
+          concepto_id: string
+          created_at?: string
+          created_by: string
+          estado_concepto: Database['public']['Enums']['concepto_estado_t']
+          formula_ael?: string | null
+          hash: string
+          id?: string
+          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          nombre: string
+          prioridad: number
+          tenant_id: string
+          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          version?: number
+        }
+        Update: {
+          concepto_id?: string
+          created_at?: string
+          created_by?: string
+          estado_concepto?: Database['public']['Enums']['concepto_estado_t']
+          formula_ael?: string | null
+          hash?: string
+          id?: string
+          modo_calculo?: Database['public']['Enums']['concepto_modo_calculo_t']
+          nombre?: string
+          prioridad?: number
+          tenant_id?: string
+          tipo_base?: Database['public']['Enums']['concepto_tipo_base_t']
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'concepto_versiones_concepto_id_fkey'
+            columns: ['concepto_id']
+            isOneToOne: false
+            referencedRelation: 'conceptos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_versiones_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_versiones_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_versiones_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       conceptos: {
         Row: {
           codigo: string
