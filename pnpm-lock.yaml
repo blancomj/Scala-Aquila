@@ -63,6 +63,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@aquila/ael-core':
+        specifier: workspace:*
+        version: link:../../packages/ael-core
+      '@aquila/ael-language':
+        specifier: workspace:*
+        version: link:../../packages/ael-language
       '@aquila/shared':
         specifier: workspace:*
         version: link:../../packages/shared
