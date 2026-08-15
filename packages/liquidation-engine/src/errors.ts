@@ -66,3 +66,35 @@ export class ReconciliacionLiquidacionFallidaError extends Error {
     this.name = 'ReconciliacionLiquidacionFallidaError'
   }
 }
+
+/** PLAN §6.3: imputacion_orden debe ser una permutación exacta de interes/capital/otro. */
+export class OrdenImputacionInvalidoError extends Error {
+  constructor(readonly ordenRecibido: readonly string[]) {
+    super(
+      `imputacion_orden debe ser una permutación exacta de interes/capital/otro, recibido: ` +
+        `[${ordenRecibido.join(', ')}] (PLAN §6.3)`,
+    )
+    this.name = 'OrdenImputacionInvalidoError'
+  }
+}
+
+/** AD-36: imputacion_estrategia debe ser deuda_mas_antigua o periodo_actual. */
+export class EstrategiaImputacionInvalidaError extends Error {
+  constructor(readonly estrategiaRecibida: string) {
+    super(
+      `imputacion_estrategia debe ser "deuda_mas_antigua" o "periodo_actual", recibido: ` +
+        `"${estrategiaRecibida}" (AD-36)`,
+    )
+    this.name = 'EstrategiaImputacionInvalidaError'
+  }
+}
+
+/** PLAN §6.6: la política vigente no tiene interés de mora configurado. */
+export class PoliticaMoraNoConfiguradaError extends Error {
+  constructor() {
+    super(
+      'La política vigente no tiene interes_tasa_mensual/interes_tope_mensual configurados (PLAN §6.6)',
+    )
+    this.name = 'PoliticaMoraNoConfiguradaError'
+  }
+}

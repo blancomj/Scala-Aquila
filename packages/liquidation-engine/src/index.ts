@@ -35,4 +35,19 @@ export {
   ConceptoNoAnalizaLimpioError,
   EvaluacionConceptoFallidaError,
   ReconciliacionLiquidacionFallidaError,
+  OrdenImputacionInvalidoError,
+  EstrategiaImputacionInvalidaError,
+  PoliticaMoraNoConfiguradaError,
 } from './errors.js'
+
+export {
+  imputarPago,
+  calcularInteresMora,
+  type CategoriaCargo,
+  type CargoAbierto,
+  type EstrategiaImputacion,
+  type AplicacionPago,
+  type PlanImputacion,
+  type CargoInteresGenerado,
+  type PoliticaMora,
+} from './cuenta-corriente.js'
