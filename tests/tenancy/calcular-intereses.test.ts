@@ -1,0 +1,259 @@
+/**
+ * calcular-intereses (Edge Function, HTTP real) — E6. Ejercita
+ * calcularInteresMora() de punta a punta: capital vencido genera interés
+ * proporcional a los días de mora, el tope de política se aplica, capital
+ * dentro de gracia no genera nada, y una segunda corrida sobre el mismo
+ * rango no duplica interés ya generado (idempotencia,
+ * obtenerUltimaFechaInteresPorCapital).
+ */
+import { afterAll, describe, expect, it } from 'vitest'
+import {
+  clienteAdmin,
+  clienteComo,
+  crearMembership,
+  crearTenant,
+  crearUsuario,
+  eliminarTenant,
+  eliminarUsuario,
+  leerEntorno,
+  type Cliente,
+  type TenantPrueba,
+  type UsuarioPrueba,
+} from '../rls/helpers.js'
+
+const env = leerEntorno()
+const d = env ? describe : describe.skip
+
+if (!env) {
+  console.warn('SALTADO tests/tenancy/calcular-intereses: faltan variables de Supabase en .env')
+}
+
+interface RespuestaInteres {
+  inmueble_id: string
+  monto_generado: string
+  tope_aplicado: boolean
+}
+
+async function tipoApartamentoId(admin: Cliente): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_INMUEBLE')
+    .eq('codigo', 'apartamento')
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture tipo apartamento: ${error.message}`)
+  return data.id
+}
+
+async function crearCargoCapital(
+  admin: Cliente,
+  tenantId: string,
+  inmuebleId: string,
+  periodoId: string,
+  monto: number,
+): Promise<string> {
+  const { data: concepto, error: errConcepto } = await admin
+    .from('conceptos')
+    .insert({
+      tenant_id: tenantId,
+      codigo: `CI-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
+      nombre: 'Cuota',
+      tipo_base: 'coeficiente',
+      modo_calculo: 'distribucion',
+      prioridad: 100,
+      estado: 'activo',
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errConcepto) throw new Error(`fixture concepto: ${errConcepto.message}`)
+
+  const { data: liquidacion, error: errLiquidacion } = await admin
+    .from('liquidaciones')
+    .insert({
+      tenant_id: tenantId,
+      periodo_id: periodoId,
+      result_hash: `test-fixture-${String(Date.now())}-${String(Math.random())}`,
+      tenant_total: monto,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errLiquidacion) throw new Error(`fixture liquidacion: ${errLiquidacion.message}`)
+
+  const { data: linea, error: errLinea } = await admin
+    .from('liquidacion_lineas')
+    .insert({
+      tenant_id: tenantId,
+      liquidacion_id: liquidacion.id,
+      inmueble_id: inmuebleId,
+      concepto_id: concepto.id,
+      monto,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errLinea) throw new Error(`fixture liquidacion_linea: ${errLinea.message}`)
+
+  const { data: cargo, error: errCargo } = await admin
+    .from('cargos')
+    .insert({
+      tenant_id: tenantId,
+      inmueble_id: inmuebleId,
+      periodo_id: periodoId,
+      categoria: 'capital',
+      origen_tipo: 'liquidacion_linea',
+      liquidacion_linea_id: linea.id,
+      concepto_id: concepto.id,
+      monto_original: monto,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errCargo) throw new Error(`fixture cargo capital: ${errCargo.message}`)
+  return cargo.id
+}
+
+d('calcular-intereses (Edge Function)', () => {
+  const admin = clienteAdmin(env!)
+  let agente: UsuarioPrueba
+  let tenant: TenantPrueba
+  let clienteAgent: Cliente
+  let inmuebleId: string
+  let inmuebleGraciaId: string
+
+  afterAll(async () => {
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, agente.id)
+  })
+
+  it('setup', async () => {
+    agente = await crearUsuario(admin, 'ci-agent')
+    tenant = await crearTenant(admin, 'ci', agente.id)
+    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    clienteAgent = await clienteComo(env!, agente)
+
+    const { error: errPolitica } = await admin.from('politicas_financieras').insert({
+      tenant_id: tenant.id,
+      version: 1,
+      estado: 'vigente',
+      vigente_desde: '2026-01-01',
+      redondeo_modo: 'half_up',
+      redondeo_escala: 0,
+      residual_metodo: 'mayor_resto',
+      coeficientes_suma_esperada: 1,
+      policy_hash: 'test-fixture-hash',
+      interes_tasa_mensual: 0.03,
+      interes_tope_mensual: 0.02,
+      interes_dias_gracia: 5,
+    })
+    if (errPolitica) throw new Error(`fixture politica: ${errPolitica.message}`)
+
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmueble, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `CI-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+    inmuebleId = inmueble.id
+
+    const { data: inmuebleGracia, error: errInmuebleGracia } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `CI-GRACIA-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmuebleGracia) throw new Error(`fixture inmueble gracia: ${errInmuebleGracia.message}`)
+    inmuebleGraciaId = inmuebleGracia.id
+  }, 30_000)
+
+  it('un agent sin acceso a otro tenant no puede calcular intereses (403 por 404 previo, o 403 directo)', async () => {
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      {
+        body: { tenant_id: '00000000-0000-0000-0000-000000000000', fecha_referencia: '2026-01-11' },
+      },
+    )
+    expect(data).toBeNull()
+    expect(response?.status).toBe(403)
+  }, 30_000)
+
+  it('capital vencido genera interés proporcional a los días de mora; tope se aplica', async () => {
+    const { data: periodo, error: errPeriodo } = await admin
+      .from('periodos')
+      .insert({
+        tenant_id: tenant.id,
+        anio: 2026,
+        mes: 1,
+        estado: 'abierto',
+        fecha_vencimiento: '2026-01-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPeriodo) throw new Error(`fixture periodo: ${errPeriodo.message}`)
+
+    await crearCargoCapital(admin, tenant.id, inmuebleId, periodo.id, 100_000)
+
+    // días de mora = (11 - 1) - 5 gracia = 5. tasa efectiva = min(0.03, 0.02) = 0.02.
+    // interes = 100_000 * (0.02/30) * 5 = 333.33 → HALF_UP escala 0 → 333.
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      { body: { tenant_id: tenant.id, fecha_referencia: '2026-01-11' } },
+    )
+    expect(response?.status).toBe(200)
+    const fila = data?.find((f) => f.inmueble_id === inmuebleId)
+    expect(fila?.monto_generado).toBe('333')
+    expect(fila?.tope_aplicado).toBe(true)
+  }, 30_000)
+
+  it('capital dentro del periodo de gracia no genera interés', async () => {
+    const { data: periodo, error: errPeriodo } = await admin
+      .from('periodos')
+      .insert({
+        tenant_id: tenant.id,
+        anio: 2026,
+        mes: 2,
+        estado: 'abierto',
+        fecha_vencimiento: '2026-02-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPeriodo) throw new Error(`fixture periodo: ${errPeriodo.message}`)
+
+    await crearCargoCapital(admin, tenant.id, inmuebleGraciaId, periodo.id, 50_000)
+
+    // 3 días transcurridos, gracia = 5 → sin mora.
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      { body: { tenant_id: tenant.id, fecha_referencia: '2026-02-04' } },
+    )
+    expect(response?.status).toBe(200)
+    expect(data?.find((f) => f.inmueble_id === inmuebleGraciaId)).toBeUndefined()
+  }, 30_000)
+
+  it('idempotencia: una segunda corrida sobre el mismo rango no duplica interés', async () => {
+    const { data: primeraLista, error: errPrimera } = await admin
+      .from('cargos')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('inmueble_id', inmuebleId)
+      .eq('origen_tipo', 'interes')
+    expect(errPrimera).toBeNull()
+    const cantidadPrevia = primeraLista?.length ?? 0
+    expect(cantidadPrevia).toBeGreaterThan(0)
+
+    // Misma fecha_referencia que la corrida anterior — no deberían quedar
+    // días nuevos por devengar sobre el mismo cargo de capital.
+    const { response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      { body: { tenant_id: tenant.id, fecha_referencia: '2026-01-11' } },
+    )
+    expect(response?.status).toBe(200)
+
+    const { data: segundaLista, error: errSegunda } = await admin
+      .from('cargos')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('inmueble_id', inmuebleId)
+      .eq('origen_tipo', 'interes')
+    expect(errSegunda).toBeNull()
+    expect(segundaLista).toHaveLength(cantidadPrevia)
+  }, 30_000)
+})

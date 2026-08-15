@@ -59,6 +59,7 @@ export {
   registrarPago,
   registrarCargosDeLiquidacion,
   registrarCargoInteres,
+  obtenerUltimaFechaInteresPorCapital,
   type OpcionesCargosAbiertos,
   type PoliticaImputacion,
   type DatosPago,

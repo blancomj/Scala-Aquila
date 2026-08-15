@@ -254,3 +254,40 @@ export async function registrarCargoInteres(
   const { error } = await cliente.from('cargos').insert(filas)
   if (error) throw new Error(`No se pudieron registrar los cargos de interés: ${error.message}`)
 }
+
+/**
+ * Idempotencia entre corridas de calcular-intereses (pregunta abierta del
+ * plan, resuelta aquí — no en 0AEL/PLAN): calcularInteresMora() no lleva
+ * estado propio y recalcula desde fechaVencimiento cada vez, así que una
+ * segunda corrida sobre el mismo rango duplicaría interés ya generado. Este
+ * helper devuelve, por cada cargo de capital, la fecha del interés más
+ * reciente ya generado sobre él (si existe) — el llamador debe usarla como
+ * piso de fechaVencimiento antes de invocar calcularInteresMora(), para que
+ * cada corrida solo devengue los días nuevos desde la última.
+ */
+export async function obtenerUltimaFechaInteresPorCapital(
+  cliente: AquilaClient,
+  cargoCapitalIds: readonly string[],
+): Promise<ReadonlyMap<string, string>> {
+  if (cargoCapitalIds.length === 0) return new Map()
+
+  const { data, error } = await cliente
+    .from('cargos')
+    .select('cargo_capital_origen_id, created_at')
+    .in('cargo_capital_origen_id', cargoCapitalIds)
+    .eq('origen_tipo', 'interes')
+    .order('created_at', { ascending: false })
+  if (error) {
+    throw new Error(`No se pudieron leer los intereses ya generados: ${error.message}`)
+  }
+
+  const ultimaFechaPorCapital = new Map<string, string>()
+  for (const fila of data) {
+    if (fila.cargo_capital_origen_id === null) continue
+    // El primero visto por capital es el más reciente (orden DESC).
+    if (!ultimaFechaPorCapital.has(fila.cargo_capital_origen_id)) {
+      ultimaFechaPorCapital.set(fila.cargo_capital_origen_id, fila.created_at.slice(0, 10))
+    }
+  }
+  return ultimaFechaPorCapital
+}
