@@ -98,6 +98,108 @@ export type Database = {
           },
         ]
       }
+      cargos: {
+        Row: {
+          cargo_capital_origen_id: string | null
+          categoria: Database['public']['Enums']['cargo_categoria_t']
+          concepto_id: string | null
+          created_at: string
+          id: string
+          inmueble_id: string
+          liquidacion_linea_id: string | null
+          monto_original: number
+          novedad_id: string | null
+          origen_tipo: Database['public']['Enums']['cargo_origen_t']
+          periodo_id: string
+          tenant_id: string
+        }
+        Insert: {
+          cargo_capital_origen_id?: string | null
+          categoria: Database['public']['Enums']['cargo_categoria_t']
+          concepto_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          liquidacion_linea_id?: string | null
+          monto_original: number
+          novedad_id?: string | null
+          origen_tipo: Database['public']['Enums']['cargo_origen_t']
+          periodo_id: string
+          tenant_id: string
+        }
+        Update: {
+          cargo_capital_origen_id?: string | null
+          categoria?: Database['public']['Enums']['cargo_categoria_t']
+          concepto_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          liquidacion_linea_id?: string | null
+          monto_original?: number
+          novedad_id?: string | null
+          origen_tipo?: Database['public']['Enums']['cargo_origen_t']
+          periodo_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
+            columns: ['cargo_capital_origen_id']
+            isOneToOne: false
+            referencedRelation: 'cargos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
+            columns: ['cargo_capital_origen_id']
+            isOneToOne: false
+            referencedRelation: 'v_cargo_saldo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_concepto_id_fkey'
+            columns: ['concepto_id']
+            isOneToOne: false
+            referencedRelation: 'conceptos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_inmueble_id_fkey'
+            columns: ['inmueble_id']
+            isOneToOne: false
+            referencedRelation: 'inmuebles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_liquidacion_linea_id_fkey'
+            columns: ['liquidacion_linea_id']
+            isOneToOne: false
+            referencedRelation: 'liquidacion_lineas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_periodo_id_fkey'
+            columns: ['periodo_id']
+            isOneToOne: false
+            referencedRelation: 'periodos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       coeficiente_sets: {
         Row: {
           created_at: string
@@ -958,6 +1060,131 @@ export type Database = {
           },
         ]
       }
+      pago_aplicaciones: {
+        Row: {
+          cargo_id: string
+          created_at: string
+          id: string
+          monto: number
+          pago_id: string
+          tenant_id: string
+        }
+        Insert: {
+          cargo_id: string
+          created_at?: string
+          id?: string
+          monto: number
+          pago_id: string
+          tenant_id: string
+        }
+        Update: {
+          cargo_id?: string
+          created_at?: string
+          id?: string
+          monto?: number
+          pago_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pago_aplicaciones_cargo_id_fkey'
+            columns: ['cargo_id']
+            isOneToOne: false
+            referencedRelation: 'cargos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pago_aplicaciones_cargo_id_fkey'
+            columns: ['cargo_id']
+            isOneToOne: false
+            referencedRelation: 'v_cargo_saldo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pago_aplicaciones_pago_id_fkey'
+            columns: ['pago_id']
+            isOneToOne: false
+            referencedRelation: 'pagos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pago_aplicaciones_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pago_aplicaciones_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pagos: {
+        Row: {
+          created_at: string
+          fecha_pago: string
+          id: string
+          inmueble_id: string
+          monto: number
+          referencia: string | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_pago: string
+          id?: string
+          inmueble_id: string
+          monto: number
+          referencia?: string | null
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          fecha_pago?: string
+          id?: string
+          inmueble_id?: string
+          monto?: number
+          referencia?: string | null
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pagos_inmueble_id_fkey'
+            columns: ['inmueble_id']
+            isOneToOne: false
+            referencedRelation: 'inmuebles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pagos_registrado_por_fkey'
+            columns: ['registrado_por']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pagos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pagos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       periodos: {
         Row: {
           anio: number
@@ -1027,6 +1254,7 @@ export type Database = {
           fondo_imprevistos_base: Database['public']['Enums']['fondo_base_calculo_t'] | null
           fondo_imprevistos_porcentaje: number | null
           id: string
+          imputacion_estrategia: Database['public']['Enums']['politica_imputacion_estrategia_t']
           imputacion_orden: Json
           interes_dias_gracia: number
           interes_tasa_mensual: number | null
@@ -1048,6 +1276,7 @@ export type Database = {
           fondo_imprevistos_base?: Database['public']['Enums']['fondo_base_calculo_t'] | null
           fondo_imprevistos_porcentaje?: number | null
           id?: string
+          imputacion_estrategia?: Database['public']['Enums']['politica_imputacion_estrategia_t']
           imputacion_orden?: Json
           interes_dias_gracia?: number
           interes_tasa_mensual?: number | null
@@ -1069,6 +1298,7 @@ export type Database = {
           fondo_imprevistos_base?: Database['public']['Enums']['fondo_base_calculo_t'] | null
           fondo_imprevistos_porcentaje?: number | null
           id?: string
+          imputacion_estrategia?: Database['public']['Enums']['politica_imputacion_estrategia_t']
           imputacion_orden?: Json
           interes_dias_gracia?: number
           interes_tasa_mensual?: number | null
@@ -1535,6 +1765,111 @@ export type Database = {
         }
         Relationships: []
       }
+      v_cargo_saldo: {
+        Row: {
+          cargo_capital_origen_id: string | null
+          categoria: Database['public']['Enums']['cargo_categoria_t'] | null
+          concepto_id: string | null
+          created_at: string | null
+          id: string | null
+          inmueble_id: string | null
+          liquidacion_linea_id: string | null
+          monto_original: number | null
+          monto_pendiente: number | null
+          novedad_id: string | null
+          origen_tipo: Database['public']['Enums']['cargo_origen_t'] | null
+          periodo_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          cargo_capital_origen_id?: string | null
+          categoria?: Database['public']['Enums']['cargo_categoria_t'] | null
+          concepto_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          inmueble_id?: string | null
+          liquidacion_linea_id?: string | null
+          monto_original?: number | null
+          monto_pendiente?: never
+          novedad_id?: string | null
+          origen_tipo?: Database['public']['Enums']['cargo_origen_t'] | null
+          periodo_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          cargo_capital_origen_id?: string | null
+          categoria?: Database['public']['Enums']['cargo_categoria_t'] | null
+          concepto_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          inmueble_id?: string | null
+          liquidacion_linea_id?: string | null
+          monto_original?: number | null
+          monto_pendiente?: never
+          novedad_id?: string | null
+          origen_tipo?: Database['public']['Enums']['cargo_origen_t'] | null
+          periodo_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
+            columns: ['cargo_capital_origen_id']
+            isOneToOne: false
+            referencedRelation: 'cargos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
+            columns: ['cargo_capital_origen_id']
+            isOneToOne: false
+            referencedRelation: 'v_cargo_saldo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_concepto_id_fkey'
+            columns: ['concepto_id']
+            isOneToOne: false
+            referencedRelation: 'conceptos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_inmueble_id_fkey'
+            columns: ['inmueble_id']
+            isOneToOne: false
+            referencedRelation: 'inmuebles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_liquidacion_linea_id_fkey'
+            columns: ['liquidacion_linea_id']
+            isOneToOne: false
+            referencedRelation: 'liquidacion_lineas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_periodo_id_fkey'
+            columns: ['periodo_id']
+            isOneToOne: false
+            referencedRelation: 'periodos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cargos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
       accept_invitation: {
@@ -1647,6 +1982,8 @@ export type Database = {
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
     }
     Enums: {
+      cargo_categoria_t: 'capital' | 'interes' | 'otro'
+      cargo_origen_t: 'liquidacion_linea' | 'novedad' | 'interes'
       concepto_estado_t: 'borrador' | 'activo' | 'archivado'
       concepto_modo_calculo_t: 'directo' | 'distribucion'
       concepto_tipo_base_t: 'fijo' | 'coeficiente' | 'cantidad' | 'porcentaje' | 'saldo'
@@ -1661,6 +1998,7 @@ export type Database = {
       liquidacion_estado_t: 'completada' | 'fallida'
       member_status_t: 'active' | 'revoked'
       periodo_estado_t: 'abierto' | 'en_liquidacion' | 'cerrado' | 'bloqueado'
+      politica_imputacion_estrategia_t: 'deuda_mas_antigua' | 'periodo_actual'
       presupuesto_estado_t: 'borrador' | 'aprobado' | 'vigente' | 'cerrado'
       redondeo_modo_t: 'half_up' | 'half_even' | 'down' | 'up'
       residual_metodo_t: 'mayor_resto'
@@ -1792,6 +2130,8 @@ export const Constants = {
   },
   public: {
     Enums: {
+      cargo_categoria_t: ['capital', 'interes', 'otro'],
+      cargo_origen_t: ['liquidacion_linea', 'novedad', 'interes'],
       concepto_estado_t: ['borrador', 'activo', 'archivado'],
       concepto_modo_calculo_t: ['directo', 'distribucion'],
       concepto_tipo_base_t: ['fijo', 'coeficiente', 'cantidad', 'porcentaje', 'saldo'],
@@ -1810,6 +2150,7 @@ export const Constants = {
       liquidacion_estado_t: ['completada', 'fallida'],
       member_status_t: ['active', 'revoked'],
       periodo_estado_t: ['abierto', 'en_liquidacion', 'cerrado', 'bloqueado'],
+      politica_imputacion_estrategia_t: ['deuda_mas_antigua', 'periodo_actual'],
       presupuesto_estado_t: ['borrador', 'aprobado', 'vigente', 'cerrado'],
       redondeo_modo_t: ['half_up', 'half_even', 'down', 'up'],
       residual_metodo_t: ['mayor_resto'],
