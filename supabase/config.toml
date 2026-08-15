@@ -46,3 +46,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/presupuesto-financiacion/deno.json"
 entrypoint = "./functions/presupuesto-financiacion/index.ts"
+
+[functions.presupuesto-previsualizar]
+enabled = true
+verify_jwt = true
+import_map = "./functions/presupuesto-previsualizar/deno.json"
+entrypoint = "./functions/presupuesto-previsualizar/index.ts"
