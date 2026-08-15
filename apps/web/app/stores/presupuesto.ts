@@ -1,12 +1,14 @@
 /**
- * Fuentes de financiación del presupuesto — GAP-19 (Docs/Motor
- * presupuestal/AQUILA_SAAS_E16_...md §9, §14).
+ * Fuentes de financiación y previsualización del presupuesto — GAP-19
+ * (Docs/Motor presupuestal/AQUILA_SAAS_E16_...md §5 fase 5, §9, §14).
  *
  * La lectura de `presupuestos`/`fuente_financiacion` va directo por RLS
  * (mismo criterio que members.ts) — la escritura de `fuente_financiacion`
- * pasa por la Edge Function `presupuesto-financiacion` porque
- * `guard_fuente_financiacion` y la resolución de `tenant_id` desde el
- * presupuesto viven ahí (mismo criterio que invitations.ts para invite-user).
+ * y la previsualización pasan por Edge Functions (`presupuesto-financiacion`,
+ * `presupuesto-previsualizar`) porque ninguna de las dos es una simple
+ * lectura/escritura RLS: la primera tiene un guard trigger y resuelve
+ * tenant_id server-side: la segunda ejecuta allocate() del kernel
+ * financiero, no algo que el cliente pueda hacer solo.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -15,6 +17,24 @@ import { extraerErrorFuncion } from '~/utils/edge-function-error'
 type PresupuestoRow = Database['public']['Tables']['presupuestos']['Row']
 type FuenteFinanciacionRow = Database['public']['Tables']['fuente_financiacion']['Row']
 type FuenteFinanciacionTipo = Database['public']['Enums']['fuente_financiacion_tipo_t']
+
+interface PrevisualizacionDistribucion {
+  presupuesto_id: string
+  anio: number
+  version: number
+  estado: string
+  moneda: string
+  monto_total: number
+  otros_ingresos_aplicados: number
+  necesidad_financiera: string
+  distribucion: {
+    inmueble_id: string
+    codigo: string
+    coeficiente: string | null
+    valor_exacto: string
+    valor_asignado: string
+  }[]
+}
 
 export const usePresupuestoStore = defineStore('presupuesto', () => {
   const presupuestos = shallowRef<PresupuestoRow[]>([])
@@ -84,6 +104,19 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     return data
   }
 
+  async function previsualizarDistribucion(
+    presupuestoId: string,
+  ): Promise<PrevisualizacionDistribucion> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } =
+      await cliente.functions.invoke<PrevisualizacionDistribucion>('presupuesto-previsualizar', {
+        body: { presupuesto_id: presupuestoId },
+      })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('presupuesto-previsualizar no devolvió datos.')
+    return data
+  }
+
   function limpiar(): void {
     presupuestos.value = []
     fuentes.value = []
@@ -96,6 +129,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     cargarPresupuestos,
     cargarFuentesFinanciacion,
     registrarFuenteFinanciacion,
+    previsualizarDistribucion,
     limpiar,
   }
 })

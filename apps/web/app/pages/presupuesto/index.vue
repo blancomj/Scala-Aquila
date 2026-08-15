@@ -20,6 +20,12 @@ const descripcion = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 
+const previsualizacion = ref<Awaited<
+  ReturnType<typeof presupuestoStore.previsualizarDistribucion>
+> | null>(null)
+const previsualizando = ref(false)
+const errorPrevisualizacion = ref<string | null>(null)
+
 await useAsyncData('presupuestos', () => {
   const tenantId = tenantStore.activeTenant?.id
   return tenantId ? presupuestoStore.cargarPresupuestos(tenantId) : Promise.resolve([])
@@ -38,6 +44,8 @@ watch(
 watch(
   presupuestoSeleccionadoId,
   async (id) => {
+    previsualizacion.value = null
+    errorPrevisualizacion.value = null
     if (id) await presupuestoStore.cargarFuentesFinanciacion(id)
   },
   { immediate: true },
@@ -68,6 +76,9 @@ async function registrar(): Promise<void> {
     valorDisponible.value = null
     valorAplicado.value = null
     descripcion.value = ''
+    // Una fuente nueva cambia la necesidad financiera — la previsualización
+    // anterior ya no refleja el presupuesto actual.
+    previsualizacion.value = null
   } catch (excepcion) {
     error.value =
       excepcion instanceof Error
@@ -75,6 +86,22 @@ async function registrar(): Promise<void> {
         : 'No se pudo registrar la fuente de financiación.'
   } finally {
     cargando.value = false
+  }
+}
+
+async function previsualizar(): Promise<void> {
+  errorPrevisualizacion.value = null
+  const presupuestoId = presupuestoSeleccionadoId.value
+  if (!presupuestoId) return
+
+  previsualizando.value = true
+  try {
+    previsualizacion.value = await presupuestoStore.previsualizarDistribucion(presupuestoId)
+  } catch (excepcion) {
+    errorPrevisualizacion.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo previsualizar la distribución.'
+  } finally {
+    previsualizando.value = false
   }
 }
 </script>
@@ -130,6 +157,59 @@ async function registrar(): Promise<void> {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold">Previsualizar distribución</h2>
+          <UButton size="xs" variant="soft" :loading="previsualizando" @click="previsualizar">
+            Previsualizar
+          </UButton>
+        </div>
+        <p class="text-sm text-gray-500 mb-2">
+          Simula cómo quedaría el reparto por coeficiente sin liquidar nada — netea las fuentes de
+          tipo "otros ingresos" contra el total antes de repartir.
+        </p>
+
+        <UAlert
+          v-if="errorPrevisualizacion"
+          color="error"
+          variant="soft"
+          :title="errorPrevisualizacion"
+        />
+
+        <template v-if="previsualizacion">
+          <p class="text-sm mb-2">
+            Necesidad financiera:
+            <span class="font-medium">{{
+              formatoMoneda(previsualizacion.necesidad_financiera)
+            }}</span>
+            <span class="text-gray-500">
+              ({{ formatoMoneda(previsualizacion.monto_total) }} − otros ingresos
+              {{ formatoMoneda(previsualizacion.otros_ingresos_aplicados) }})
+            </span>
+          </p>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
+                <th class="py-1 font-medium">Inmueble</th>
+                <th class="py-1 font-medium">Coeficiente</th>
+                <th class="py-1 font-medium">Valor asignado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="fila in previsualizacion.distribucion"
+                :key="fila.inmueble_id"
+                class="border-b border-gray-100 dark:border-gray-900"
+              >
+                <td class="py-1.5">{{ fila.codigo }}</td>
+                <td class="py-1.5 text-gray-500">{{ fila.coeficiente ?? '—' }}</td>
+                <td class="py-1.5">{{ formatoMoneda(fila.valor_asignado) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
       </div>
 
       <div>
