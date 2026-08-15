@@ -395,6 +395,128 @@ export type Database = {
           },
         ]
       }
+      fuente_financiacion: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          fundamento_normativo_id: number | null
+          id: string
+          presupuesto_id: string
+          tenant_id: string
+          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          updated_at: string | null
+          valor_aplicado: number
+          valor_disponible: number
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          fundamento_normativo_id?: number | null
+          id?: string
+          presupuesto_id: string
+          tenant_id: string
+          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          updated_at?: string | null
+          valor_aplicado?: number
+          valor_disponible: number
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          fundamento_normativo_id?: number | null
+          id?: string
+          presupuesto_id?: string
+          tenant_id?: string
+          tipo?: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          updated_at?: string | null
+          valor_aplicado?: number
+          valor_disponible?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'fuente_financiacion_fundamento_normativo_id_fkey'
+            columns: ['fundamento_normativo_id']
+            isOneToOne: false
+            referencedRelation: 'fundamento_normativo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fuente_financiacion_presupuesto_id_fkey'
+            columns: ['presupuesto_id']
+            isOneToOne: false
+            referencedRelation: 'presupuestos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fuente_financiacion_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fuente_financiacion_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      fundamento_normativo: {
+        Row: {
+          articulo: string | null
+          created_at: string
+          descripcion: string | null
+          fecha_vigencia: string | null
+          id: number
+          norma: string
+          referencia: string | null
+          tenant_id: string | null
+          tipo: Database['public']['Enums']['fundamento_tipo_t']
+          updated_at: string | null
+        }
+        Insert: {
+          articulo?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha_vigencia?: string | null
+          id?: never
+          norma: string
+          referencia?: string | null
+          tenant_id?: string | null
+          tipo: Database['public']['Enums']['fundamento_tipo_t']
+          updated_at?: string | null
+        }
+        Update: {
+          articulo?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha_vigencia?: string | null
+          id?: never
+          norma?: string
+          referencia?: string | null
+          tenant_id?: string | null
+          tipo?: Database['public']['Enums']['fundamento_tipo_t']
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'fundamento_normativo_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fundamento_normativo_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       inmueble_propietario: {
         Row: {
           created_at: string
@@ -983,6 +1105,7 @@ export type Database = {
           categoria_id: number
           codigo: string
           created_at: string
+          fundamento_normativo_id: number | null
           id: string
           monto_anual: number
           nombre: string
@@ -994,6 +1117,7 @@ export type Database = {
           categoria_id: number
           codigo: string
           created_at?: string
+          fundamento_normativo_id?: number | null
           id?: string
           monto_anual: number
           nombre: string
@@ -1005,6 +1129,7 @@ export type Database = {
           categoria_id?: number
           codigo?: string
           created_at?: string
+          fundamento_normativo_id?: number | null
           id?: string
           monto_anual?: number
           nombre?: string
@@ -1018,6 +1143,13 @@ export type Database = {
             columns: ['categoria_id']
             isOneToOne: false
             referencedRelation: 'lista_tipos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'presupuesto_rubros_fundamento_normativo_id_fkey'
+            columns: ['fundamento_normativo_id']
+            isOneToOne: false
+            referencedRelation: 'fundamento_normativo'
             referencedColumns: ['id']
           },
           {
@@ -1493,6 +1625,9 @@ export type Database = {
       fondo_base_calculo_t: 'presupuesto_anual' | 'cuota_administracion'
       fondo_movimiento_tipo_t: 'aporte' | 'uso'
       fondo_tipo_t: 'imprevistos' | 'otro'
+      fuente_financiacion_tipo_t:
+        'otros_ingresos' | 'cuota_extraordinaria' | 'fondo_imprevistos' | 'saldo_aplicable'
+      fundamento_tipo_t: 'ley' | 'decreto' | 'reglamento_ph' | 'decision_asamblea' | 'otra'
       inmueble_estado_t: 'activo' | 'inactivo'
       invite_status_t: 'pending' | 'accepted' | 'revoked' | 'expired'
       liquidacion_estado_t: 'completada' | 'fallida'
@@ -1635,6 +1770,13 @@ export const Constants = {
       fondo_base_calculo_t: ['presupuesto_anual', 'cuota_administracion'],
       fondo_movimiento_tipo_t: ['aporte', 'uso'],
       fondo_tipo_t: ['imprevistos', 'otro'],
+      fuente_financiacion_tipo_t: [
+        'otros_ingresos',
+        'cuota_extraordinaria',
+        'fondo_imprevistos',
+        'saldo_aplicable',
+      ],
+      fundamento_tipo_t: ['ley', 'decreto', 'reglamento_ph', 'decision_asamblea', 'otra'],
       inmueble_estado_t: ['activo', 'inactivo'],
       invite_status_t: ['pending', 'accepted', 'revoked', 'expired'],
       liquidacion_estado_t: ['completada', 'fallida'],
