@@ -157,6 +157,7 @@ export default tseslint.config(
     files: [
       'packages/liquidation-engine/src/snapshot-supabase.ts',
       'packages/liquidation-engine/src/persistencia-supabase.ts',
+      'packages/liquidation-engine/src/cuenta-corriente-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

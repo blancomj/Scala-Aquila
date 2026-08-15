@@ -4,10 +4,16 @@
  * máquina de estados completa). Igual que snapshot-supabase.ts, es el único
  * otro módulo de liquidation-engine autorizado a hablar con Supabase
  * (vigilado por eslint.config.js).
+ *
+ * AD-31/AD-33: tras persistir liquidacion_lineas, registra un cargo de
+ * capital por cada línea con monto != 0 en el ledger de cuenta corriente —
+ * dos escrituras secuenciales, no atómicas (misma simplificación D-14 que
+ * liquidaciones+liquidacion_lineas hoy).
  */
 import type { AquilaClient } from '@aquila/shared'
 import type { ResultadoLiquidacion } from './liquidar.js'
 import type { DataSnapshot } from './snapshot.js'
+import { registrarCargosDeLiquidacion } from './cuenta-corriente-supabase.js'
 
 export async function guardarLiquidacion(
   cliente: AquilaClient,
@@ -48,8 +54,18 @@ export async function guardarLiquidacion(
     }
   })
 
-  const { error: errorLineas } = await cliente.from('liquidacion_lineas').insert(lineas)
+  const { data: lineasInsertadas, error: errorLineas } = await cliente
+    .from('liquidacion_lineas')
+    .insert(lineas)
+    .select('id, inmueble_id, concepto_id, monto')
   if (errorLineas) throw new Error(`No se pudieron guardar las líneas: ${errorLineas.message}`)
+
+  await registrarCargosDeLiquidacion(
+    cliente,
+    snapshot.tenantId,
+    snapshot.periodo.id,
+    lineasInsertadas,
+  )
 
   return fila.id
 }

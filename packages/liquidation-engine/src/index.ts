@@ -51,3 +51,16 @@ export {
   type CargoInteresGenerado,
   type PoliticaMora,
 } from './cuenta-corriente.js'
+
+export {
+  obtenerCargosAbiertos,
+  obtenerPoliticaMora,
+  obtenerPoliticaImputacion,
+  registrarPago,
+  registrarCargosDeLiquidacion,
+  registrarCargoInteres,
+  type OpcionesCargosAbiertos,
+  type PoliticaImputacion,
+  type DatosPago,
+  type LiquidacionLineaInsertada,
+} from './cuenta-corriente-supabase.js'

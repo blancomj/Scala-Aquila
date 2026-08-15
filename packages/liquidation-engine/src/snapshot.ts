@@ -3,8 +3,12 @@
  * inmutable de los datos necesarios para liquidar UN periodo de UN tenant.
  *
  * D-14: solo lo que las reglas piloto seedeadas en F2 necesitan — no "toda
- * la base de datos" (17 §12-13 SNAPSHOT CONTENT/PRINCIPLE). Sin pagos,
- * novedades ni saldo anterior (D-13).
+ * la base de datos" (17 §12-13 SNAPSHOT CONTENT/PRINCIPLE). Pagos y saldo
+ * anterior viven fuera de este snapshot a propósito (AD-31): son un ledger
+ * de cuenta corriente separado (cuenta-corriente.ts/-supabase.ts), no
+ * datos congelados de liquidar-periodo — un pago futuro nunca debe poder
+ * alterar una liquidación pasada. Novedades: pendiente (E4 del plan de
+ * cuenta corriente).
  */
 import type { TypedValue } from '@aquila/ael-runtime'
 import type { ModoRedondeo } from '@aquila/financial-kernel'
