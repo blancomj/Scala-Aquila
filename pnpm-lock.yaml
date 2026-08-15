@@ -69,6 +69,15 @@ importers:
       '@aquila/ael-language':
         specifier: workspace:*
         version: link:../../packages/ael-language
+      '@aquila/ael-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ael-runtime
+      '@aquila/financial-kernel':
+        specifier: workspace:*
+        version: link:../../packages/financial-kernel
+      '@aquila/liquidation-engine':
+        specifier: workspace:*
+        version: link:../../packages/liquidation-engine
       '@aquila/shared':
         specifier: workspace:*
         version: link:../../packages/shared

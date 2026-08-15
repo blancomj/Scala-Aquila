@@ -317,6 +317,71 @@ export type Database = {
           },
         ]
       }
+      concepto_test_cases: {
+        Row: {
+          concepto_id: string
+          created_at: string
+          created_by: string
+          entradas: Json
+          id: string
+          nombre: string
+          resultado_esperado: Json | null
+          tenant_id: string
+          tipo_esperado: string
+        }
+        Insert: {
+          concepto_id: string
+          created_at?: string
+          created_by: string
+          entradas?: Json
+          id?: string
+          nombre: string
+          resultado_esperado?: Json | null
+          tenant_id: string
+          tipo_esperado: string
+        }
+        Update: {
+          concepto_id?: string
+          created_at?: string
+          created_by?: string
+          entradas?: Json
+          id?: string
+          nombre?: string
+          resultado_esperado?: Json | null
+          tenant_id?: string
+          tipo_esperado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'concepto_test_cases_concepto_id_fkey'
+            columns: ['concepto_id']
+            isOneToOne: false
+            referencedRelation: 'conceptos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_test_cases_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_test_cases_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'platform_tenant_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'concepto_test_cases_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       concepto_versiones: {
         Row: {
           concepto_id: string
@@ -396,48 +461,77 @@ export type Database = {
       }
       conceptos: {
         Row: {
+          aprobado_at: string | null
+          aprobado_por: string | null
           codigo: string
           created_at: string
+          enviado_a_revision_at: string | null
+          enviado_a_revision_por: string | null
           estado: Database['public']['Enums']['concepto_estado_t']
           formula_ael: string | null
           id: string
           modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
           nombre: string
           prioridad: number
+          rechazado_motivo: string | null
           tenant_id: string
           tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
           updated_at: string | null
           version: number
         }
         Insert: {
+          aprobado_at?: string | null
+          aprobado_por?: string | null
           codigo: string
           created_at?: string
+          enviado_a_revision_at?: string | null
+          enviado_a_revision_por?: string | null
           estado?: Database['public']['Enums']['concepto_estado_t']
           formula_ael?: string | null
           id?: string
           modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
           nombre: string
           prioridad?: number
+          rechazado_motivo?: string | null
           tenant_id: string
           tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
           updated_at?: string | null
           version?: number
         }
         Update: {
+          aprobado_at?: string | null
+          aprobado_por?: string | null
           codigo?: string
           created_at?: string
+          enviado_a_revision_at?: string | null
+          enviado_a_revision_por?: string | null
           estado?: Database['public']['Enums']['concepto_estado_t']
           formula_ael?: string | null
           id?: string
           modo_calculo?: Database['public']['Enums']['concepto_modo_calculo_t']
           nombre?: string
           prioridad?: number
+          rechazado_motivo?: string | null
           tenant_id?: string
           tipo_base?: Database['public']['Enums']['concepto_tipo_base_t']
           updated_at?: string | null
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: 'conceptos_aprobado_por_fkey'
+            columns: ['aprobado_por']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'conceptos_enviado_a_revision_por_fkey'
+            columns: ['enviado_a_revision_por']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'conceptos_tenant_id_fkey'
             columns: ['tenant_id']
@@ -2219,7 +2313,7 @@ export type Database = {
     Enums: {
       cargo_categoria_t: 'capital' | 'interes' | 'otro'
       cargo_origen_t: 'liquidacion_linea' | 'novedad' | 'interes'
-      concepto_estado_t: 'borrador' | 'activo' | 'archivado'
+      concepto_estado_t: 'borrador' | 'en_revision' | 'activo' | 'archivado'
       concepto_modo_calculo_t: 'directo' | 'distribucion'
       concepto_tipo_base_t: 'fijo' | 'coeficiente' | 'cantidad' | 'porcentaje' | 'saldo'
       fondo_base_calculo_t: 'presupuesto_anual' | 'cuota_administracion'
@@ -2369,7 +2463,7 @@ export const Constants = {
     Enums: {
       cargo_categoria_t: ['capital', 'interes', 'otro'],
       cargo_origen_t: ['liquidacion_linea', 'novedad', 'interes'],
-      concepto_estado_t: ['borrador', 'activo', 'archivado'],
+      concepto_estado_t: ['borrador', 'en_revision', 'activo', 'archivado'],
       concepto_modo_calculo_t: ['directo', 'distribucion'],
       concepto_tipo_base_t: ['fijo', 'coeficiente', 'cantidad', 'porcentaje', 'saldo'],
       fondo_base_calculo_t: ['presupuesto_anual', 'cuota_administracion'],

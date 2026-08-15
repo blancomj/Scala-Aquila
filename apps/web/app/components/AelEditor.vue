@@ -8,7 +8,7 @@
 // (Decoration.mark por token.tipo) en vez de una gramática CodeMirror/Lezer
 // paralela que pudiera divergir del lexer real.
 import { basicSetup, EditorView } from 'codemirror'
-import { EditorState, type Extension, type Text } from '@codemirror/state'
+import { Compartment, EditorState, type Extension, type Text } from '@codemirror/state'
 import { hoverTooltip } from '@codemirror/view'
 import {
   autocompletion,
@@ -31,11 +31,19 @@ const props = defineProps<{
   modelValue: string
   conceptosDisponibles?: readonly string[]
   diagnosticos?: readonly Diagnostico[]
+  readonly?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [valor: string] }>()
 
 const contenedor = ref<HTMLDivElement | null>(null)
 let vista: EditorView | null = null
+// AEL-004 Fase 4 — soloLectura se activa/desactiva sin recrear el editor
+// (conceptos ya no editables fuera de borrador, guard_concepto_transicion).
+const compartmentSoloLectura = new Compartment()
+
+function extensionesSoloLectura(): Extension[] {
+  return props.readonly ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
+}
 
 function codigosConceptos(): readonly string[] {
   return props.conceptosDisponibles ?? []
@@ -200,6 +208,7 @@ function extensiones(): Extension[] {
     autocompletion({ override: [fuenteAutocompletado] }),
     crearHoverTooltip(),
     extensionLinter,
+    compartmentSoloLectura.of(extensionesSoloLectura()),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) emit('update:modelValue', update.state.doc.toString())
     }),
@@ -226,6 +235,14 @@ watch(
     const actual = vista.state.doc.toString()
     if (actual === valor) return
     vista.dispatch({ changes: { from: 0, to: actual.length, insert: valor } })
+  },
+)
+
+watch(
+  () => props.readonly,
+  () => {
+    if (!vista) return
+    vista.dispatch({ effects: compartmentSoloLectura.reconfigure(extensionesSoloLectura()) })
   },
 )
 

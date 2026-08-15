@@ -97,6 +97,10 @@ export const ERROR_CODES = {
   NOVEDAD_NO_ENCONTRADA: 'NOVEDAD_NO_ENCONTRADA',
   NOVEDAD_NO_PENDIENTE: 'NOVEDAD_NO_PENDIENTE',
   PERIODO_NO_ENCONTRADO_PARA_FECHA_EFECTIVA: 'PERIODO_NO_ENCONTRADO_PARA_FECHA_EFECTIVA',
+
+  // ── AEL-004 Fase 4: maker-checker de conceptos ──────────────────────────
+  CONCEPTO_INMUTABLE: 'CONCEPTO_INMUTABLE',
+  SELF_APPROVAL: 'SELF_APPROVAL',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

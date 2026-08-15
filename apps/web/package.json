@@ -16,6 +16,9 @@
   "dependencies": {
     "@aquila/ael-core": "workspace:*",
     "@aquila/ael-language": "workspace:*",
+    "@aquila/ael-runtime": "workspace:*",
+    "@aquila/financial-kernel": "workspace:*",
+    "@aquila/liquidation-engine": "workspace:*",
     "@aquila/shared": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
