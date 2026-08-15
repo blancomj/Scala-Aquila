@@ -336,6 +336,11 @@ de datos nueva para un PARAMETER que antes no tenía ninguna.
 ### PRERREQUISITO 16.1 — RESUELTO
 Registrado como **GAP-19** en `PLAN_MAESTRO_IMPLEMENTACION.md §7`: reapertura
 adoptada, presupuesto multi-componente vía E-16, sin bifurcar esquema.
+**Físico completo**: esquema (`fuente_financiacion`/`fundamento_normativo`),
+capa de exposición (RPC + Edge Functions `presupuesto-financiacion` /
+`presupuesto-previsualizar`), UI (`apps/web/app/pages/presupuesto`,
+`apps/web/app/pages/fundamentos`) y neteo contra `CUOTA_ADMIN` vía
+`PARAMETER.OTROS_INGRESOS_ANUAL` (ver REC-006/REC-008).
 
 ### PRERREQUISITO 16.2 — RESUELTO
 **Diferido**, registrado como **GAP-20**. GC-001 no ejercita ciclo de asamblea

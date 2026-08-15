@@ -47,9 +47,12 @@ await useAsyncData('auditoria-reciente', () => {
       </div>
     </div>
 
-    <div>
+    <div class="flex gap-4">
       <NuxtLink to="/presupuesto" class="text-sm text-primary-500"
         >Fuentes de financiación →</NuxtLink
+      >
+      <NuxtLink to="/fundamentos" class="text-sm text-primary-500"
+        >Fundamentos normativos →</NuxtLink
       >
     </div>
 
