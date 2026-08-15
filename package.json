@@ -21,7 +21,8 @@
     "db:push": "node scripts/db-push.mjs",
     "db:push:dry": "node scripts/db-push.mjs --dry-run",
     "db:types": "node scripts/db-types.mjs",
-    "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs"
+    "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@aquila/financial-kernel": "workspace:*",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.62.1",
     "@supabase/supabase-js": "^2.112.3",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.21.0",

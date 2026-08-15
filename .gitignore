@@ -21,6 +21,9 @@ build/
 # test / cobertura
 coverage/
 .vitest/
+test-results/
+playwright-report/
+blob-report/
 
 # editor / SO
 .DS_Store

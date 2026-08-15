@@ -3,6 +3,6 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["vitest.config.ts", "eslint.config.js", "tests/**/*.ts"],
+  "include": ["vitest.config.ts", "eslint.config.js", "playwright.config.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/dist"]
 }

@@ -16,7 +16,9 @@ export default defineConfig({
     // Los tests RLS golpean un proyecto Supabase remoto (D-08): en serie,
     // para que dos runs paralelos no se pisen los fixtures.
     fileParallelism: false,
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    // tests/e2e/**: specs de Playwright, no de Vitest — tienen su propio
+    // test runner (pnpm test:e2e) y su propio config (playwright.config.ts).
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
