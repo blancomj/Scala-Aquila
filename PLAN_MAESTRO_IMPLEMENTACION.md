@@ -906,3 +906,64 @@ Sin eso no hay contra qué verificar nada.
 
 Terminado = Definition of Done completa con evidencia, no "compila".
 ```
+
+---
+
+# 12. Trazabilidad de requisitos
+
+Cierra el gap de gobierno detectado en la auditoría de `Docs/01–24` contra el
+código real (2026-08-15): Doc 22 pide una matriz `Requisito → Documento →
+Componente → Implementación → Test → Evidencia` con IDs estables
+`REQ-<DOMAIN>-NNN`. Este proyecto ya tiene un esquema de decisión vivo
+(`AD-xx`/`GAP-xx`, §1 y §7) que cumple gran parte del mismo propósito — este
+apartado no lo sustituye, le añade el namespace de requisito y el mapeo a
+test que Doc 22 exige y que `AD-xx`/`GAP-xx` no traían por sí solos.
+
+## 12.1 Convención
+
+```text
+REQ-<DOMAIN>-NNN
+```
+
+Dominios en uso: `LIQ` (motor de liquidación de conceptos), `PAGO`
+(imputación de pagos), `MORA` (interés de mora), `NOVEDAD` (ajustes/novedades
+con aprobación), `SEC` (seguridad/aislamiento). Un requisito no cambia de
+dominio ni se reutiliza su número — si su alcance cambia sustancialmente, se
+marca `Deprecated` y se abre uno nuevo (`21 §31`/`22 §76`).
+
+## 12.2 Matriz
+
+| REQ             | Descripción                                                                                                                         | Documento propietario | AD/GAP | Implementación                                                                         | Test                                                                                     | Estado   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------- |
+| REQ-LIQ-001     | R1: Σ allocationEntries = sourceAmount, sin epsilon                                                                                 | `19`                  | —      | `packages/financial-kernel/src/allocation.ts::verificarSumaReconciliada`               | `packages/financial-kernel/src/allocation.test.ts`                                       | Accepted |
+| REQ-LIQ-002     | R3/R4: totalInmueble y tenantTotal reconcilian por suma                                                                             | `20 §39`, §6.4        | AD-25  | `packages/liquidation-engine/src/result.ts::ensamblarResultado`                        | `packages/liquidation-engine/src/golden-case-gc001.test.ts`                              | Accepted |
+| REQ-LIQ-003     | R6: una zona común nunca produce línea de liquidación                                                                               | §4.1.1                | —      | `construirSnapshotDesdeSupabase` (solo `inmuebles`, nunca `zonas_comunes`)             | `tests/rls/schema-forced-rls.test.ts`                                                    | Accepted |
+| REQ-LIQ-004     | R7: Σ 12 cuotas mensuales = presupuesto.monto_total                                                                                 | §6.5                  | —      | `packages/liquidation-engine/src/executor.ts` (doble reparto anual→periodo)            | `tests/liquidacion/gc001-snapshot.test.ts`                                               | Accepted |
+| REQ-LIQ-005     | R8: fondo.saldo_actual = Σ fondo_movimientos                                                                                        | §4.3                  | GAP-15 | trigger `recalcular_saldo_fondo`                                                       | `tests/rls/domain-isolation.test.ts`                                                     | Accepted |
+| REQ-PAGO-001    | R2: pago.monto = aplicado + noAplicado, sin épsilon                                                                                 | Docs/19 Payment       | AD-34  | `packages/liquidation-engine/src/cuenta-corriente.ts::imputarPago`                     | `packages/liquidation-engine/src/cuenta-corriente.test.ts`                               | Accepted |
+| REQ-PAGO-002    | Estrategia de imputación configurable por política                                                                                  | —                     | AD-36  | `imputarPago` (parámetro `estrategia`) + `politicas_financieras.imputacion_estrategia` | `tests/tenancy/registrar-pago.test.ts`                                                   | Accepted |
+| REQ-PAGO-003    | Ledger de cuenta corriente separado del motor de conceptos                                                                          | `20 §69`              | AD-31  | `supabase/migrations/20260816100000_cuenta_corriente_ledger.sql`                       | `tests/rls/cuenta-corriente.test.ts`, `tests/liquidacion/gc001-cuenta-corriente.test.ts` | Accepted |
+| REQ-MORA-001    | Interés de mora: base capital, día-cuenta calendario, gracia, tope                                                                  | §6.6                  | GAP-14 | `packages/liquidation-engine/src/cuenta-corriente.ts::calcularInteresMora`             | `packages/liquidation-engine/src/cuenta-corriente.test.ts`                               | Accepted |
+| REQ-MORA-002    | Idempotencia entre corridas de cálculo de interés                                                                                   | —                     | —      | `obtenerUltimaFechaInteresPorCapital` (packages/liquidation-engine)                    | `tests/tenancy/calcular-intereses.test.ts`                                               | Accepted |
+| REQ-NOVEDAD-001 | Novedad con aprobación separada del motor de cálculo                                                                                | Docs/19 §284          | AD-33  | `supabase/migrations/20260816110100_fn_novedades.sql::fn_aprobar_novedad`              | `tests/tenancy/novedades.test.ts`                                                        | Accepted |
+| REQ-NOVEDAD-002 | Signo de `novedades.monto` validado por tipo                                                                                        | Docs/19 §254          | AD-30  | `supabase/functions/crear-novedad/index.ts`                                            | `tests/tenancy/novedades.test.ts`                                                        | Accepted |
+| REQ-SEC-001     | Escritura del ledger exclusiva de service_role (sin política INSERT/UPDATE para `authenticated` donde hay efecto colateral atómico) | `21 §30`              | —      | RLS de `pagos`/`pago_aplicaciones`/`novedades`                                         | `tests/rls/cuenta-corriente.test.ts`, `tests/rls/novedades.test.ts`                      | Accepted |
+
+## 12.3 Gaps sin decisión (Doc 16/19, no bloqueantes)
+
+Identificados durante el diseño del motor de cuenta corriente, sin
+implementación porque el corpus los deja explícitamente abiertos y ningún
+caso de negocio real los ha exigido todavía (AD-23):
+
+| REQ             | Descripción                                                                                                                 | Origen         | Estado  |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------- | ------- |
+| REQ-MORA-003    | Day-count exacto de interés — `§6.6` fija "calendario" pero no lo mapea a una convención bancaria formal (ACTUAL/360, etc.) | Docs/16 §55-56 | Blocked |
+| REQ-NOVEDAD-003 | Orden descuento-vs-interés cuando coinciden en el mismo ciclo de vida de un cargo                                           | Docs/16 §51    | Blocked |
+
+## 12.4 Mantenimiento
+
+La matriz se actualiza junto con el cambio que introduce o modifica un
+requisito (`22 §52`) — no es un ejercicio de fin de proyecto. Un cambio que
+toque un `REQ` existente debe indicar en su commit/PR qué fila de §12.2
+afecta; uno que introduzca un requisito nuevo le asigna el siguiente `NNN`
+libre de su dominio.
