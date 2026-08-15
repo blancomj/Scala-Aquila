@@ -1572,6 +1572,34 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_registrar_fuente_financiacion: {
+        Args: {
+          p_descripcion?: string
+          p_fundamento_normativo_id?: number
+          p_presupuesto_id: string
+          p_tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          p_valor_aplicado?: number
+          p_valor_disponible: number
+        }
+        Returns: {
+          created_at: string
+          descripcion: string | null
+          fundamento_normativo_id: number | null
+          id: string
+          presupuesto_id: string
+          tenant_id: string
+          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          updated_at: string | null
+          valor_aplicado: number
+          valor_disponible: number
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'fuente_financiacion'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           p_roles: Database['public']['Enums']['tenant_role_t'][]

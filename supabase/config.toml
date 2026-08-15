@@ -40,3 +40,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/revoke-invitation/deno.json"
 entrypoint = "./functions/revoke-invitation/index.ts"
+
+[functions.presupuesto-financiacion]
+enabled = true
+verify_jwt = true
+import_map = "./functions/presupuesto-financiacion/deno.json"
+entrypoint = "./functions/presupuesto-financiacion/index.ts"
