@@ -11,7 +11,10 @@ import {
   bloqueDeclaracionVacia,
   bloqueNumeroCero,
   bloqueRetornoVacio,
+  diferenciarParDeListas,
+  encontrarRutaDeInstruccion,
   envolverEnBinaria,
+  moverInstruccionEntreListas,
   type BloqueRegla,
 } from './ael-bloques'
 
@@ -202,5 +205,167 @@ describe('BloqueExpresion/BloqueInstruccion — reestructurar sin mutar (E6)', (
     const reordenadas = [segundo, primero, tercero]
     expect(reordenadas.map((i) => i.id)).toEqual([segundo.id, primero.id, tercero.id])
     expect(new Set(reordenadas.map((i) => i.id)).size).toBe(3)
+  })
+})
+
+function bloquesDeTexto(texto: string): BloqueRegla {
+  const { regla } = parsear(texto)
+  if (regla === null) throw new Error(`fixture inválida: "${texto}" no parseó`)
+  return astABloques(regla)
+}
+
+describe('encontrarRutaDeInstruccion', () => {
+  it('encuentra una instrucción en el cuerpo raíz', () => {
+    const regla = bloquesDeTexto('REGLA X\nDEFINIR a = 1\nRETORNAR a')
+    const retorno = regla.cuerpo[1]
+    if (!retorno) throw new Error('fixture inválida')
+    const encontrada = encontrarRutaDeInstruccion(regla.cuerpo, retorno.id)
+    expect(encontrada).toEqual({ ruta: [], indice: 1 })
+  })
+
+  it('encuentra una instrucción anidada dentro de ENTONCES y de SINO', () => {
+    const regla = bloquesDeTexto(
+      ['REGLA X', 'SI VERDADERO ENTONCES', 'DEFINIR a = 1', 'SINO', 'DEFINIR b = 2', 'FIN'].join(
+        '\n',
+      ),
+    )
+    const condicional = regla.cuerpo[0]
+    if (condicional?.tipo !== 'Condicional' || condicional.sino === null) {
+      throw new Error('fixture inválida')
+    }
+    const enEntonces = condicional.entonces[0]
+    const enSino = condicional.sino[0]
+    if (!enEntonces || !enSino) throw new Error('fixture inválida')
+
+    expect(encontrarRutaDeInstruccion(regla.cuerpo, enEntonces.id)).toEqual({
+      ruta: [{ indice: 0, rama: 'entonces' }],
+      indice: 0,
+    })
+    expect(encontrarRutaDeInstruccion(regla.cuerpo, enSino.id)).toEqual({
+      ruta: [{ indice: 0, rama: 'sino' }],
+      indice: 0,
+    })
+  })
+
+  it('devuelve null si el id no existe en el árbol', () => {
+    const regla = bloquesDeTexto('REGLA X\nRETORNAR 1')
+    expect(encontrarRutaDeInstruccion(regla.cuerpo, 'id-inexistente')).toBeNull()
+  })
+})
+
+describe('moverInstruccionEntreListas', () => {
+  it('reordena dentro de la misma lista (misma ruta)', () => {
+    const regla = bloquesDeTexto('REGLA X\nDEFINIR a = 1\nDEFINIR b = 2\nRETORNAR a')
+    const segundo = regla.cuerpo[1]
+    if (!segundo) throw new Error('fixture inválida')
+
+    const movida = moverInstruccionEntreListas(regla, [], 1, [], 0)
+    expect(movida.cuerpo.map((i) => i.id)).toEqual([
+      segundo.id,
+      regla.cuerpo[0]?.id,
+      regla.cuerpo[2]?.id,
+    ])
+    expect(movida.cuerpo).toHaveLength(3)
+  })
+
+  it('mueve una instrucción del cuerpo raíz hacia dentro de un ENTONCES', () => {
+    const regla = bloquesDeTexto(
+      ['REGLA X', 'DEFINIR a = 1', 'SI VERDADERO ENTONCES', 'RETORNAR a', 'FIN'].join('\n'),
+    )
+    const declaracion = regla.cuerpo[0]
+    const condicional = regla.cuerpo[1]
+    if (!declaracion || condicional?.tipo !== 'Condicional') throw new Error('fixture inválida')
+
+    const movida = moverInstruccionEntreListas(regla, [], 0, [{ indice: 0, rama: 'entonces' }], 0)
+
+    // el cuerpo raíz pierde la declaración — el Condicional queda en índice 0.
+    expect(movida.cuerpo).toHaveLength(1)
+    expect(movida.cuerpo[0]?.id).toBe(condicional.id)
+    const condicionalMovido = movida.cuerpo[0]
+    if (condicionalMovido?.tipo !== 'Condicional') throw new Error('esperaba Condicional')
+    expect(condicionalMovido.entonces.map((i) => i.id)).toEqual([
+      declaracion.id,
+      condicionalMovido.entonces[1]?.id,
+    ])
+    expect(condicionalMovido.entonces).toHaveLength(2)
+  })
+
+  it('mueve una instrucción de ENTONCES a SINO del mismo Condicional', () => {
+    const regla = bloquesDeTexto(
+      ['REGLA X', 'SI VERDADERO ENTONCES', 'DEFINIR a = 1', 'SINO', 'DEFINIR b = 2', 'FIN'].join(
+        '\n',
+      ),
+    )
+    const condicional = regla.cuerpo[0]
+    if (condicional?.tipo !== 'Condicional' || condicional.sino === null) {
+      throw new Error('fixture inválida')
+    }
+    const enEntonces = condicional.entonces[0]
+    if (!enEntonces) throw new Error('fixture inválida')
+
+    const movida = moverInstruccionEntreListas(
+      regla,
+      [{ indice: 0, rama: 'entonces' }],
+      0,
+      [{ indice: 0, rama: 'sino' }],
+      0,
+    )
+    const condicionalMovido = movida.cuerpo[0]
+    if (condicionalMovido?.tipo !== 'Condicional' || condicionalMovido.sino === null) {
+      throw new Error('esperaba Condicional con sino')
+    }
+    expect(condicionalMovido.entonces).toHaveLength(0)
+    expect(condicionalMovido.sino.map((i) => i.id)).toEqual([enEntonces.id, condicional.sino[0]?.id])
+  })
+
+  it('el resultado siempre imprime y vuelve a parsear', () => {
+    const regla = bloquesDeTexto(
+      ['REGLA X', 'DEFINIR a = 1', 'SI VERDADERO ENTONCES', 'RETORNAR a', 'FIN'].join('\n'),
+    )
+    const movida = moverInstruccionEntreListas(regla, [], 0, [{ indice: 0, rama: 'entonces' }], 0)
+    const texto = imprimir(bloquesAAst(movida))
+    const { diagnosticos } = parsear(texto)
+    expect(diagnosticos, `no parseó:\n${texto}`).toHaveLength(0)
+  })
+})
+
+describe('diferenciarParDeListas', () => {
+  it('marca igual cuando ambas listas son estructuralmente idénticas (id distinto no cuenta)', () => {
+    const a = bloquesDeTexto('REGLA X\nRETORNAR 1').cuerpo
+    const b = bloquesDeTexto('REGLA X\nRETORNAR 1').cuerpo // ids frescos, mismo contenido
+    const { original, nueva } = diferenciarParDeListas(a, b)
+    expect(original.map((d) => d.estado)).toEqual(['igual'])
+    expect(nueva.map((d) => d.estado)).toEqual(['igual'])
+  })
+
+  it('marca cambiado cuando el contenido en la misma posición difiere', () => {
+    const a = bloquesDeTexto('REGLA X\nRETORNAR 1').cuerpo
+    const b = bloquesDeTexto('REGLA X\nRETORNAR 2').cuerpo
+    const { original, nueva } = diferenciarParDeListas(a, b)
+    expect(original.map((d) => d.estado)).toEqual(['cambiado'])
+    expect(nueva.map((d) => d.estado)).toEqual(['cambiado'])
+  })
+
+  it('marca nuevo/eliminado cuando una lista es más larga que la otra', () => {
+    const a = bloquesDeTexto('REGLA X\nRETORNAR 1').cuerpo
+    const b = bloquesDeTexto('REGLA X\nDEFINIR a = 1\nRETORNAR a').cuerpo
+    const { original, nueva } = diferenciarParDeListas(a, b)
+    expect(original.map((d) => d.estado)).toEqual(['cambiado'])
+    expect(nueva.map((d) => d.estado)).toEqual(['cambiado', 'nuevo'])
+  })
+
+  it('recursa en las ramas de un Condicional anidado', () => {
+    const a = bloquesDeTexto(
+      ['REGLA X', 'SI VERDADERO ENTONCES', 'RETORNAR 1', 'FIN'].join('\n'),
+    ).cuerpo
+    const b = bloquesDeTexto(
+      ['REGLA X', 'SI VERDADERO ENTONCES', 'RETORNAR 2', 'FIN'].join('\n'),
+    ).cuerpo
+    const { nueva } = diferenciarParDeListas(a, b)
+    const [condicional] = nueva
+    if (!condicional?.entonces) throw new Error('esperaba entonces anotado')
+    // la condición no cambió, pero el RETORNAR interno sí.
+    expect(condicional.estado).toBe('cambiado')
+    expect(condicional.entonces.map((d) => d.estado)).toEqual(['cambiado'])
   })
 })

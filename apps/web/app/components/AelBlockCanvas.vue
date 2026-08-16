@@ -8,9 +8,14 @@
 // se reutiliza en otro lugar sin esa guarda. Reestructurar el cuerpo
 // (agregar/quitar/reordenar instrucciones) sigue sin edición — eso llega
 // con la paleta arrastrable de E6.
-import type { BloqueInstruccion, BloqueRegla } from '~/utils/ael-bloques'
+import type { BloqueInstruccion, BloqueRegla, CatalogoBloques, RutaLista } from '~/utils/ael-bloques'
+import { encontrarRutaDeInstruccion, moverInstruccionEntreListas } from '~/utils/ael-bloques'
 
-const props = defineProps<{ bloque: BloqueRegla | null; readonly?: boolean }>()
+const props = defineProps<{
+  bloque: BloqueRegla | null
+  readonly?: boolean
+  catalogo?: CatalogoBloques
+}>()
 const emit = defineEmits<{ 'update:bloque': [BloqueRegla] }>()
 
 const RE_IDENTIFICADOR = /^[a-zA-Z][a-zA-Z0-9_]*$/
@@ -24,6 +29,26 @@ function actualizarCuerpo(nuevoCuerpo: readonly BloqueInstruccion[]): void {
   if (props.bloque === null) return
   emit('update:bloque', { ...props.bloque, cuerpo: nuevoCuerpo })
 }
+
+// Único punto con visión del árbol completo — mover una instrucción entre
+// ramas distintas (drag cruzando ENTONCES/SINO/cuerpo, AelBlockInstruccion)
+// exige quitarla de una lista e insertarla en otra en el mismo update, algo
+// que ningún AelBlockInstruccion individual puede hacer por sí solo (cada
+// uno solo ve/muta su propia lista).
+function moverInstruccionGlobal(bloqueId: string, rutaDestino: RutaLista, indiceDestino: number): void {
+  if (props.bloque === null) return
+  const encontrada = encontrarRutaDeInstruccion(props.bloque.cuerpo, bloqueId)
+  if (!encontrada) return
+  const nuevo = moverInstruccionEntreListas(
+    props.bloque,
+    encontrada.ruta,
+    encontrada.indice,
+    rutaDestino,
+    indiceDestino,
+  )
+  emit('update:bloque', nuevo)
+}
+provide('aelMoverInstruccionGlobal', moverInstruccionGlobal)
 </script>
 
 <template>
@@ -44,6 +69,7 @@ function actualizarCuerpo(nuevoCuerpo: readonly BloqueInstruccion[]): void {
         v-if="bloque.cuerpo.length > 0"
         :instrucciones="bloque.cuerpo"
         :readonly="readonly"
+        :catalogo="catalogo"
         @update:instrucciones="actualizarCuerpo"
       />
       <p v-else class="text-xs text-gray-400 italic">Esta fórmula todavía no tiene instrucciones.</p>

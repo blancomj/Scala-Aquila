@@ -4,17 +4,22 @@
 // nombre...) y reemplaza el bloque completo hacia el padre.
 // E6: además reestructura — "envolver" convierte cualquier expresión en el
 // lado izquierdo de una nueva operación binaria; "simplificar" hace lo
-// inverso para una ExpresionBinaria (se queda solo con el lado izquierdo);
-// LlamadaFuncion admite agregar/quitar argumentos. No hay una forma
-// genérica de "cambiar el tipo" de un nodo (p. ej. convertir un número en
-// una referencia a contrato) — envolver/simplificar ya cubre reestructurar
-// sin necesitar esa operación, y evita una UI de "elegir tipo nuevo" que
-// tendría que decidir qué hacer con los hijos existentes.
-import type { BloqueExpresion } from '~/utils/ael-bloques'
-import { bloqueNumeroCero, envolverEnBinaria } from '~/utils/ael-bloques'
+// inverso para una ExpresionBinaria; LlamadaFuncion admite agregar/quitar
+// argumentos; un select "tipo" cambia entre los 7 tipos hoja (reemplaza el
+// nodo por el default de FABRICAS_POR_TIPO — no hay forma sensata de
+// preservar valor al cambiar, p. ej., un número por una referencia).
+// ExpresionUnaria/ExpresionBinaria quedan fuera del selector de tipo:
+// convertir DESDE una operación perdería sus operandos sin un destino
+// obvio, y convertir HACIA una ya existe vía "envolver".
+import type { BloqueExpresion, CatalogoBloques } from '~/utils/ael-bloques'
+import { bloqueNumeroCero, envolverEnBinaria, FABRICAS_POR_TIPO } from '~/utils/ael-bloques'
 import type { OperadorBinario } from '@aquila/ael-language'
 
-const props = defineProps<{ bloque: BloqueExpresion; readonly?: boolean }>()
+const props = defineProps<{
+  bloque: BloqueExpresion
+  readonly?: boolean
+  catalogo?: CatalogoBloques
+}>()
 const emit = defineEmits<{ 'update:bloque': [BloqueExpresion] }>()
 
 const OPERADORES_BINARIOS: readonly OperadorBinario[] = [
@@ -29,6 +34,19 @@ const OPERADORES_BINARIOS: readonly OperadorBinario[] = [
   '<',
   '<=',
 ]
+
+const CONTRATOS_CONOCIDOS = ['PARAMETER', 'UNIT', 'CONCEPTO'] as const
+
+const TIPOS_HOJA: ReadonlyArray<{ valor: BloqueExpresion['tipo']; etiqueta: string }> = [
+  { valor: 'NumeroLiteral', etiqueta: '#' },
+  { valor: 'DineroLiteral', etiqueta: '$' },
+  { valor: 'BooleanoLiteral', etiqueta: 'S/N' },
+  { valor: 'NuloLiteral', etiqueta: 'nulo' },
+  { valor: 'Identificador', etiqueta: 'var' },
+  { valor: 'ReferenciaContract', etiqueta: 'ref' },
+  { valor: 'LlamadaFuncion', etiqueta: 'fn()' },
+]
+const esTipoHoja = computed(() => TIPOS_HOJA.some((t) => t.valor === props.bloque.tipo))
 
 // Mismas formas léxicas que lexer.ts (Docs/02 §4/§9-10) — solo se aceptan
 // ediciones que, al volver a imprimirse, sigan parseando.
@@ -47,10 +65,41 @@ const COLOR_DEFECTO =
 const CLASE_INPUT_PILL =
   'bg-transparent outline-none disabled:cursor-not-allowed disabled:opacity-60'
 const CLASE_BOTON_ESTRUCTURA = 'text-xs text-gray-400 hover:text-primary leading-none'
+const CLASE_SELECTOR_TIPO =
+  'bg-transparent text-[9px] uppercase leading-none text-gray-400 outline-none disabled:cursor-not-allowed'
 
 function colorContrato(contrato: string): string {
   return COLOR_CONTRATO[contrato] ?? COLOR_DEFECTO
 }
+
+/** Garantiza que el valor actual esté seleccionable, aunque no esté en el catálogo. */
+function conValorActual(opciones: readonly string[], actual: string): readonly string[] {
+  return actual && !opciones.includes(actual) ? [...opciones, actual] : opciones
+}
+
+const opcionesContrato = computed(() => {
+  if (props.bloque.tipo !== 'ReferenciaContract') return CONTRATOS_CONOCIDOS
+  return conValorActual(CONTRATOS_CONOCIDOS, props.bloque.contrato)
+})
+
+const opcionesCampo = computed(() => {
+  if (props.bloque.tipo !== 'ReferenciaContract') return []
+  const catalogo = props.catalogo
+  const base =
+    props.bloque.contrato === 'PARAMETER'
+      ? (catalogo?.parameter ?? [])
+      : props.bloque.contrato === 'UNIT'
+        ? (catalogo?.unit ?? [])
+        : props.bloque.contrato === 'CONCEPTO'
+          ? (catalogo?.concepto ?? [])
+          : []
+  return conValorActual(base, props.bloque.campo)
+})
+
+const opcionesFuncion = computed(() => {
+  if (props.bloque.tipo !== 'LlamadaFuncion') return []
+  return conValorActual(props.catalogo?.funciones ?? [], props.bloque.nombre)
+})
 
 // Invariante heredada de ast.ts (ver ael-bloques.ts): valor/monto son el
 // lexema crudo — se rechaza (se ignora el evento) cualquier texto que no
@@ -142,10 +191,28 @@ function simplificarBinaria(): void {
   if (props.bloque.tipo !== 'ExpresionBinaria') return
   emit('update:bloque', props.bloque.izquierda)
 }
+
+function cambiarTipo(nuevoTipo: string): void {
+  if (nuevoTipo === props.bloque.tipo) return
+  const fabrica = FABRICAS_POR_TIPO[nuevoTipo as keyof typeof FABRICAS_POR_TIPO]
+  if (!fabrica) return
+  emit('update:bloque', fabrica())
+}
 </script>
 
 <template>
   <span class="inline-flex items-center gap-0.5 align-middle">
+    <select
+      v-if="esTipoHoja"
+      :value="bloque.tipo"
+      :disabled="readonly"
+      :class="CLASE_SELECTOR_TIPO"
+      title="Cambiar tipo"
+      @change="cambiarTipo(($event.target as HTMLSelectElement).value)"
+    >
+      <option v-for="t in TIPOS_HOJA" :key="t.valor" :value="t.valor">{{ t.etiqueta }}</option>
+    </select>
+
     <span
       v-if="bloque.tipo === 'NumeroLiteral'"
       :class="COLOR_DEFECTO"
@@ -225,19 +292,34 @@ function simplificarBinaria(): void {
       :class="colorContrato(bloque.contrato)"
       class="inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-xs font-mono"
     >
-      <input
+      <select
         :value="bloque.contrato"
         :disabled="readonly"
         :class="CLASE_INPUT_PILL"
-        class="w-20 font-mono"
-        @change="actualizarContratoReferencia(($event.target as HTMLInputElement).value)"
+        class="font-mono"
+        @change="actualizarContratoReferencia(($event.target as HTMLSelectElement).value)"
       >
+        <option v-for="c in opcionesContrato" :key="c" :value="c">{{ c }}</option>
+      </select>
       <span>.</span>
+      <select
+        v-if="opcionesCampo.length > 0"
+        :value="bloque.campo"
+        :disabled="readonly"
+        :class="CLASE_INPUT_PILL"
+        class="font-mono"
+        @change="actualizarCampoReferencia(($event.target as HTMLSelectElement).value)"
+      >
+        <option v-if="!bloque.campo" value="" disabled>— campo —</option>
+        <option v-for="c in opcionesCampo" :key="c" :value="c">{{ c }}</option>
+      </select>
       <input
+        v-else
         :value="bloque.campo"
         :disabled="readonly"
         :class="CLASE_INPUT_PILL"
         class="w-28 font-mono"
+        placeholder="campo"
         @change="actualizarCampoReferencia(($event.target as HTMLInputElement).value)"
       >
     </span>
@@ -246,11 +328,24 @@ function simplificarBinaria(): void {
       v-else-if="bloque.tipo === 'LlamadaFuncion'"
       class="inline-flex items-center gap-1 rounded-md border border-dashed border-orange-400 bg-orange-50 px-2 py-1 text-xs dark:border-orange-600 dark:bg-orange-900/20"
     >
+      <select
+        v-if="opcionesFuncion.length > 0"
+        :value="bloque.nombre"
+        :disabled="readonly"
+        :class="CLASE_INPUT_PILL"
+        class="font-mono font-medium text-orange-700 dark:text-orange-300"
+        @change="actualizarNombreFuncion(($event.target as HTMLSelectElement).value)"
+      >
+        <option v-if="!bloque.nombre" value="" disabled>— función —</option>
+        <option v-for="f in opcionesFuncion" :key="f" :value="f">{{ f }}</option>
+      </select>
       <input
+        v-else
         :value="bloque.nombre"
         :disabled="readonly"
         :class="CLASE_INPUT_PILL"
         class="w-32 font-mono font-medium text-orange-700 dark:text-orange-300"
+        placeholder="función"
         @change="actualizarNombreFuncion(($event.target as HTMLInputElement).value)"
       >
       <span class="text-orange-500">(</span>
@@ -259,6 +354,7 @@ function simplificarBinaria(): void {
         <AelBlockExpresion
           :bloque="arg"
           :readonly="readonly"
+          :catalogo="catalogo"
           @update:bloque="(nuevo) => actualizarArgumento(i, nuevo)"
         />
         <button
@@ -288,6 +384,7 @@ function simplificarBinaria(): void {
       <AelBlockExpresion
         :bloque="bloque.operando"
         :readonly="readonly"
+        :catalogo="catalogo"
         @update:bloque="actualizarOperando"
       />
     </span>
@@ -296,6 +393,7 @@ function simplificarBinaria(): void {
       <AelBlockExpresion
         :bloque="bloque.izquierda"
         :readonly="readonly"
+        :catalogo="catalogo"
         @update:bloque="actualizarIzquierda"
       />
       <select
@@ -310,6 +408,7 @@ function simplificarBinaria(): void {
       <AelBlockExpresion
         :bloque="bloque.derecha"
         :readonly="readonly"
+        :catalogo="catalogo"
         @update:bloque="actualizarDerecha"
       />
       <button

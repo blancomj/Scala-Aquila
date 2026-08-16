@@ -296,6 +296,14 @@ export function bloquesAAst(bloque: BloqueRegla): Regla {
   }
 }
 
+/** Catálogo para selects/autocompletado del canvas (E6+) — ver ael-catalogo.ts. */
+export interface CatalogoBloques {
+  readonly parameter: readonly string[]
+  readonly unit: readonly string[]
+  readonly concepto: readonly string[]
+  readonly funciones: readonly string[]
+}
+
 // ─────────────────── fábricas de bloques por defecto (E6) ───────────────
 // Usadas por los botones "+ instrucción"/"+ argumento"/"envolver" del
 // constructor visual: siempre producen un fragmento de AST válido (nunca
@@ -306,6 +314,43 @@ export function bloquesAAst(bloque: BloqueRegla): Regla {
 
 export function bloqueNumeroCero(): BloqueNumeroLiteral {
   return { id: id(), tipo: 'NumeroLiteral', valor: '0' }
+}
+
+export function bloqueDineroPorDefecto(): BloqueDineroLiteral {
+  return { id: id(), tipo: 'DineroLiteral', monto: '0', moneda: 'COP' }
+}
+
+export function bloqueBooleanoPorDefecto(): BloqueBooleanoLiteral {
+  return { id: id(), tipo: 'BooleanoLiteral', valor: true }
+}
+
+export function bloqueNuloPorDefecto(): BloqueNuloLiteral {
+  return { id: id(), tipo: 'NuloLiteral' }
+}
+
+export function bloqueIdentificadorPorDefecto(): BloqueIdentificador {
+  return { id: id(), tipo: 'Identificador', nombre: 'variable' }
+}
+
+export function bloqueReferenciaContractPorDefecto(): BloqueReferenciaContract {
+  return { id: id(), tipo: 'ReferenciaContract', contrato: 'PARAMETER', campo: '' }
+}
+
+export function bloqueLlamadaFuncionPorDefecto(): BloqueLlamadaFuncion {
+  return { id: id(), tipo: 'LlamadaFuncion', nombre: '', argumentos: [] }
+}
+
+/** Fábrica por defecto de cada tipo hoja — usada por el selector "cambiar tipo" (E6+). */
+export const FABRICAS_POR_TIPO: {
+  readonly [K in BloqueExpresion['tipo']]?: () => BloqueExpresion
+} = {
+  NumeroLiteral: bloqueNumeroCero,
+  DineroLiteral: bloqueDineroPorDefecto,
+  BooleanoLiteral: bloqueBooleanoPorDefecto,
+  NuloLiteral: bloqueNuloPorDefecto,
+  Identificador: bloqueIdentificadorPorDefecto,
+  ReferenciaContract: bloqueReferenciaContractPorDefecto,
+  LlamadaFuncion: bloqueLlamadaFuncionPorDefecto,
 }
 
 export function bloqueDeclaracionVacia(): BloqueDeclaracion {
@@ -334,5 +379,198 @@ export function envolverEnBinaria(bloque: BloqueExpresion): BloqueExpresionBinar
     operador: '+',
     izquierda: bloque,
     derecha: bloqueNumeroCero(),
+  }
+}
+
+// ───────────── mover instrucciones entre ramas distintas (E6+) ──────────
+// Una lista de instrucciones no es solo `cuerpo` de la REGLA — también es
+// `entonces`/`sino` de cualquier Condicional anidado. RutaLista identifica
+// UNA de esas listas: la secuencia de Condicionales que hay que atravesar
+// (y por qué rama) desde `cuerpo` para llegar a ella. `cuerpo` mismo es la
+// ruta vacía `[]`.
+
+export interface PasoRuta {
+  readonly indice: number
+  readonly rama: 'entonces' | 'sino'
+}
+export type RutaLista = readonly PasoRuta[]
+
+function obtenerLista(
+  cuerpo: readonly BloqueInstruccion[],
+  ruta: RutaLista,
+): readonly BloqueInstruccion[] {
+  let actual = cuerpo
+  for (const paso of ruta) {
+    const inst = actual[paso.indice]
+    if (inst?.tipo !== 'Condicional') throw new Error('RutaLista inválida: no apunta a un Condicional')
+    const rama = paso.rama === 'entonces' ? inst.entonces : inst.sino
+    if (rama === null) throw new Error('RutaLista inválida: la rama SINO no existe')
+    actual = rama
+  }
+  return actual
+}
+
+function reemplazarLista(
+  cuerpo: readonly BloqueInstruccion[],
+  ruta: RutaLista,
+  nuevaLista: readonly BloqueInstruccion[],
+): readonly BloqueInstruccion[] {
+  const [primero, ...resto] = ruta
+  if (primero === undefined) return nuevaLista
+  return cuerpo.map((inst, i) => {
+    if (i !== primero.indice || inst.tipo !== 'Condicional') return inst
+    if (primero.rama === 'entonces') {
+      return { ...inst, entonces: reemplazarLista(inst.entonces, resto, nuevaLista) }
+    }
+    if (inst.sino === null) throw new Error('RutaLista inválida: la rama SINO no existe')
+    return { ...inst, sino: reemplazarLista(inst.sino, resto, nuevaLista) }
+  })
+}
+
+function rutaIgual(a: RutaLista, b: RutaLista): boolean {
+  return a.length === b.length && a.every((paso, i) => paso.indice === b[i]?.indice && paso.rama === b[i]?.rama)
+}
+
+/** Busca `bloqueId` en todo el árbol — devuelve su ruta (lista contenedora) e índice, o null. */
+export function encontrarRutaDeInstruccion(
+  cuerpo: readonly BloqueInstruccion[],
+  bloqueId: string,
+  rutaActual: RutaLista = [],
+): { readonly ruta: RutaLista; readonly indice: number } | null {
+  const indice = cuerpo.findIndex((inst) => inst.id === bloqueId)
+  if (indice !== -1) return { ruta: rutaActual, indice }
+
+  for (const [i, inst] of cuerpo.entries()) {
+    if (inst.tipo !== 'Condicional') continue
+    const enEntonces = encontrarRutaDeInstruccion(inst.entonces, bloqueId, [
+      ...rutaActual,
+      { indice: i, rama: 'entonces' },
+    ])
+    if (enEntonces) return enEntonces
+    if (inst.sino !== null) {
+      const enSino = encontrarRutaDeInstruccion(inst.sino, bloqueId, [
+        ...rutaActual,
+        { indice: i, rama: 'sino' },
+      ])
+      if (enSino) return enSino
+    }
+  }
+  return null
+}
+
+/**
+ * Mueve la instrucción `bloqueId` a `destinoIndice` de la lista en
+ * `rutaDestino` — dentro de la misma lista (reordenar) o entre ramas
+ * distintas (ENTONCES↔SINO↔cuerpo). No admite mover un Condicional dentro
+ * de su propia rama descendiente (produciría un árbol cíclico) — ese caso
+ * no se guarda contra explícitamente porque ningún drop target de la UI lo
+ * ofrece (un Condicional no puede soltarse dentro de su propio ENTONCES/
+ * SINO, son componentes hijos distintos en el DOM).
+ */
+export function moverInstruccionEntreListas(
+  raiz: BloqueRegla,
+  rutaOrigen: RutaLista,
+  origenIndice: number,
+  rutaDestino: RutaLista,
+  destinoIndice: number,
+): BloqueRegla {
+  const listaOrigen = obtenerLista(raiz.cuerpo, rutaOrigen)
+  const movida = listaOrigen[origenIndice]
+  if (!movida) throw new Error('moverInstruccionEntreListas: índice de origen inválido')
+
+  if (rutaIgual(rutaOrigen, rutaDestino)) {
+    const sinMovida = listaOrigen.filter((_, i) => i !== origenIndice)
+    const destinoAjustado = origenIndice < destinoIndice ? destinoIndice - 1 : destinoIndice
+    const nuevaLista = [...sinMovida]
+    nuevaLista.splice(Math.max(0, Math.min(destinoAjustado, nuevaLista.length)), 0, movida)
+    return { ...raiz, cuerpo: reemplazarLista(raiz.cuerpo, rutaOrigen, nuevaLista) }
+  }
+
+  const listaOrigenSinMovida = listaOrigen.filter((_, i) => i !== origenIndice)
+  const cuerpoSinMovida = reemplazarLista(raiz.cuerpo, rutaOrigen, listaOrigenSinMovida)
+  const listaDestino = obtenerLista(cuerpoSinMovida, rutaDestino)
+  const listaDestinoConMovida = [...listaDestino]
+  listaDestinoConMovida.splice(
+    Math.max(0, Math.min(destinoIndice, listaDestinoConMovida.length)),
+    0,
+    movida,
+  )
+  return { ...raiz, cuerpo: reemplazarLista(cuerpoSinMovida, rutaDestino, listaDestinoConMovida) }
+}
+
+// ──────────────── diff visual bloque-a-bloque (E6+) ──────────────────────
+// Comparación posicional (no LCS/edit-distance): compara el elemento en el
+// mismo índice de las dos listas. Suficiente para reglas AEL reales (3-10
+// instrucciones) — una inserción en medio de la lista marca todo lo
+// siguiente como "cambiado" en vez de detectar el corrimiento, pero eso es
+// aceptable para el volumen de instrucciones que maneja este editor; un
+// diff tipo Myers es una inversión que este caso de uso no pide.
+
+export type EstadoDiffInstruccion = 'igual' | 'cambiado' | 'nuevo' | 'eliminado'
+
+export interface InstruccionConDiff {
+  readonly instruccion: BloqueInstruccion
+  readonly estado: EstadoDiffInstruccion
+  /** Solo en Condicional: el diff de sus propias ramas, para resaltado anidado. */
+  readonly entonces?: readonly InstruccionConDiff[]
+  readonly sino?: readonly InstruccionConDiff[] | null
+}
+
+function sinIdInstruccion(inst: BloqueInstruccion): unknown {
+  return JSON.parse(JSON.stringify(inst), (clave, valor) => (clave === 'id' ? undefined : valor))
+}
+
+function instruccionesEstructuralmenteIguales(a: BloqueInstruccion, b: BloqueInstruccion): boolean {
+  return JSON.stringify(sinIdInstruccion(a)) === JSON.stringify(sinIdInstruccion(b))
+}
+
+/**
+ * Diferencia dos listas de instrucciones, posición a posición, recursando
+ * en las ramas de cada Condicional. `estadoAusente` decide cómo marcar los
+ * elementos que no tienen contraparte en la otra lista: 'nuevo' cuando se
+ * llama para la lista B (más larga que A), 'eliminado' cuando se llama para
+ * la lista A (más larga que B) — ver diferenciarParDeListas().
+ */
+function diferenciarListaContra(
+  propias: readonly BloqueInstruccion[],
+  otras: readonly BloqueInstruccion[],
+  estadoAusente: 'nuevo' | 'eliminado',
+): readonly InstruccionConDiff[] {
+  return propias.map((inst, i) => {
+    const contraparte = otras[i]
+    const base =
+      contraparte === undefined
+        ? estadoAusente
+        : instruccionesEstructuralmenteIguales(inst, contraparte)
+          ? ('igual' as const)
+          : ('cambiado' as const)
+
+    if (inst.tipo !== 'Condicional') return { instruccion: inst, estado: base }
+
+    const contraparteCondicional = contraparte?.tipo === 'Condicional' ? contraparte : null
+    return {
+      instruccion: inst,
+      estado: base,
+      entonces: diferenciarListaContra(
+        inst.entonces,
+        contraparteCondicional?.entonces ?? [],
+        estadoAusente,
+      ),
+      sino:
+        inst.sino === null
+          ? null
+          : diferenciarListaContra(inst.sino, contraparteCondicional?.sino ?? [], estadoAusente),
+    }
+  })
+}
+
+/** Par (original, nueva) anotado para mostrar dos canvases de solo lectura lado a lado. */
+export function diferenciarParDeListas(
+  original: readonly BloqueInstruccion[],
+  nueva: readonly BloqueInstruccion[],
+): { readonly original: readonly InstruccionConDiff[]; readonly nueva: readonly InstruccionConDiff[] } {
+  return {
+    original: diferenciarListaContra(original, nueva, 'eliminado'),
+    nueva: diferenciarListaContra(nueva, original, 'nuevo'),
   }
 }

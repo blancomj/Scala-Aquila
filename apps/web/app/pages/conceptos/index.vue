@@ -6,7 +6,7 @@
 // El catálogo de validación es una aproximación (ver utils/ael-validate.ts);
 // la autoridad real sigue siendo liquidar-periodo contra el snapshot real.
 import { validarFormulaAel } from '~/utils/ael-validate'
-import { catalogoContratosEstatico } from '~/utils/ael-catalogo'
+import { catalogoContratosEstatico, FUNCIONES_CATALOGO } from '~/utils/ael-catalogo'
 import {
   camposRequeridos,
   ejecutarCasoPrueba,
@@ -15,7 +15,13 @@ import {
   type ResultadoCasoPrueba,
   type ValorMock,
 } from '~/utils/ael-test-runner'
-import { astABloques, bloquesAAst, type BloqueRegla } from '~/utils/ael-bloques'
+import {
+  astABloques,
+  bloquesAAst,
+  diferenciarParDeListas,
+  type BloqueRegla,
+  type CatalogoBloques,
+} from '~/utils/ael-bloques'
 import type { CasoPrueba, ResultadoPruebaFormula } from '~/stores/concepto'
 import type { Tipo } from '@aquila/ael-core'
 import type { ModoRedondeo } from '@aquila/financial-kernel'
@@ -82,6 +88,19 @@ const diagnosticosFormula = computed(() => {
   return validarFormulaAel(formulaAel.value, codigosConceptosExistentes.value)
 })
 
+// Catálogo para los selects de ReferenciaContract/LlamadaFuncion del
+// constructor visual — misma fuente que valida el texto (ael-catalogo.ts),
+// para no ofrecer en bloques algo que fallaría al parsear/analizar.
+const catalogoBloques = computed<CatalogoBloques>(() => {
+  const catalogo = catalogoContratosEstatico(codigosConceptosExistentes.value)
+  return {
+    parameter: Object.keys(catalogo.PARAMETER ?? {}),
+    unit: Object.keys(catalogo.UNIT ?? {}),
+    concepto: Object.keys(catalogo.CONCEPTO ?? {}),
+    funciones: Object.keys(FUNCIONES_CATALOGO),
+  }
+})
+
 // ── constructor visual de bloques (AEL-004 Fase 7, E4) ──────────────────
 // `bloqueEnEdicion` es el árbol que edita el canvas; `formulaAel` (texto)
 // es la fuente de verdad para validar/probar/guardar. Cada edición en el
@@ -132,6 +151,19 @@ const versionA = computed(
 const versionB = computed(
   () => conceptoStore.versiones.find((v) => v.id === versionCompararB.value) ?? null,
 )
+
+// Diff visual bloque-a-bloque (E6+) — mismo par Texto/Bloques que el editor
+// principal. diferenciarParDeListas() compara posicionalmente (ver su
+// docstring en ael-bloques.ts); si alguna de las dos versiones no parsea,
+// se cae a null y la UI ofrece solo el diff de texto para ese par.
+const modoDiff = ref<'texto' | 'bloques'>('texto')
+const diffBloques = computed(() => {
+  if (!versionA.value || !versionB.value) return null
+  const { regla: reglaA } = parsear(versionA.value.formula_ael ?? '')
+  const { regla: reglaB } = parsear(versionB.value.formula_ael ?? '')
+  if (reglaA === null || reglaB === null) return null
+  return diferenciarParDeListas(astABloques(reglaA).cuerpo, astABloques(reglaB).cuerpo)
+})
 
 // ── casos de prueba (AEL-004 Fase 6) — ejecución 100% client-side, sin
 // Edge Function: ejecutarCasoPrueba() ya encapsula probarFormula() + un
@@ -662,6 +694,7 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
             v-else
             v-model:bloque="bloqueEnEdicion"
             :readonly="soloLectura"
+            :catalogo="catalogoBloques"
           />
         </UFormField>
 
@@ -820,14 +853,50 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
         </div>
 
         <div v-if="versionA && versionB" class="space-y-2">
-          <p class="text-xs text-gray-500">
-            Comparando versión {{ versionA.version }} (izquierda/original) → versión
-            {{ versionB.version }} (derecha/nueva).
-          </p>
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gray-500">
+              Comparando versión {{ versionA.version }} (izquierda/original) → versión
+              {{ versionB.version }} (derecha/nueva).
+            </p>
+            <div class="flex items-center gap-2">
+              <UButton
+                type="button"
+                size="xs"
+                :variant="modoDiff === 'texto' ? 'solid' : 'soft'"
+                @click="modoDiff = 'texto'"
+              >
+                Texto
+              </UButton>
+              <UButton
+                type="button"
+                size="xs"
+                :variant="modoDiff === 'bloques' ? 'solid' : 'soft'"
+                @click="modoDiff = 'bloques'"
+              >
+                Bloques
+              </UButton>
+            </div>
+          </div>
+
           <AelVersionDiff
+            v-if="modoDiff === 'texto'"
             :original="versionA.formula_ael ?? ''"
             :modificado="versionB.formula_ael ?? ''"
           />
+          <div v-else-if="diffBloques" class="grid grid-cols-2 gap-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-900/20">
+              <p class="mb-2 text-[10px] font-medium uppercase text-gray-400">Original</p>
+              <AelBlockInstruccionDiff :instrucciones="diffBloques.original" :catalogo="catalogoBloques" />
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-900/20">
+              <p class="mb-2 text-[10px] font-medium uppercase text-gray-400">Nueva</p>
+              <AelBlockInstruccionDiff :instrucciones="diffBloques.nueva" :catalogo="catalogoBloques" />
+            </div>
+          </div>
+          <p v-else class="text-xs text-gray-400 italic">
+            Alguna de las dos versiones tiene errores de sintaxis — corrígelo en modo texto para ver
+            el diff como bloques.
+          </p>
         </div>
         <p v-else class="text-xs text-gray-500">Elige una versión A y una B para ver el diff.</p>
       </template>
