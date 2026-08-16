@@ -12,6 +12,12 @@ const redondeoEscala = ref(0)
 const interesTasaMensual = ref<number | null>(null)
 const interesTopeMensual = ref<number | null>(null)
 const interesDiasGracia = ref(0)
+const interesDayCount = ref<'mensual_30_dias_reales' | 'actual_365' | 'actual_360' | 'treinta_360'>(
+  'mensual_30_dias_reales',
+)
+const interesDescuentoOrden = ref<'interes_sobre_capital_completo' | 'descuento_antes_interes'>(
+  'interes_sobre_capital_completo',
+)
 const fondoImprevistosPorcentaje = ref<number | null>(null)
 const fondoImprevistosBase = ref<'presupuesto_anual' | 'cuota_administracion' | ''>('')
 const coeficientesSumaEsperada = ref(1)
@@ -39,6 +45,8 @@ async function crear(): Promise<void> {
       interesTasaMensual: interesTasaMensual.value ?? undefined,
       interesTopeMensual: interesTopeMensual.value ?? undefined,
       interesDiasGracia: interesDiasGracia.value,
+      interesDayCount: interesDayCount.value,
+      interesDescuentoOrden: interesDescuentoOrden.value,
       fondoImprevistosPorcentaje: fondoImprevistosPorcentaje.value ?? undefined,
       fondoImprevistosBase: fondoImprevistosBase.value || undefined,
       coeficientesSumaEsperada: coeficientesSumaEsperada.value,
@@ -93,6 +101,7 @@ async function activar(id: string): Promise<void> {
             <th class="py-1 font-medium">Versión</th>
             <th class="py-1 font-medium">Estado</th>
             <th class="py-1 font-medium">Redondeo</th>
+            <th class="py-1 font-medium">Interés</th>
             <th class="py-1 font-medium">Σ coeficientes</th>
             <th class="py-1 font-medium" />
           </tr>
@@ -107,6 +116,9 @@ async function activar(id: string): Promise<void> {
             <td class="py-1.5">{{ politica.estado }}</td>
             <td class="py-1.5 text-gray-500">
               {{ politica.redondeo_modo }} · escala {{ politica.redondeo_escala }}
+            </td>
+            <td class="py-1.5 text-gray-500">
+              {{ politica.interes_day_count }} · {{ politica.interes_descuento_orden }}
             </td>
             <td class="py-1.5 text-gray-500">{{ politica.coeficientes_suma_esperada }}</td>
             <td class="py-1.5">
@@ -173,6 +185,30 @@ async function activar(id: string): Promise<void> {
 
         <UFormField label="Días de gracia" name="interes_dias_gracia">
           <UInput v-model.number="interesDiasGracia" type="number" min="0" class="w-full" />
+        </UFormField>
+
+        <UFormField label="Day-count de mora" name="interes_day_count">
+          <select
+            v-model="interesDayCount"
+            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+          >
+            <option value="mensual_30_dias_reales">Tasa/30 × días reales (histórico)</option>
+            <option value="actual_365">ACTUAL/365</option>
+            <option value="actual_360">ACTUAL/360</option>
+            <option value="treinta_360">30/360</option>
+          </select>
+        </UFormField>
+
+        <UFormField label="Orden descuento vs. interés" name="interes_descuento_orden">
+          <select
+            v-model="interesDescuentoOrden"
+            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+          >
+            <option value="interes_sobre_capital_completo">
+              Interés sobre capital completo (histórico)
+            </option>
+            <option value="descuento_antes_interes">Descuento reduce la base antes del interés</option>
+          </select>
         </UFormField>
 
         <UFormField label="% fondo de imprevistos" name="fondo_imprevistos_porcentaje">

@@ -2,13 +2,19 @@
  * GENERADO — no editar a mano (Fase I §3.3, DB-first).
  * Regenerar con: pnpm db:types
  */
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.15'
+    PostgrestVersion: "14.15"
   }
   graphql_public: {
     Tables: {
@@ -76,32 +82,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'audit_log_actor_id_fkey'
-            columns: ['actor_id']
+            foreignKeyName: "audit_log_actor_id_fkey"
+            columns: ["actor_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'audit_log_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'audit_log_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
       cargos: {
         Row: {
           cargo_capital_origen_id: string | null
-          categoria: Database['public']['Enums']['cargo_categoria_t']
+          categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id: string | null
           created_at: string
           id: string
@@ -109,13 +115,13 @@ export type Database = {
           liquidacion_linea_id: string | null
           monto_original: number
           novedad_id: string | null
-          origen_tipo: Database['public']['Enums']['cargo_origen_t']
+          origen_tipo: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id: string
           tenant_id: string
         }
         Insert: {
           cargo_capital_origen_id?: string | null
-          categoria: Database['public']['Enums']['cargo_categoria_t']
+          categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
           id?: string
@@ -123,13 +129,13 @@ export type Database = {
           liquidacion_linea_id?: string | null
           monto_original: number
           novedad_id?: string | null
-          origen_tipo: Database['public']['Enums']['cargo_origen_t']
+          origen_tipo: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id: string
           tenant_id: string
         }
         Update: {
           cargo_capital_origen_id?: string | null
-          categoria?: Database['public']['Enums']['cargo_categoria_t']
+          categoria?: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
           id?: string
@@ -137,80 +143,80 @@ export type Database = {
           liquidacion_linea_id?: string | null
           monto_original?: number
           novedad_id?: string | null
-          origen_tipo?: Database['public']['Enums']['cargo_origen_t']
+          origen_tipo?: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id?: string
           tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
-            columns: ['cargo_capital_origen_id']
+            foreignKeyName: "cargos_cargo_capital_origen_id_fkey"
+            columns: ["cargo_capital_origen_id"]
             isOneToOne: false
-            referencedRelation: 'cargos'
-            referencedColumns: ['id']
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
-            columns: ['cargo_capital_origen_id']
+            foreignKeyName: "cargos_cargo_capital_origen_id_fkey"
+            columns: ["cargo_capital_origen_id"]
             isOneToOne: false
-            referencedRelation: 'v_cargo_saldo'
-            referencedColumns: ['id']
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "cargos_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "cargos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_liquidacion_linea_id_fkey'
-            columns: ['liquidacion_linea_id']
+            foreignKeyName: "cargos_liquidacion_linea_id_fkey"
+            columns: ["liquidacion_linea_id"]
             isOneToOne: false
-            referencedRelation: 'liquidacion_lineas'
-            referencedColumns: ['id']
+            referencedRelation: "liquidacion_lineas"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_novedad_id_fkey'
-            columns: ['novedad_id']
+            foreignKeyName: "cargos_novedad_id_fkey"
+            columns: ["novedad_id"]
             isOneToOne: false
-            referencedRelation: 'novedades'
-            referencedColumns: ['id']
+            referencedRelation: "novedades"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_periodo_id_fkey'
-            columns: ['periodo_id']
+            foreignKeyName: "cargos_periodo_id_fkey"
+            columns: ["periodo_id"]
             isOneToOne: false
-            referencedRelation: 'periodos'
-            referencedColumns: ['id']
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
       coeficiente_sets: {
         Row: {
           created_at: string
-          estado: Database['public']['Enums']['vigencia_estado_t']
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
           id: string
           suma_total: number
           tenant_id: string
@@ -221,7 +227,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          estado?: Database['public']['Enums']['vigencia_estado_t']
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
           id?: string
           suma_total: number
           tenant_id: string
@@ -232,7 +238,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          estado?: Database['public']['Enums']['vigencia_estado_t']
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
           id?: string
           suma_total?: number
           tenant_id?: string
@@ -243,18 +249,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'coeficiente_sets_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "coeficiente_sets_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'coeficiente_sets_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "coeficiente_sets_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -288,32 +294,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'coeficientes_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "coeficientes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'coeficientes_set_id_fkey'
-            columns: ['set_id']
+            foreignKeyName: "coeficientes_set_id_fkey"
+            columns: ["set_id"]
             isOneToOne: false
-            referencedRelation: 'coeficiente_sets'
-            referencedColumns: ['id']
+            referencedRelation: "coeficiente_sets"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'coeficientes_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "coeficientes_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'coeficientes_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "coeficientes_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -353,32 +359,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'concepto_test_cases_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "concepto_test_cases_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_test_cases_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "concepto_test_cases_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_test_cases_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "concepto_test_cases_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_test_cases_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "concepto_test_cases_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -387,75 +393,75 @@ export type Database = {
           concepto_id: string
           created_at: string
           created_by: string
-          estado_concepto: Database['public']['Enums']['concepto_estado_t']
+          estado_concepto: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael: string | null
           hash: string
           id: string
-          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre: string
           prioridad: number
           tenant_id: string
-          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
           version: number
         }
         Insert: {
           concepto_id: string
           created_at?: string
           created_by: string
-          estado_concepto: Database['public']['Enums']['concepto_estado_t']
+          estado_concepto: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael?: string | null
           hash: string
           id?: string
-          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre: string
           prioridad: number
           tenant_id: string
-          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
           version?: number
         }
         Update: {
           concepto_id?: string
           created_at?: string
           created_by?: string
-          estado_concepto?: Database['public']['Enums']['concepto_estado_t']
+          estado_concepto?: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael?: string | null
           hash?: string
           id?: string
-          modo_calculo?: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo?: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre?: string
           prioridad?: number
           tenant_id?: string
-          tipo_base?: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base?: Database["public"]["Enums"]["concepto_tipo_base_t"]
           version?: number
         }
         Relationships: [
           {
-            foreignKeyName: 'concepto_versiones_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "concepto_versiones_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_versiones_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "concepto_versiones_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_versiones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "concepto_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'concepto_versiones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "concepto_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -467,15 +473,15 @@ export type Database = {
           created_at: string
           enviado_a_revision_at: string | null
           enviado_a_revision_por: string | null
-          estado: Database['public']['Enums']['concepto_estado_t']
+          estado: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael: string | null
           id: string
-          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre: string
           prioridad: number
           rechazado_motivo: string | null
           tenant_id: string
-          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
           updated_at: string | null
           version: number
         }
@@ -486,15 +492,15 @@ export type Database = {
           created_at?: string
           enviado_a_revision_at?: string | null
           enviado_a_revision_por?: string | null
-          estado?: Database['public']['Enums']['concepto_estado_t']
+          estado?: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael?: string | null
           id?: string
-          modo_calculo: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre: string
           prioridad?: number
           rechazado_motivo?: string | null
           tenant_id: string
-          tipo_base: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base: Database["public"]["Enums"]["concepto_tipo_base_t"]
           updated_at?: string | null
           version?: number
         }
@@ -505,46 +511,46 @@ export type Database = {
           created_at?: string
           enviado_a_revision_at?: string | null
           enviado_a_revision_por?: string | null
-          estado?: Database['public']['Enums']['concepto_estado_t']
+          estado?: Database["public"]["Enums"]["concepto_estado_t"]
           formula_ael?: string | null
           id?: string
-          modo_calculo?: Database['public']['Enums']['concepto_modo_calculo_t']
+          modo_calculo?: Database["public"]["Enums"]["concepto_modo_calculo_t"]
           nombre?: string
           prioridad?: number
           rechazado_motivo?: string | null
           tenant_id?: string
-          tipo_base?: Database['public']['Enums']['concepto_tipo_base_t']
+          tipo_base?: Database["public"]["Enums"]["concepto_tipo_base_t"]
           updated_at?: string | null
           version?: number
         }
         Relationships: [
           {
-            foreignKeyName: 'conceptos_aprobado_por_fkey'
-            columns: ['aprobado_por']
+            foreignKeyName: "conceptos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'conceptos_enviado_a_revision_por_fkey'
-            columns: ['enviado_a_revision_por']
+            foreignKeyName: "conceptos_enviado_a_revision_por_fkey"
+            columns: ["enviado_a_revision_por"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'conceptos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "conceptos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'conceptos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "conceptos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -559,7 +565,7 @@ export type Database = {
           monto: number
           periodo_id: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['fondo_movimiento_tipo_t']
+          tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Insert: {
           autorizado_por?: string | null
@@ -571,7 +577,7 @@ export type Database = {
           monto: number
           periodo_id?: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['fondo_movimiento_tipo_t']
+          tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Update: {
           autorizado_por?: string | null
@@ -583,50 +589,50 @@ export type Database = {
           monto?: number
           periodo_id?: string | null
           tenant_id?: string
-          tipo?: Database['public']['Enums']['fondo_movimiento_tipo_t']
+          tipo?: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Relationships: [
           {
-            foreignKeyName: 'fondo_movimientos_autorizado_por_fkey'
-            columns: ['autorizado_por']
+            foreignKeyName: "fondo_movimientos_autorizado_por_fkey"
+            columns: ["autorizado_por"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondo_movimientos_fondo_id_fkey'
-            columns: ['fondo_id']
+            foreignKeyName: "fondo_movimientos_fondo_id_fkey"
+            columns: ["fondo_id"]
             isOneToOne: false
-            referencedRelation: 'fondos'
-            referencedColumns: ['id']
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondo_movimientos_liquidacion_id_fkey'
-            columns: ['liquidacion_id']
+            foreignKeyName: "fondo_movimientos_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
             isOneToOne: false
-            referencedRelation: 'liquidaciones'
-            referencedColumns: ['id']
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondo_movimientos_periodo_id_fkey'
-            columns: ['periodo_id']
+            foreignKeyName: "fondo_movimientos_periodo_id_fkey"
+            columns: ["periodo_id"]
             isOneToOne: false
-            referencedRelation: 'periodos'
-            referencedColumns: ['id']
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondo_movimientos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fondo_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondo_movimientos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fondo_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -637,7 +643,7 @@ export type Database = {
           nombre: string
           saldo_actual: number
           tenant_id: string
-          tipo: Database['public']['Enums']['fondo_tipo_t']
+          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
           updated_at: string | null
         }
         Insert: {
@@ -646,7 +652,7 @@ export type Database = {
           nombre: string
           saldo_actual?: number
           tenant_id: string
-          tipo: Database['public']['Enums']['fondo_tipo_t']
+          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
           updated_at?: string | null
         }
         Update: {
@@ -655,23 +661,23 @@ export type Database = {
           nombre?: string
           saldo_actual?: number
           tenant_id?: string
-          tipo?: Database['public']['Enums']['fondo_tipo_t']
+          tipo?: Database["public"]["Enums"]["fondo_tipo_t"]
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'fondos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fondos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fondos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fondos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -683,7 +689,7 @@ export type Database = {
           id: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
           updated_at: string | null
           valor_aplicado: number
           valor_disponible: number
@@ -695,7 +701,7 @@ export type Database = {
           id?: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
           updated_at?: string | null
           valor_aplicado?: number
           valor_disponible: number
@@ -707,39 +713,39 @@ export type Database = {
           id?: string
           presupuesto_id?: string
           tenant_id?: string
-          tipo?: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          tipo?: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
           updated_at?: string | null
           valor_aplicado?: number
           valor_disponible?: number
         }
         Relationships: [
           {
-            foreignKeyName: 'fuente_financiacion_fundamento_normativo_id_fkey'
-            columns: ['fundamento_normativo_id']
+            foreignKeyName: "fuente_financiacion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
             isOneToOne: false
-            referencedRelation: 'fundamento_normativo'
-            referencedColumns: ['id']
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fuente_financiacion_presupuesto_id_fkey'
-            columns: ['presupuesto_id']
+            foreignKeyName: "fuente_financiacion_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
             isOneToOne: false
-            referencedRelation: 'presupuestos'
-            referencedColumns: ['id']
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fuente_financiacion_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fuente_financiacion_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fuente_financiacion_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fuente_financiacion_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -753,7 +759,7 @@ export type Database = {
           norma: string
           referencia: string | null
           tenant_id: string | null
-          tipo: Database['public']['Enums']['fundamento_tipo_t']
+          tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at: string | null
         }
         Insert: {
@@ -765,7 +771,7 @@ export type Database = {
           norma: string
           referencia?: string | null
           tenant_id?: string | null
-          tipo: Database['public']['Enums']['fundamento_tipo_t']
+          tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at?: string | null
         }
         Update: {
@@ -777,23 +783,23 @@ export type Database = {
           norma?: string
           referencia?: string | null
           tenant_id?: string | null
-          tipo?: Database['public']['Enums']['fundamento_tipo_t']
+          tipo?: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'fundamento_normativo_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fundamento_normativo_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'fundamento_normativo_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "fundamento_normativo_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -833,32 +839,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'inmueble_propietario_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "inmueble_propietario_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'inmueble_propietario_propietario_id_fkey'
-            columns: ['propietario_id']
+            foreignKeyName: "inmueble_propietario_propietario_id_fkey"
+            columns: ["propietario_id"]
             isOneToOne: false
-            referencedRelation: 'propietarios'
-            referencedColumns: ['id']
+            referencedRelation: "propietarios"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'inmueble_propietario_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'inmueble_propietario_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -868,7 +874,7 @@ export type Database = {
           area_privada: number | null
           codigo: string
           created_at: string
-          estado: Database['public']['Enums']['inmueble_estado_t']
+          estado: Database["public"]["Enums"]["inmueble_estado_t"]
           id: string
           matricula_inmobiliaria: string | null
           tenant_id: string
@@ -880,7 +886,7 @@ export type Database = {
           area_privada?: number | null
           codigo: string
           created_at?: string
-          estado?: Database['public']['Enums']['inmueble_estado_t']
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"]
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id: string
@@ -892,7 +898,7 @@ export type Database = {
           area_privada?: number | null
           codigo?: string
           created_at?: string
-          estado?: Database['public']['Enums']['inmueble_estado_t']
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"]
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id?: string
@@ -901,25 +907,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'inmuebles_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'inmuebles_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'inmuebles_tipo_id_fkey'
-            columns: ['tipo_id']
+            foreignKeyName: "inmuebles_tipo_id_fkey"
+            columns: ["tipo_id"]
             isOneToOne: false
-            referencedRelation: 'lista_tipos'
-            referencedColumns: ['id']
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -932,8 +938,8 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string
-          role: Database['public']['Enums']['tenant_role_t']
-          status: Database['public']['Enums']['invite_status_t']
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status: Database["public"]["Enums"]["invite_status_t"]
           tenant_id: string
           token_hash: string
           updated_at: string | null
@@ -946,8 +952,8 @@ export type Database = {
           expires_at: string
           id?: string
           invited_by: string
-          role: Database['public']['Enums']['tenant_role_t']
-          status?: Database['public']['Enums']['invite_status_t']
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status?: Database["public"]["Enums"]["invite_status_t"]
           tenant_id: string
           token_hash: string
           updated_at?: string | null
@@ -960,40 +966,40 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string
-          role?: Database['public']['Enums']['tenant_role_t']
-          status?: Database['public']['Enums']['invite_status_t']
+          role?: Database["public"]["Enums"]["tenant_role_t"]
+          status?: Database["public"]["Enums"]["invite_status_t"]
           tenant_id?: string
           token_hash?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'invitations_accepted_by_fkey'
-            columns: ['accepted_by']
+            foreignKeyName: "invitations_accepted_by_fkey"
+            columns: ["accepted_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'invitations_invited_by_fkey'
-            columns: ['invited_by']
+            foreignKeyName: "invitations_invited_by_fkey"
+            columns: ["invited_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'invitations_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'invitations_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1027,46 +1033,46 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'liquidacion_lineas_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "liquidacion_lineas_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidacion_lineas_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "liquidacion_lineas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidacion_lineas_liquidacion_id_fkey'
-            columns: ['liquidacion_id']
+            foreignKeyName: "liquidacion_lineas_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
             isOneToOne: false
-            referencedRelation: 'liquidaciones'
-            referencedColumns: ['id']
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidacion_lineas_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "liquidacion_lineas_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidacion_lineas_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "liquidacion_lineas_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
       liquidaciones: {
         Row: {
           created_at: string
-          estado: Database['public']['Enums']['liquidacion_estado_t']
+          estado: Database["public"]["Enums"]["liquidacion_estado_t"]
           id: string
           periodo_id: string
           result_hash: string
@@ -1075,7 +1081,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          estado?: Database['public']['Enums']['liquidacion_estado_t']
+          estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
           id?: string
           periodo_id: string
           result_hash: string
@@ -1084,7 +1090,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          estado?: Database['public']['Enums']['liquidacion_estado_t']
+          estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
           id?: string
           periodo_id?: string
           result_hash?: string
@@ -1093,25 +1099,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'liquidaciones_periodo_id_fkey'
-            columns: ['periodo_id']
+            foreignKeyName: "liquidaciones_periodo_id_fkey"
+            columns: ["periodo_id"]
             isOneToOne: false
-            referencedRelation: 'periodos'
-            referencedColumns: ['id']
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidaciones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "liquidaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'liquidaciones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "liquidaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1154,25 +1160,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'lista_tipos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "lista_tipos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'lista_tipos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "lista_tipos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'lista_tipos_tipo_fkey'
-            columns: ['tipo']
+            foreignKeyName: "lista_tipos_tipo_fkey"
+            columns: ["tipo"]
             isOneToOne: false
-            referencedRelation: 'tipos'
-            referencedColumns: ['codigo']
+            referencedRelation: "tipos"
+            referencedColumns: ["codigo"]
           },
         ]
       }
@@ -1181,8 +1187,8 @@ export type Database = {
           created_at: string
           id: string
           invited_by: string | null
-          role: Database['public']['Enums']['tenant_role_t']
-          status: Database['public']['Enums']['member_status_t']
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status: Database["public"]["Enums"]["member_status_t"]
           tenant_id: string
           updated_at: string | null
           user_id: string
@@ -1191,8 +1197,8 @@ export type Database = {
           created_at?: string
           id?: string
           invited_by?: string | null
-          role: Database['public']['Enums']['tenant_role_t']
-          status?: Database['public']['Enums']['member_status_t']
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status?: Database["public"]["Enums"]["member_status_t"]
           tenant_id: string
           updated_at?: string | null
           user_id: string
@@ -1201,40 +1207,40 @@ export type Database = {
           created_at?: string
           id?: string
           invited_by?: string | null
-          role?: Database['public']['Enums']['tenant_role_t']
-          status?: Database['public']['Enums']['member_status_t']
+          role?: Database["public"]["Enums"]["tenant_role_t"]
+          status?: Database["public"]["Enums"]["member_status_t"]
           tenant_id?: string
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'memberships_invited_by_fkey'
-            columns: ['invited_by']
+            foreignKeyName: "memberships_invited_by_fkey"
+            columns: ["invited_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'memberships_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "memberships_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'memberships_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "memberships_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'memberships_user_id_fkey'
-            columns: ['user_id']
+            foreignKeyName: "memberships_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1246,14 +1252,14 @@ export type Database = {
           created_at: string
           created_by: string
           descripcion: string
-          estado: Database['public']['Enums']['novedad_estado_t']
+          estado: Database["public"]["Enums"]["novedad_estado_t"]
           fecha_efectiva: string
           id: string
           inmueble_id: string
           monto: number
           rejected_reason: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['novedad_tipo_t']
+          tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Insert: {
           approved_at?: string | null
@@ -1262,14 +1268,14 @@ export type Database = {
           created_at?: string
           created_by: string
           descripcion: string
-          estado?: Database['public']['Enums']['novedad_estado_t']
+          estado?: Database["public"]["Enums"]["novedad_estado_t"]
           fecha_efectiva: string
           id?: string
           inmueble_id: string
           monto: number
           rejected_reason?: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['novedad_tipo_t']
+          tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Update: {
           approved_at?: string | null
@@ -1278,57 +1284,57 @@ export type Database = {
           created_at?: string
           created_by?: string
           descripcion?: string
-          estado?: Database['public']['Enums']['novedad_estado_t']
+          estado?: Database["public"]["Enums"]["novedad_estado_t"]
           fecha_efectiva?: string
           id?: string
           inmueble_id?: string
           monto?: number
           rejected_reason?: string | null
           tenant_id?: string
-          tipo?: Database['public']['Enums']['novedad_tipo_t']
+          tipo?: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Relationships: [
           {
-            foreignKeyName: 'novedades_approved_by_fkey'
-            columns: ['approved_by']
+            foreignKeyName: "novedades_approved_by_fkey"
+            columns: ["approved_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'novedades_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "novedades_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'novedades_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "novedades_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'novedades_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "novedades_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'novedades_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "novedades_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'novedades_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "novedades_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1359,39 +1365,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'pago_aplicaciones_cargo_id_fkey'
-            columns: ['cargo_id']
+            foreignKeyName: "pago_aplicaciones_cargo_id_fkey"
+            columns: ["cargo_id"]
             isOneToOne: false
-            referencedRelation: 'cargos'
-            referencedColumns: ['id']
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pago_aplicaciones_cargo_id_fkey'
-            columns: ['cargo_id']
+            foreignKeyName: "pago_aplicaciones_cargo_id_fkey"
+            columns: ["cargo_id"]
             isOneToOne: false
-            referencedRelation: 'v_cargo_saldo'
-            referencedColumns: ['id']
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pago_aplicaciones_pago_id_fkey'
-            columns: ['pago_id']
+            foreignKeyName: "pago_aplicaciones_pago_id_fkey"
+            columns: ["pago_id"]
             isOneToOne: false
-            referencedRelation: 'pagos'
-            referencedColumns: ['id']
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pago_aplicaciones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "pago_aplicaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pago_aplicaciones_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "pago_aplicaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1428,32 +1434,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'pagos_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "pagos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pagos_registrado_por_fkey'
-            columns: ['registrado_por']
+            foreignKeyName: "pagos_registrado_por_fkey"
+            columns: ["registrado_por"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pagos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "pagos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'pagos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "pagos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1463,7 +1469,7 @@ export type Database = {
           cerrado_at: string | null
           cerrado_por: string | null
           created_at: string
-          estado: Database['public']['Enums']['periodo_estado_t']
+          estado: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento: string | null
           id: string
           mes: number
@@ -1475,7 +1481,7 @@ export type Database = {
           cerrado_at?: string | null
           cerrado_por?: string | null
           created_at?: string
-          estado?: Database['public']['Enums']['periodo_estado_t']
+          estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
           id?: string
           mes: number
@@ -1487,7 +1493,7 @@ export type Database = {
           cerrado_at?: string | null
           cerrado_por?: string | null
           created_at?: string
-          estado?: Database['public']['Enums']['periodo_estado_t']
+          estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
           id?: string
           mes?: number
@@ -1496,25 +1502,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'periodos_cerrado_por_fkey'
-            columns: ['cerrado_por']
+            foreignKeyName: "periodos_cerrado_por_fkey"
+            columns: ["cerrado_por"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'periodos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "periodos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'periodos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "periodos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1522,19 +1528,23 @@ export type Database = {
         Row: {
           coeficientes_suma_esperada: number
           created_at: string
-          estado: Database['public']['Enums']['vigencia_estado_t']
-          fondo_imprevistos_base: Database['public']['Enums']['fondo_base_calculo_t'] | null
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
           fondo_imprevistos_porcentaje: number | null
           id: string
-          imputacion_estrategia: Database['public']['Enums']['politica_imputacion_estrategia_t']
+          imputacion_estrategia: Database["public"]["Enums"]["politica_imputacion_estrategia_t"]
           imputacion_orden: Json
+          interes_day_count: Database["public"]["Enums"]["interes_day_count_t"]
+          interes_descuento_orden: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia: number
           interes_tasa_mensual: number | null
           interes_tope_mensual: number | null
           policy_hash: string
           redondeo_escala: number
-          redondeo_modo: Database['public']['Enums']['redondeo_modo_t']
-          residual_metodo: Database['public']['Enums']['residual_metodo_t']
+          redondeo_modo: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo: Database["public"]["Enums"]["residual_metodo_t"]
           tenant_id: string
           updated_at: string | null
           version: number
@@ -1544,19 +1554,23 @@ export type Database = {
         Insert: {
           coeficientes_suma_esperada?: number
           created_at?: string
-          estado?: Database['public']['Enums']['vigencia_estado_t']
-          fondo_imprevistos_base?: Database['public']['Enums']['fondo_base_calculo_t'] | null
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base?:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
           fondo_imprevistos_porcentaje?: number | null
           id?: string
-          imputacion_estrategia?: Database['public']['Enums']['politica_imputacion_estrategia_t']
+          imputacion_estrategia?: Database["public"]["Enums"]["politica_imputacion_estrategia_t"]
           imputacion_orden?: Json
+          interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
+          interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
           interes_tasa_mensual?: number | null
           interes_tope_mensual?: number | null
           policy_hash: string
           redondeo_escala?: number
-          redondeo_modo?: Database['public']['Enums']['redondeo_modo_t']
-          residual_metodo?: Database['public']['Enums']['residual_metodo_t']
+          redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
           tenant_id: string
           updated_at?: string | null
           version: number
@@ -1566,19 +1580,23 @@ export type Database = {
         Update: {
           coeficientes_suma_esperada?: number
           created_at?: string
-          estado?: Database['public']['Enums']['vigencia_estado_t']
-          fondo_imprevistos_base?: Database['public']['Enums']['fondo_base_calculo_t'] | null
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          fondo_imprevistos_base?:
+            | Database["public"]["Enums"]["fondo_base_calculo_t"]
+            | null
           fondo_imprevistos_porcentaje?: number | null
           id?: string
-          imputacion_estrategia?: Database['public']['Enums']['politica_imputacion_estrategia_t']
+          imputacion_estrategia?: Database["public"]["Enums"]["politica_imputacion_estrategia_t"]
           imputacion_orden?: Json
+          interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
+          interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
           interes_tasa_mensual?: number | null
           interes_tope_mensual?: number | null
           policy_hash?: string
           redondeo_escala?: number
-          redondeo_modo?: Database['public']['Enums']['redondeo_modo_t']
-          residual_metodo?: Database['public']['Enums']['residual_metodo_t']
+          redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
+          residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
           tenant_id?: string
           updated_at?: string | null
           version?: number
@@ -1587,18 +1605,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'politicas_financieras_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "politicas_financieras_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'politicas_financieras_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "politicas_financieras_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1641,39 +1659,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'presupuesto_rubros_categoria_id_fkey'
-            columns: ['categoria_id']
+            foreignKeyName: "presupuesto_rubros_categoria_id_fkey"
+            columns: ["categoria_id"]
             isOneToOne: false
-            referencedRelation: 'lista_tipos'
-            referencedColumns: ['id']
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'presupuesto_rubros_fundamento_normativo_id_fkey'
-            columns: ['fundamento_normativo_id']
+            foreignKeyName: "presupuesto_rubros_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
             isOneToOne: false
-            referencedRelation: 'fundamento_normativo'
-            referencedColumns: ['id']
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'presupuesto_rubros_presupuesto_id_fkey'
-            columns: ['presupuesto_id']
+            foreignKeyName: "presupuesto_rubros_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
             isOneToOne: false
-            referencedRelation: 'presupuestos'
-            referencedColumns: ['id']
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'presupuesto_rubros_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "presupuesto_rubros_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'presupuesto_rubros_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "presupuesto_rubros_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1682,7 +1700,7 @@ export type Database = {
           acta_asamblea: string | null
           anio: number
           created_at: string
-          estado: Database['public']['Enums']['presupuesto_estado_t']
+          estado: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion: string | null
           id: string
           monto_total: number
@@ -1696,7 +1714,7 @@ export type Database = {
           acta_asamblea?: string | null
           anio: number
           created_at?: string
-          estado?: Database['public']['Enums']['presupuesto_estado_t']
+          estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion?: string | null
           id?: string
           monto_total: number
@@ -1710,7 +1728,7 @@ export type Database = {
           acta_asamblea?: string | null
           anio?: number
           created_at?: string
-          estado?: Database['public']['Enums']['presupuesto_estado_t']
+          estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion?: string | null
           id?: string
           monto_total?: number
@@ -1722,18 +1740,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'presupuestos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "presupuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'presupuestos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "presupuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1747,7 +1765,7 @@ export type Database = {
           id: string
           is_platform_admin: boolean
           phone: string | null
-          status: Database['public']['Enums']['user_status_t']
+          status: Database["public"]["Enums"]["user_status_t"]
           updated_at: string | null
         }
         Insert: {
@@ -1759,7 +1777,7 @@ export type Database = {
           id: string
           is_platform_admin?: boolean
           phone?: string | null
-          status?: Database['public']['Enums']['user_status_t']
+          status?: Database["public"]["Enums"]["user_status_t"]
           updated_at?: string | null
         }
         Update: {
@@ -1771,23 +1789,23 @@ export type Database = {
           id?: string
           is_platform_admin?: boolean
           phone?: string | null
-          status?: Database['public']['Enums']['user_status_t']
+          status?: Database["public"]["Enums"]["user_status_t"]
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'profiles_active_tenant_id_fkey'
-            columns: ['active_tenant_id']
+            foreignKeyName: "profiles_active_tenant_id_fkey"
+            columns: ["active_tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'profiles_active_tenant_id_fkey'
-            columns: ['active_tenant_id']
+            foreignKeyName: "profiles_active_tenant_id_fkey"
+            columns: ["active_tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1827,18 +1845,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'propietarios_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "propietarios_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'propietarios_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "propietarios_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1871,7 +1889,7 @@ export type Database = {
           nit: string | null
           settings: Json
           slug: string
-          status: Database['public']['Enums']['tenant_status_t']
+          status: Database["public"]["Enums"]["tenant_status_t"]
           updated_at: string | null
           zona_horaria: string
         }
@@ -1885,7 +1903,7 @@ export type Database = {
           nit?: string | null
           settings?: Json
           slug: string
-          status?: Database['public']['Enums']['tenant_status_t']
+          status?: Database["public"]["Enums"]["tenant_status_t"]
           updated_at?: string | null
           zona_horaria?: string
         }
@@ -1899,17 +1917,17 @@ export type Database = {
           nit?: string | null
           settings?: Json
           slug?: string
-          status?: Database['public']['Enums']['tenant_status_t']
+          status?: Database["public"]["Enums"]["tenant_status_t"]
           updated_at?: string | null
           zona_horaria?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'tenants_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "tenants_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1976,32 +1994,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'zonas_comunes_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "zonas_comunes_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'zonas_comunes_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "zonas_comunes_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'zonas_comunes_tipo_id_fkey'
-            columns: ['tipo_id']
+            foreignKeyName: "zonas_comunes_tipo_id_fkey"
+            columns: ["tipo_id"]
             isOneToOne: false
-            referencedRelation: 'lista_tipos'
-            referencedColumns: ['id']
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'zonas_comunes_uso_exclusivo_inmueble_id_fkey'
-            columns: ['uso_exclusivo_inmueble_id']
+            foreignKeyName: "zonas_comunes_uso_exclusivo_inmueble_id_fkey"
+            columns: ["uso_exclusivo_inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2015,7 +2033,7 @@ export type Database = {
           member_count: number | null
           name: string | null
           slug: string | null
-          status: Database['public']['Enums']['tenant_status_t'] | null
+          status: Database["public"]["Enums"]["tenant_status_t"] | null
         }
         Insert: {
           created_at?: string | null
@@ -2024,7 +2042,7 @@ export type Database = {
           member_count?: never
           name?: string | null
           slug?: string | null
-          status?: Database['public']['Enums']['tenant_status_t'] | null
+          status?: Database["public"]["Enums"]["tenant_status_t"] | null
         }
         Update: {
           created_at?: string | null
@@ -2033,14 +2051,14 @@ export type Database = {
           member_count?: never
           name?: string | null
           slug?: string | null
-          status?: Database['public']['Enums']['tenant_status_t'] | null
+          status?: Database["public"]["Enums"]["tenant_status_t"] | null
         }
         Relationships: []
       }
       v_cargo_saldo: {
         Row: {
           cargo_capital_origen_id: string | null
-          categoria: Database['public']['Enums']['cargo_categoria_t'] | null
+          categoria: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id: string | null
           created_at: string | null
           id: string | null
@@ -2049,13 +2067,13 @@ export type Database = {
           monto_original: number | null
           monto_pendiente: number | null
           novedad_id: string | null
-          origen_tipo: Database['public']['Enums']['cargo_origen_t'] | null
+          origen_tipo: Database["public"]["Enums"]["cargo_origen_t"] | null
           periodo_id: string | null
           tenant_id: string | null
         }
         Insert: {
           cargo_capital_origen_id?: string | null
-          categoria?: Database['public']['Enums']['cargo_categoria_t'] | null
+          categoria?: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id?: string | null
           created_at?: string | null
           id?: string | null
@@ -2064,13 +2082,13 @@ export type Database = {
           monto_original?: number | null
           monto_pendiente?: never
           novedad_id?: string | null
-          origen_tipo?: Database['public']['Enums']['cargo_origen_t'] | null
+          origen_tipo?: Database["public"]["Enums"]["cargo_origen_t"] | null
           periodo_id?: string | null
           tenant_id?: string | null
         }
         Update: {
           cargo_capital_origen_id?: string | null
-          categoria?: Database['public']['Enums']['cargo_categoria_t'] | null
+          categoria?: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id?: string | null
           created_at?: string | null
           id?: string | null
@@ -2079,73 +2097,73 @@ export type Database = {
           monto_original?: number | null
           monto_pendiente?: never
           novedad_id?: string | null
-          origen_tipo?: Database['public']['Enums']['cargo_origen_t'] | null
+          origen_tipo?: Database["public"]["Enums"]["cargo_origen_t"] | null
           periodo_id?: string | null
           tenant_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
-            columns: ['cargo_capital_origen_id']
+            foreignKeyName: "cargos_cargo_capital_origen_id_fkey"
+            columns: ["cargo_capital_origen_id"]
             isOneToOne: false
-            referencedRelation: 'cargos'
-            referencedColumns: ['id']
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_cargo_capital_origen_id_fkey'
-            columns: ['cargo_capital_origen_id']
+            foreignKeyName: "cargos_cargo_capital_origen_id_fkey"
+            columns: ["cargo_capital_origen_id"]
             isOneToOne: false
-            referencedRelation: 'v_cargo_saldo'
-            referencedColumns: ['id']
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_concepto_id_fkey'
-            columns: ['concepto_id']
+            foreignKeyName: "cargos_concepto_id_fkey"
+            columns: ["concepto_id"]
             isOneToOne: false
-            referencedRelation: 'conceptos'
-            referencedColumns: ['id']
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_inmueble_id_fkey'
-            columns: ['inmueble_id']
+            foreignKeyName: "cargos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: 'inmuebles'
-            referencedColumns: ['id']
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_liquidacion_linea_id_fkey'
-            columns: ['liquidacion_linea_id']
+            foreignKeyName: "cargos_liquidacion_linea_id_fkey"
+            columns: ["liquidacion_linea_id"]
             isOneToOne: false
-            referencedRelation: 'liquidacion_lineas'
-            referencedColumns: ['id']
+            referencedRelation: "liquidacion_lineas"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_novedad_id_fkey'
-            columns: ['novedad_id']
+            foreignKeyName: "cargos_novedad_id_fkey"
+            columns: ["novedad_id"]
             isOneToOne: false
-            referencedRelation: 'novedades'
-            referencedColumns: ['id']
+            referencedRelation: "novedades"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_periodo_id_fkey'
-            columns: ['periodo_id']
+            foreignKeyName: "cargos_periodo_id_fkey"
+            columns: ["periodo_id"]
             isOneToOne: false
-            referencedRelation: 'periodos'
-            referencedColumns: ['id']
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'platform_tenant_overview'
-            referencedColumns: ['id']
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'cargos_tenant_id_fkey'
-            columns: ['tenant_id']
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2154,7 +2172,7 @@ export type Database = {
       accept_invitation: {
         Args: { p_token_hash: string }
         Returns: {
-          out_role: Database['public']['Enums']['tenant_role_t']
+          out_role: Database["public"]["Enums"]["tenant_role_t"]
           out_tenant_id: string
         }[]
       }
@@ -2174,13 +2192,13 @@ export type Database = {
           nit: string | null
           settings: Json
           slug: string
-          status: Database['public']['Enums']['tenant_status_t']
+          status: Database["public"]["Enums"]["tenant_status_t"]
           updated_at: string | null
           zona_horaria: string
         }
         SetofOptions: {
-          from: '*'
-          to: 'tenants'
+          from: "*"
+          to: "tenants"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2195,18 +2213,18 @@ export type Database = {
           created_at: string
           created_by: string
           descripcion: string
-          estado: Database['public']['Enums']['novedad_estado_t']
+          estado: Database["public"]["Enums"]["novedad_estado_t"]
           fecha_efectiva: string
           id: string
           inmueble_id: string
           monto: number
           rejected_reason: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['novedad_tipo_t']
+          tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         SetofOptions: {
-          from: '*'
-          to: 'novedades'
+          from: "*"
+          to: "novedades"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2220,18 +2238,18 @@ export type Database = {
           created_at: string
           created_by: string
           descripcion: string
-          estado: Database['public']['Enums']['novedad_estado_t']
+          estado: Database["public"]["Enums"]["novedad_estado_t"]
           fecha_efectiva: string
           id: string
           inmueble_id: string
           monto: number
           rejected_reason: string | null
           tenant_id: string
-          tipo: Database['public']['Enums']['novedad_tipo_t']
+          tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         SetofOptions: {
-          from: '*'
-          to: 'novedades'
+          from: "*"
+          to: "novedades"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2241,7 +2259,7 @@ export type Database = {
           p_descripcion?: string
           p_fundamento_normativo_id?: number
           p_presupuesto_id: string
-          p_tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          p_tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
           p_valor_aplicado?: number
           p_valor_disponible: number
         }
@@ -2252,21 +2270,21 @@ export type Database = {
           id: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database['public']['Enums']['fuente_financiacion_tipo_t']
+          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
           updated_at: string | null
           valor_aplicado: number
           valor_disponible: number
         }
         SetofOptions: {
-          from: '*'
-          to: 'fuente_financiacion'
+          from: "*"
+          to: "fuente_financiacion"
           isOneToOne: true
           isSetofReturn: false
         }
       }
       has_role: {
         Args: {
-          p_roles: Database['public']['Enums']['tenant_role_t'][]
+          p_roles: Database["public"]["Enums"]["tenant_role_t"][]
           p_tenant: string
         }
         Returns: boolean
@@ -2275,7 +2293,7 @@ export type Database = {
         Args: {
           p_email: string
           p_expires_at: string
-          p_role: Database['public']['Enums']['tenant_role_t']
+          p_role: Database["public"]["Enums"]["tenant_role_t"]
           p_tenant_id: string
           p_token_hash: string
         }
@@ -2287,15 +2305,15 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string
-          role: Database['public']['Enums']['tenant_role_t']
-          status: Database['public']['Enums']['invite_status_t']
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status: Database["public"]["Enums"]["invite_status_t"]
           tenant_id: string
           token_hash: string
           updated_at: string | null
         }
         SetofOptions: {
-          from: '*'
-          to: 'invitations'
+          from: "*"
+          to: "invitations"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2311,32 +2329,59 @@ export type Database = {
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
     }
     Enums: {
-      cargo_categoria_t: 'capital' | 'interes' | 'otro'
-      cargo_origen_t: 'liquidacion_linea' | 'novedad' | 'interes'
-      concepto_estado_t: 'borrador' | 'en_revision' | 'activo' | 'archivado'
-      concepto_modo_calculo_t: 'directo' | 'distribucion'
-      concepto_tipo_base_t: 'fijo' | 'coeficiente' | 'cantidad' | 'porcentaje' | 'saldo'
-      fondo_base_calculo_t: 'presupuesto_anual' | 'cuota_administracion'
-      fondo_movimiento_tipo_t: 'aporte' | 'uso'
-      fondo_tipo_t: 'imprevistos' | 'otro'
+      cargo_categoria_t: "capital" | "interes" | "otro"
+      cargo_origen_t: "liquidacion_linea" | "novedad" | "interes"
+      concepto_estado_t: "borrador" | "en_revision" | "activo" | "archivado"
+      concepto_modo_calculo_t: "directo" | "distribucion"
+      concepto_tipo_base_t:
+        | "fijo"
+        | "coeficiente"
+        | "cantidad"
+        | "porcentaje"
+        | "saldo"
+      fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
+      fondo_movimiento_tipo_t: "aporte" | "uso"
+      fondo_tipo_t: "imprevistos" | "otro"
       fuente_financiacion_tipo_t:
-        'otros_ingresos' | 'cuota_extraordinaria' | 'fondo_imprevistos' | 'saldo_aplicable'
-      fundamento_tipo_t: 'ley' | 'decreto' | 'reglamento_ph' | 'decision_asamblea' | 'otra'
-      inmueble_estado_t: 'activo' | 'inactivo'
-      invite_status_t: 'pending' | 'accepted' | 'revoked' | 'expired'
-      liquidacion_estado_t: 'completada' | 'fallida'
-      member_status_t: 'active' | 'revoked'
-      novedad_estado_t: 'pendiente' | 'aprobada' | 'rechazada'
-      novedad_tipo_t: 'CHARGE' | 'DISCOUNT' | 'ADJUSTMENT' | 'REFUND' | 'CREDIT' | 'DEBIT'
-      periodo_estado_t: 'abierto' | 'en_liquidacion' | 'cerrado' | 'bloqueado'
-      politica_imputacion_estrategia_t: 'deuda_mas_antigua' | 'periodo_actual'
-      presupuesto_estado_t: 'borrador' | 'aprobado' | 'vigente' | 'cerrado'
-      redondeo_modo_t: 'half_up' | 'half_even' | 'down' | 'up'
-      residual_metodo_t: 'mayor_resto'
-      tenant_role_t: 'agent' | 'auditor'
-      tenant_status_t: 'active' | 'suspended' | 'deleted'
-      user_status_t: 'active' | 'suspended'
-      vigencia_estado_t: 'borrador' | 'vigente' | 'historica'
+        | "otros_ingresos"
+        | "cuota_extraordinaria"
+        | "fondo_imprevistos"
+        | "saldo_aplicable"
+      fundamento_tipo_t:
+        | "ley"
+        | "decreto"
+        | "reglamento_ph"
+        | "decision_asamblea"
+        | "otra"
+      inmueble_estado_t: "activo" | "inactivo"
+      interes_day_count_t:
+        | "mensual_30_dias_reales"
+        | "actual_365"
+        | "actual_360"
+        | "treinta_360"
+      interes_descuento_orden_t:
+        | "interes_sobre_capital_completo"
+        | "descuento_antes_interes"
+      invite_status_t: "pending" | "accepted" | "revoked" | "expired"
+      liquidacion_estado_t: "completada" | "fallida"
+      member_status_t: "active" | "revoked"
+      novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
+      novedad_tipo_t:
+        | "CHARGE"
+        | "DISCOUNT"
+        | "ADJUSTMENT"
+        | "REFUND"
+        | "CREDIT"
+        | "DEBIT"
+      periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
+      politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
+      presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
+      redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
+      residual_metodo_t: "mayor_resto"
+      tenant_role_t: "agent" | "auditor"
+      tenant_status_t: "active" | "suspended" | "deleted"
+      user_status_t: "active" | "suspended"
+      vigencia_estado_t: "borrador" | "vigente" | "historica"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2344,31 +2389,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
-    : never) = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -2377,22 +2424,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -2401,22 +2449,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -2425,34 +2474,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema['CompositeTypes'] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -2461,36 +2512,65 @@ export const Constants = {
   },
   public: {
     Enums: {
-      cargo_categoria_t: ['capital', 'interes', 'otro'],
-      cargo_origen_t: ['liquidacion_linea', 'novedad', 'interes'],
-      concepto_estado_t: ['borrador', 'en_revision', 'activo', 'archivado'],
-      concepto_modo_calculo_t: ['directo', 'distribucion'],
-      concepto_tipo_base_t: ['fijo', 'coeficiente', 'cantidad', 'porcentaje', 'saldo'],
-      fondo_base_calculo_t: ['presupuesto_anual', 'cuota_administracion'],
-      fondo_movimiento_tipo_t: ['aporte', 'uso'],
-      fondo_tipo_t: ['imprevistos', 'otro'],
-      fuente_financiacion_tipo_t: [
-        'otros_ingresos',
-        'cuota_extraordinaria',
-        'fondo_imprevistos',
-        'saldo_aplicable',
+      cargo_categoria_t: ["capital", "interes", "otro"],
+      cargo_origen_t: ["liquidacion_linea", "novedad", "interes"],
+      concepto_estado_t: ["borrador", "en_revision", "activo", "archivado"],
+      concepto_modo_calculo_t: ["directo", "distribucion"],
+      concepto_tipo_base_t: [
+        "fijo",
+        "coeficiente",
+        "cantidad",
+        "porcentaje",
+        "saldo",
       ],
-      fundamento_tipo_t: ['ley', 'decreto', 'reglamento_ph', 'decision_asamblea', 'otra'],
-      inmueble_estado_t: ['activo', 'inactivo'],
-      invite_status_t: ['pending', 'accepted', 'revoked', 'expired'],
-      liquidacion_estado_t: ['completada', 'fallida'],
-      member_status_t: ['active', 'revoked'],
-      novedad_estado_t: ['pendiente', 'aprobada', 'rechazada'],
-      novedad_tipo_t: ['CHARGE', 'DISCOUNT', 'ADJUSTMENT', 'REFUND', 'CREDIT', 'DEBIT'],
-      periodo_estado_t: ['abierto', 'en_liquidacion', 'cerrado', 'bloqueado'],
-      politica_imputacion_estrategia_t: ['deuda_mas_antigua', 'periodo_actual'],
-      presupuesto_estado_t: ['borrador', 'aprobado', 'vigente', 'cerrado'],
-      redondeo_modo_t: ['half_up', 'half_even', 'down', 'up'],
-      residual_metodo_t: ['mayor_resto'],
-      tenant_role_t: ['agent', 'auditor'],
-      tenant_status_t: ['active', 'suspended', 'deleted'],
-      user_status_t: ['active', 'suspended'],
-      vigencia_estado_t: ['borrador', 'vigente', 'historica'],
+      fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
+      fondo_movimiento_tipo_t: ["aporte", "uso"],
+      fondo_tipo_t: ["imprevistos", "otro"],
+      fuente_financiacion_tipo_t: [
+        "otros_ingresos",
+        "cuota_extraordinaria",
+        "fondo_imprevistos",
+        "saldo_aplicable",
+      ],
+      fundamento_tipo_t: [
+        "ley",
+        "decreto",
+        "reglamento_ph",
+        "decision_asamblea",
+        "otra",
+      ],
+      inmueble_estado_t: ["activo", "inactivo"],
+      interes_day_count_t: [
+        "mensual_30_dias_reales",
+        "actual_365",
+        "actual_360",
+        "treinta_360",
+      ],
+      interes_descuento_orden_t: [
+        "interes_sobre_capital_completo",
+        "descuento_antes_interes",
+      ],
+      invite_status_t: ["pending", "accepted", "revoked", "expired"],
+      liquidacion_estado_t: ["completada", "fallida"],
+      member_status_t: ["active", "revoked"],
+      novedad_estado_t: ["pendiente", "aprobada", "rechazada"],
+      novedad_tipo_t: [
+        "CHARGE",
+        "DISCOUNT",
+        "ADJUSTMENT",
+        "REFUND",
+        "CREDIT",
+        "DEBIT",
+      ],
+      periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
+      politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
+      presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
+      redondeo_modo_t: ["half_up", "half_even", "down", "up"],
+      residual_metodo_t: ["mayor_resto"],
+      tenant_role_t: ["agent", "auditor"],
+      tenant_status_t: ["active", "suspended", "deleted"],
+      user_status_t: ["active", "suspended"],
+      vigencia_estado_t: ["borrador", "vigente", "historica"],
     },
   },
 } as const

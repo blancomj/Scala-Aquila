@@ -146,7 +146,8 @@ export default {
     const { data: politica, error: errorPolitica } = await ctx.supabase
       .from('politicas_financieras')
       .select(
-        'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, redondeo_modo, redondeo_escala',
+        'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, ' +
+          'interes_descuento_orden, redondeo_modo, redondeo_escala',
       )
       .eq('tenant_id', tenantId)
       .eq('estado', 'vigente')
@@ -190,6 +191,8 @@ export default {
       tasaMensual: String(politica.interes_tasa_mensual),
       topeMensual: String(politica.interes_tope_mensual),
       diasGracia: politica.interes_dias_gracia,
+      dayCount: politica.interes_day_count,
+      descuentoOrden: politica.interes_descuento_orden,
     }
 
     const resumen: { inmueble_id: string; monto_generado: string; tope_aplicado: boolean }[] = []
@@ -223,10 +226,17 @@ export default {
         ctx.supabase,
         cargosCapital.map((c) => c.id),
       )
-      const cargosAjustados = cargosCapital.map((c) => {
+      const cargosCapitalAjustados = cargosCapital.map((c) => {
         const ultima = ultimaFecha.get(c.id)
         return ultima && ultima > c.fechaVencimiento ? { ...c, fechaVencimiento: ultima } : c
       })
+      // REQ-NOVEDAD-003 (D-23): calcularInteresMora() necesita ver también los
+      // cargos categoria='otro' (DISCOUNT) del inmueble para poder aplicar
+      // interes_descuento_orden — solo el capital lleva el ajuste de idempotencia.
+      const cargosAjustados = [
+        ...cargosCapitalAjustados,
+        ...cargosAbiertos.filter((c) => c.categoria !== 'capital'),
+      ]
 
       let generados: readonly CargoInteresGeneradoLocal[]
       try {

@@ -35,6 +35,8 @@ export interface CargoAbierto {
   /** ISO date (YYYY-MM-DD) — ancla del día-cuenta de mora. */
   readonly fechaVencimiento: string
   readonly montoPendiente: Money
+  /** cargos.novedad_id → novedades.tipo — null salvo categoria='otro' con origen_tipo='novedad'. */
+  readonly novedadTipo: NovedadTipo | null
 }
 
 /** AD-36: qué periodo se sirve primero. El orden de categoría se mantiene igual en ambas. */
@@ -163,11 +165,31 @@ export interface CargoInteresGenerado {
   readonly topeAplicado: boolean
 }
 
+/**
+ * REQ-MORA-003 (D-23) — day-count configurable. `mensual_30_dias_reales` es
+ * el comportamiento histórico del motor (tasaMensual/30 × días calendario
+ * reales): no tiene nombre ISO estándar, pero es de uso común en Colombia.
+ * `actual_365`/`actual_360`/`treinta_360` son las convenciones de Docs/16 §56.
+ */
+export type ConvencionDayCount = 'mensual_30_dias_reales' | 'actual_365' | 'actual_360' | 'treinta_360'
+
+/**
+ * REQ-NOVEDAD-003 (D-23) — orden configurable entre un DISCOUNT y el
+ * interés de mora del mismo período. `interes_sobre_capital_completo` es
+ * el comportamiento histórico (el interés siempre ignoró los descuentos).
+ */
+export type OrdenDescuentoInteres = 'interes_sobre_capital_completo' | 'descuento_antes_interes'
+
+/** cargos.novedad_id → novedades.tipo (AD-30) — null si el cargo no viene de una novedad. */
+export type NovedadTipo = 'CHARGE' | 'DISCOUNT' | 'ADJUSTMENT' | 'REFUND' | 'CREDIT' | 'DEBIT'
+
 /** politicas_financieras.interes_* vigente (PLAN §6.6). */
 export interface PoliticaMora {
   readonly tasaMensual: string | null
   readonly topeMensual: string | null
   readonly diasGracia: number
+  readonly dayCount: ConvencionDayCount
+  readonly descuentoOrden: OrdenDescuentoInteres
 }
 
 function timestampUtc(fechaIso: string): number {
@@ -185,14 +207,72 @@ function diasCalendario(desde: string, hasta: string): number {
   return Math.round((timestampUtc(hasta) - timestampUtc(desde)) / msPorDia)
 }
 
+/** 30/360 (Bond Basis / US NASD, Docs/16 §56) — cada mes cuenta como 30 días. */
+function diasTreintaTrescientosSesenta(desde: string, hasta: string): number {
+  const p1 = desde.split('-').map(Number)
+  const p2 = hasta.split('-').map(Number)
+  const [anio1, mes1, dia1] = p1
+  const [anio2, mes2, dia2] = p2
+  if (
+    p1.length !== 3 ||
+    p2.length !== 3 ||
+    anio1 === undefined ||
+    mes1 === undefined ||
+    dia1 === undefined ||
+    anio2 === undefined ||
+    mes2 === undefined ||
+    dia2 === undefined
+  ) {
+    throw new Error(`Fecha ISO inválida en diasTreintaTrescientosSesenta: "${desde}"/"${hasta}"`)
+  }
+  const d1 = dia1 === 31 ? 30 : dia1
+  const d2 = dia2 === 31 && d1 === 30 ? 30 : dia2
+  return (anio2 - anio1) * 360 + (mes2 - mes1) * 30 + (d2 - d1)
+}
+
+function diasVencido(convencion: ConvencionDayCount, desde: string, hasta: string): number {
+  return convencion === 'treinta_360'
+    ? diasTreintaTrescientosSesenta(desde, hasta)
+    : diasCalendario(desde, hasta)
+}
+
+/** Tasa diaria a partir de la tasa mensual efectiva, según la convención (Docs/16 §56). */
+function tasaDiariaPor(convencion: ConvencionDayCount, tasaMensualEfectiva: string) {
+  switch (convencion) {
+    case 'mensual_30_dias_reales':
+    case 'treinta_360':
+      return fos.dividirDecimales(tasaMensualEfectiva, 30)
+    case 'actual_365':
+      return fos.dividirDecimales(fos.multiplicarDecimales(tasaMensualEfectiva, 12), 365)
+    case 'actual_360':
+      return fos.dividirDecimales(fos.multiplicarDecimales(tasaMensualEfectiva, 12), 360)
+  }
+}
+
+/** Σ DISCOUNT (monto negativo, AD-30) por periodoClave — solo cargos categoria='otro'. */
+function totalDescuentoPorPeriodo(cargos: readonly CargoAbierto[]): ReadonlyMap<string, Money> {
+  const mapa = new Map<string, Money>()
+  for (const cargo of cargos) {
+    if (cargo.categoria !== 'otro' || cargo.novedadTipo !== 'DISCOUNT') continue
+    const previo = mapa.get(cargo.periodoClave)
+    mapa.set(cargo.periodoClave, previo ? fos.sumar(previo, cargo.montoPendiente) : cargo.montoPendiente)
+  }
+  return mapa
+}
+
 /**
  * PLAN §6.6: base = saldo vencido de CAPITAL (nunca compone sobre interés ya
- * generado — por eso solo acepta cargos categoria='capital'), day-count =
- * calendario, devengo diario desde el día siguiente al vencimiento, gracia
- * parametrizable, tasa/tope de la política vigente.
+ * generado — por eso solo genera intereses sobre cargos categoria='capital'),
+ * devengo diario desde el día siguiente al vencimiento, gracia parametrizable,
+ * tasa/tope/day-count/orden-de-descuento de la política vigente (D-23).
+ *
+ * Recibe TODOS los cargos abiertos del inmueble (no solo capital): necesita
+ * ver los cargos categoria='otro' de tipo DISCOUNT para poder aplicar
+ * `descuentoOrden`. Un cargo sin `novedadTipo` (capital/interés) nunca
+ * participa en el cómputo de descuentos, solo en el de capital.
  */
 export function calcularInteresMora(
-  cargosCapitalPendientes: readonly CargoAbierto[],
+  cargosAbiertos: readonly CargoAbierto[],
   fechaReferencia: string,
   politica: PoliticaMora,
   redondeo: RoundingPolicy,
@@ -204,19 +284,34 @@ export function calcularInteresMora(
   const topeMensual = politica.topeMensual
   const topeAplica = fos.compararDecimales(tasaMensual, topeMensual) > 0
   const tasaEfectiva = topeAplica ? topeMensual : tasaMensual
-  const tasaDiaria = fos.dividirDecimales(tasaEfectiva, 30)
+  const tasaDiaria = tasaDiariaPor(politica.dayCount, tasaEfectiva)
+
+  const descuentosPorPeriodo =
+    politica.descuentoOrden === 'descuento_antes_interes'
+      ? totalDescuentoPorPeriodo(cargosAbiertos)
+      : null
 
   const generados: CargoInteresGenerado[] = []
-  for (const cargo of cargosCapitalPendientes) {
+  for (const cargo of cargosAbiertos) {
     if (cargo.categoria !== 'capital') continue
     if (isZeroMoney(cargo.montoPendiente) || isNegativeMoney(cargo.montoPendiente)) continue
 
-    const diasVencido = diasCalendario(cargo.fechaVencimiento, fechaReferencia)
-    const diasMora = Math.max(0, diasVencido - politica.diasGracia)
+    let base = cargo.montoPendiente
+    const descuento = descuentosPorPeriodo?.get(cargo.periodoClave)
+    if (descuento) {
+      // descuento es negativo (AD-30) — sumarlo resta de la base. Piso cero:
+      // un descuento mayor que el capital pendiente no genera interés negativo.
+      const reducida = fos.sumar(base, descuento)
+      base = isNegativeMoney(reducida) ? fos.restar(base, base) : reducida
+    }
+    if (isZeroMoney(base)) continue
+
+    const diasMoraCalendario = diasVencido(politica.dayCount, cargo.fechaVencimiento, fechaReferencia)
+    const diasMora = Math.max(0, diasMoraCalendario - politica.diasGracia)
     if (diasMora === 0) continue
 
     const factor = fos.multiplicarDecimales(tasaDiaria, diasMora)
-    const monto = fos.redondear(fos.multiplicar(cargo.montoPendiente, factor), redondeo)
+    const monto = fos.redondear(fos.multiplicar(base, factor), redondeo)
     if (isZeroMoney(monto)) continue
 
     generados.push({ cargoCapitalOrigenId: cargo.id, monto, diasMora, topeAplicado: topeAplica })

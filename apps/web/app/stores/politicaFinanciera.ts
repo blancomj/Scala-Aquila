@@ -23,6 +23,8 @@ import type { Database } from '@aquila/shared'
 type PoliticaFinancieraRow = Database['public']['Tables']['politicas_financieras']['Row']
 type RedondeoModo = Database['public']['Enums']['redondeo_modo_t']
 type FondoBaseCalculo = Database['public']['Enums']['fondo_base_calculo_t']
+type InteresDayCount = Database['public']['Enums']['interes_day_count_t']
+type InteresDescuentoOrden = Database['public']['Enums']['interes_descuento_orden_t']
 
 async function hashPlaceholder(valores: Record<string, unknown>): Promise<string> {
   const canonico = JSON.stringify(valores, Object.keys(valores).sort())
@@ -60,6 +62,8 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
     interesTasaMensual?: number
     interesTopeMensual?: number
     interesDiasGracia: number
+    interesDayCount: InteresDayCount
+    interesDescuentoOrden: InteresDescuentoOrden
     fondoImprevistosPorcentaje?: number
     fondoImprevistosBase?: FondoBaseCalculo
     coeficientesSumaEsperada: number
@@ -79,6 +83,8 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
       interes_tasa_mensual: params.interesTasaMensual,
       interes_tope_mensual: params.interesTopeMensual,
       interes_dias_gracia: params.interesDiasGracia,
+      interes_day_count: params.interesDayCount,
+      interes_descuento_orden: params.interesDescuentoOrden,
       fondo_imprevistos_porcentaje: params.fondoImprevistosPorcentaje,
       fondo_imprevistos_base: params.fondoImprevistosBase,
       coeficientes_suma_esperada: params.coeficientesSumaEsperada,

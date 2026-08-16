@@ -29,12 +29,27 @@ export async function obtenerCargosAbiertos(
 
   const { data: filas, error } = await cliente
     .from('v_cargo_saldo')
-    .select('id, periodo_id, categoria, concepto_id, monto_pendiente')
+    .select('id, periodo_id, categoria, concepto_id, novedad_id, monto_pendiente')
     .eq('tenant_id', tenantId)
     .eq('inmueble_id', inmuebleId)
     .neq('monto_pendiente', 0)
   if (error) throw new Error(`No se pudieron leer los cargos abiertos: ${error.message}`)
   if (filas.length === 0) return []
+
+  // REQ-NOVEDAD-003 (D-23): calcularInteresMora() necesita saber cuáles
+  // cargos categoria='otro' vienen de un DISCOUNT — novedades.tipo no está
+  // en v_cargo_saldo (solo novedad_id), así que se resuelve aparte, mismo
+  // patrón que periodoPorId/conceptoPrioridadPorId.
+  const novedadIds = [...new Set(filas.flatMap((f) => (f.novedad_id ? [f.novedad_id] : [])))]
+  const tipoPorNovedadId = new Map<string, string>()
+  if (novedadIds.length > 0) {
+    const { data: novedades, error: errorNovedades } = await cliente
+      .from('novedades')
+      .select('id, tipo')
+      .in('id', novedadIds)
+    if (errorNovedades) throw new Error(`No se pudieron leer las novedades: ${errorNovedades.message}`)
+    for (const n of novedades) tipoPorNovedadId.set(n.id, n.tipo)
+  }
 
   const periodoIds = [...new Set(filas.flatMap((f) => (f.periodo_id ? [f.periodo_id] : [])))]
   const { data: periodos, error: errorPeriodos } = await cliente
@@ -81,6 +96,9 @@ export async function obtenerCargosAbiertos(
       conceptoPrioridad: f.concepto_id ? (conceptoPrioridadPorId.get(f.concepto_id) ?? null) : null,
       fechaVencimiento: periodo.fecha_vencimiento,
       montoPendiente: money(f.monto_pendiente, moneda),
+      novedadTipo: f.novedad_id
+        ? ((tipoPorNovedadId.get(f.novedad_id) ?? null) as CargoAbierto['novedadTipo'])
+        : null,
     }
   })
 }
@@ -91,7 +109,9 @@ export async function obtenerPoliticaMora(
 ): Promise<PoliticaMora> {
   const { data, error } = await cliente
     .from('politicas_financieras')
-    .select('interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia')
+    .select(
+      'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, interes_descuento_orden',
+    )
     .eq('tenant_id', opciones.tenantId)
     .eq('estado', 'vigente')
     .single()
@@ -105,6 +125,8 @@ export async function obtenerPoliticaMora(
     tasaMensual: data.interes_tasa_mensual === null ? null : String(data.interes_tasa_mensual),
     topeMensual: data.interes_tope_mensual === null ? null : String(data.interes_tope_mensual),
     diasGracia: data.interes_dias_gracia,
+    dayCount: data.interes_day_count,
+    descuentoOrden: data.interes_descuento_orden,
   }
 }
 

@@ -5,6 +5,7 @@ import {
   calcularInteresMora,
   type CargoAbierto,
   type EstrategiaImputacion,
+  type PoliticaMora,
 } from './cuenta-corriente.js'
 import {
   OrdenImputacionInvalidoError,
@@ -21,6 +22,19 @@ function cargo(over: Partial<CargoAbierto> & { id: string }): CargoAbierto {
     conceptoPrioridad: null,
     fechaVencimiento: '2027-01-05',
     montoPendiente: money(100_000, 'COP'),
+    novedadTipo: null,
+    ...over,
+  }
+}
+
+/** D-23: default = comportamiento histórico (mismo que antes de REQ-MORA-003/REQ-NOVEDAD-003). */
+function politicaMora(over: Partial<PoliticaMora> = {}): PoliticaMora {
+  return {
+    tasaMensual: '0.03',
+    topeMensual: '0.05',
+    diasGracia: 0,
+    dayCount: 'mensual_30_dias_reales',
+    descuentoOrden: 'interes_sobre_capital_completo',
     ...over,
   }
 }
@@ -161,7 +175,7 @@ describe('imputarPago', () => {
 })
 
 describe('calcularInteresMora', () => {
-  const politica = { tasaMensual: '0.03', topeMensual: '0.05', diasGracia: 0 }
+  const politica = politicaMora()
   const redondeo = { modo: 'HALF_UP' as const, escala: 0 }
 
   it('capital vencido genera interés proporcional a los días de mora', () => {
@@ -187,7 +201,7 @@ describe('calcularInteresMora', () => {
       fechaVencimiento: '2027-01-01',
       montoPendiente: money(100_000, 'COP'),
     })
-    const politicaAltaTasa = { tasaMensual: '0.10', topeMensual: '0.05', diasGracia: 0 }
+    const politicaAltaTasa = politicaMora({ tasaMensual: '0.10' })
     const [generado] = calcularInteresMora([c], '2027-01-11', politicaAltaTasa, redondeo)
 
     // 100_000 * (0.05/30) * 10 = 1_667 (HALF_UP, escala 0)
@@ -202,7 +216,7 @@ describe('calcularInteresMora', () => {
       fechaVencimiento: '2027-01-01',
       montoPendiente: money(100_000, 'COP'),
     })
-    const politicaConGracia = { tasaMensual: '0.03', topeMensual: '0.05', diasGracia: 15 }
+    const politicaConGracia = politicaMora({ diasGracia: 15 })
     const generados = calcularInteresMora([c], '2027-01-11', politicaConGracia, redondeo)
     expect(generados).toEqual([])
   })
@@ -219,9 +233,125 @@ describe('calcularInteresMora', () => {
       calcularInteresMora(
         [c],
         '2027-01-11',
-        { tasaMensual: null, topeMensual: null, diasGracia: 0 },
+        politicaMora({ tasaMensual: null, topeMensual: null }),
         redondeo,
       ),
     ).toThrow(PoliticaMoraNoConfiguradaError)
+  })
+
+  describe('REQ-MORA-003 (D-23) — day-count configurable', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+
+    it('actual_365: tasaDiaria = tasaMensual × 12 / 365, sobre días reales', () => {
+      const [generado] = calcularInteresMora(
+        [c],
+        '2027-01-11',
+        politicaMora({ dayCount: 'actual_365' }),
+        redondeo,
+      )
+      // 100_000 * (0.03*12/365) * 10 = 986.30... → HALF_UP escala 0 = 986
+      expect(generado?.monto.amount.toString()).toBe('986')
+    })
+
+    it('actual_360: tasaDiaria = tasaMensual × 12 / 360, sobre días reales', () => {
+      const [generado] = calcularInteresMora(
+        [c],
+        '2027-01-11',
+        politicaMora({ dayCount: 'actual_360' }),
+        redondeo,
+      )
+      // 100_000 * (0.03*12/360) * 10 = 1_000 (0.36/360 == 0.03/30, coincide con mensual_30_dias_reales)
+      expect(generado?.monto.amount.toString()).toBe('1000')
+    })
+
+    it('treinta_360: cada mes cuenta 30 días — distinto de días calendario reales', () => {
+      // enero tiene 31 días calendario reales; 30/360 los cuenta como 30.
+      const [generadoCalendario] = calcularInteresMora(
+        [c],
+        '2027-02-01',
+        politicaMora({ dayCount: 'mensual_30_dias_reales' }),
+        redondeo,
+      )
+      const [generadoTreinta360] = calcularInteresMora(
+        [c],
+        '2027-02-01',
+        politicaMora({ dayCount: 'treinta_360' }),
+        redondeo,
+      )
+      expect(generadoCalendario?.diasMora).toBe(31)
+      expect(generadoTreinta360?.diasMora).toBe(30)
+      expect(generadoCalendario?.monto.amount.toString()).toBe('3100')
+      expect(generadoTreinta360?.monto.amount.toString()).toBe('3000')
+    })
+  })
+
+  describe('REQ-NOVEDAD-003 (D-23) — orden descuento-vs-interés', () => {
+    const capital = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      periodoClave: '2027-01',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const descuento = cargo({
+      id: 'desc-1',
+      categoria: 'otro',
+      periodoClave: '2027-01',
+      novedadTipo: 'DISCOUNT',
+      montoPendiente: money(-30_000, 'COP'),
+    })
+
+    it('interes_sobre_capital_completo (default): el DISCOUNT no afecta el interés', () => {
+      const [generado] = calcularInteresMora([capital, descuento], '2027-01-11', politica, redondeo)
+      expect(generado?.monto.amount.toString()).toBe('1000')
+    })
+
+    it('descuento_antes_interes: reduce la base de capital antes de aplicar la tasa', () => {
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
+      const [generado] = calcularInteresMora(
+        [capital, descuento],
+        '2027-01-11',
+        politicaConOrden,
+        redondeo,
+      )
+      // (100_000 - 30_000) * (0.03/30) * 10 = 700
+      expect(generado?.monto.amount.toString()).toBe('700')
+    })
+
+    it('descuento_antes_interes con piso cero: un descuento mayor al capital no genera interés negativo', () => {
+      const descuentoGrande = cargo({
+        id: 'desc-2',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'DISCOUNT',
+        montoPendiente: money(-150_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
+      const generados = calcularInteresMora(
+        [capital, descuentoGrande],
+        '2027-01-11',
+        politicaConOrden,
+        redondeo,
+      )
+      expect(generados).toEqual([])
+    })
+
+    it('descuento_antes_interes ignora cargos "otro" que no son DISCOUNT', () => {
+      const ajuste = cargo({
+        id: 'ajuste-1',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'ADJUSTMENT',
+        montoPendiente: money(-30_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
+      const [generado] = calcularInteresMora([capital, ajuste], '2027-01-11', politicaConOrden, redondeo)
+      expect(generado?.monto.amount.toString()).toBe('1000')
+    })
   })
 })

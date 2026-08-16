@@ -257,3 +257,107 @@ d('calcular-intereses (Edge Function)', () => {
     expect(segundaLista).toHaveLength(cantidadPrevia)
   }, 30_000)
 })
+
+// REQ-NOVEDAD-003 (D-23) — tenant/política aparte: la política vigente no
+// puede modificarse una vez creada (guard_politica_inmutable), así que el
+// caso descuento_antes_interes necesita su propia fixture desde cero.
+d('calcular-intereses (Edge Function) — REQ-NOVEDAD-003: descuento_antes_interes', () => {
+  const admin = clienteAdmin(env!)
+  let agente: UsuarioPrueba
+  let tenant: TenantPrueba
+  let clienteAgent: Cliente
+
+  afterAll(async () => {
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, agente.id)
+  })
+
+  it('un DISCOUNT del mismo período reduce la base de capital antes del interés', async () => {
+    agente = await crearUsuario(admin, 'ci-desc-agent')
+    tenant = await crearTenant(admin, 'ci-desc', agente.id)
+    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    clienteAgent = await clienteComo(env!, agente)
+
+    const { error: errPolitica } = await admin.from('politicas_financieras').insert({
+      tenant_id: tenant.id,
+      version: 1,
+      estado: 'vigente',
+      vigente_desde: '2026-01-01',
+      redondeo_modo: 'half_up',
+      redondeo_escala: 0,
+      residual_metodo: 'mayor_resto',
+      coeficientes_suma_esperada: 1,
+      policy_hash: 'test-fixture-hash-descuento',
+      interes_tasa_mensual: 0.03,
+      interes_tope_mensual: 0.05,
+      interes_dias_gracia: 0,
+      interes_descuento_orden: 'descuento_antes_interes',
+    })
+    if (errPolitica) throw new Error(`fixture politica: ${errPolitica.message}`)
+
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmueble, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `CI-DESC-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+
+    const { data: periodo, error: errPeriodo } = await admin
+      .from('periodos')
+      .insert({
+        tenant_id: tenant.id,
+        anio: 2026,
+        mes: 1,
+        estado: 'abierto',
+        fecha_vencimiento: '2026-01-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPeriodo) throw new Error(`fixture periodo: ${errPeriodo.message}`)
+
+    await crearCargoCapital(admin, tenant.id, inmueble.id, periodo.id, 100_000)
+
+    // DISCOUNT ya aprobado — se inserta directo el par novedad+cargo (mismo
+    // efecto que fn_aprobar_novedad), no se ejercita el flujo de aprobación
+    // aquí, ya cubierto por tests/tenancy/novedades.test.ts.
+    const { data: novedad, error: errNovedad } = await admin
+      .from('novedades')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmueble.id,
+        tipo: 'DISCOUNT',
+        monto: -30_000,
+        descripcion: 'fixture descuento REQ-NOVEDAD-003',
+        fecha_efectiva: '2026-01-01',
+        estado: 'aprobada',
+        created_by: agente.id,
+        approved_by: agente.id,
+        approved_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errNovedad) throw new Error(`fixture novedad: ${errNovedad.message}`)
+
+    const { error: errCargoDescuento } = await admin.from('cargos').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmueble.id,
+      periodo_id: periodo.id,
+      categoria: 'otro',
+      origen_tipo: 'novedad',
+      novedad_id: novedad.id,
+      monto_original: -30_000,
+    })
+    if (errCargoDescuento) throw new Error(`fixture cargo descuento: ${errCargoDescuento.message}`)
+
+    // días de mora = 10, sin gracia. base = 100_000 - 30_000 = 70_000.
+    // interes = 70_000 * (0.03/30) * 10 = 700.
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      { body: { tenant_id: tenant.id, fecha_referencia: '2026-01-11' } },
+    )
+    expect(response?.status).toBe(200)
+    const fila = data?.find((f) => f.inmueble_id === inmueble.id)
+    expect(fila?.monto_generado).toBe('700')
+  }, 30_000)
+})

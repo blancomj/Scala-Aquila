@@ -947,18 +947,21 @@ marca `Deprecated` y se abre uno nuevo (`21 §31`/`22 §76`).
 | REQ-MORA-002    | Idempotencia entre corridas de cálculo de interés                                                                                   | —                     | —      | `obtenerUltimaFechaInteresPorCapital` (packages/liquidation-engine)                    | `tests/tenancy/calcular-intereses.test.ts`                                               | Accepted |
 | REQ-NOVEDAD-001 | Novedad con aprobación separada del motor de cálculo                                                                                | Docs/19 §284          | AD-33  | `supabase/migrations/20260816110100_fn_novedades.sql::fn_aprobar_novedad`              | `tests/tenancy/novedades.test.ts`                                                        | Accepted |
 | REQ-NOVEDAD-002 | Signo de `novedades.monto` validado por tipo                                                                                        | Docs/19 §254          | AD-30  | `supabase/functions/crear-novedad/index.ts`                                            | `tests/tenancy/novedades.test.ts`                                                        | Accepted |
+| REQ-MORA-003    | Day-count exacto de interés — configurable por política, en vez de fijo en código                                                  | Docs/16 §55-56         | D-23   | `politicas_financieras.interes_day_count` + `cuenta-corriente.ts::calcularInteresMora` | `packages/liquidation-engine/src/cuenta-corriente.test.ts`                               | Accepted |
+| REQ-NOVEDAD-003 | Orden descuento-vs-interés cuando coinciden en el mismo ciclo de vida de un cargo — configurable por política                       | Docs/16 §51            | D-23   | `politicas_financieras.interes_descuento_orden` + `cuenta-corriente.ts::calcularInteresMora` | `packages/liquidation-engine/src/cuenta-corriente.test.ts`, `tests/tenancy/calcular-intereses.test.ts` | Accepted |
 | REQ-SEC-001     | Escritura del ledger exclusiva de service_role (sin política INSERT/UPDATE para `authenticated` donde hay efecto colateral atómico) | `21 §30`              | —      | RLS de `pagos`/`pago_aplicaciones`/`novedades`                                         | `tests/rls/cuenta-corriente.test.ts`, `tests/rls/novedades.test.ts`                      | Accepted |
 
 ## 12.3 Gaps sin decisión (Doc 16/19, no bloqueantes)
 
 Identificados durante el diseño del motor de cuenta corriente, sin
 implementación porque el corpus los deja explícitamente abiertos y ningún
-caso de negocio real los ha exigido todavía (AD-23):
+caso de negocio real los ha exigido todavía (AD-23). Ninguno pendiente por
+ahora — REQ-MORA-003 y REQ-NOVEDAD-003 (los dos únicos que había aquí) se
+resolvieron y se movieron a §12.2 (D-23).
 
-| REQ             | Descripción                                                                                                                 | Origen         | Estado  |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------- | ------- |
-| REQ-MORA-003    | Day-count exacto de interés — `§6.6` fija "calendario" pero no lo mapea a una convención bancaria formal (ACTUAL/360, etc.) | Docs/16 §55-56 | Blocked |
-| REQ-NOVEDAD-003 | Orden descuento-vs-interés cuando coinciden en el mismo ciclo de vida de un cargo                                           | Docs/16 §51    | Blocked |
+| REQ | Descripción | Origen | Estado |
+| --- | ------------ | ------ | ------ |
+| —   | (ninguno)    | —      | —      |
 
 ## 12.4 Mantenimiento
 

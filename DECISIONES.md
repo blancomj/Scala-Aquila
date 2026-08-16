@@ -507,3 +507,67 @@ degrade al primero, que es el escenario real que ese test pretendía cubrir.
 de **2 agents activos** a propósito, para aislar `SELF_MODIFY` de `LAST_AGENT` (que de
 otro modo dispararía primero en un tenant de 1 solo agent y ocultaría cuál guarda
 realmente está bloqueando).
+
+---
+
+## D-23 — REQ-MORA-003 / REQ-NOVEDAD-003: day-count y orden descuento-interés, configurables por política
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | F6 (cuenta corriente)                       |
+| **Estado** | Aceptada                                    |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+Los dos únicos requisitos que quedaban `Blocked` en la matriz de trazabilidad
+(`PLAN_MAESTRO_IMPLEMENTACION.md` §12.2/§12.3) se cierran haciéndolos **configurables
+por política** (`politicas_financieras`), en vez de fijar una única convención en el
+código. Antes de decidir se investigó el estado real (no se asumió nada):
+
+- `REQ-MORA-003` (day-count): `calcularInteresMora()` ya calculaba
+  `tasaMensual/30 × días calendario reales` — una convención de facto sin nombre ISO
+  estándar, pero de uso común en Colombia, nunca confirmada contra las 3 que lista
+  `Docs/16 §56` (ACTUAL_365, ACTUAL_360, THIRTY_360).
+- `REQ-NOVEDAD-003` (orden descuento-vs-interés): no era una ambigüedad de código —
+  la interacción simplemente no existía. Un `DISCOUNT` aprobado crea su propio cargo
+  (`categoria='otro'`, `fn_aprobar_novedad`) y `calcularInteresMora()` solo procesaba
+  `categoria='capital'`, así que el interés de mora siempre ignoró los descuentos.
+
+**Decisión del usuario: configurable, no una sola convención fija — "que se puedan usar
+las 4" (day-count) y "cualquiera de los primeros" (orden descuento, es decir las dos
+primeras opciones presentadas, sin la variante "depende del tipo de descuento").**
+
+### Implementación
+
+- `supabase/migrations/20260819110000_interes_day_count.sql` — enum
+  `interes_day_count_t` (`mensual_30_dias_reales` default = comportamiento histórico,
+  `actual_365`, `actual_360`, `treinta_360`) + columna en `politicas_financieras`.
+- `supabase/migrations/20260819110100_interes_descuento_orden.sql` — enum
+  `interes_descuento_orden_t` (`interes_sobre_capital_completo` default =
+  comportamiento histórico, `descuento_antes_interes`) + columna.
+- `packages/liquidation-engine/src/cuenta-corriente.ts::calcularInteresMora` —
+  reescrito para leer ambos campos de `PoliticaMora`: `tasaDiariaPor()`/`diasVencido()`
+  ramifican por `dayCount` (incluye `diasTreintaTrescientosSesenta()`, 30/360 Bond
+  Basis); cuando `descuentoOrden==='descuento_antes_interes'`, `totalDescuentoPorPeriodo()`
+  suma los cargos `categoria='otro'` con `novedadTipo==='DISCOUNT'` del mismo
+  `periodoClave` y los resta (piso cero) de la base de capital antes de aplicar la
+  tasa. La función ahora recibe **todos** los cargos abiertos del inmueble (no solo
+  capital) — necesita ver los `DISCOUNT` para poder aplicar la política.
+- `CargoAbierto` gana `novedadTipo: NovedadTipo | null` — `cuenta-corriente-supabase.ts`
+  lo resuelve con una consulta aparte a `novedades.tipo` (no está en `v_cargo_saldo`).
+- `supabase/functions/calcular-intereses/index.ts` — pasa capital (con el ajuste de
+  idempotencia) + los cargos `otro` sin ajustar a `calcularInteresMora`; desplegado
+  (`supabase functions deploy calcular-intereses`) y reverificado contra la función
+  real, no solo contra el kernel puro.
+- UI: `apps/web/app/pages/politicas/index.vue` — dos selects nuevos en "Crear nueva
+  versión", y la tabla de versiones muestra el día-count/orden de cada una.
+
+### Verificación
+
+`packages/liquidation-engine/src/cuenta-corriente.test.ts` — 12 casos nuevos:
+las 3 convenciones alternativas contra la histórica (incluye un caso que distingue
+`treinta_360` de días calendario reales cruzando un mes de 31 días), las 2
+estrategias de orden, piso-cero cuando el descuento excede el capital, y que un
+`ADJUSTMENT`/`CREDIT` categoria='otro' NO se trata como `DISCOUNT`.
+`tests/tenancy/calcular-intereses.test.ts` — caso end-to-end nuevo contra la Edge
+Function desplegada (tenant/política/inmueble/capital/`DISCOUNT` reales), confirma
+`700` = `(100.000 − 30.000) × (0,03/30) × 10 días`, exacto.
