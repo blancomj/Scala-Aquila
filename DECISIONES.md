@@ -472,3 +472,38 @@ del plan (§8) lo lista, pero la propia fase E5 (línea "E5 · Invitaciones: inv
 accept-invitation, revoke, emails Brevo, rate limit Upstash") no lo incluye. Queda
 para cuando se construya la gestión de usuarios existentes (editar rol, revocar
 membership).
+
+---
+
+## D-22 — E6 (dashboard/auditoría/plataforma): alcance de métricas y guarda SELF_MODIFY
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | F6 (E6)                                     |
+| **Estado** | Aceptada                                    |
+| **Decide** | Agente (ejecución de plan)                  |
+
+**Métricas del dashboard limitadas a tenancy/auditoría.** No existe todavía capa de
+dominio (presupuesto, cartera, motor de liquidación en producción para tenants reales),
+así que "Bienvenido" solo muestra miembros activos y eventos de auditoría recientes —
+los únicos datos con fuente real hasta E6. Punto de extensión: agregar tarjetas de
+métricas financieras cuando esa capa exista.
+
+**Nueva guarda `guard_self_modify` (SELF_MODIFY, `20260814150000_...`).** Ningún
+miembro puede cambiar su propio `role` ni su propio `status` vía `UPDATE` directo sobre
+`memberships` — ni siquiera un `agent`, y ni siquiera cuando la política RLS
+`memberships_update_agent` ya lo permitiría. Esto es intencional y distinto de
+`guard_last_agent` (SEC-07): `LAST_AGENT` protege contra dejar la copropiedad sin
+`agent`; `SELF_MODIFY` protege contra que un agente se blindee o se saque a sí mismo
+sin que otro lo apruebe, incluso en tenants con varios agents activos.
+
+Consecuencia sobre un test preexistente: el control positivo de
+`tests/rls/last-agent-guard.test.ts` ("permite degradar un agent si queda otro
+activo") hacía que el propio usuario degradara su propia membresía — válido antes de
+SELF_MODIFY, bloqueado después. Corregido para que sea el *segundo* agent quien
+degrade al primero, que es el escenario real que ese test pretendía cubrir.
+
+**Test dedicado:** `tests/rls/self-modify-guard.test.ts` — 3 casos, todos con un tenant
+de **2 agents activos** a propósito, para aislar `SELF_MODIFY` de `LAST_AGENT` (que de
+otro modo dispararía primero en un tenant de 1 solo agent y ocultaría cuál guarda
+realmente está bloqueando).
