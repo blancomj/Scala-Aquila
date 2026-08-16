@@ -58,7 +58,7 @@ export default defineNuxtConfig({
     redirect: false,
   },
 
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/ficha-inmueble.css'],
 
   typescript: {
     strict: true,

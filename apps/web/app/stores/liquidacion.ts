@@ -13,6 +13,11 @@ import { extraerErrorFuncion } from '~/utils/edge-function-error'
 
 type PeriodoRow = Database['public']['Tables']['periodos']['Row']
 type LiquidacionRow = Database['public']['Tables']['liquidaciones']['Row']
+type LiquidacionLineaRow = Database['public']['Tables']['liquidacion_lineas']['Row']
+
+export interface LineaLiquidacionInmueble extends LiquidacionLineaRow {
+  readonly liquidacion: LiquidacionRow & { readonly periodo: PeriodoRow }
+}
 
 interface ResultadoLiquidacion {
   liquidacion_id: string
@@ -25,6 +30,7 @@ interface ResultadoLiquidacion {
 export const useLiquidacionStore = defineStore('liquidacion', () => {
   const periodos = shallowRef<PeriodoRow[]>([])
   const liquidaciones = shallowRef<LiquidacionRow[]>([])
+  const lineasPorInmueble = shallowRef<LineaLiquidacionInmueble[]>([])
   const loading = ref(false)
 
   async function cargarPeriodos(tenantId: string): Promise<PeriodoRow[]> {
@@ -56,6 +62,22 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     return liquidaciones.value
   }
 
+  async function cargarLineasPorInmueble(
+    tenantId: string,
+    inmuebleId: string,
+  ): Promise<LineaLiquidacionInmueble[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorLineas } = await cliente
+      .from('liquidacion_lineas')
+      .select('*, liquidacion:liquidaciones(*, periodo:periodos(*))')
+      .eq('tenant_id', tenantId)
+      .eq('inmueble_id', inmuebleId)
+      .order('created_at', { ascending: false })
+    if (errorLineas) throw errorLineas
+    lineasPorInmueble.value = (data ?? []) as LineaLiquidacionInmueble[]
+    return lineasPorInmueble.value
+  }
+
   async function liquidarPeriodo(
     periodoId: string,
     tenantId: string,
@@ -75,14 +97,17 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
   function limpiar(): void {
     periodos.value = []
     liquidaciones.value = []
+    lineasPorInmueble.value = []
   }
 
   return {
     periodos,
     liquidaciones,
+    lineasPorInmueble,
     loading,
     cargarPeriodos,
     cargarLiquidaciones,
+    cargarLineasPorInmueble,
     liquidarPeriodo,
     limpiar,
   }

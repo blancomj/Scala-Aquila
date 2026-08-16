@@ -101,6 +101,16 @@ export const ERROR_CODES = {
   // ── AEL-004 Fase 4: maker-checker de conceptos ──────────────────────────
   CONCEPTO_INMUTABLE: 'CONCEPTO_INMUTABLE',
   SELF_APPROVAL: 'SELF_APPROVAL',
+
+  // ── Ficha de inmueble: documentos (§8.1) ────────────────────────────────
+  ARCHIVO_INVALIDO: 'ARCHIVO_INVALIDO',
+  TIPO_DOCUMENTO_INVALIDO: 'TIPO_DOCUMENTO_INVALIDO',
+
+  // ── Terceros: generalización natural/jurídica ───────────────────────────
+  TIPO_IDENTIFICACION_INVALIDO: 'TIPO_IDENTIFICACION_INVALIDO',
+  ESTADO_TERCERO_INVALIDO: 'ESTADO_TERCERO_INVALIDO',
+  TERCERO_REPRESENTANTE_INVALIDO: 'TERCERO_REPRESENTANTE_INVALIDO',
+  TERCERO_PAGADOR_INVALIDO: 'TERCERO_PAGADOR_INVALIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

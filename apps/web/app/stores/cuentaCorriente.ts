@@ -85,13 +85,11 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     return pagos.value
   }
 
-  async function cargarNovedades(tenantId: string): Promise<NovedadRow[]> {
+  async function cargarNovedades(tenantId: string, inmuebleId?: string): Promise<NovedadRow[]> {
     const cliente = useSupabaseClient<Database>()
-    const { data, error: errorNovedades } = await cliente
-      .from('novedades')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
+    let consulta = cliente.from('novedades').select('*').eq('tenant_id', tenantId)
+    if (inmuebleId) consulta = consulta.eq('inmueble_id', inmuebleId)
+    const { data, error: errorNovedades } = await consulta.order('created_at', { ascending: false })
     if (errorNovedades) throw errorNovedades
     novedades.value = data ?? []
     return novedades.value

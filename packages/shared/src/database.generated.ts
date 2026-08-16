@@ -177,6 +177,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cargos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cargos_liquidacion_linea_id_fkey"
             columns: ["liquidacion_linea_id"]
             isOneToOne: false
@@ -298,6 +305,13 @@ export type Database = {
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coeficientes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
             referencedColumns: ["id"]
           },
           {
@@ -554,6 +568,94 @@ export type Database = {
           },
         ]
       }
+      documentos_inmueble: {
+        Row: {
+          created_at: string
+          fecha_vencimiento: string | null
+          grupo_id: string
+          id: string
+          inmueble_id: string
+          nombre_archivo: string
+          storage_path: string
+          subido_por: string | null
+          tamano_bytes: number | null
+          tenant_id: string
+          tipo_documento_id: number
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          fecha_vencimiento?: string | null
+          grupo_id?: string
+          id?: string
+          inmueble_id: string
+          nombre_archivo: string
+          storage_path: string
+          subido_por?: string | null
+          tamano_bytes?: number | null
+          tenant_id: string
+          tipo_documento_id: number
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          fecha_vencimiento?: string | null
+          grupo_id?: string
+          id?: string
+          inmueble_id?: string
+          nombre_archivo?: string
+          storage_path?: string
+          subido_por?: string | null
+          tamano_bytes?: number | null
+          tenant_id?: string
+          tipo_documento_id?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_inmueble_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tipo_documento_id_fkey"
+            columns: ["tipo_documento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fondo_movimientos: {
         Row: {
           autorizado_por: string | null
@@ -803,67 +905,90 @@ export type Database = {
           },
         ]
       }
-      inmueble_propietario: {
+      inmueble_persona_rol: {
         Row: {
           created_at: string
-          desde: string
-          hasta: string | null
+          es_pagador: boolean
           id: string
           inmueble_id: string
-          porcentaje: number
-          propietario_id: string
+          porcentaje: number | null
+          recibe_notificaciones: boolean
+          rol_id: number
           tenant_id: string
+          tercero_id: string
           updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
         }
         Insert: {
           created_at?: string
-          desde: string
-          hasta?: string | null
+          es_pagador?: boolean
           id?: string
           inmueble_id: string
-          porcentaje: number
-          propietario_id: string
+          porcentaje?: number | null
+          recibe_notificaciones?: boolean
+          rol_id: number
           tenant_id: string
+          tercero_id: string
           updated_at?: string | null
+          vigente_desde: string
+          vigente_hasta?: string | null
         }
         Update: {
           created_at?: string
-          desde?: string
-          hasta?: string | null
+          es_pagador?: boolean
           id?: string
           inmueble_id?: string
-          porcentaje?: number
-          propietario_id?: string
+          porcentaje?: number | null
+          recibe_notificaciones?: boolean
+          rol_id?: number
           tenant_id?: string
+          tercero_id?: string
           updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "inmueble_propietario_inmueble_id_fkey"
+            foreignKeyName: "inmueble_persona_rol_inmueble_id_fkey"
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "inmuebles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inmueble_propietario_propietario_id_fkey"
-            columns: ["propietario_id"]
+            foreignKeyName: "inmueble_persona_rol_inmueble_id_fkey"
+            columns: ["inmueble_id"]
             isOneToOne: false
-            referencedRelation: "propietarios"
+            referencedRelation: "v_inmuebles_sin_titular"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            foreignKeyName: "inmueble_persona_rol_rol_id_fkey"
+            columns: ["rol_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_persona_rol_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "platform_tenant_overview"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inmueble_propietario_tenant_id_fkey"
+            foreignKeyName: "inmueble_persona_rol_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_persona_rol_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
             referencedColumns: ["id"]
           },
         ]
@@ -875,6 +1000,9 @@ export type Database = {
           codigo: string
           created_at: string
           estado: Database["public"]["Enums"]["inmueble_estado_t"]
+          estado_legal_id: number | null
+          estado_legal_observaciones: string | null
+          habitabilidad_id: number | null
           id: string
           matricula_inmobiliaria: string | null
           tenant_id: string
@@ -887,6 +1015,9 @@ export type Database = {
           codigo: string
           created_at?: string
           estado?: Database["public"]["Enums"]["inmueble_estado_t"]
+          estado_legal_id?: number | null
+          estado_legal_observaciones?: string | null
+          habitabilidad_id?: number | null
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id: string
@@ -899,6 +1030,9 @@ export type Database = {
           codigo?: string
           created_at?: string
           estado?: Database["public"]["Enums"]["inmueble_estado_t"]
+          estado_legal_id?: number | null
+          estado_legal_observaciones?: string | null
+          habitabilidad_id?: number | null
           id?: string
           matricula_inmobiliaria?: string | null
           tenant_id?: string
@@ -906,6 +1040,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inmuebles_estado_legal_id_fkey"
+            columns: ["estado_legal_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_habitabilidad_id_fkey"
+            columns: ["habitabilidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inmuebles_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1044,6 +1192,13 @@ export type Database = {
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_lineas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
             referencedColumns: ["id"]
           },
           {
@@ -1323,6 +1478,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "novedades_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "novedades_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1438,6 +1600,13 @@ export type Database = {
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
             referencedColumns: ["id"]
           },
           {
@@ -1809,57 +1978,6 @@ export type Database = {
           },
         ]
       }
-      propietarios: {
-        Row: {
-          created_at: string
-          email: string | null
-          id: string
-          nombre: string
-          numero_documento: string
-          telefono: string | null
-          tenant_id: string
-          tipo_documento: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          nombre: string
-          numero_documento: string
-          telefono?: string | null
-          tenant_id: string
-          tipo_documento: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          nombre?: string
-          numero_documento?: string
-          telefono?: string | null
-          tenant_id?: string
-          tipo_documento?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "propietarios_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "platform_tenant_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "propietarios_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       rate_limit_hits: {
         Row: {
           bucket: string
@@ -1927,6 +2045,118 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terceros: {
+        Row: {
+          created_at: string
+          digito_verificacion: string | null
+          direccion: string | null
+          email: string | null
+          estado_id: number
+          id: string
+          nombre_completo: string | null
+          numero_documento: string
+          pagador_id: string | null
+          primer_apellido: string | null
+          primer_nombre: string | null
+          razon_social: string | null
+          representante_legal_id: string | null
+          segundo_apellido: string | null
+          segundo_nombre: string | null
+          telefono: string | null
+          tenant_id: string
+          tipo_identificacion_id: number
+          tipo_persona: Database["public"]["Enums"]["tercero_tipo_t"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          digito_verificacion?: string | null
+          direccion?: string | null
+          email?: string | null
+          estado_id: number
+          id?: string
+          nombre_completo?: string | null
+          numero_documento: string
+          pagador_id?: string | null
+          primer_apellido?: string | null
+          primer_nombre?: string | null
+          razon_social?: string | null
+          representante_legal_id?: string | null
+          segundo_apellido?: string | null
+          segundo_nombre?: string | null
+          telefono?: string | null
+          tenant_id: string
+          tipo_identificacion_id: number
+          tipo_persona: Database["public"]["Enums"]["tercero_tipo_t"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          digito_verificacion?: string | null
+          direccion?: string | null
+          email?: string | null
+          estado_id?: number
+          id?: string
+          nombre_completo?: string | null
+          numero_documento?: string
+          pagador_id?: string | null
+          primer_apellido?: string | null
+          primer_nombre?: string | null
+          razon_social?: string | null
+          representante_legal_id?: string | null
+          segundo_apellido?: string | null
+          segundo_nombre?: string | null
+          telefono?: string | null
+          tenant_id?: string
+          tipo_identificacion_id?: number
+          tipo_persona?: Database["public"]["Enums"]["tercero_tipo_t"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terceros_estado_id_fkey"
+            columns: ["estado_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_pagador_id_fkey"
+            columns: ["pagador_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_representante_legal_id_fkey"
+            columns: ["representante_legal_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_tipo_identificacion_id_fkey"
+            columns: ["tipo_identificacion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -2019,6 +2249,13 @@ export type Database = {
             columns: ["uso_exclusivo_inmueble_id"]
             isOneToOne: false
             referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zonas_comunes_uso_exclusivo_inmueble_id_fkey"
+            columns: ["uso_exclusivo_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
             referencedColumns: ["id"]
           },
         ]
@@ -2131,6 +2368,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cargos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cargos_liquidacion_linea_id_fkey"
             columns: ["liquidacion_linea_id"]
             isOneToOne: false
@@ -2163,6 +2407,150 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_documento_vigente: {
+        Row: {
+          created_at: string | null
+          fecha_vencimiento: string | null
+          grupo_id: string | null
+          id: string | null
+          inmueble_id: string | null
+          nombre_archivo: string | null
+          storage_path: string | null
+          subido_por: string | null
+          tamano_bytes: number | null
+          tenant_id: string | null
+          tipo_documento_id: number | null
+          version: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_inmueble_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_inmueble_tipo_documento_id_fkey"
+            columns: ["tipo_documento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_inmuebles_sin_titular: {
+        Row: {
+          area_comun: number | null
+          area_privada: number | null
+          codigo: string | null
+          created_at: string | null
+          estado: Database["public"]["Enums"]["inmueble_estado_t"] | null
+          estado_legal_id: number | null
+          estado_legal_observaciones: string | null
+          habitabilidad_id: number | null
+          id: string | null
+          matricula_inmobiliaria: string | null
+          tenant_id: string | null
+          tipo_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          area_comun?: number | null
+          area_privada?: number | null
+          codigo?: string | null
+          created_at?: string | null
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"] | null
+          estado_legal_id?: number | null
+          estado_legal_observaciones?: string | null
+          habitabilidad_id?: number | null
+          id?: string | null
+          matricula_inmobiliaria?: string | null
+          tenant_id?: string | null
+          tipo_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          area_comun?: number | null
+          area_privada?: number | null
+          codigo?: string | null
+          created_at?: string | null
+          estado?: Database["public"]["Enums"]["inmueble_estado_t"] | null
+          estado_legal_id?: number | null
+          estado_legal_observaciones?: string | null
+          habitabilidad_id?: number | null
+          id?: string | null
+          matricula_inmobiliaria?: string | null
+          tenant_id?: string | null
+          tipo_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmuebles_estado_legal_id_fkey"
+            columns: ["estado_legal_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_habitabilidad_id_fkey"
+            columns: ["habitabilidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -2228,6 +2616,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fn_marcar_pagador: {
+        Args: {
+          p_inmueble_id: string
+          p_persona_rol_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
       }
       fn_rechazar_novedad: {
         Args: { p_motivo: string; p_novedad_id: string }
@@ -2380,6 +2776,7 @@ export type Database = {
       residual_metodo_t: "mayor_resto"
       tenant_role_t: "agent" | "auditor"
       tenant_status_t: "active" | "suspended" | "deleted"
+      tercero_tipo_t: "natural" | "juridica"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
     }
@@ -2569,6 +2966,7 @@ export const Constants = {
       residual_metodo_t: ["mayor_resto"],
       tenant_role_t: ["agent", "auditor"],
       tenant_status_t: ["active", "suspended", "deleted"],
+      tercero_tipo_t: ["natural", "juridica"],
       user_status_t: ["active", "suspended"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
     },
