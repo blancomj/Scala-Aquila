@@ -78,7 +78,12 @@ constructor visual se sincroniza contra eso al final, no al revés.
 
 ## 5. Fases
 
-### Fase 1 — Prueba en vivo (MVP visible, sin backend nuevo)
+**Las 7 fases están completas (2026-08-15).** Lo que sigue describe el plan
+tal como se aprobó antes de ejecutarlo — cada fase quedó marcada con el
+commit que la entregó; el detalle de "qué construir" ya no es prospectivo,
+es el registro de lo que se construyó.
+
+### Fase 1 — Prueba en vivo (MVP visible, sin backend nuevo) ✅ `0f8ebd4`
 
 Cubre Doc 10 §31-42 (`VALIDATE ACTION`/`VALIDATION RESULT`), §144-159
 (`TEST PANEL`/`TEST RESULT`/`SIMULATION`), y el `CANONICAL USER JOURNEY` §261
@@ -100,7 +105,7 @@ modo_calculo}`, arma un contexto mínimo desde Supabase (sin snapshot
   quedan para la Fase 7, ver §5).
 - Sin tablas nuevas, sin tocar `AD-23` (no hay Artifact/IR de por medio).
 
-### Fase 2 — Editor DX básico (cliente, sin backend nuevo)
+### Fase 2 — Editor DX básico (cliente, sin backend nuevo) ✅ `2ff9e09`
 
 Cubre Doc 10 §5-30 y su duplicado en §112-137 (Editor/Autocomplete/Hover).
 
@@ -114,33 +119,33 @@ Cubre Doc 10 §5-30 y su duplicado en §112-137 (Editor/Autocomplete/Hover).
   _depender_ de Monaco — es una opción de la UI web, no un requisito del
   lenguaje).
 
-### Fase 3 — Versionado de reglas (backend nuevo — aquí sí se toca AD-23)
+### Fase 3 — Versionado de reglas (backend nuevo — aquí sí se toca AD-23) ✅ `2ff9e09`
 
 - Tabla de versiones (`RuleVersion`-equivalente) con estado
   `DRAFT/VALIDATED/PUBLISHED`, fuente congelada, y un hash del AST/fuente
   como "Artifact" mínimo (no implica VM ni bytecode todavía).
 - Comparación de versiones (diff de fuente, Doc 10 §29/§163).
 
-### Fase 4 — Publicación con seguridad (capabilities + maker-checker)
+### Fase 4 — Publicación con seguridad (capabilities + maker-checker) ✅ `203179c`
 
 - Modelo de capabilities real (qué Contracts/Functions puede usar una regla,
   quién lo autoriza) — cambio de arquitectura genuino, no cosmético.
 - Flujo `Draft→Review→Approved→Published` con checklist de bloqueo
   (§209-213).
 
-### Fase 5 — Dependencias e impacto
+### Fase 5 — Dependencias e impacto ✅ `203179c`
 
 - Exponer el grafo de dependencias por regla en UI, reutilizando
   `construirGrafo` de `liquidation-engine` donde aplique; impact analysis
   ("¿qué reglas usan este Contract?").
 
-### Fase 6 — Test runner formal + snapshot testing
+### Fase 6 — Test runner formal + snapshot testing ✅ `203179c`
 
 - Casos de prueba persistidos por concepto, ejecutables contra un
   snapshot fijo en vez de un inmueble real ad-hoc (que es lo que da la
   Fase 1).
 
-### Fase 7 — Constructor visual (bloques arrastrables)
+### Fase 7 — Constructor visual (bloques arrastrables) ✅ `2c6acfd`, `e2d256c`, `d9cc331`
 
 **Deliberadamente última**, por decisión explícita del usuario (2026-08-15):
 la parte visual del mockup (paleta de variables + bloques SI/ENTONCES
@@ -192,9 +197,17 @@ Actualizar la fila `AD-23` en `§1.1` para reflejar la reversión parcial:
 > sí (Fases 3-4 de ese plan) sigue condicionado a necesidad real, igual que
 > antes.
 
-## 8. Próxima acción
+## 8. Estado (actualizado 2026-08-15)
 
-Ninguna todavía — este documento es el roadmap, no una entrega aprobada.
-Cuando el usuario confirme arrancar, la Fase 1 se planifica en detalle
-(entregas E1..En, mismo formato que el plan del motor de cuenta corriente)
-antes de escribir código.
+Las 7 fases de §5 están completas y verificadas (typecheck/lint/tests +
+navegador). De §6, quedan diferidos **Debugger** y **CLI + integración
+Git/CI** — sin caso de negocio confirmado. **GAP-20** (estados intermedios
+de aprobación presupuestal) y **GAP-21** (sectorización comercial/mixta),
+mencionados en `PLAN_MAESTRO_IMPLEMENTACION.md` §12.2, también siguen
+diferidos por el mismo criterio — no son parte de este documento (son gaps
+del motor de liquidación, no de AEL-004), se listan aquí solo para que no
+se confundan con backlog pendiente de este plan.
+
+Próxima acción: ninguna agendada. Este roadmap vuelve a estar en modo
+AD-23 — la siguiente fase (si la hay) se planifica solo cuando exista una
+necesidad real confirmada, misma disciplina que abrió este documento.
