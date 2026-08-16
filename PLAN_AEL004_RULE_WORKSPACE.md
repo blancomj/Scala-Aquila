@@ -165,10 +165,20 @@ Mismo criterio AD-23, aplicado literalmente a estos ítems del propio Doc 10:
   un administrador de PH; el documento mismo lo trata como "puede incluir".
 - **CLI + integración Git/CI** (§98-108) — solo tiene sentido si las reglas
   se versionan fuera de la base de datos; no es el modelo operativo actual.
-- **Vista técnica de IR/AST crudo** — el propio Doc 10 §226 dice
-  "NO RAW IR BY DEFAULT".
-- **Bulk actions** (§203) — el propio Doc 10 dice "no implementar
-  inicialmente, incrementan riesgo operativo".
+
+Dos ítems que estaban aquí (2026-08-15) se construyeron a pedido explícito del
+usuario, con alcance acotado precisamente para respetar la reserva que el
+propio Doc 10 hace sobre cada uno — no es que la reserva se haya descartado,
+es que se implementó de forma consistente con ella:
+
+- **Vista técnica de IR/AST crudo** — Doc 10 §226 dice "NO RAW IR BY DEFAULT",
+  no "nunca". Implementada como panel colapsable oculto por defecto ("Ver IR"
+  junto a Texto/Bloques en `pages/conceptos/index.vue`) — sigue sin ser
+  visible de entrada.
+- **Bulk actions** (§203, "no implementar inicialmente, incrementan riesgo
+  operativo") — implementadas con alcance reducido a propósito: solo cambios
+  de estado (nunca edición de contenido en lote), siempre con un modal de
+  confirmación explícito que lista los códigos afectados antes de ejecutar.
 
 ## 7. Decisión a registrar en `PLAN_MAESTRO_IMPLEMENTACION.md`
 
