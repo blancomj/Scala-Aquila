@@ -127,6 +127,16 @@ watch(bloqueEnEdicion, (nuevo) => {
   if (nuevo) formulaAel.value = imprimir(bloquesAAst(nuevo))
 })
 
+// ── vista técnica IR/AST cruda (backlog Doc 10 §226 — "NO RAW IR BY
+// DEFAULT": puede existir, pero oculta salvo que el usuario la abra). Lee
+// el AST real (no el modelo de bloques) directamente del texto actual, con
+// el mismo parsear() que ya usa activarModoBloques()/diagnosticosFormula.
+const mostrarIr = ref(false)
+const astActual = computed(() => {
+  if (!formulaAel.value.trim()) return null
+  return parsear(formulaAel.value).regla
+})
+
 // ── maker-checker (AEL-004 Fase 4) — el contenido solo se edita en
 // borrador; guard_concepto_transicion rechaza cualquier otro caso con
 // CONCEPTO_INMUTABLE, esto es solo la UX que evita llegar a ese error.
@@ -494,6 +504,100 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
     cambiandoEstadoId.value = null
   }
 }
+
+// ── acciones en lote (backlog Doc 10 §203 — "no implementar inicialmente,
+// incrementan riesgo operativo"): alcance reducido a propósito para
+// mitigar ese riesgo — SOLO cambios de estado (nunca edición de contenido
+// en lote), y SIEMPRE con un modal de confirmación explícito que lista los
+// códigos afectados antes de ejecutar nada. Cada fila solo es
+// seleccionable si al menos una acción en lote le aplica (mismo criterio
+// que ya usan los botones por fila más abajo: enviar a revisión requiere
+// 'borrador'; archivar admite 'borrador' o 'activo').
+const seleccionados = ref<Set<string>>(new Set())
+
+function conceptoEsSeleccionable(concepto: (typeof conceptoStore.conceptos)[number]): boolean {
+  return concepto.estado === 'borrador' || concepto.estado === 'activo'
+}
+
+const conceptosSeleccionables = computed(() => conceptoStore.conceptos.filter(conceptoEsSeleccionable))
+const todosSeleccionados = computed(
+  () =>
+    conceptosSeleccionables.value.length > 0 &&
+    conceptosSeleccionables.value.every((c) => seleccionados.value.has(c.id)),
+)
+
+function alternarSeleccion(id: string): void {
+  const nuevo = new Set(seleccionados.value)
+  if (nuevo.has(id)) nuevo.delete(id)
+  else nuevo.add(id)
+  seleccionados.value = nuevo
+}
+
+function alternarSeleccionTodos(): void {
+  seleccionados.value = todosSeleccionados.value
+    ? new Set()
+    : new Set(conceptosSeleccionables.value.map((c) => c.id))
+}
+
+const idsEnviableARevision = computed(() =>
+  conceptoStore.conceptos.filter((c) => seleccionados.value.has(c.id) && c.estado === 'borrador').map((c) => c.id),
+)
+const idsArchivable = computed(() =>
+  conceptoStore.conceptos
+    .filter((c) => seleccionados.value.has(c.id) && conceptoEsSeleccionable(c))
+    .map((c) => c.id),
+)
+
+type AccionMasiva = 'enviar_revision' | 'archivar'
+const confirmacionMasiva = ref<{ accion: AccionMasiva; ids: readonly string[] } | null>(null)
+const procesandoMasivo = ref(false)
+const errorMasivo = ref<string | null>(null)
+
+const codigosConfirmacionMasiva = computed(() => {
+  if (!confirmacionMasiva.value) return []
+  const ids = new Set(confirmacionMasiva.value.ids)
+  return conceptoStore.conceptos.filter((c) => ids.has(c.id)).map((c) => c.codigo)
+})
+
+const etiquetaAccionMasiva: Record<AccionMasiva, string> = {
+  enviar_revision: 'enviar a revisión',
+  archivar: 'archivar',
+}
+
+function pedirConfirmacionMasiva(accion: AccionMasiva): void {
+  const ids = accion === 'enviar_revision' ? idsEnviableARevision.value : idsArchivable.value
+  if (ids.length === 0) return
+  errorMasivo.value = null
+  confirmacionMasiva.value = { accion, ids }
+}
+
+function cancelarAccionMasiva(): void {
+  confirmacionMasiva.value = null
+}
+
+async function confirmarAccionMasiva(): Promise<void> {
+  const pendiente = confirmacionMasiva.value
+  const tenantId = tenantStore.activeTenant?.id
+  if (!pendiente || !tenantId) return
+
+  procesandoMasivo.value = true
+  errorMasivo.value = null
+  try {
+    for (const id of pendiente.ids) {
+      if (pendiente.accion === 'enviar_revision') {
+        await conceptoStore.enviarARevision(id, tenantId)
+      } else {
+        await conceptoStore.cambiarEstado(id, 'archivado', tenantId)
+      }
+    }
+    seleccionados.value = new Set()
+    confirmacionMasiva.value = null
+  } catch (excepcion) {
+    errorMasivo.value = mensajeError(excepcion, 'No se pudo completar la acción en lote.')
+  } finally {
+    procesandoMasivo.value = false
+  }
+}
 </script>
 
 <template>
@@ -513,96 +617,156 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
     <div>
       <h2 class="text-lg font-semibold mb-2">Registrados</h2>
       <p v-if="conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">Ninguno.</p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Código</th>
-            <th class="py-1 font-medium">Nombre</th>
-            <th class="py-1 font-medium">Modo</th>
-            <th class="py-1 font-medium">Estado</th>
-            <th class="py-1 font-medium" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="concepto in conceptoStore.conceptos"
-            :key="concepto.id"
-            class="border-b border-gray-100 dark:border-gray-900"
+      <template v-else>
+        <div v-if="seleccionados.size > 0" class="mb-2 flex items-center gap-3 text-sm">
+          <span class="text-gray-500">{{ seleccionados.size }} seleccionado(s)</span>
+          <UButton
+            size="xs"
+            variant="soft"
+            :disabled="idsEnviableARevision.length === 0"
+            @click="pedirConfirmacionMasiva('enviar_revision')"
           >
-            <td class="py-1.5">{{ concepto.codigo }}</td>
-            <td class="py-1.5">{{ concepto.nombre }}</td>
-            <td class="py-1.5 text-gray-500">{{ concepto.modo_calculo }}</td>
-            <td class="py-1.5 text-gray-500">{{ concepto.estado }}</td>
-            <td class="py-1.5 space-x-2">
-              <UButton size="xs" variant="soft" @click="iniciarEdicion(concepto)">Editar</UButton>
+            Enviar a revisión ({{ idsEnviableARevision.length }})
+          </UButton>
+          <UButton
+            size="xs"
+            variant="soft"
+            :disabled="idsArchivable.length === 0"
+            @click="pedirConfirmacionMasiva('archivar')"
+          >
+            Archivar ({{ idsArchivable.length }})
+          </UButton>
+        </div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
+              <th class="py-1 font-medium w-8">
+                <input
+                  type="checkbox"
+                  :checked="todosSeleccionados"
+                  :disabled="conceptosSeleccionables.length === 0"
+                  @change="alternarSeleccionTodos"
+                >
+              </th>
+              <th class="py-1 font-medium">Código</th>
+              <th class="py-1 font-medium">Nombre</th>
+              <th class="py-1 font-medium">Modo</th>
+              <th class="py-1 font-medium">Estado</th>
+              <th class="py-1 font-medium" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="concepto in conceptoStore.conceptos"
+              :key="concepto.id"
+              class="border-b border-gray-100 dark:border-gray-900"
+            >
+              <td class="py-1.5">
+                <input
+                  v-if="conceptoEsSeleccionable(concepto)"
+                  type="checkbox"
+                  :checked="seleccionados.has(concepto.id)"
+                  @change="alternarSeleccion(concepto.id)"
+                >
+              </td>
+              <td class="py-1.5">{{ concepto.codigo }}</td>
+              <td class="py-1.5">{{ concepto.nombre }}</td>
+              <td class="py-1.5 text-gray-500">{{ concepto.modo_calculo }}</td>
+              <td class="py-1.5 text-gray-500">{{ concepto.estado }}</td>
+              <td class="py-1.5 space-x-2">
+                <UButton size="xs" variant="soft" @click="iniciarEdicion(concepto)">Editar</UButton>
 
-              <template v-if="concepto.estado === 'borrador'">
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="enviarARevision(concepto)"
-                >
-                  Enviar a revisión
-                </UButton>
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="archivar(concepto)"
-                >
-                  Archivar
-                </UButton>
-              </template>
+                <template v-if="concepto.estado === 'borrador'">
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="enviarARevision(concepto)"
+                  >
+                    Enviar a revisión
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="archivar(concepto)"
+                  >
+                    Archivar
+                  </UButton>
+                </template>
 
-              <template v-else-if="concepto.estado === 'en_revision'">
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="aprobar(concepto)"
-                >
-                  Aprobar
-                </UButton>
-                <UInput
-                  v-model="motivosRechazo[concepto.id]"
-                  size="xs"
-                  placeholder="Motivo de rechazo"
-                  class="w-32"
-                />
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  color="error"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="rechazar(concepto)"
-                >
-                  Rechazar
-                </UButton>
-              </template>
+                <template v-else-if="concepto.estado === 'en_revision'">
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="aprobar(concepto)"
+                  >
+                    Aprobar
+                  </UButton>
+                  <UInput
+                    v-model="motivosRechazo[concepto.id]"
+                    size="xs"
+                    placeholder="Motivo de rechazo"
+                    class="w-32"
+                  />
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    color="error"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="rechazar(concepto)"
+                  >
+                    Rechazar
+                  </UButton>
+                </template>
 
-              <template v-else-if="concepto.estado === 'activo'">
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="volverABorrador(concepto)"
-                >
-                  Volver a borrador
-                </UButton>
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="cambiandoEstadoId === concepto.id"
-                  @click="archivar(concepto)"
-                >
-                  Archivar
-                </UButton>
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                <template v-else-if="concepto.estado === 'activo'">
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="volverABorrador(concepto)"
+                  >
+                    Volver a borrador
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :loading="cambiandoEstadoId === concepto.id"
+                    @click="archivar(concepto)"
+                  >
+                    Archivar
+                  </UButton>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+
+      <UModal
+        :open="confirmacionMasiva !== null"
+        :title="`Confirmar acción en lote`"
+        @update:open="(v: boolean) => { if (!v) cancelarAccionMasiva() }"
+      >
+        <template #body>
+          <p v-if="confirmacionMasiva" class="text-sm mb-2">
+            Vas a <strong>{{ etiquetaAccionMasiva[confirmacionMasiva.accion] }}</strong>
+            {{ confirmacionMasiva.ids.length }} concepto(s):
+          </p>
+          <ul class="text-sm font-mono list-disc list-inside mb-2">
+            <li v-for="c in codigosConfirmacionMasiva" :key="c">{{ c }}</li>
+          </ul>
+          <UAlert v-if="errorMasivo" color="error" variant="soft" :title="errorMasivo" />
+        </template>
+        <template #footer>
+          <UButton variant="ghost" :disabled="procesandoMasivo" @click="cancelarAccionMasiva">
+            Cancelar
+          </UButton>
+          <UButton :loading="procesandoMasivo" @click="confirmarAccionMasiva">Confirmar</UButton>
+        </template>
+      </UModal>
     </div>
 
     <div>
@@ -680,6 +844,15 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
             >
               Bloques
             </UButton>
+            <UButton
+              type="button"
+              size="xs"
+              variant="ghost"
+              class="ml-2"
+              @click="mostrarIr = !mostrarIr"
+            >
+              {{ mostrarIr ? 'Ocultar IR' : 'Ver IR' }}
+            </UButton>
           </div>
 
           <AelEditor
@@ -690,12 +863,19 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
             :diagnosticos="diagnosticosFormula"
             :readonly="soloLectura"
           />
-          <AelBlockCanvas
-            v-else
-            v-model:bloque="bloqueEnEdicion"
-            :readonly="soloLectura"
-            :catalogo="catalogoBloques"
-          />
+          <template v-else>
+            <AelBlockPaleta v-if="!soloLectura" :catalogo="catalogoBloques" class="mb-2" />
+            <AelBlockCanvas
+              v-model:bloque="bloqueEnEdicion"
+              :readonly="soloLectura"
+              :catalogo="catalogoBloques"
+            />
+          </template>
+
+          <pre
+            v-if="mostrarIr"
+            class="mt-2 max-h-64 overflow-auto rounded-md border border-gray-200 bg-gray-50 p-2 text-[10px] dark:border-gray-800 dark:bg-gray-900/40"
+          >{{ astActual ? JSON.stringify(astActual, null, 2) : 'La fórmula no parsea — no hay IR que mostrar.' }}</pre>
         </UFormField>
 
         <div v-if="diagnosticosFormula.length > 0" class="space-y-1">

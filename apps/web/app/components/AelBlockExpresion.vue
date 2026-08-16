@@ -11,8 +11,15 @@
 // ExpresionUnaria/ExpresionBinaria quedan fuera del selector de tipo:
 // convertir DESDE una operación perdería sus operandos sin un destino
 // obvio, y convertir HACIA una ya existe vía "envolver".
-import type { BloqueExpresion, CatalogoBloques } from '~/utils/ael-bloques'
-import { bloqueNumeroCero, envolverEnBinaria, FABRICAS_POR_TIPO } from '~/utils/ael-bloques'
+import type { BloqueExpresion, CatalogoBloques, PayloadPaleta } from '~/utils/ael-bloques'
+import {
+  bloqueLlamadaFuncionDesde,
+  bloqueNumeroCero,
+  bloqueReferenciaContractDesde,
+  envolverEnBinaria,
+  FABRICAS_POR_TIPO,
+  MIME_PALETA_AEL,
+} from '~/utils/ael-bloques'
 import type { OperadorBinario } from '@aquila/ael-language'
 
 const props = defineProps<{
@@ -198,10 +205,55 @@ function cambiarTipo(nuevoTipo: string): void {
   if (!fabrica) return
   emit('update:bloque', fabrica())
 }
+
+// ── paleta arrastrable (E7) ─────────────────────────────────────────────
+// Cada AelBlockExpresion (incluida cada anidada — izquierda/derecha,
+// argumentos...) es su propio drop target: soltar un ítem de paleta
+// reemplaza justo ESE nodo. dragover solo hace preventDefault cuando el
+// drag que pasa por encima es realmente de la paleta (dataTransfer.types
+// SÍ expone MIME_PALETA_AEL durante dragover, aunque getData no) — así una
+// instrucción arrastrándose (AelBlockInstruccion) sigue de largo sin que
+// esta expresión le robe el drop, y su propio @dragover.prevent en la fila
+// contenedora sigue funcionando normal.
+//
+// drop NO usa el modificador .stop de Vue (que pararía SIEMPRE la
+// propagación, incluso cuando el payload no aplica aquí): stopPropagation
+// se llama a mano y solo tras confirmar un payload válido, porque este
+// componente se anida dentro de sí mismo (ExpresionBinaria envuelve
+// izquierda/derecha) — sin ese guard, el mismo evento de drop bubblearía
+// hasta el ancestro y lo reemplazaría TAMBIÉN a él, la misma clase de bug
+// de burbujeo que ya se corrigió en AelBlockInstruccion.
+function permitirDropPaleta(evento: DragEvent): void {
+  if (props.readonly) return
+  if (!evento.dataTransfer?.types.includes(MIME_PALETA_AEL)) return
+  evento.preventDefault()
+}
+
+function manejarDropPaleta(evento: DragEvent): void {
+  if (props.readonly) return
+  const crudo = evento.dataTransfer?.getData(MIME_PALETA_AEL)
+  if (!crudo) return
+  let payload: PayloadPaleta
+  try {
+    payload = JSON.parse(crudo) as PayloadPaleta
+  } catch {
+    return
+  }
+  evento.stopPropagation()
+  if (payload.kind === 'campo') {
+    emit('update:bloque', bloqueReferenciaContractDesde(payload.contrato, payload.campo))
+  } else {
+    emit('update:bloque', bloqueLlamadaFuncionDesde(payload.nombre))
+  }
+}
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-0.5 align-middle">
+  <span
+    class="inline-flex items-center gap-0.5 align-middle"
+    @dragover="permitirDropPaleta"
+    @drop="manejarDropPaleta"
+  >
     <select
       v-if="esTipoHoja"
       :value="bloque.tipo"

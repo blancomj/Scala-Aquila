@@ -304,6 +304,18 @@ export interface CatalogoBloques {
   readonly funciones: readonly string[]
 }
 
+// ─────────────── paleta arrastrable (E7) ───────────────
+// MIME type propio para el dataTransfer de un ítem de paleta — distinto del
+// 'text/plain' que usa AelBlockInstruccion para IDs de instrucción, así el
+// drop handler de un tipo nunca malinterpreta el payload del otro cuando un
+// drag pasa sobre el árbol de expresiones/instrucciones (son contenedores
+// anidados en el mismo DOM).
+export const MIME_PALETA_AEL = 'application/x-ael-paleta'
+
+export type PayloadPaleta =
+  | { readonly kind: 'campo'; readonly contrato: string; readonly campo: string }
+  | { readonly kind: 'funcion'; readonly nombre: string }
+
 // ─────────────────── fábricas de bloques por defecto (E6) ───────────────
 // Usadas por los botones "+ instrucción"/"+ argumento"/"envolver" del
 // constructor visual: siempre producen un fragmento de AST válido (nunca
@@ -338,6 +350,17 @@ export function bloqueReferenciaContractPorDefecto(): BloqueReferenciaContract {
 
 export function bloqueLlamadaFuncionPorDefecto(): BloqueLlamadaFuncion {
   return { id: id(), tipo: 'LlamadaFuncion', nombre: '', argumentos: [] }
+}
+
+/** Como bloqueReferenciaContractPorDefecto/bloqueLlamadaFuncionPorDefecto, pero con
+ * el valor real que trae un ítem soltado desde la paleta (E7) en vez del valor en
+ * blanco de las fábricas "+ ...". */
+export function bloqueReferenciaContractDesde(contrato: string, campo: string): BloqueReferenciaContract {
+  return { id: id(), tipo: 'ReferenciaContract', contrato, campo }
+}
+
+export function bloqueLlamadaFuncionDesde(nombre: string): BloqueLlamadaFuncion {
+  return { id: id(), tipo: 'LlamadaFuncion', nombre, argumentos: [] }
 }
 
 /** Fábrica por defecto de cada tipo hoja — usada por el selector "cambiar tipo" (E6+). */

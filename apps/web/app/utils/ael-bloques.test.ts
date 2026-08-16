@@ -9,7 +9,9 @@ import {
   bloquesAAst,
   bloqueCondicionalVacio,
   bloqueDeclaracionVacia,
+  bloqueLlamadaFuncionDesde,
   bloqueNumeroCero,
+  bloqueReferenciaContractDesde,
   bloqueRetornoVacio,
   diferenciarParDeListas,
   encontrarRutaDeInstruccion,
@@ -179,6 +181,25 @@ describe('fábricas de bloques por defecto (E6) — siempre producen AST imprimi
     expect(envuelto.izquierda).toBe(original)
     expect(envuelto.operador).toBe('+')
     esperarReglaValida([{ id: 'r', tipo: 'Retorno', expresion: envuelto }])
+  })
+
+  it('bloqueReferenciaContractDesde() usa el contrato/campo dados, no un valor en blanco', () => {
+    const bloque = bloqueReferenciaContractDesde('PARAMETER', 'PRESUPUESTO_ANUAL')
+    expect(bloque.contrato).toBe('PARAMETER')
+    expect(bloque.campo).toBe('PRESUPUESTO_ANUAL')
+    esperarReglaValida([{ id: 'r', tipo: 'Retorno', expresion: bloque }])
+  })
+
+  it('bloqueLlamadaFuncionDesde() usa el nombre dado y no agrega argumentos', () => {
+    const bloque = bloqueLlamadaFuncionDesde('ABS')
+    expect(bloque.nombre).toBe('ABS')
+    expect(bloque.argumentos).toEqual([])
+  })
+
+  it('bloqueReferenciaContractDesde()/bloqueLlamadaFuncionDesde() generan ids únicos por llamada', () => {
+    const a = bloqueReferenciaContractDesde('PARAMETER', 'X')
+    const b = bloqueReferenciaContractDesde('PARAMETER', 'X')
+    expect(a.id).not.toBe(b.id)
   })
 })
 
