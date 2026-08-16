@@ -15,9 +15,11 @@ import {
   type ResultadoCasoPrueba,
   type ValorMock,
 } from '~/utils/ael-test-runner'
+import { astABloques, bloquesAAst, type BloqueRegla } from '~/utils/ael-bloques'
 import type { CasoPrueba, ResultadoPruebaFormula } from '~/stores/concepto'
 import type { Tipo } from '@aquila/ael-core'
 import type { ModoRedondeo } from '@aquila/financial-kernel'
+import { imprimir, parsear } from '@aquila/ael-language'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
@@ -78,6 +80,32 @@ const codigosConceptosExistentes = computed(() =>
 const diagnosticosFormula = computed(() => {
   if (!formulaAel.value.trim()) return []
   return validarFormulaAel(formulaAel.value, codigosConceptosExistentes.value)
+})
+
+// ── constructor visual de bloques (AEL-004 Fase 7, E4) ──────────────────
+// `bloqueEnEdicion` es el árbol que edita el canvas; `formulaAel` (texto)
+// es la fuente de verdad para validar/probar/guardar. Cada edición en el
+// canvas reconstruye formulaAel vía bloquesAAst()+imprimir() (watcher más
+// abajo) — así el modo texto siempre refleja lo último, sin depender de
+// que el usuario vuelva a cambiar de modo. astABloques() solo se llama al
+// ENTRAR a modo bloques (no en cada edición): reconstruir desde el AST en
+// cada tecla generaría ids nuevos para todo el árbol y forzaría un remount
+// completo del canvas, perdiendo el foco del input activo.
+const modoFormula = ref<'texto' | 'bloques'>('texto')
+const bloqueEnEdicion = ref<BloqueRegla | null>(null)
+
+function activarModoBloques(): void {
+  const { regla } = parsear(formulaAel.value)
+  bloqueEnEdicion.value = regla ? astABloques(regla) : null
+  modoFormula.value = 'bloques'
+}
+
+function activarModoTexto(): void {
+  modoFormula.value = 'texto'
+}
+
+watch(bloqueEnEdicion, (nuevo) => {
+  if (nuevo) formulaAel.value = imprimir(bloquesAAst(nuevo))
 })
 
 // ── maker-checker (AEL-004 Fase 4) — el contenido solo se edita en
@@ -251,6 +279,8 @@ async function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]
   formulaAel.value = concepto.formula_ael ?? ''
   prioridad.value = concepto.prioridad
   error.value = null
+  modoFormula.value = 'texto'
+  bloqueEnEdicion.value = null
 
   versionCompararA.value = null
   versionCompararB.value = null
@@ -269,6 +299,8 @@ function cancelarEdicion(): void {
   formulaAel.value = ''
   prioridad.value = 100
   error.value = null
+  modoFormula.value = 'texto'
+  bloqueEnEdicion.value = null
   conceptoStore.versiones = []
   conceptoStore.casosPrueba = []
   versionCompararA.value = null
@@ -599,11 +631,36 @@ async function volverABorrador(concepto: (typeof conceptoStore.conceptos)[number
         </UFormField>
 
         <UFormField label="Fórmula AEL" name="formula_ael">
+          <div class="mb-2 flex items-center gap-2">
+            <UButton
+              type="button"
+              size="xs"
+              :variant="modoFormula === 'texto' ? 'solid' : 'soft'"
+              @click="activarModoTexto"
+            >
+              Texto
+            </UButton>
+            <UButton
+              type="button"
+              size="xs"
+              :variant="modoFormula === 'bloques' ? 'solid' : 'soft'"
+              @click="activarModoBloques"
+            >
+              Bloques
+            </UButton>
+          </div>
+
           <AelEditor
+            v-if="modoFormula === 'texto'"
             ref="editorRef"
             v-model="formulaAel"
             :conceptos-disponibles="codigosConceptosExistentes"
             :diagnosticos="diagnosticosFormula"
+            :readonly="soloLectura"
+          />
+          <AelBlockCanvas
+            v-else
+            v-model:bloque="bloqueEnEdicion"
             :readonly="soloLectura"
           />
         </UFormField>

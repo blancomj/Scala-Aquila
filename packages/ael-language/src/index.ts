@@ -31,4 +31,6 @@ export type {
 
 export { parsear, type ResultadoParser } from './parser.js'
 
+export { imprimir, imprimirExpresion } from './printer.js'
+
 export { analizar, type CatalogoContratos, type ResultadoAnalyzer } from './analyzer.js'
