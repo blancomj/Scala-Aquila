@@ -347,8 +347,8 @@ Actualizar el valor mensual es TAREA OPERATIVA, no despliegue de código.
         ┌───────────────────────────────────────────┐
         │ cargos · v_cargo_saldo · pagos            │
         │ pago_aplicaciones · politicas_financieras │
-        │ periodos · inmuebles · propietarios       │
-        │ inmueble_propietario · conceptos          │
+        │ periodos · inmuebles · terceros           │
+        │ inmueble_persona_rol · conceptos          │
         └───────────────────┬───────────────────────┘
                             ↓
         ┌───────────────────────────────────────────┐

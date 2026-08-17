@@ -37,6 +37,7 @@ export const NAV_ICONOS = {
   politicas: 'M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z',
   configuracion:
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
+  plantillasSms: 'M3 6h18v13H3zM3 8l9 6 9-6M8 17h3',
   usuarios:
     'M9 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5M16 8a3 3 0 1 1 0 6M17.5 14.5c2.3.4 3.9 1.8 4.5 4.5',
   auditoria: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM21 21l-4.3-4.3',
@@ -137,6 +138,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         permiso: 'settings:manage',
         icono: NAV_ICONOS.configuracion,
       },
+      {
+        label: 'Plantillas SMS',
+        to: '/configuracion/plantillas-sms',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.plantillasSms,
+      },
     ],
   },
   {
@@ -160,13 +167,22 @@ export interface MigaPan {
 export function buscarMigaPan(path: string): MigaPan | null {
   const coincide = (to: string): boolean => path === to || path.startsWith(`${to}/`)
 
+  // Gana el `to` más largo que coincida, no el primero: con rutas anidadas
+  // (p. ej. /configuracion y /configuracion/plantillas-sms) el primero en
+  // declararse podía "ganarle" por prefijo a la ruta más específica.
+  let mejor: MigaPan | null = null
+  const considerar = (grupo: string | null, item: NavItem): void => {
+    if (!coincide(item.to)) return
+    if (!mejor || item.to.length > mejor.item.to.length) mejor = { grupo, item }
+  }
+
   for (const item of [NAV_INICIO, NAV_COPROPIEDADES, NAV_PLATAFORMA]) {
-    if (coincide(item.to)) return { grupo: null, item }
+    considerar(null, item)
   }
   for (const grupo of NAV_GRUPOS) {
     for (const item of grupo.items) {
-      if (coincide(item.to)) return { grupo: grupo.titulo, item }
+      considerar(grupo.titulo, item)
     }
   }
-  return null
+  return mejor
 }
