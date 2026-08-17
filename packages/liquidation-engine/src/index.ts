@@ -40,6 +40,8 @@ export {
   PoliticaMoraNoConfiguradaError,
   PoliticaClasificacionInvalidaError,
   TramoClasificacionNoEncontradoError,
+  SegmentacionDayCountNoSoportadoError,
+  SegmentosTasaSolapadosError,
 } from './errors.js'
 
 export {
@@ -53,6 +55,7 @@ export {
   type PlanImputacion,
   type CargoInteresGenerado,
   type PoliticaMora,
+  type SegmentoTasa,
 } from './cuenta-corriente.js'
 
 export {

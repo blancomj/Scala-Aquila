@@ -100,6 +100,35 @@ export class PoliticaMoraNoConfiguradaError extends Error {
 }
 
 /**
+ * CAR §13.3 (GAP-CAR-004, PH-C11) — treinta_360 no es una convención de
+ * calendario real: sus "días" no se corresponden linealmente con fechas
+ * calendario, así que no hay una forma correcta de recortar un segmento de
+ * tasa a una ventana [desde,hasta) bajo esa convención sin inventar una
+ * regla. Se rechaza en vez de aproximar.
+ */
+export class SegmentacionDayCountNoSoportadoError extends Error {
+  constructor(readonly dayCount: string) {
+    super(
+      `calcularInteresMora con segmentos de tasa no soporta la convención "${dayCount}" ` +
+        `— solo day-counts de calendario real (mensual_30_dias_reales/actual_365/actual_360). ` +
+        `(CAR §13.3)`,
+    )
+    this.name = 'SegmentacionDayCountNoSoportadoError'
+  }
+}
+
+/** CAR §13.3 — dos segmentos de tasa que se solapan cobrarían interés dos veces sobre los mismos días. */
+export class SegmentosTasaSolapadosError extends Error {
+  constructor(
+    readonly segmentoA: string,
+    readonly segmentoB: string,
+  ) {
+    super(`Los segmentos de tasa "${segmentoA}" y "${segmentoB}" se solapan (CAR §13.3)`)
+    this.name = 'SegmentosTasaSolapadosError'
+  }
+}
+
+/**
  * CAR §8.3 IC-TRAMO-01..05 — una política de clasificación de cartera con
  * tramos que no cubren [0,∞) sin huecos/solapes, o con códigos duplicados,
  * no puede activarse. Se lanza antes de permitir estado='vigente'.

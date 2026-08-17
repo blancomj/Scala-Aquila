@@ -401,7 +401,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-001`** | `cargos` no tiene `fecha_vencimiento`; se deriva de `periodos.fecha_vencimiento`, que **existe pero es `nullable`**. Un período sin fecha de vencimiento produce antigüedad indefinida. | **Bloqueante** — reducido de "total" a "acotado" tras verificación. | F0 |
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
-| **`GAP-CAR-004`** | ⚠️ **Parcialmente resuelto.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal ✅ ya existen (F2, aplicados). **Sigue faltando**: `InterestSegment`/`SegmentoTasa[]` — si la tasa cambia a mitad de la mora, `calcularInteresMora` todavía no lo segmenta. | Afecta `PH-C11`. | F2 (resto) |
+| ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
 | **`GAP-CAR-005`** | No existe infraestructura de notificaciones (email/SMS/WhatsApp) ni de tareas. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
@@ -1411,18 +1411,48 @@ politicas_financieras.interes_tasa_mensual   = <lo que decidió la asamblea>
 
 `[ARQ]` `guard_politica_financiera_tope_legal()` (trigger `before insert or update`) rechaza activar una política cuando `interes_tasa_mensual` o `interes_tope_mensual` exceden `interes_multiplicador × valor_mensual` de la tasa de referencia vigente — **solo si la política declara ambas columnas**. Sin ellas (NULL), ninguna validación corre: es exactamente el comportamiento de antes de F2. Verificado con 4 tests reales contra Postgres (`tests/rls/politica-financiera-tope-legal.test.ts`): `PH-C36` (rechazo), `PH-C37` (aceptación), rechazo cuando solo el tope excede, y retrocompatibilidad.
 
-**Pendiente:** `calcularInteresMora()` extendido para recibir `readonly SegmentoTasa[]` en lugar de una tasa escalar, produciendo el desglose de `InterestSegment` que exige `PH-C11`. Deliberadamente no implementado en esta rebanada — es un cambio a una función financiera con 21 tests existentes, y la aritmética multi-segmento (día de corte entre tasas, gracia que puede cruzar el límite de un segmento, redondeo por tramo) merece su propia revisión, no apurarse dentro de la trazabilidad de la tasa:
+**✅ Implementado** (rebanada aparte, como estaba previsto — se pospuso deliberadamente en el commit de trazabilidad de la tasa por ser el cambio de mayor riesgo real de F2). `calcularInteresMora()` acepta un 5º parámetro opcional `segmentos?: readonly SegmentoTasa[]` en `packages/liquidation-engine/src/cuenta-corriente.ts`.
+
+`[ARQ]` Corrección sobre el boceto original de esta guía: `desde`/`hasta` son **ISO date strings**, no `Date`, y `tasaMensual` es **string decimal**, no `number` — mismas convenciones que `PoliticaMora.tasaMensual` y `CargoAbierto.fechaVencimiento` en todo el módulo (`Docs/19 §96`: nunca `number` para dinero/tasas, siempre vía `financial-operation-service.ts`).
 
 ```typescript
 export interface SegmentoTasa {
-  readonly desde: Date
-  readonly hasta: Date
-  readonly tasaMensual: number
+  readonly desde: string          // ISO YYYY-MM-DD
+  readonly hasta: string          // ISO YYYY-MM-DD
+  readonly tasaMensual: string    // decimal, como PoliticaMora.tasaMensual
   readonly fuenteResolucion: string
 }
 ```
 
-`[ARQ]` Esta extensión es **retrocompatible**: una lista de un solo segmento equivale al comportamiento actual.
+`[ARQ]` Esta extensión es **retrocompatible de verdad, no solo declarada**: `sin segmentos (o `[]`) ejecuta exactamente el mismo código de siempre — cero rama nueva evaluada. Con exactamente un segmento que cubre toda la ventana de mora, el resultado es **matemáticamente idéntico** al camino escalar (mismo redondeo único al final, no por tramo) — verificado con `expect(conUnSegmento).toEqual(sinSegmentar)` en `cuenta-corriente.test.ts`, no solo con valores que coinciden por casualidad.
+
+Decisiones de diseño que valen la pena registrar:
+
+```text
+- Gracia (diasGracia) se traduce a un desplazamiento de fecha calendario
+  (fechaVencimiento + diasGracia días) antes de intersectar segmentos —
+  matemáticamente equivalente a "restar gracia del conteo de días" para
+  las 3 convenciones de calendario real, lo que permite reutilizar
+  diasVencido()/diasCalendario() sin duplicar lógica.
+
+- treinta_360 se RECHAZA explícitamente con segmentos
+  (SegmentacionDayCountNoSoportadoError) en vez de aproximarse: esa
+  convención no tiene una noción lineal de fecha calendario, así que
+  recortar un segmento a una ventana [desde,hasta) no tiene una respuesta
+  correcta sin inventar una regla adicional. Sin segmentos, treinta_360
+  sigue funcionando exactamente igual que siempre.
+
+- Segmentos solapados (SegmentosTasaSolapadosError) se rechazan — un
+  solape cobraría interés dos veces sobre los mismos días. Huecos entre
+  segmentos SÍ se permiten: esos días simplemente no generan interés
+  (nunca se inventa una tasa para cubrir el hueco).
+
+- El tope legal (interes_tope_mensual) se aplica POR SEGMENTO, no de forma
+  global — cada tramo de tasa se topa independientemente contra el mismo
+  tope de la política.
+```
+
+9 tests nuevos en `cuenta-corriente.test.ts` (29 en total, los 21 originales sin tocar): retrocompatibilidad exacta, `PH-C11` con dos tramos, tope por segmento, gracia con segmentos, arreglo vacío, solape rechazado, `treinta_360` rechazado con segmentos pero funcionando sin ellos.
 
 ---
 
@@ -2310,7 +2340,7 @@ Certificaciones por vencer
 |---|---|---|---|---|---|
 | `PRQ-CAR-001` | Obligación financiera (`cargos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | Sin obligación no hay cartera |
 | `PRQ-CAR-002` | **Fecha de vencimiento por cargo** | Este bloque + `periodos` | ⚠️ **Parcial** — `periodos.fecha_vencimiento` existe pero es nullable (`GAP-CAR-001`) | **Sí** | Sin vencimiento no hay antigüedad |
-| `PRQ-CAR-003` | Versionado de tasa de interés | Política financiera | ⚠️ **Parcial — `GAP-CAR-004`**: trazabilidad y tope legal ✅ (F2), segmentación ⧗ | No (para clasificar) / Sí (para `PH-C11`) | Segmentación intra-mora |
+| `PRQ-CAR-003` | Versionado de tasa de interés | Política financiera | ✅ **Verificado** — `GAP-CAR-004` resuelto en F2 | Sí | — |
 | `PRQ-CAR-004` | Modelo de pagos (`pagos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-005` | Política de imputación | `politicas_financieras` | ✅ **Verificado** (`AD-36`) | Sí | Determina la antigüedad resultante |
 | `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
@@ -2476,13 +2506,16 @@ PH-C10  INTERÉS SEPARADO DE CLASIFICACIÓN
   → interés causado = 0 (hay gracia)
   ⚠ Verifica el principio central de §2. Ambas cosas son ciertas a la vez.
 
-PH-C11  CAMBIO DE TASA DURANTE LA MORA
-  Mora del 2026-06-01 al 2026-08-16
-  Tasa vigente hasta 2026-06-30: X% · desde 2026-07-01: Y%
-  → se producen 2 segmentos con sus fechas, tasas y resoluciones fuente
-  → el interés total = suma de segmentos
-  → cada segmento traza a su resolución de la Superfinanciera
-  Depende de GAP-CAR-004.
+PH-C11  CAMBIO DE TASA DURANTE LA MORA  ✅ verificado
+  Cargo de 100.000, vencido 2026-06-01, corte 2026-07-16
+  Tramo 1 (2026-06-01→2026-07-01, 30 días): tasa 0.03 → interés 3.000
+  Tramo 2 (2026-07-01→2026-07-16, 15 días): tasa 0.06 → interés 3.000
+  → interés total = 6.000 (dias_mora = 45)
+  → sin segmentar, la misma mora a tasa única 0.03 habría dado 4.500 —
+    prueba de que segmentar cambia el resultado, no es un envoltorio inerte
+  → cada segmento trae su propia fuenteResolucion
+  Test real: cuenta-corriente.test.ts "PH-C11: reparte el interés entre
+  dos tramos cuando la tasa cambia a mitad de la mora".
 
 PH-C36  TOPE LEGAL RESPETADO
   Asamblea fija tasa por encima de 1.5 × IBC
@@ -2813,7 +2846,7 @@ Se implementó la primera; la segunda queda explícitamente para después en
 vez de apurarla.
 
 ```text
-Alcance      Cerrar GAP-CAR-004 — parte 1: trazabilidad y tope legal
+Alcance      Cerrar GAP-CAR-004 completo
 Entregables  · ✅ tabla tasas_referencia (migración
                `20260822220000_cartera_tasas_referencia.sql`, aplicada) —
                GLOBAL, append-only, sin solape de vigencias por tipo_tasa
@@ -2832,13 +2865,14 @@ Entregables  · ✅ tabla tasas_referencia (migración
                tasas_referencia (append-only), resolucion_numero
                prefijado `TEST-`, fecha en 1000-1900 — decisión explícita
                del usuario, sin impacto funcional real
-             · ⧗ calcularInteresMora extendido con SegmentoTasa[] —
-               NO implementado en esta rebanada. Aritmética multi-segmento
-               genuinamente delicada (día de corte entre tasas, gracia que
-               puede cruzar el límite del segmento, redondeo por tramo) en
-               una función con 21 tests existentes que nunca ha fallado —
-               se prefiere una rebanada aparte, con su propio tiempo de
-               revisión, a apurarla dentro de esta
+             · ✅ calcularInteresMora extendido con `segmentos?: readonly
+               SegmentoTasa[]` — 5º parámetro opcional, retrocompatible
+               verificado por igualdad exacta (no solo declarado). Gracia
+               vía desplazamiento de fecha; treinta_360 + segmentos
+               rechazado explícitamente (no tiene fecha calendario lineal);
+               segmentos solapados rechazados; tope aplicado por segmento.
+               9 tests nuevos en cuenta-corriente.test.ts (29 en total,
+               21 originales intactos)
              · ⧗ Carga histórica real de IBC en tasas_referencia — no se
                inventó ningún valor. Poblar la tabla con la resolución
                vigente real de la Superfinanciera es tarea operativa
@@ -2846,14 +2880,18 @@ Entregables  · ✅ tabla tasas_referencia (migración
                resolución la registre
 Golden Cases PH-C36, PH-C37 — verificados contra Postgres real
              PH-C10 — ya cubierto en cartera.test.ts (F1)
-             PH-C11 — pendiente de la rebanada de SegmentoTasa[]
-Salida       Tasa trazable a resolución para políticas que la declaren;
-             retrocompatible con toda política existente. Segmentación
-             de interés y carga real de IBC: siguientes rebanadas.
+             PH-C11 — verificado con datos concretos en cuenta-corriente.test.ts
+Salida       GAP-CAR-004 cerrado por completo. Tasa trazable a resolución
+             para políticas que la declaren, con tope legal aplicado y
+             segmentación cuando la tasa cambia a mitad de la mora — todo
+             retrocompatible con toda política/cálculo existente. Solo
+             falta la carga real del IBC (tarea operativa, no de código).
 Riesgo       Retrocompatibilidad con intereses ya calculados — NINGÚN
              cargo de interés existente se recalcula ni se ve afectado;
-             el guard solo se evalúa al activar una política, y solo si
-             esta declara interes_tipo_tasa/interes_multiplicador.
+             tanto el guard de tope como la segmentación solo se activan
+             cuando la política/llamada los declara explícitamente. Los
+             21 tests originales de calcularInteresMora no se tocaron ni
+             una línea y siguen pasando.
 ```
 
 ## F3 — Clasificación

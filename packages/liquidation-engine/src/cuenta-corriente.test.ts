@@ -6,11 +6,14 @@ import {
   type CargoAbierto,
   type EstrategiaImputacion,
   type PoliticaMora,
+  type SegmentoTasa,
 } from './cuenta-corriente.js'
 import {
   OrdenImputacionInvalidoError,
   EstrategiaImputacionInvalidaError,
   PoliticaMoraNoConfiguradaError,
+  SegmentacionDayCountNoSoportadoError,
+  SegmentosTasaSolapadosError,
 } from './errors.js'
 
 const ORDEN_ESTANDAR = ['interes', 'capital', 'otro'] as const
@@ -353,5 +356,139 @@ describe('calcularInteresMora', () => {
       const [generado] = calcularInteresMora([capital, ajuste], '2027-01-11', politicaConOrden, redondeo)
       expect(generado?.monto.amount.toString()).toBe('1000')
     })
+  })
+})
+
+describe('calcularInteresMora con SegmentoTasa[] (CAR §13.3, GAP-CAR-004, PH-C11)', () => {
+  const redondeo = { modo: 'HALF_UP' as const, escala: 0 }
+
+  function segmento(over: Partial<SegmentoTasa> & { desde: string; hasta: string }): SegmentoTasa {
+    return { tasaMensual: '0.03', fuenteResolucion: 'test', ...over }
+  }
+
+  it('retrocompatible: un solo segmento que cubre toda la ventana reproduce EXACTAMENTE el monto sin segmentar', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2027-01-05',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora({ tasaMensual: '0.03', topeMensual: '0.05' })
+
+    const sinSegmentar = calcularInteresMora([c], '2027-02-05', politica, redondeo)
+    const conUnSegmento = calcularInteresMora([c], '2027-02-05', politica, redondeo, [
+      segmento({ desde: '2027-01-05', hasta: '2027-02-05', tasaMensual: '0.03' }),
+    ])
+
+    expect(conUnSegmento).toEqual(sinSegmentar)
+    expect(conUnSegmento[0]?.monto.amount.toString()).toBe('3100') // 100_000 * (0.03/30) * 31
+  })
+
+  it('PH-C11: reparte el interés entre dos tramos cuando la tasa cambia a mitad de la mora', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2026-06-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora({ tasaMensual: '0.03', topeMensual: '0.10' })
+
+    const [generado] = calcularInteresMora([c], '2026-07-16', politica, redondeo, [
+      segmento({ desde: '2026-06-01', hasta: '2026-07-01', tasaMensual: '0.03' }), // 30 días
+      segmento({ desde: '2026-07-01', hasta: '2026-07-16', tasaMensual: '0.06' }), // 15 días
+    ])
+
+    // Tramo 1: 100_000 * (0.03/30) * 30 = 3_000
+    // Tramo 2: 100_000 * (0.06/30) * 15 = 3_000
+    expect(generado?.diasMora).toBe(45)
+    expect(generado?.monto.amount.toString()).toBe('6000')
+    expect(generado?.topeAplicado).toBe(false)
+
+    // Prueba de que segmentar de verdad cambia el resultado — no es un
+    // envoltorio inerte: una sola tasa de 0.03 sobre los mismos 45 días
+    // habría dado 4_500, no 6_000.
+    const [sinSegmentar] = calcularInteresMora([c], '2026-07-16', politica, redondeo)
+    expect(sinSegmentar?.monto.amount.toString()).toBe('4500')
+  })
+
+  it('el tope legal se aplica por segmento, no solo de forma global', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora({ tasaMensual: '0.03', topeMensual: '0.05' })
+
+    const [generado] = calcularInteresMora([c], '2027-01-31', politica, redondeo, [
+      segmento({ desde: '2027-01-01', hasta: '2027-01-31', tasaMensual: '0.20' }), // muy por encima del tope
+    ])
+
+    // tope 0.05, no la tasa 0.20 del segmento: 100_000 * (0.05/30) * 30 = 5_000
+    expect(generado?.monto.amount.toString()).toBe('5000')
+    expect(generado?.topeAplicado).toBe(true)
+  })
+
+  it('la gracia desplaza el inicio de acumulación también con segmentos', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2026-06-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora({ tasaMensual: '0.03', topeMensual: '0.10', diasGracia: 5 })
+
+    const [generado] = calcularInteresMora([c], '2026-07-01', politica, redondeo, [
+      segmento({ desde: '2026-06-01', hasta: '2026-07-01', tasaMensual: '0.03' }),
+    ])
+
+    // Sin gracia serían 30 días; con 5 de gracia, 25.
+    expect(generado?.diasMora).toBe(25)
+    expect(generado?.monto.amount.toString()).toBe('2500') // 100_000 * (0.03/30) * 25
+  })
+
+  it('un array de segmentos vacío se comporta igual que no pasar segmentos', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora()
+    const sinSegmentos = calcularInteresMora([c], '2027-01-11', politica, redondeo)
+    const conArregloVacio = calcularInteresMora([c], '2027-01-11', politica, redondeo, [])
+    expect(conArregloVacio).toEqual(sinSegmentos)
+  })
+
+  it('SegmentosTasaSolapadosError si dos segmentos se solapan', () => {
+    const c = cargo({ id: 'cap-1', categoria: 'capital', fechaVencimiento: '2027-01-01' })
+    const politica = politicaMora()
+    expect(() =>
+      calcularInteresMora([c], '2027-03-01', politica, redondeo, [
+        segmento({ desde: '2027-01-01', hasta: '2027-02-01', fuenteResolucion: 'res-A' }),
+        segmento({ desde: '2027-01-15', hasta: '2027-03-01', fuenteResolucion: 'res-B' }), // solapa con A
+      ]),
+    ).toThrow(SegmentosTasaSolapadosError)
+  })
+
+  it('SegmentacionDayCountNoSoportadoError con day-count treinta_360', () => {
+    const c = cargo({ id: 'cap-1', categoria: 'capital', fechaVencimiento: '2027-01-01' })
+    const politica = politicaMora({ dayCount: 'treinta_360' })
+    expect(() =>
+      calcularInteresMora([c], '2027-02-01', politica, redondeo, [
+        segmento({ desde: '2027-01-01', hasta: '2027-02-01' }),
+      ]),
+    ).toThrow(SegmentacionDayCountNoSoportadoError)
+  })
+
+  it('sin segmentos, treinta_360 sigue funcionando normalmente (solo se rechaza CON segmentos)', () => {
+    const c = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+    const politica = politicaMora({ dayCount: 'treinta_360' })
+    expect(() => calcularInteresMora([c], '2027-02-01', politica, redondeo)).not.toThrow()
   })
 })

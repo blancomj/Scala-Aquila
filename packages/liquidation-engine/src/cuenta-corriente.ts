@@ -20,6 +20,8 @@ import {
   OrdenImputacionInvalidoError,
   EstrategiaImputacionInvalidaError,
   PoliticaMoraNoConfiguradaError,
+  SegmentacionDayCountNoSoportadoError,
+  SegmentosTasaSolapadosError,
 } from './errors.js'
 
 export type CategoriaCargo = 'capital' | 'interes' | 'otro'
@@ -211,6 +213,16 @@ export function diasCalendario(desde: string, hasta: string): number {
   return Math.round((timestampUtc(hasta) - timestampUtc(desde)) / msPorDia)
 }
 
+/** Fecha ISO (YYYY-MM-DD) que resulta de sumar `dias` días calendario a `fechaIso`, UTC. */
+function sumarDiasCalendario(fechaIso: string, dias: number): string {
+  const msPorDia = 24 * 60 * 60 * 1000
+  const fecha = new Date(timestampUtc(fechaIso) + dias * msPorDia)
+  const anio = fecha.getUTCFullYear()
+  const mes = fecha.getUTCMonth() + 1
+  const dia = fecha.getUTCDate()
+  return `${String(anio).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+}
+
 /** 30/360 (Bond Basis / US NASD, Docs/16 §56) — cada mes cuenta como 30 días. */
 function diasTreintaTrescientosSesenta(desde: string, hasta: string): number {
   const p1 = desde.split('-').map(Number)
@@ -265,6 +277,81 @@ function totalDescuentoPorPeriodo(cargos: readonly CargoAbierto[]): ReadonlyMap<
 }
 
 /**
+ * CAR §13.3 (GAP-CAR-004, PH-C11) — tramo de tasa vigente en [desde,hasta]
+ * (ambas ISO YYYY-MM-DD, inclusive) dentro de una mora que cruza un cambio
+ * de tasa certificada. `tasaMensual` como string decimal, igual que
+ * PoliticaMora — nunca number para no perder precisión (Docs/19 §96).
+ */
+export interface SegmentoTasa {
+  readonly desde: string
+  readonly hasta: string
+  readonly tasaMensual: string
+  readonly fuenteResolucion: string
+}
+
+function validarSegmentosOrdenados(segmentos: readonly SegmentoTasa[]): readonly SegmentoTasa[] {
+  const ordenados = [...segmentos].sort((a, b) => (a.desde < b.desde ? -1 : a.desde > b.desde ? 1 : 0))
+  for (let i = 1; i < ordenados.length; i++) {
+    const anterior = ordenados[i - 1]
+    const actual = ordenados[i]
+    if (anterior === undefined || actual === undefined) continue
+    if (anterior.hasta > actual.desde) {
+      throw new SegmentosTasaSolapadosError(anterior.fuenteResolucion, actual.fuenteResolucion)
+    }
+  }
+  return ordenados
+}
+
+const maxFecha = (a: string, b: string): string => (a > b ? a : b)
+const minFecha = (a: string, b: string): string => (a < b ? a : b)
+
+/**
+ * Generaliza el cálculo de un único cargo a N tramos de tasa. Con
+ * exactamente 1 segmento que cubre [fechaInicioAcumulacion, fechaReferencia]
+ * reproduce EXACTAMENTE el mismo monto que el camino sin segmentar (mismo
+ * redondeo único al final, no por segmento) — así es como se verifica la
+ * retrocompatibilidad, no solo se declara.
+ */
+function calcularInteresSegmentado(
+  base: Money,
+  fechaVencimiento: string,
+  fechaReferencia: string,
+  diasGracia: number,
+  topeMensual: string,
+  dayCount: ConvencionDayCount,
+  segmentosOrdenados: readonly SegmentoTasa[],
+): { readonly monto: Money; readonly diasMora: number; readonly topeAplicado: boolean } | null {
+  const fechaInicioAcumulacion = sumarDiasCalendario(fechaVencimiento, diasGracia)
+  if (fechaInicioAcumulacion >= fechaReferencia) return null
+
+  let montoTotal: Money | null = null
+  let diasMoraTotal = 0
+  let topeAplicado = false
+
+  for (const segmento of segmentosOrdenados) {
+    const ventanaDesde = maxFecha(segmento.desde, fechaInicioAcumulacion)
+    const ventanaHasta = minFecha(segmento.hasta, fechaReferencia)
+    if (ventanaDesde >= ventanaHasta) continue
+
+    const dias = diasVencido(dayCount, ventanaDesde, ventanaHasta)
+    if (dias <= 0) continue
+
+    const topeAplicaSegmento = fos.compararDecimales(segmento.tasaMensual, topeMensual) > 0
+    if (topeAplicaSegmento) topeAplicado = true
+    const tasaEfectiva = topeAplicaSegmento ? topeMensual : segmento.tasaMensual
+    const tasaDiaria = tasaDiariaPor(dayCount, tasaEfectiva)
+
+    const factor = fos.multiplicarDecimales(tasaDiaria, dias)
+    const montoSegmento = fos.multiplicar(base, factor)
+    montoTotal = montoTotal === null ? montoSegmento : fos.sumar(montoTotal, montoSegmento)
+    diasMoraTotal += dias
+  }
+
+  if (montoTotal === null) return null
+  return { monto: montoTotal, diasMora: diasMoraTotal, topeAplicado }
+}
+
+/**
  * PLAN §6.6: base = saldo vencido de CAPITAL (nunca compone sobre interés ya
  * generado — por eso solo genera intereses sobre cargos categoria='capital'),
  * devengo diario desde el día siguiente al vencimiento, gracia parametrizable,
@@ -274,12 +361,21 @@ function totalDescuentoPorPeriodo(cargos: readonly CargoAbierto[]): ReadonlyMap<
  * ver los cargos categoria='otro' de tipo DISCOUNT para poder aplicar
  * `descuentoOrden`. Un cargo sin `novedadTipo` (capital/interés) nunca
  * participa en el cómputo de descuentos, solo en el de capital.
+ *
+ * `segmentos` (CAR §13.3, GAP-CAR-004, PH-C11) — opcional y retrocompatible:
+ * sin él (o con arreglo vacío), corre exactamente el camino de tasa escalar
+ * de siempre, sin ninguna diferencia de código ejecutado. Con segmentos,
+ * cada cargo de capital reparte su interés entre los tramos de tasa que
+ * intersectan su ventana de mora. treinta_360 no tiene una noción lineal de
+ * fecha calendario y se rechaza explícitamente en vez de aproximar
+ * (SegmentacionDayCountNoSoportadoError).
  */
 export function calcularInteresMora(
   cargosAbiertos: readonly CargoAbierto[],
   fechaReferencia: string,
   politica: PoliticaMora,
   redondeo: RoundingPolicy,
+  segmentos?: readonly SegmentoTasa[],
 ): readonly CargoInteresGenerado[] {
   if (politica.tasaMensual === null || politica.topeMensual === null) {
     throw new PoliticaMoraNoConfiguradaError()
@@ -289,6 +385,12 @@ export function calcularInteresMora(
   const topeAplica = fos.compararDecimales(tasaMensual, topeMensual) > 0
   const tasaEfectiva = topeAplica ? topeMensual : tasaMensual
   const tasaDiaria = tasaDiariaPor(politica.dayCount, tasaEfectiva)
+
+  const usaSegmentos = segmentos !== undefined && segmentos.length > 0
+  if (usaSegmentos && politica.dayCount === 'treinta_360') {
+    throw new SegmentacionDayCountNoSoportadoError(politica.dayCount)
+  }
+  const segmentosOrdenados = usaSegmentos ? validarSegmentosOrdenados(segmentos) : null
 
   const descuentosPorPeriodo =
     politica.descuentoOrden === 'descuento_antes_interes'
@@ -309,6 +411,28 @@ export function calcularInteresMora(
       base = isNegativeMoney(reducida) ? fos.restar(base, base) : reducida
     }
     if (isZeroMoney(base)) continue
+
+    if (segmentosOrdenados !== null) {
+      const resultado = calcularInteresSegmentado(
+        base,
+        cargo.fechaVencimiento,
+        fechaReferencia,
+        politica.diasGracia,
+        topeMensual,
+        politica.dayCount,
+        segmentosOrdenados,
+      )
+      if (resultado === null) continue
+      const monto = fos.redondear(resultado.monto, redondeo)
+      if (isZeroMoney(monto)) continue
+      generados.push({
+        cargoCapitalOrigenId: cargo.id,
+        monto,
+        diasMora: resultado.diasMora,
+        topeAplicado: resultado.topeAplicado,
+      })
+      continue
+    }
 
     const diasMoraCalendario = diasVencido(politica.dayCount, cargo.fechaVencimiento, fechaReferencia)
     const diasMora = Math.max(0, diasMoraCalendario - politica.diasGracia)
