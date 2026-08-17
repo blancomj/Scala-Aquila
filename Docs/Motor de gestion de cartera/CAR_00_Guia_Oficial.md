@@ -402,7 +402,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
-| **`GAP-CAR-005`** | No existe un módulo de notificaciones reutilizable ni infraestructura de tareas/colas. **Confirmado por investigación directa del código** (no solo ausencia documental): existe Brevo *ya configurado y en uso real* (`BREVO_API_KEY`/`BREVO_SENDER_EMAIL`/`BREVO_SENDER_NAME`, `supabase/functions/invite-user/index.ts`), pero acoplado a un único correo de invitación (HTML inline, sin tabla de plantillas ni abstracción de destinatario) — no hay `sendXEmail()` genérico, ni tabla `notificaciones`/`plantilla`/`cola`, ni SMS/WhatsApp, ni scheduler más allá de un único `cron.schedule` para purgar `audit_log`. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
+| ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17).** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — envío real, no un stub. **email/WhatsApp siguen sin resolver**: Brevo email ya existe pero acoplado a un único correo de invitación (`invite-user/index.ts`), sin generalizar; WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
 | ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
@@ -2347,8 +2347,8 @@ Certificaciones por vencer
 | `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-007` | Historial de propiedad / responsabilidad | Dominio inmuebles | ✅ **Verificado** — `inmueble_persona_rol(vigente_desde, vigente_hasta, porcentaje)`, antes `inmueble_propietario` | Sí | A quién se le cobra qué período |
 | `PRQ-CAR-008` | Snapshot / reproducibilidad | Motor liquidación (patrón) | ✅ **Patrón disponible** | Sí | `I-C15` |
-| `PRQ-CAR-009` | Infraestructura de notificaciones | **No existe como módulo genérico** | ❌ **`GAP-CAR-005`** — *verificado por investigación de código (2026-08-16): Brevo ya está configurado y funcionando en `invite-user/index.ts` (`enviarEmailInvitacion()`), pero hardcodeado a un solo correo de invitación — no hay tabla de plantillas, ni abstracción de destinatario, ni WhatsApp/push. Los datos de contacto sí existen: `propietarios.email` (citext), `propietarios.telefono`, `tenant_tercero_rol.recibe_notificaciones`. **Corrección tras revisión propia adicional (el agente de investigación no lo detectó):** `packages/shared/src/sms/` ya existe — `registry.ts` define exactamente 4 eventos pensados para este motor (`cartera_recordatorio_pago`, `cartera_pago_vencido`, `cartera_pago_confirmado`, `cartera_acuerdo_pago_creado`, con sus campos y destinatario), más `render.ts`/`validate.ts`/`segments.ts`/`phone.ts` (plantilla `{campo}`, validación GSM-7/UCS-2, teléfono CO). Es utilería pura, ya probada (19 tests) — pero sin tabla `sms_templates`, sin Edge Function, sin UI que la consuma y sin proveedor SMS configurado (no hay `TWILIO_*` ni equivalente). No cambia la conclusión (no hay envío real), pero si se generaliza el envío para F4, esta pieza ya no se debe reconstruir.* | **Sí** para F4 | Falta generalizar el envío, no el destinatario ni el proveedor |
-| `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** — *verificado: `pg_cron` está instalado pero solo tiene un job (`purge-audit-log-24-meses`); ninguna función de cartera/liquidación está agendada, todas son invocación manual* | **Sí** para F4 | Worker de ejecución |
+| `PRQ-CAR-009` | Infraestructura de notificaciones | ✅ **Existe para SMS** — `plantillas_sms` + `sendSms()` (Brevo Transactional SMS) | ✅ **`GAP-CAR-005` resuelto para SMS (2026-08-17)** — email/WhatsApp siguen sin generalizar | **Sí** para F4 | Envío SMS real ya integrado en `ejecutar-accion-cobranza` |
+| `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** — *sigue abierto: `pg_cron` solo tiene un job (`purge-audit-log-24-meses`); el worker de F4 se invoca manualmente, una acción a la vez* | **Sí** para orquestación por lotes (no para invocar el worker una acción a la vez, que ya funciona) | Worker de ejecución existe; falta quién lo llame en lote |
 | `PRQ-CAR-011` | Registro de fuente/autoridad | `fundamento_normativo` | ⚠️ **Verificar cobertura** | Sí para costas | `I-C11` |
 | `PRQ-CAR-012` | Infraestructura de auditoría | `audit_log` | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-013` | Almacenamiento de documentos | Supabase Storage | ⚠️ **`GAP-CAR-007`** | **Sí** para F7 | Expediente jurídico |
@@ -2376,14 +2376,14 @@ Se escala el bloqueo al dueño del prerrequisito.
 1. GAP-CAR-001 (fecha de vencimiento no nula)  ← desbloquea TODO el bloque
 2. VER-CAR-01  (conversión de tasa IBC→mensual)← desbloquea el cálculo de mora
 3. VER-CAR-02  (anatocismo)                    ← confirma el diseño actual
-4. GAP-CAR-005 (envío de notificaciones)       ← desbloquea la fase 4
-5. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
-6. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
+4. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
+5. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
 
 RESUELTOS (no requieren más trabajo):
-  ✅ GAP-CAR-006  inmueble_propietario ya es temporal con porcentaje
+  ✅ GAP-CAR-006  inmueble_persona_rol ya es temporal con porcentaje
   ✅ PRQ-CAR-015  terceros + tenant_tercero_rol ya existen
   ✅ GAP-CAR-009  rol administrador (2026-08-17, 20260822250000/260000)
+  ✅ GAP-CAR-005  resuelto para SMS (2026-08-17) — email/WhatsApp abiertos
 
 ESCALADO FUERA DEL BLOQUE (no bloquea F1-F9):
   ⤴ GAP-CAR-010  requiere revisar AD-26 (propietario ≠ usuario)
@@ -2941,8 +2941,10 @@ Salida       Clasificación versionada, reproducible y explicable — un
 
 ```text
 Alcance      Estrategias, acciones, ejecución
-Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen, Brevo ya
-             configurado para un caso — falta generalizarlo)
+Prerreq.     GAP-CAR-005 — ✅ resuelto PARA SMS (2026-08-17, sendSms() real
+             vía Brevo Transactional SMS, `Plantillas sms configurables`).
+             email/whatsapp siguen sin generalizar, fuera de alcance de F4
+             hasta que se construyan sus propios proveedores.
              ~~GAP-CAR-009~~ ✅ resuelto (2026-08-17, rol administrador)
 Entregables  · estrategias_cobranza · acciones_cobranza ✅
                (20260822270000_cartera_cobranza_estrategias_acciones.sql,
@@ -2954,7 +2956,21 @@ Entregables  · estrategias_cobranza · acciones_cobranza ✅
              · evaluarAccionesAplicables() puro ✅ (cartera-cobranza.ts,
                12 tests — no dependía de ninguno de los dos gaps)
              · Reglas anti-duplicación ✅ (§10.4/I-C07, mismo módulo)
-             · Worker de ejecución ⧗ bloqueado por GAP-CAR-005
+             · Worker de ejecución ✅ SOLO SMS, SOLO event_type
+               'cartera_pago_vencido' (supabase/functions/ejecutar-
+               accion-cobranza/index.ts) — resuelve estrategia→
+               plantilla_codigo, plantilla activa por (tenant, event_
+               type), destinatario vía terceros.telefono, llama
+               sendSms() real, persiste contenido_hash/referencia_
+               externa/destinatario_contacto. 'cartera_recordatorio_
+               pago' NO soportado (necesitaría una fechaVencimiento
+               que una acción ya-en-mora no tiene sin ambigüedad — no
+               se inventa ese origen). email/whatsapp NO soportados.
+               Procesa una acción por invocación, sin orquestación de
+               lote todavía (CAR §18.1 sigue sin construirse). ⚠
+               Código listo, sin desplegar/probar contra Brevo real
+               todavía — un envío real cuesta dinero y llega a un
+               teléfono real, se dejó para confirmación explícita.
              · Aprobación maker-checker para el administrador ✅
                (20260822280000_cartera_cobranza_aprobacion.sql —
                propuesta_por/aprobada_por/aprobada_at + guard_accion_
