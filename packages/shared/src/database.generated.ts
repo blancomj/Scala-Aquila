@@ -2071,6 +2071,111 @@ export type Database = {
           },
         ]
       }
+      posiciones_cartera_snapshot: {
+        Row: {
+          cantidad_cargos_vencidos: number
+          cargo_vencido_mas_antiguo_id: string | null
+          clasificacion_codigo: string
+          created_at: string
+          deuda_capital: number
+          deuda_interes: number
+          deuda_otros: number
+          deuda_total: number
+          dias_mora_maximo: number
+          etapa_cobranza: Database["public"]["Enums"]["etapa_cobranza_t"]
+          fecha_corte: string
+          fecha_vencimiento_mas_antigua: string | null
+          id: string
+          inmueble_id: string
+          nivel_riesgo: Database["public"]["Enums"]["nivel_riesgo_t"]
+          politica_clasificacion_id: string
+          politica_version: number
+          posicion_hash: string
+          saldo_credito: number
+          tenant_id: string
+        }
+        Insert: {
+          cantidad_cargos_vencidos?: number
+          cargo_vencido_mas_antiguo_id?: string | null
+          clasificacion_codigo: string
+          created_at?: string
+          deuda_capital: number
+          deuda_interes: number
+          deuda_otros: number
+          deuda_total: number
+          dias_mora_maximo: number
+          etapa_cobranza: Database["public"]["Enums"]["etapa_cobranza_t"]
+          fecha_corte: string
+          fecha_vencimiento_mas_antigua?: string | null
+          id?: string
+          inmueble_id: string
+          nivel_riesgo: Database["public"]["Enums"]["nivel_riesgo_t"]
+          politica_clasificacion_id: string
+          politica_version: number
+          posicion_hash: string
+          saldo_credito?: number
+          tenant_id: string
+        }
+        Update: {
+          cantidad_cargos_vencidos?: number
+          cargo_vencido_mas_antiguo_id?: string | null
+          clasificacion_codigo?: string
+          created_at?: string
+          deuda_capital?: number
+          deuda_interes?: number
+          deuda_otros?: number
+          deuda_total?: number
+          dias_mora_maximo?: number
+          etapa_cobranza?: Database["public"]["Enums"]["etapa_cobranza_t"]
+          fecha_corte?: string
+          fecha_vencimiento_mas_antigua?: string | null
+          id?: string
+          inmueble_id?: string
+          nivel_riesgo?: Database["public"]["Enums"]["nivel_riesgo_t"]
+          politica_clasificacion_id?: string
+          politica_version?: number
+          posicion_hash?: string
+          saldo_credito?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_politica_clasificacion_id_fkey"
+            columns: ["politica_clasificacion_id"]
+            isOneToOne: false
+            referencedRelation: "politicas_clasificacion_cartera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuesto_rubros: {
         Row: {
           categoria_id: number

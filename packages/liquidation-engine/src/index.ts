@@ -63,6 +63,7 @@ export {
   calcularPosicionCartera,
   clasificarCartera,
   validarPoliticaClasificacion,
+  calcularPosicionHash,
   type CargoConAntiguedad,
   type PosicionCarteraCalculada,
   type NivelRiesgo,
@@ -70,9 +71,13 @@ export {
   type TramoClasificacion,
   type PoliticaClasificacion,
   type ResultadoClasificacion,
+  type PosicionCarteraSnapshotDatos,
 } from './cartera.js'
 
-export { obtenerPoliticaClasificacionVigente } from './cartera-supabase.js'
+export {
+  obtenerPoliticaClasificacionVigente,
+  registrarSnapshotPosicion,
+} from './cartera-supabase.js'
 
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 

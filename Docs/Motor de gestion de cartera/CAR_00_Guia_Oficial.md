@@ -2896,15 +2896,44 @@ Riesgo       Retrocompatibilidad con intereses ya calculados — NINGÚN
 
 ## F3 — Clasificación
 
+`[ARQ]` La mayoría de F3 ya quedó resuelta en F1 (política de tramos,
+guard, `clasificarCartera()` puro — ver F1 arriba). Lo que faltaba después
+de F1/F2 era el snapshot histórico; eso es lo que cierra esta fase.
+
 ```text
 Alcance      Política de tramos, clasificación, snapshot
-Entregables  · politicas_clasificacion_cartera + politica_clasificacion_tramos
-             · guard_politica_clasificacion_completa (IC-TRAMO-01..05)
-             · clasificarCartera() puro
-             · posiciones_cartera_snapshot + posicion_hash
-             · UI de configuración de tramos
-Golden Cases PH-C29, PH-C30, PH-C26, PH-C27, PH-C31
-Salida       Clasificación versionada, reproducible y explicable
+Entregables  · ✅ politicas_clasificacion_cartera + politica_clasificacion_tramos (F1)
+             · ✅ guard_politica_clasificacion_completa — IC-TRAMO-01..05 (F1)
+             · ✅ clasificarCartera() puro (F1)
+             · ✅ posiciones_cartera_snapshot + posicion_hash (migración
+               `20260822230000_cartera_posicion_snapshot.sql`, aplicada) —
+               append-only, escritura solo por service_role (mismo patrón
+               que cargos/pagos: un snapshot no se inserta a mano, siempre
+               se calcula), único por (tenant, inmueble, fecha_corte)
+             · ✅ calcularPosicionHash() (cartera.ts) — mismo principio que
+               calcularResultHash() del motor de liquidación (hash.ts):
+               serialización canónica, sha256, sin timestamps ni metadatos
+               de ejecución
+             · ✅ registrarSnapshotPosicion() (cartera-supabase.ts) — I/O
+               de escritura, calcula el hash y lo persiste junto al snapshot
+             · ⧗ UI de configuración de tramos — no implementada a propósito
+               (ver [[feedback_visual_ui_last]]: la capa visual va al final,
+               después del núcleo funcional)
+Golden Cases PH-C29, PH-C30, PH-C27 — verificados contra Postgres real en
+               tests/rls/posiciones-cartera-snapshot.test.ts (5 tests):
+               reproducibilidad exacta del hash, versión de política
+               congelada, un cambio de política posterior no altera un
+               snapshot ya guardado, append-only, unicidad por fecha
+             PH-C26 — ya cubierto conceptualmente por los errores tipados
+               sin default de F1 (TramoClasificacionNoEncontradoError,
+               "no hay política vigente"); no hay una prueba de integración
+               dedicada a BLOCKED todavía
+             PH-C31 — cubierto en cartera.test.ts (F1, calcularAntiguedad +
+               estrategia de imputación)
+Salida       Clasificación versionada, reproducible y explicable — un
+             snapshot histórico puede verificarse contra un recálculo
+             independiente, y sobrevive intacto a cambios posteriores de
+             política. Falta solo la UI, deliberadamente diferida.
 ```
 
 ## F4 — Cobranza

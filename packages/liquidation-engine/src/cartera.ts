@@ -7,6 +7,7 @@
  * tal como lo arma cuenta-corriente-supabase.ts desde v_cargo_saldo, y
  * diasCalendario() de cuenta-corriente.ts para la aritmética de fechas.
  */
+import { createHash } from 'node:crypto'
 import * as fos from '@aquila/financial-kernel'
 import { money, isZeroMoney, isNegativeMoney, type Money } from '@aquila/financial-kernel'
 import { type CargoAbierto, diasCalendario } from './cuenta-corriente.js'
@@ -217,4 +218,61 @@ export function clasificarCartera(
     politicaId: politica.id,
     politicaVersion: politica.version,
   }
+}
+
+// ─────────────────────────── Snapshot (CAR §6.3) ────────────────────────
+
+/**
+ * Exactamente los campos que persiste posiciones_cartera_snapshot — el
+ * mismo objeto sirve para calcular el hash y para armar el INSERT
+ * (cartera-supabase.ts), así ambos nunca pueden divergir entre sí.
+ */
+export interface PosicionCarteraSnapshotDatos {
+  readonly tenantId: string
+  readonly inmuebleId: string
+  readonly fechaCorte: string
+  readonly deudaTotal: string
+  readonly deudaCapital: string
+  readonly deudaInteres: string
+  readonly deudaOtros: string
+  readonly saldoCredito: string
+  readonly diasMoraMaximo: number
+  readonly cantidadCargosVencidos: number
+  readonly fechaVencimientoMasAntigua: string | null
+  readonly cargoVencidoMasAntiguoId: string | null
+  readonly clasificacionCodigo: string
+  readonly nivelRiesgo: NivelRiesgo
+  readonly etapaCobranza: EtapaCobranza
+  readonly politicaId: string
+  readonly politicaVersion: number
+}
+
+/**
+ * I-C15/PH-C27 — mismo principio que calcularResultHash() (hash.ts):
+ * serialización canónica con orden de campos estable, solo valores
+ * deterministas (nada de created_at ni de metadatos de ejecución).
+ * Recalcular con los mismos datos y la misma política SIEMPRE reproduce
+ * el mismo hash — así se verifica reproducibilidad, no solo se declara.
+ */
+export function calcularPosicionHash(datos: PosicionCarteraSnapshotDatos): string {
+  const canonico = JSON.stringify({
+    tenantId: datos.tenantId,
+    inmuebleId: datos.inmuebleId,
+    fechaCorte: datos.fechaCorte,
+    deudaTotal: datos.deudaTotal,
+    deudaCapital: datos.deudaCapital,
+    deudaInteres: datos.deudaInteres,
+    deudaOtros: datos.deudaOtros,
+    saldoCredito: datos.saldoCredito,
+    diasMoraMaximo: datos.diasMoraMaximo,
+    cantidadCargosVencidos: datos.cantidadCargosVencidos,
+    fechaVencimientoMasAntigua: datos.fechaVencimientoMasAntigua,
+    cargoVencidoMasAntiguoId: datos.cargoVencidoMasAntiguoId,
+    clasificacionCodigo: datos.clasificacionCodigo,
+    nivelRiesgo: datos.nivelRiesgo,
+    etapaCobranza: datos.etapaCobranza,
+    politicaId: datos.politicaId,
+    politicaVersion: datos.politicaVersion,
+  })
+  return createHash('sha256').update(canonico).digest('hex')
 }
