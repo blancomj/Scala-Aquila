@@ -1978,7 +1978,11 @@ export type Database = {
           interes_day_count: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia: number
+          interes_multiplicador: number | null
           interes_tasa_mensual: number | null
+          interes_tipo_tasa:
+            | Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+            | null
           interes_tope_mensual: number | null
           policy_hash: string
           redondeo_escala: number
@@ -2004,7 +2008,11 @@ export type Database = {
           interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
+          interes_multiplicador?: number | null
           interes_tasa_mensual?: number | null
+          interes_tipo_tasa?:
+            | Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+            | null
           interes_tope_mensual?: number | null
           policy_hash: string
           redondeo_escala?: number
@@ -2030,7 +2038,11 @@ export type Database = {
           interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
+          interes_multiplicador?: number | null
           interes_tasa_mensual?: number | null
+          interes_tipo_tasa?:
+            | Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+            | null
           interes_tope_mensual?: number | null
           policy_hash?: string
           redondeo_escala?: number
@@ -2265,6 +2277,59 @@ export type Database = {
           id?: never
         }
         Relationships: []
+      }
+      tasas_referencia: {
+        Row: {
+          created_at: string
+          entidad_fuente: string
+          id: string
+          registrada_por: string | null
+          resolucion_fecha: string
+          resolucion_numero: string
+          tipo_tasa: Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+          url_fuente: string | null
+          valor_ea: number
+          valor_mensual: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          entidad_fuente?: string
+          id?: string
+          registrada_por?: string | null
+          resolucion_fecha: string
+          resolucion_numero: string
+          tipo_tasa: Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+          url_fuente?: string | null
+          valor_ea: number
+          valor_mensual: number
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          entidad_fuente?: string
+          id?: string
+          registrada_por?: string | null
+          resolucion_fecha?: string
+          resolucion_numero?: string
+          tipo_tasa?: Database["public"]["Enums"]["tipo_tasa_referencia_t"]
+          url_fuente?: string | null
+          valor_ea?: number
+          valor_mensual?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasas_referencia_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_tercero_rol: {
         Row: {
@@ -3268,6 +3333,7 @@ export type Database = {
       tenant_role_t: "agent" | "auditor"
       tenant_status_t: "active" | "suspended" | "deleted"
       tercero_tipo_t: "natural" | "juridica"
+      tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
     }
@@ -3467,6 +3533,7 @@ export const Constants = {
       tenant_role_t: ["agent", "auditor"],
       tenant_status_t: ["active", "suspended", "deleted"],
       tercero_tipo_t: ["natural", "juridica"],
+      tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
     },

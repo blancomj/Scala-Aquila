@@ -401,7 +401,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-001`** | `cargos` no tiene `fecha_vencimiento`; se deriva de `periodos.fecha_vencimiento`, que **existe pero es `nullable`**. Un período sin fecha de vencimiento produce antigüedad indefinida. | **Bloqueante** — reducido de "total" a "acotado" tras verificación. | F0 |
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
-| **`GAP-CAR-004`** | La tasa de mora no está versionada como entidad propia ni segmentada; no registra resolución fuente. Si la tasa cambia a mitad de la mora, no hay `InterestSegment`. | Afecta `PH-C11`. | F2 |
+| **`GAP-CAR-004`** | ⚠️ **Parcialmente resuelto.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal ✅ ya existen (F2, aplicados). **Sigue faltando**: `InterestSegment`/`SegmentoTasa[]` — si la tasa cambia a mitad de la mora, `calcularInteresMora` todavía no lo segmenta. | Afecta `PH-C11`. | F2 (resto) |
 | **`GAP-CAR-005`** | No existe infraestructura de notificaciones (email/SMS/WhatsApp) ni de tareas. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
@@ -1357,57 +1357,61 @@ Características ya resueltas:
 - Idempotencia entre corridas vía `obtenerUltimaFechaInteresPorCapital`.
 - Se ejecuta bajo demanda por Edge Function `calcular-intereses`.
 
-## 13.3 Lo que falta — `GAP-CAR-004`
+## 13.3 `GAP-CAR-004` — parcialmente resuelto
 
-`[GAP]` Versionamiento y segmentación de la tasa.
+`[GAP]` Versionamiento y segmentación de la tasa. **Implementado en F2** (migración `20260822220000_cartera_tasas_referencia.sql`, aplicada): puntos 1 y 3 de abajo quedaron resueltos; el punto 2 (segmentos) sigue pendiente.
 
-Situación actual: la tasa es una columna escalar de `politicas_financieras`. Si la Superfinanciera certifica un IBC distinto el mes siguiente, se crea una **nueva versión de política financiera completa**, lo cual funciona pero:
+Situación previa a F2: la tasa era una columna escalar de `politicas_financieras`. Si la Superfinanciera certificaba un IBC distinto el mes siguiente, había que crear una **nueva versión de política financiera completa**, lo cual funcionaba pero:
 
-1. No registra la **resolución fuente** (número, fecha, modalidad).
-2. No produce **segmentos** cuando la tasa cambia a mitad de un período de mora (`PH-C11`).
-3. Obliga a versionar toda la política financiera por un cambio que solo afecta la tasa.
+1. ✅ **Resuelto** — No registraba la **resolución fuente** (número, fecha, modalidad).
+2. ⧗ **Sigue pendiente** — No produce **segmentos** cuando la tasa cambia a mitad de un período de mora (`PH-C11`).
+3. ✅ **Resuelto** — Obligaba a versionar toda la política financiera por un cambio que solo afecta la tasa (ahora el guard valida el tope sin exigir eso).
 
-Propuesta:
+Implementado (nombres reales, ligeramente distintos del boceto original de esta guía — el enum se llama `tipo_tasa_referencia_t`, no `tipo_tasa_t`):
 
 ```sql
+create type public.tipo_tasa_referencia_t as enum ('ibc_consumo_ordinario');
+
 create table public.tasas_referencia (
   id                 uuid primary key default gen_random_uuid(),
-  tipo_tasa          public.tipo_tasa_t not null,      -- 'ibc_consumo_ordinario'
+  tipo_tasa          public.tipo_tasa_referencia_t not null,
   vigente_desde      date not null,
   vigente_hasta      date,
   valor_ea           numeric(8,6) not null,            -- efectiva anual certificada
-  valor_mensual      numeric(8,6) not null,            -- equivalente derivado [VER-CAR-01]
+  valor_mensual      numeric(8,6) not null,            -- REGISTRADO, no derivado [VER-CAR-01]
   resolucion_numero  text not null,                    -- p.ej. 'Resolución 0965'
   resolucion_fecha   date not null,
   entidad_fuente     text not null default 'Superintendencia Financiera de Colombia',
   url_fuente         text,
   registrada_por     uuid references public.profiles (id),
   created_at         timestamptz not null default now(),
-  constraint tasa_vigencia_valida check (vigente_hasta is null or vigente_hasta >= vigente_desde)
+  constraint tasas_referencia_vigencia_valida
+    check (vigente_hasta is null or vigente_hasta >= vigente_desde)
 );
 
 -- exclusión de solapamiento por tipo de tasa
 create extension if not exists btree_gist;
 alter table public.tasas_referencia
-  add constraint tasas_sin_solape
+  add constraint tasas_referencia_sin_solape
   exclude using gist (
     tipo_tasa with =,
     daterange(vigente_desde, coalesce(vigente_hasta, 'infinity'::date), '[]') with &&
   );
 ```
 
-`[ARQ]` Esta tabla es **global, no por tenant** — el IBC es el mismo para todo el país. Es la única excepción a `REC-CAR-007`, y por eso su RLS es de solo lectura para todo usuario autenticado y escritura restringida a rol de plataforma. Debe documentarse explícitamente como excepción.
+`[ARQ]` Esta tabla es **global, no por tenant** — el IBC es el mismo para todo el país. Es la única excepción a `REC-CAR-007`; su RLS es de solo lectura para todo usuario autenticado (`using (true)`) y escritura restringida a `is_platform_admin()`. Es **append-only** (`forbid_mutation()`, mismo trigger que `cargos`/`pagos`): corregir un registro erróneo es uno nuevo con `vigente_desde` correcta, nunca un `UPDATE`.
 
-Luego `politicas_financieras` referencia el tipo de tasa y el multiplicador (1.5 por defecto, art. 30 L675), en lugar de un valor quemado:
+`politicas_financieras` referencia el tipo de tasa y el multiplicador — **nullable**, retrocompatible con toda política anterior a este cambio:
 
 ```text
-politicas_financieras.interes_tipo_tasa      = 'ibc_consumo_ordinario'
-politicas_financieras.interes_multiplicador  = 1.5      ← tope legal art. 30
+politicas_financieras.interes_tipo_tasa      = 'ibc_consumo_ordinario'  -- o NULL
+politicas_financieras.interes_multiplicador  = 1.5      ← tope legal art. 30, o NULL
 politicas_financieras.interes_tasa_mensual   = <lo que decidió la asamblea>
-                                                (debe ser ≤ tope calculado)
 ```
 
-Y `calcularInteresMora()` se extiende para recibir `readonly SegmentoTasa[]` en lugar de una tasa escalar, produciendo el desglose de `InterestSegment` que exige `PH-C11`:
+`[ARQ]` `guard_politica_financiera_tope_legal()` (trigger `before insert or update`) rechaza activar una política cuando `interes_tasa_mensual` o `interes_tope_mensual` exceden `interes_multiplicador × valor_mensual` de la tasa de referencia vigente — **solo si la política declara ambas columnas**. Sin ellas (NULL), ninguna validación corre: es exactamente el comportamiento de antes de F2. Verificado con 4 tests reales contra Postgres (`tests/rls/politica-financiera-tope-legal.test.ts`): `PH-C36` (rechazo), `PH-C37` (aceptación), rechazo cuando solo el tope excede, y retrocompatibilidad.
+
+**Pendiente:** `calcularInteresMora()` extendido para recibir `readonly SegmentoTasa[]` en lugar de una tasa escalar, produciendo el desglose de `InterestSegment` que exige `PH-C11`. Deliberadamente no implementado en esta rebanada — es un cambio a una función financiera con 21 tests existentes, y la aritmética multi-segmento (día de corte entre tasas, gracia que puede cruzar el límite de un segmento, redondeo por tramo) merece su propia revisión, no apurarse dentro de la trazabilidad de la tasa:
 
 ```typescript
 export interface SegmentoTasa {
@@ -2306,7 +2310,7 @@ Certificaciones por vencer
 |---|---|---|---|---|---|
 | `PRQ-CAR-001` | Obligación financiera (`cargos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | Sin obligación no hay cartera |
 | `PRQ-CAR-002` | **Fecha de vencimiento por cargo** | Este bloque + `periodos` | ⚠️ **Parcial** — `periodos.fecha_vencimiento` existe pero es nullable (`GAP-CAR-001`) | **Sí** | Sin vencimiento no hay antigüedad |
-| `PRQ-CAR-003` | Versionado de tasa de interés | Política financiera | ⚠️ **Parcial — `GAP-CAR-004`** | No (para clasificar) / Sí (para `PH-C11`) | Segmentación intra-mora |
+| `PRQ-CAR-003` | Versionado de tasa de interés | Política financiera | ⚠️ **Parcial — `GAP-CAR-004`**: trazabilidad y tope legal ✅ (F2), segmentación ⧗ | No (para clasificar) / Sí (para `PH-C11`) | Segmentación intra-mora |
 | `PRQ-CAR-004` | Modelo de pagos (`pagos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-005` | Política de imputación | `politicas_financieras` | ✅ **Verificado** (`AD-36`) | Sí | Determina la antigüedad resultante |
 | `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
@@ -2802,16 +2806,54 @@ Verificación `deno check` sobre `cartera-posicion/index.ts` arroja errores,
 
 ## F2 — Mora versionada (extiende lo existente)
 
+`[ARQ]` Dividida en dos rebanadas de riesgo muy distinto: trazabilidad de la tasa
+(cambio de esquema, bajo riesgo) y segmentación del cálculo de interés
+(cambio a una función financiera ya probada exhaustivamente, riesgo real).
+Se implementó la primera; la segunda queda explícitamente para después en
+vez de apurarla.
+
 ```text
-Alcance      Cerrar GAP-CAR-004
-Entregables  · tabla tasas_referencia + carga histórica de IBC
-             · politicas_financieras.interes_tipo_tasa / interes_multiplicador
-             · calcularInteresMora extendido con SegmentoTasa[]
-             · Validación de tope legal 1.5 × IBC
-Golden Cases PH-C10, PH-C11, PH-C36, PH-C37
-Salida       Tasa trazable a resolución · segmentos correctos
-Riesgo       Retrocompatibilidad con intereses ya calculados. Migración
-             cuidadosa: los cargos de interés existentes NO se recalculan.
+Alcance      Cerrar GAP-CAR-004 — parte 1: trazabilidad y tope legal
+Entregables  · ✅ tabla tasas_referencia (migración
+               `20260822220000_cartera_tasas_referencia.sql`, aplicada) —
+               GLOBAL, append-only, sin solape de vigencias por tipo_tasa
+               (exclusion constraint). valor_mensual se REGISTRA, no se
+               deriva por fórmula (VER-CAR-01 sigue sin verificar
+               jurídicamente — no se inventa la conversión EA→mensual)
+             · ✅ politicas_financieras.interes_tipo_tasa / interes_
+               multiplicador — nullable, retrocompatible (mismo patrón
+               que interes_day_count, D-23)
+             · ✅ guard_politica_financiera_tope_legal() — rechaza activar
+               una política cuyo interes_tasa_mensual o interes_tope_
+               mensual excede multiplicador × tasa de referencia vigente
+             · ✅ tests/rls/politica-financiera-tope-legal.test.ts — 4 tests
+               contra la BD real: PH-C36, PH-C37, tope-solo-excede,
+               retrocompatibilidad. Deja una fila de prueba permanente en
+               tasas_referencia (append-only), resolucion_numero
+               prefijado `TEST-`, fecha en 1000-1900 — decisión explícita
+               del usuario, sin impacto funcional real
+             · ⧗ calcularInteresMora extendido con SegmentoTasa[] —
+               NO implementado en esta rebanada. Aritmética multi-segmento
+               genuinamente delicada (día de corte entre tasas, gracia que
+               puede cruzar el límite del segmento, redondeo por tramo) en
+               una función con 21 tests existentes que nunca ha fallado —
+               se prefiere una rebanada aparte, con su propio tiempo de
+               revisión, a apurarla dentro de esta
+             · ⧗ Carga histórica real de IBC en tasas_referencia — no se
+               inventó ningún valor. Poblar la tabla con la resolución
+               vigente real de la Superfinanciera es tarea operativa
+               (CAR §3.4), pendiente de que alguien con acceso a la
+               resolución la registre
+Golden Cases PH-C36, PH-C37 — verificados contra Postgres real
+             PH-C10 — ya cubierto en cartera.test.ts (F1)
+             PH-C11 — pendiente de la rebanada de SegmentoTasa[]
+Salida       Tasa trazable a resolución para políticas que la declaren;
+             retrocompatible con toda política existente. Segmentación
+             de interés y carga real de IBC: siguientes rebanadas.
+Riesgo       Retrocompatibilidad con intereses ya calculados — NINGÚN
+             cargo de interés existente se recalcula ni se ve afectado;
+             el guard solo se evalúa al activar una política, y solo si
+             esta declara interes_tipo_tasa/interes_multiplicador.
 ```
 
 ## F3 — Clasificación
