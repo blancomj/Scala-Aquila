@@ -2188,7 +2188,9 @@ Sigue el precedente de `cuenta-corriente-supabase.ts`.
 | Función | Método | Responsabilidad | Rol mínimo |
 |---|---|---|---|
 | `cartera-recalcular` | POST | Ejecuta `JOB_CARTERA_DIARIA` para un tenant y fecha de corte | `admin` |
-| `cartera-posicion` | GET | Devuelve `fn_posicion_cartera` para un inmueble o todos | `agent` |
+| `cartera-posicion` ✅ | POST | Devuelve `fn_posicion_cartera` + clasificación por inmueble | `agent`/`auditor` |
+
+`[ARQ]` Corrección sobre la v2.0 de este documento: **todas** las Edge Functions reales del repo usan `POST` con cuerpo JSON, nunca `GET` (`calcular-intereses`, `registrar-pago`, etc. — verificado en `supabase/functions/`). La tabla original de esta sección sugería `GET` para lecturas antes de comprobar la convención real; se corrige aquí siguiendo `REC-CAR-004`: no inventar un estilo nuevo cuando ya existe uno establecido.
 | `cobranza-ejecutar-acciones` | POST | Worker de envío (§18.4) | sistema |
 | `cobranza-aprobar-accion` | POST | Aprueba acción de alto impacto | `admin` |
 | `cobranza-registrar-resultado` | POST | Registra resultado de gestión (llamada, visita) | `agent` |
@@ -2763,16 +2765,39 @@ Entregables  · ✅ packages/liquidation-engine/src/cartera.ts:
                (reutiliza obtenerCargosAbiertos de cuenta-corriente-supabase.ts
                — REC-CAR-004, no se duplica la lectura de cargos)
              · ✅ Tests unitarios puros — 26 tests en cartera.test.ts
-             · ⧗ v_cargo_antiguedad / fn_posicion_cartera como vista/función
-               SQL — pendiente; hoy la agregación vive solo en TS
-               (calcularPosicionCartera), no como vista Postgres
-             · ⧗ Edge Function `cartera-recalcular` / `cartera-posicion`
-               (§22.3) — orquestación aún no escrita
+             · ✅ `fn_posicion_cartera(tenant_id, fecha_corte, inmueble_id?)`
+               (migración `20260822210000_cartera_fn_posicion.sql`, aplicada)
+               — agrega deuda/crédito por inmueble en SQL, sin clasificar
+               (REC-CAR-004: la clasificación no se duplica en SQL, solo
+               se expone `dias_mora_maximo` para que la capa de aplicación
+               llame a `clasificarCartera()`)
+             · ✅ Edge Function `cartera-posicion` (POST) — compone
+               `fn_posicion_cartera` + `obtenerPoliticaClasificacionVigente`
+               + `clasificarCartera`; responde 422
+               `POLITICA_CLASIFICACION_NO_VIGENTE` si el tenant no ha
+               configurado cartera todavía (PH-C26/I-C14, nunca un default)
+             · ⧗ Edge Function `cartera-recalcular` (§22.3, `JOB_CARTERA_
+               DIARIA` completo) — no escrita, pertenece a F8
+             · 9 códigos de error nuevos registrados en `error-codes.ts`
+               (`PERIODO_SIN_FECHA_VENCIMIENTO`,
+               `POLITICA_CLASIFICACION_*`, `TRAMO_CLASIFICACION_NO_
+               ENCONTRADO`) — verificado por
+               `tests/governance/error-codes-coverage.test.ts`
 Golden Cases PH-C01..PH-C06, PH-C09 — cubiertos en cartera.test.ts
-Salida       Antigüedad y clasificación reproducibles y verificadas con
-             tests puros. Falta la vista/función SQL de solo-lectura y la
-             Edge Function que las expone a la UI/BI — no bloqueante, es
-             la siguiente rebanada natural de F1/F9.
+Salida       F1 completo: antigüedad, clasificación y posición agregada
+             son reproducibles, versionadas y expuestas por una Edge
+             Function real. Falta el job diario completo (F8) y las
+             estrategias de cobranza (F4) — siguientes rebanadas.
+Verificación `deno check` sobre `cartera-posicion/index.ts` arroja errores,
+             pero son EXACTAMENTE los mismos (mismos módulos ael-language/
+             ael-runtime/financial-kernel, mismo conteo ±1) que arroja
+             `deno check` sobre `calcular-intereses/index.ts` — una función
+             ya existente y en producción que nadie tocó en esta sesión.
+             Es un gap preexistente del repo (`deno check` no es parte del
+             gate de CI: `.github/workflows/ci.yml` corre
+             `deno test --no-check`), no algo introducido aquí. Verificado
+             en su lugar con `deno lint` (limpio) y revisión estructural
+             línea a línea contra `calcular-intereses/index.ts`.
 ```
 
 ## F2 — Mora versionada (extiende lo existente)

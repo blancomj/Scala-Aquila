@@ -3086,6 +3086,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_posicion_cartera: {
+        Args: {
+          p_fecha_corte: string
+          p_inmueble_id?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cantidad_cargos_vencidos: number
+          cargo_vencido_mas_antiguo_id: string
+          deuda_capital: number
+          deuda_interes: number
+          deuda_otros: number
+          deuda_total: number
+          dias_mora_maximo: number
+          fecha_vencimiento_mas_antigua: string
+          inmueble_id: string
+          saldo_credito: number
+        }[]
+      }
       fn_rechazar_novedad: {
         Args: { p_motivo: string; p_novedad_id: string }
         Returns: {
