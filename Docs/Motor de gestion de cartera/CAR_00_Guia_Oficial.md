@@ -3294,14 +3294,46 @@ Entregables  · fn_dashboard_cartera ✅ (20260823100000_cartera_dashboard_
                cualquier miembro del tenant [is_member, mismo criterio
                que cartera-posicion: es lectura, no decisión de negocio].
                4 tests de integración HTTP real, incluyendo PH-C34.)
-             · §23.3 (indicadores), §23.4 (transiciones críticas), §23.5
-               (panel de acciones) — pendientes, próxima pieza de F9.
+             · calcularOverduePortfolioPct/calcularCureRate/
+               calcularRollRatePorTramo ✅ (packages/liquidation-engine/
+               src/cartera-indicadores.ts — puro. Fuente: posiciones_
+               cartera_snapshot [F3, ya congelado], NO fn_dashboard_
+               cartera [siempre "ahora mismo"] — Roll/Cure Rate comparan
+               dos fechas de corte, no tiene sentido recalcular en vivo
+               un estado pasado [REC-CAR-011/012]. Roll Rate usa el orden
+               de tramos [dias_min] de la política que produjo el
+               snapshot de fecha_desde, no la vigente HOY. Un
+               denominador en cero es indeterminado [null], nunca se
+               informa como 0% — "0% de una base cero" no es "cero
+               deterioro". 13 tests unitarios, incluyendo saltos de más
+               de un tramo [no cuentan para el tramo de origen] e
+               inmuebles sin fila en el snapshot de llegada [cuentan en
+               el denominador, no se asume que curaron].)
+             · Edge Function `cartera-indicadores` ✅ (§23.3, POST,
+               cualquier miembro del tenant. Overdue Portfolio % se
+               recalcula en vivo con fn_dashboard_cartera [F9 parte 1] —
+               siempre disponible, corrida JOB_CARTERA_DIARIA o no. Roll/
+               Cure Rate exigen snapshot en AMBAS fechas [422
+               `SNAPSHOT_NO_DISPONIBLE` si falta uno — no se inventa un
+               0%/100% en su ausencia]. 3 tests de integración HTTP real,
+               con snapshots sintéticos insertados directo [posiciones_
+               cartera_snapshot es append-only, no hace falta correr F8
+               completo para fijar los bordes exactos del cálculo].)
+             · Recovery Rate, Collection Effectiveness, Promise/Agreement
+               Fulfillment Rate, Legal Referral/Recovery Rate, Average
+               Days to Recovery, Cost to Collect — pendientes (necesitan
+               pagos en un período, acciones_cobranza.resultado,
+               promesas_pago/acuerdos_pago, casos_juridicos/costas_
+               judiciales respectivamente; distintas fuentes de datos que
+               Roll/Cure Rate, próxima(s) pieza(s) de F9).
+             · §23.4 (transiciones críticas), §23.5 (panel de acciones) —
+               pendientes.
 Golden Cases PH-C34 ✅ (verificado contra la BD real — un agent de otro
              tenant recibe 403, nunca ve datos agregados de un tenant que
              no es el suyo). PH-C35 diferido: ver §21.4 / AD-26.
-Salida       §23.1/§23.2 completos y reproducibles a una fecha de corte
-             explícita. Falta §23.3/§23.5 para el "Indicadores
-             comparables con benchmark de industria" que cierra F9.
+Salida       §23.1/§23.2 completos. De §23.3: Overdue Portfolio %/Roll
+             Rate/Cure Rate completos y reproducibles; el resto de los 11
+             indicadores y §23.5 quedan para cerrar F9.
 ```
 
 ## 28.1 Grafo de dependencias

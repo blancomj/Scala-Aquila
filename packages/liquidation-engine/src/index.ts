@@ -152,6 +152,21 @@ export {
 
 export { obtenerFilasDashboardCartera } from './cartera-dashboard-supabase.js'
 
+export {
+  calcularOverduePortfolioPct,
+  calcularCureRate,
+  calcularRollRatePorTramo,
+  type FilaSnapshotIndicador,
+  type TramoOrdenado,
+  type RollRateTramo,
+} from './cartera-indicadores.js'
+
+export {
+  obtenerSnapshotIndicador,
+  obtenerTramosDePolitica,
+  type SnapshotIndicador,
+} from './cartera-indicadores-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {
