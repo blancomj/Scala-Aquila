@@ -14,6 +14,7 @@ function estrategia(over: Partial<EstrategiaCobranza> & { id: string }): Estrate
     maxIntentos: 3,
     montoMinimoDeuda: null,
     activa: true,
+    requiereAprobacion: false,
     ...over,
   }
 }
@@ -37,8 +38,25 @@ describe('evaluarAccionesAplicables', () => {
       fechaCorte: '2026-08-10',
     })
 
-    expect(resultado.propuestas).toEqual([{ estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1 }])
+    expect(resultado.propuestas).toEqual([
+      { estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1, requiereAprobacion: false },
+    ])
     expect(resultado.omitidas).toEqual([])
+  })
+
+  it('propaga requiereAprobacion desde la estrategia (CAR §9.4/§21.3)', () => {
+    const resultado = evaluarAccionesAplicables({
+      clasificacionCodigo: 'MORA_TEMPRANA',
+      diasEnTramoActual: 3,
+      deudaTotal: '500000',
+      estrategias: [estrategia({ id: 'e1', diasDesdeClasificacion: 2, requiereAprobacion: true })],
+      historialAcciones: [],
+      fechaCorte: '2026-08-10',
+    })
+
+    expect(resultado.propuestas).toEqual([
+      { estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1, requiereAprobacion: true },
+    ])
   })
 
   it('ignora estrategias de otros tramos', () => {
@@ -138,7 +156,9 @@ describe('evaluarAccionesAplicables', () => {
       fechaCorte: '2026-08-10',
     })
 
-    expect(resultado.propuestas).toEqual([{ estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 2 }])
+    expect(resultado.propuestas).toEqual([
+      { estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 2, requiereAprobacion: false },
+    ])
   })
 
   it('omite por ACCION_UNICA_YA_REALIZADA cuando frecuenciaDias es null y ya existe una acción vigente', () => {
@@ -169,7 +189,9 @@ describe('evaluarAccionesAplicables', () => {
       fechaCorte: '2026-08-20',
     })
 
-    expect(resultado.propuestas).toEqual([{ estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1 }])
+    expect(resultado.propuestas).toEqual([
+      { estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1, requiereAprobacion: false },
+    ])
   })
 
   it('CAR §12.5: un acuerdo vigente suspende TODO el flujo normal, aunque las estrategias ya correspondan', () => {
@@ -203,7 +225,9 @@ describe('evaluarAccionesAplicables', () => {
       fechaCorte: '2026-08-20',
     })
 
-    expect(resultado.propuestas).toEqual([{ estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1 }])
+    expect(resultado.propuestas).toEqual([
+      { estrategiaId: 'e1', tipoAccion: 'email', intentoNumero: 1, requiereAprobacion: false },
+    ])
     expect(resultado.omitidas).toEqual([{ estrategiaId: 'e2', motivo: 'AUN_NO_CORRESPONDE' }])
   })
 })

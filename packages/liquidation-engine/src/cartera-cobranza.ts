@@ -51,6 +51,8 @@ export interface EstrategiaCobranza {
   /** decimal string o null = sin mínimo — CAR §9.3, no gestionar deudas triviales. */
   readonly montoMinimoDeuda: string | null
   readonly activa: boolean
+  /** CAR §9.4/§21.3 — exige rol administrador antes de ejecutarse (maker-checker, 20260822280000). */
+  readonly requiereAprobacion: boolean
 }
 
 /** Acción ya registrada para el inmueble — lo mínimo que evaluarAccionesAplicables necesita del historial. */
@@ -64,6 +66,8 @@ export interface AccionPropuesta {
   readonly estrategiaId: string
   readonly tipoAccion: TipoAccionCobranza
   readonly intentoNumero: number
+  /** Determina el estado inicial al registrar (programada|pendiente_aprobacion, CAR §9.4). */
+  readonly requiereAprobacion: boolean
 }
 
 export type MotivoOmision =
@@ -179,6 +183,7 @@ export function evaluarAccionesAplicables(params: {
       estrategiaId: estrategia.id,
       tipoAccion: estrategia.tipoAccion,
       intentoNumero: ejecutadas.length + 1,
+      requiereAprobacion: estrategia.requiereAprobacion,
     })
   }
 

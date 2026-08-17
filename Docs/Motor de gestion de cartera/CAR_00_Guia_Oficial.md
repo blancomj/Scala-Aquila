@@ -2139,11 +2139,13 @@ Esto resuelve las consecuencias (1) y (2) de la versión anterior de esta secci�
 
 `[NEGOCIO]` `[GAP]` Un residente debería poder ver su propia deuda, antigüedad, acciones recibidas y acuerdo; y **nunca** la cartera de otros ni la política de escalamiento.
 
-`[GAP]` **`GAP-CAR-010`** — **No es un olvido: es una decisión arquitectónica vigente en contra.** La tabla `propietarios` lleva este comentario en su migración:
+`[GAP]` **`GAP-CAR-010`** — **No es un olvido: es una decisión arquitectónica vigente en contra.** La tabla `propietarios` (renombrada a `personas` en `20260820100000` y luego a `terceros` en `20260821100000`) llevaba este comentario en su migración original:
 
 > `'Datos del dominio, no usuarios (AD-26): sin FK a auth.users, sin política RLS propia de identidad — se leen a través del tenant (PLAN §7.5).'`
 
-Es decir, **`AD-26` establece deliberadamente que un propietario NO es un usuario.** No hay FK a `auth.users` y no la hay por diseño.
+El comentario actual sobre `terceros` (`20260821100000`) ya no repite ese texto literal, pero la decisión de fondo sigue vigente: `terceros` sigue sin FK a `auth.users` ni política RLS propia de identidad.
+
+Es decir, **`AD-26` establece deliberadamente que un tercero NO es un usuario.** No hay FK a `auth.users` y no la hay por diseño.
 
 Consecuencia: dar acceso al residente **no es implementar una política RLS faltante, es revisar `AD-26`**. Eso excede este bloque y debe escalarse como decisión de arquitectura, no resolverse aquí.
 
@@ -2153,7 +2155,7 @@ Hasta que AD-26 se revise formalmente:
   · El bloque de cartera es una herramienta de gestión INTERNA
     (administrador, agente, auditor), no un portal del residente.
   · La comunicación con el residente ocurre por NOTIFICACIÓN saliente
-    (email/SMS al contacto de `propietarios`), no por acceso a la app.
+    (email/SMS al contacto de `terceros`), no por acceso a la app.
 ```
 
 `[ARQ]` Esto en realidad **simplifica las fases F1-F9**: no hay que diseñar una superficie de lectura para residentes. Si más adelante se revisa `AD-26`, se añade como fase F10 sin tocar lo construido.
@@ -2353,7 +2355,7 @@ Certificaciones por vencer
 | `PRQ-CAR-014` | Modelo de aprobación / decisión | `novedades` (`AD-33`) | ✅ **Patrón disponible** | Sí | Aprobación de acciones y acuerdos |
 | `PRQ-CAR-015` | Terceros (abogados) | `tenant_tercero_rol` | ✅ **Verificado** — `terceros` + `tenant_tercero_rol(rol_id, vigente_desde, vigente_hasta, recibe_notificaciones)` | Sí para F7 | Asignación de abogado |
 | `PRQ-CAR-016` | Conceptos jurídicos `VER-CAR-01..06` | **Externo — jurídico** | ❌ **Abierto** | **Sí, varios** | §3.5 |
-| `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ✅ **Verificado** — rol resuelto (`~~GAP-CAR-009~~`); la separación proponer/aprobar en tablas concretas queda para cuando F4 construya `acciones_cobranza` | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
+| `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ✅ **Verificado** — rol resuelto (`~~GAP-CAR-009~~`); separación proponer/aprobar construida sobre `acciones_cobranza` (`20260822280000_cartera_cobranza_aprobacion.sql`) | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
 | `PRQ-CAR-018` | Vínculo usuario ↔ inmueble | **Arquitectura (`AD-26`)** | ⤴ **Diferido** — `GAP-CAR-010` | No para F1-F9 | Solo para acceso del residente |
 
 ## 24.2 Regla de bloqueo
@@ -2652,7 +2654,7 @@ PH-C24  TRANSFERENCIA SIN REESCRIBIR DEUDA
   Inmueble cambia de propietario el 2026-05-01 con deuda previa
   → los cargos anteriores NO se modifican, NO se reasignan, NO se borran
   → la posición del inmueble es continua
-  → la responsabilidad se resuelve por inmueble_propietario(desde, hasta)
+  → la responsabilidad se resuelve por inmueble_persona_rol(vigente_desde, vigente_hasta)
   Depende de VER-CAR-06.
 
 PH-C25  SOLIDARIDAD SIN DUPLICACIÓN
@@ -2699,11 +2701,11 @@ PH-C34  AISLAMIENTO CROSS-TENANT
   → SEC-03 respetado
 
 PH-C35  RESIDENTE VE SOLO LO SUYO           ⤴ FUERA DE ALCANCE
-  Bloqueado por AD-26 (propietario ≠ usuario, sin FK a auth.users).
+  Bloqueado por AD-26 (tercero ≠ usuario, sin FK a auth.users).
   Ver §21.4 / GAP-CAR-010. Se conserva especificado para el día en que
   AD-26 se revise; NO se implementa en F1-F9.
   Mientras tanto, la comunicación al residente es saliente
-  (notificación al contacto de `propietarios`), no acceso a la app.
+  (notificación al contacto de `terceros`), no acceso a la app.
 ```
 
 ---
@@ -2953,9 +2955,12 @@ Entregables  · estrategias_cobranza · acciones_cobranza ✅
                12 tests — no dependía de ninguno de los dos gaps)
              · Reglas anti-duplicación ✅ (§10.4/I-C07, mismo módulo)
              · Worker de ejecución ⧗ bloqueado por GAP-CAR-005
-             · Bandeja de aprobación para el administrador — ya no
-               bloqueada por rol (GAP-CAR-009 resuelto); falta construir
-               las tablas/policies de aprobación en sí
+             · Aprobación maker-checker para el administrador ✅
+               (20260822280000_cartera_cobranza_aprobacion.sql —
+               propuesta_por/aprobada_por/aprobada_at + guard_accion_
+               cobranza_propuesta/transicion(); exige administrador
+               explícito, bloquea autoaprobación; 5 tests RLS con DB real
+               en tests/rls/cartera-cobranza-aprobacion.test.ts)
 Golden Cases PH-C12, PH-C13, PH-C28, PH-C38, PH-C39, PH-C40
 Salida       Acciones auditables, no duplicadas, con aprobación donde toca
 ```

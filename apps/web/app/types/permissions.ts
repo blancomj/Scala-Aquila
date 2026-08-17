@@ -7,12 +7,14 @@
  * cruzadamente con un test (T-MATRIX, §12.2) que falla si divergen — ver
  * `tests/rbac/t-matrix.test.ts`.
  *
- * `admin` NO aparece en `TenantRole` (§6.1): es rol de plataforma
- * (`profiles.is_platform_admin`), un plano de autorización separado
- * (AD-09) que nunca otorga permisos de datos de un tenant (SEC-10).
+ * `admin` (plataforma, `profiles.is_platform_admin`) es un plano de
+ * autorización separado (AD-09) que nunca otorga permisos de datos de un
+ * tenant (SEC-10) — no confundir con `administrador` (rol de tenant,
+ * GAP-CAR-009, `20260822250000`/`20260822260000`), que sí es un valor de
+ * `TenantRole`.
  */
 
-export type TenantRole = 'agent' | 'auditor'
+export type TenantRole = 'agent' | 'auditor' | 'administrador'
 
 export type Permission =
   | 'dashboard:view'
@@ -48,6 +50,26 @@ export const ROLE_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
     'tenant:delete',
   ],
   auditor: ['dashboard:view', 'users:read', 'data:read', 'audit:view', 'metrics:view'],
+  // administrador hereda todo lo de agent vía has_role() (SQL, 20260822260000)
+  // — administrador ⊇ agent para cualquier chequeo escrito como 'agent'. La
+  // única capacidad EXTRA de administrador (aprobar acciones de cobranza de
+  // alto impacto, CAR §9.4/§21.3) no está modelada como Permission todavía:
+  // vive en un trigger de base de datos (guard_accion_cobranza_transicion),
+  // no en una política RLS 1:1 que esta matriz pueda representar hoy.
+  administrador: [
+    'dashboard:view',
+    'users:read',
+    'users:manage',
+    'users:invite',
+    'data:create',
+    'data:update',
+    'data:delete',
+    'data:read',
+    'audit:view',
+    'metrics:view',
+    'settings:manage',
+    'tenant:delete',
+  ],
 }
 
 // §7.4 — permisos de plataforma. Solo `admin` (profiles.is_platform_admin);

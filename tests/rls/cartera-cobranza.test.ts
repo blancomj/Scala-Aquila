@@ -243,6 +243,7 @@ d('estrategias_cobranza / acciones_cobranza (CAR §9-§10)', () => {
       destinatarioContacto: 'ana.gomez@example.test',
       intentoNumero: 1,
       creadaPor: 'job',
+      estado: 'programada',
       ...overrides,
     }
   }
@@ -271,8 +272,14 @@ d('estrategias_cobranza / acciones_cobranza (CAR §9-§10)', () => {
     expect(error?.message).toMatch(/ACCION_COBRANZA_CONTEXTO_INMUTABLE/)
   })
 
-  it('control positivo: estado sí se puede actualizar (el ciclo de vida no está congelado, CAR §10.1)', async () => {
+  it('control positivo: estado sí se puede actualizar siguiendo la máquina de estados (CAR §10.1)', async () => {
     const id = await registrarAccionCobranza(admin, datosAccion({ fechaProgramada: '2026-08-22' }))
+
+    const { error: errEjecutando } = await admin
+      .from('acciones_cobranza')
+      .update({ estado: 'ejecutando' })
+      .eq('id', id)
+    expect(errEjecutando).toBeNull()
 
     const { error } = await admin.from('acciones_cobranza').update({ estado: 'ejecutada' }).eq('id', id)
     expect(error).toBeNull()

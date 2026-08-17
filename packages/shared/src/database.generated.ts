@@ -71,6 +71,7 @@ export type Database = {
           plantilla_codigo: string | null
           politica_clasificacion_id: string
           politica_version: number
+          propuesta_por: string | null
           referencia_externa: string | null
           resultado:
             | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
@@ -106,6 +107,7 @@ export type Database = {
           plantilla_codigo?: string | null
           politica_clasificacion_id: string
           politica_version: number
+          propuesta_por?: string | null
           referencia_externa?: string | null
           resultado?:
             | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
@@ -141,6 +143,7 @@ export type Database = {
           plantilla_codigo?: string | null
           politica_clasificacion_id?: string
           politica_version?: number
+          propuesta_por?: string | null
           referencia_externa?: string | null
           resultado?:
             | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
@@ -211,6 +214,13 @@ export type Database = {
             columns: ["politica_clasificacion_id"]
             isOneToOne: false
             referencedRelation: "politicas_clasificacion_cartera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_propuesta_por_fkey"
+            columns: ["propuesta_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

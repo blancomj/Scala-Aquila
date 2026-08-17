@@ -19,7 +19,9 @@ export async function obtenerEstrategiasCobranzaVigentes(
 ): Promise<EstrategiaCobranza[]> {
   const { data: estrategias, error } = await cliente
     .from('estrategias_cobranza')
-    .select('id, tramo_id, tipo_accion, dias_desde_clasificacion, frecuencia_dias, max_intentos, monto_minimo_deuda, activa')
+    .select(
+      'id, tramo_id, tipo_accion, dias_desde_clasificacion, frecuencia_dias, max_intentos, monto_minimo_deuda, activa, requiere_aprobacion',
+    )
     .eq('tenant_id', opciones.tenantId)
     .eq('politica_id', opciones.politicaId)
   if (error) {
@@ -53,6 +55,7 @@ export async function obtenerEstrategiasCobranzaVigentes(
       maxIntentos: e.max_intentos,
       montoMinimoDeuda: e.monto_minimo_deuda === null ? null : String(e.monto_minimo_deuda),
       activa: e.activa,
+      requiereAprobacion: e.requiere_aprobacion,
     }
   })
 }
@@ -102,13 +105,22 @@ export interface DatosAccionCobranza {
   readonly destinatarioContacto: string | null
   readonly intentoNumero: number
   readonly creadaPor: 'job' | 'manual'
+  /**
+   * Estado inicial — el llamador lo decide a partir de
+   * AccionPropuesta.requiereAprobacion (cartera-cobranza.ts). El guard
+   * guard_accion_cobranza_propuesta() (20260822280000) rechaza cualquier
+   * otro valor en INSERT.
+   */
+  readonly estado: 'programada' | 'pendiente_aprobacion'
 }
 
 /**
  * Registra la acción decidida por evaluarAccionesAplicables() ya resuelta
- * por el llamador (destinatario, foto del momento). estado queda en su
- * default 'programada' — la ejecución real es otra operación (worker,
- * bloqueado por GAP-CAR-005).
+ * por el llamador (destinatario, foto del momento, estado inicial). La
+ * ejecución real (envío) es otra operación posterior (worker, bloqueado
+ * por GAP-CAR-005); la aprobación (si aplica) es un UPDATE posterior
+ * gobernado por guard_accion_cobranza_transicion() — este módulo no la
+ * implementa, es un cambio de estado normal vía RLS + ese trigger.
  */
 export async function registrarAccionCobranza(
   cliente: AquilaClient,
@@ -135,6 +147,7 @@ export async function registrarAccionCobranza(
       destinatario_contacto: datos.destinatarioContacto,
       intento_numero: datos.intentoNumero,
       creada_por: datos.creadaPor,
+      estado: datos.estado,
     })
     .select('id')
     .single()
