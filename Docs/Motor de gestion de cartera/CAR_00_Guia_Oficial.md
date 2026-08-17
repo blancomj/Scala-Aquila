@@ -2987,12 +2987,40 @@ Salida       Acciones auditables, no duplicadas, con aprobación donde toca
 
 ```text
 Alcance      Promesas, acuerdos, cuotas, conciliación
-Entregables  · promesas_pago · acuerdos_pago · acuerdo_pago_cuotas
-             · Resolución de GAP-CAR-008 (conciliación pago↔cuota)
-             · Congelamiento y descongelamiento de etapa
-             · Flujo de condonación con acta
-Golden Cases PH-C14..PH-C18, PH-C41, PH-C42
-Salida       Acuerdos que no tocan el ledger original
+Entregables  · promesas_pago ✅ (20260822300000_cartera_promesas_pago.sql
+               — sin maker-checker, CAR §12.1: informal. registrada_por
+               estampado desde auth.uid(). 3 tests RLS.)
+             · acuerdos_pago + acuerdo_pago_cuotas ✅
+               (20260822310000/20260822320000 — maker-checker igual que
+               acciones_cobranza: propuesto_por/aprobado_por/aprobado_at,
+               exige administrador explícito para pendiente_aprobacion→
+               vigente, bloquea autoaprobación, un solo acuerdo vigente
+               por inmueble (índice único). 8 tests RLS.)
+             · ~~GAP-CAR-008~~ ✅ resuelto (2026-08-17, decisión
+               explícita del usuario): pagos.acuerdo_cuota_id nullable
+               (asociación explícita) + inferencia de respaldo — la
+               función de inferencia por monto+fecha queda para cuando
+               exista un caso de uso real que la ejerza, no se inventa
+               sin eso.
+             · Congelamiento de etapa ✅ parcial: guard_acuerdo_
+               transicion() completa etapa_congelada al activar (desde
+               el snapshot más reciente si el llamador no la fija
+               explícitamente). El DESCONGELAMIENTO real (usar
+               etapa_congelada cuando el acuerdo se incumple) y la
+               suspensión de acciones de cobranza normales (§12.5) son
+               lógica de orquestación — dependen del job diario (§18),
+               que sigue sin construirse.
+             · Condonación con acta ✅ — constraint
+               acuerdo_condonacion_requiere_soporte (condona_interes ⇒
+               monto_condonado>0 y acta_referencia obligatorios).
+               novedades.acuerdo_pago_id nuevo, para trazabilidad —
+               reutiliza el flujo ya existente (tipo DISCOUNT →
+               fn_aprobar_novedad → cargo otro negativo, REC-CAR-004),
+               no se duplica lógica.
+Golden Cases PH-C14..PH-C18, PH-C41, PH-C42 — pendientes de mapear a
+             tests concretos (no hechos en esta pieza)
+Salida       Acuerdos que no tocan el ledger original (I-C08 verificado:
+             ningún UPDATE/DELETE sobre cargos en todo este bloque)
 ```
 
 ## F6 — Escalamiento

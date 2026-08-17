@@ -239,6 +239,203 @@ export type Database = {
           },
         ]
       }
+      acuerdo_pago_cuotas: {
+        Row: {
+          acuerdo_id: string
+          created_at: string
+          estado: Database["public"]["Enums"]["estado_cuota_acuerdo_t"]
+          fecha_pago: string | null
+          fecha_vencimiento: string
+          id: string
+          monto: number
+          monto_pagado: number
+          numero_cuota: number
+          tenant_id: string
+        }
+        Insert: {
+          acuerdo_id: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_cuota_acuerdo_t"]
+          fecha_pago?: string | null
+          fecha_vencimiento: string
+          id?: string
+          monto: number
+          monto_pagado?: number
+          numero_cuota: number
+          tenant_id: string
+        }
+        Update: {
+          acuerdo_id?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_cuota_acuerdo_t"]
+          fecha_pago?: string | null
+          fecha_vencimiento?: string
+          id?: string
+          monto?: number
+          monto_pagado?: number
+          numero_cuota?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acuerdo_pago_cuotas_acuerdo_id_fkey"
+            columns: ["acuerdo_id"]
+            isOneToOne: false
+            referencedRelation: "acuerdos_pago"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdo_pago_cuotas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdo_pago_cuotas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      acuerdos_pago: {
+        Row: {
+          acta_referencia: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          condona_interes: boolean
+          consecutivo: string
+          created_at: string
+          cuota_inicial: number
+          documento_url: string | null
+          estado: Database["public"]["Enums"]["estado_acuerdo_t"]
+          etapa_congelada:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          fecha_acuerdo: string
+          fecha_fin: string
+          fecha_incumplimiento: string | null
+          fecha_inicio: string
+          id: string
+          inmueble_id: string
+          interes_durante_acuerdo: boolean
+          monto_capital: number
+          monto_condonado: number
+          monto_interes: number
+          monto_otros: number
+          monto_total: number
+          motivo_incumplimiento: string | null
+          numero_cuotas: number
+          propuesto_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          acta_referencia?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          condona_interes?: boolean
+          consecutivo: string
+          created_at?: string
+          cuota_inicial?: number
+          documento_url?: string | null
+          estado?: Database["public"]["Enums"]["estado_acuerdo_t"]
+          etapa_congelada?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          fecha_acuerdo: string
+          fecha_fin: string
+          fecha_incumplimiento?: string | null
+          fecha_inicio: string
+          id?: string
+          inmueble_id: string
+          interes_durante_acuerdo?: boolean
+          monto_capital?: number
+          monto_condonado?: number
+          monto_interes?: number
+          monto_otros?: number
+          monto_total: number
+          motivo_incumplimiento?: string | null
+          numero_cuotas: number
+          propuesto_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          acta_referencia?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          condona_interes?: boolean
+          consecutivo?: string
+          created_at?: string
+          cuota_inicial?: number
+          documento_url?: string | null
+          estado?: Database["public"]["Enums"]["estado_acuerdo_t"]
+          etapa_congelada?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          fecha_acuerdo?: string
+          fecha_fin?: string
+          fecha_incumplimiento?: string | null
+          fecha_inicio?: string
+          id?: string
+          inmueble_id?: string
+          interes_durante_acuerdo?: boolean
+          monto_capital?: number
+          monto_condonado?: number
+          monto_interes?: number
+          monto_otros?: number
+          monto_total?: number
+          motivo_incumplimiento?: string | null
+          numero_cuotas?: number
+          propuesto_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acuerdos_pago_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_propuesto_por_fkey"
+            columns: ["propuesto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -1883,6 +2080,7 @@ export type Database = {
       }
       novedades: {
         Row: {
+          acuerdo_pago_id: string | null
           approved_at: string | null
           approved_by: string | null
           busqueda_tsv: unknown
@@ -1900,6 +2098,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Insert: {
+          acuerdo_pago_id?: string | null
           approved_at?: string | null
           approved_by?: string | null
           busqueda_tsv?: unknown
@@ -1917,6 +2116,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Update: {
+          acuerdo_pago_id?: string | null
           approved_at?: string | null
           approved_by?: string | null
           busqueda_tsv?: unknown
@@ -1934,6 +2134,13 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["novedad_tipo_t"]
         }
         Relationships: [
+          {
+            foreignKeyName: "novedades_acuerdo_pago_id_fkey"
+            columns: ["acuerdo_pago_id"]
+            isOneToOne: false
+            referencedRelation: "acuerdos_pago"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "novedades_approved_by_fkey"
             columns: ["approved_by"]
@@ -2050,6 +2257,7 @@ export type Database = {
       }
       pagos: {
         Row: {
+          acuerdo_cuota_id: string | null
           created_at: string
           fecha_pago: string
           id: string
@@ -2060,6 +2268,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          acuerdo_cuota_id?: string | null
           created_at?: string
           fecha_pago: string
           id?: string
@@ -2070,6 +2279,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          acuerdo_cuota_id?: string | null
           created_at?: string
           fecha_pago?: string
           id?: string
@@ -2080,6 +2290,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pagos_acuerdo_cuota_id_fkey"
+            columns: ["acuerdo_cuota_id"]
+            isOneToOne: false
+            referencedRelation: "acuerdo_pago_cuotas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pagos_inmueble_id_fkey"
             columns: ["inmueble_id"]
@@ -2766,6 +2983,107 @@ export type Database = {
           {
             foreignKeyName: "profiles_active_tenant_id_fkey"
             columns: ["active_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promesas_pago: {
+        Row: {
+          accion_cobranza_id: string | null
+          created_at: string
+          cumplida_at: string | null
+          estado: Database["public"]["Enums"]["estado_promesa_t"]
+          fecha_pago_prometida: string
+          fecha_promesa: string
+          id: string
+          inmueble_id: string
+          monto_cumplido: number | null
+          monto_prometido: number
+          notas: string | null
+          pago_id: string | null
+          registrada_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          accion_cobranza_id?: string | null
+          created_at?: string
+          cumplida_at?: string | null
+          estado?: Database["public"]["Enums"]["estado_promesa_t"]
+          fecha_pago_prometida: string
+          fecha_promesa: string
+          id?: string
+          inmueble_id: string
+          monto_cumplido?: number | null
+          monto_prometido: number
+          notas?: string | null
+          pago_id?: string | null
+          registrada_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          accion_cobranza_id?: string | null
+          created_at?: string
+          cumplida_at?: string | null
+          estado?: Database["public"]["Enums"]["estado_promesa_t"]
+          fecha_pago_prometida?: string
+          fecha_promesa?: string
+          id?: string
+          inmueble_id?: string
+          monto_cumplido?: number | null
+          monto_prometido?: number
+          notas?: string | null
+          pago_id?: string | null
+          registrada_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promesas_pago_accion_cobranza_id_fkey"
+            columns: ["accion_cobranza_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
@@ -3592,6 +3910,7 @@ export type Database = {
       fn_aprobar_novedad: {
         Args: { p_actor_id: string; p_novedad_id: string }
         Returns: {
+          acuerdo_pago_id: string | null
           approved_at: string | null
           approved_by: string | null
           busqueda_tsv: unknown
@@ -3731,6 +4050,7 @@ export type Database = {
       fn_rechazar_novedad: {
         Args: { p_motivo: string; p_novedad_id: string }
         Returns: {
+          acuerdo_pago_id: string | null
           approved_at: string | null
           approved_by: string | null
           busqueda_tsv: unknown
@@ -3878,6 +4198,21 @@ export type Database = {
         | "ejecutada"
         | "fallida"
         | "cancelada"
+      estado_acuerdo_t:
+        | "borrador"
+        | "pendiente_aprobacion"
+        | "vigente"
+        | "cumplido"
+        | "incumplido"
+        | "cancelado"
+      estado_cuota_acuerdo_t:
+        | "pendiente"
+        | "parcial"
+        | "pagada"
+        | "vencida"
+        | "incumplida"
+        | "cancelada"
+      estado_promesa_t: "pendiente" | "cumplida" | "incumplida" | "cancelada"
       etapa_cobranza_t:
         | "preventiva"
         | "administrativa"
@@ -4117,6 +4452,23 @@ export const Constants = {
         "fallida",
         "cancelada",
       ],
+      estado_acuerdo_t: [
+        "borrador",
+        "pendiente_aprobacion",
+        "vigente",
+        "cumplido",
+        "incumplido",
+        "cancelado",
+      ],
+      estado_cuota_acuerdo_t: [
+        "pendiente",
+        "parcial",
+        "pagada",
+        "vencida",
+        "incumplida",
+        "cancelada",
+      ],
+      estado_promesa_t: ["pendiente", "cumplida", "incumplida", "cancelada"],
       etapa_cobranza_t: [
         "preventiva",
         "administrativa",
