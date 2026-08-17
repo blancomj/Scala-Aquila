@@ -4,11 +4,14 @@
 
 > **Proyecto:** Administración de Propiedad Horizontal (AQUILA)
 > **Alcance:** Backend de plantillas de correo transaccional sincronizadas con Brevo — tabla,
-> funciones, Edge Functions. El panel de administración (frontend, §11 abajo) queda **fuera
-> de esta pieza**, pendiente para una fase posterior (decisión explícita del usuario, 2026-08-17).
+> funciones, Edge Functions — y panel de administración (frontend, §11 abajo).
 > **Estado:** Backend implementado (`20260822290000_plantillas_email.sql`,
 > `packages/shared/src/email.ts`, `guardar-plantilla-email`/`sincronizar-plantilla-email`/
-> `probar-plantilla-email`) · sin desplegar/probar contra Brevo real todavía · sin frontend.
+> `probar-plantilla-email`) y panel de administración construido (2026-08-17,
+> `apps/web/app/pages/configuracion/plantillas-email.vue` + `stores/plantillasEmail.ts`) ·
+> guardado/sincronización contra Brevo real siguen bloqueados por un problema de verificación
+> de remitente en la cuenta de Brevo (ver §7, "Sender is invalid / inactive"), aplazado por el
+> usuario — la vista previa (sin red) sí está verificada end-to-end.
 > **Extiende a:** `PROMPT_MAESTRO_FASE1.md` (gobierno §2–§9) y a
 > `Docs/Motor de gestion de cartera/CAR_00_Guia_Oficial.md` (GAP-CAR-005) — el catálogo de
 > eventos reutiliza los mismos 4 `event_type` de `packages/shared/src/sms.ts`.
@@ -341,10 +344,15 @@ Dos columnas: lista de plantillas a la izquierda, editor a la derecha.
 - Los nombres de evento van al sistema de traducciones (`event_BOOKING_CONFIRMED_GUEST` → "Reserva confirmada (huésped)"), nunca la clave cruda.
 - El editor de HTML puede ser un `<textarea>` monoespaciado. Un editor enriquecido es una mejora posterior, y tiene un costo: destruye el HTML de correo escrito a mano (tablas, `<style>` en línea, comentarios condicionales). Si se agrega, que sea un editor de código, no de texto enriquecido.
 
-> **Nota AQUILA:** PENDIENTE — nada de esta sección está construido todavía (decisión explícita
-> del usuario, 2026-08-17: "solo el backend/esquema por ahora"). Cuando se retome, seguir el
-> patrón de `apps/web/app/pages/configuracion/plantillas-sms.vue` (ya construido, mismo criterio
-> de insignia de sincronización sería aplicable si se agrega estado de sync a SMS también).
+> **Nota AQUILA:** construido (2026-08-17) en
+> `apps/web/app/pages/configuracion/plantillas-email.vue` + `stores/plantillasEmail.ts`, sobre el
+> patrón de `plantillas-sms.vue` pero en dos columnas (lista/editor) como pide esta sección —
+> `plantillas-sms.vue` usa un selector porque su spec no pedía dos columnas. Diferencias reales
+> con el mockup de arriba: la insignia también vive en el encabezado del editor (no solo en la
+> lista), y el botón "Reintentar sincronización" es `warning` en vez de un color de error, porque
+> `is_synced=false` no es un fallo del usuario. Vista previa verificada end-to-end contra la Edge
+> Function real; guardado/sincronización con Brevo real quedan pendientes de que el usuario
+> resuelva la verificación del remitente en su cuenta (§7).
 
 ---
 
