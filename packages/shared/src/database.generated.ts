@@ -714,6 +714,352 @@ export type Database = {
           },
         ]
       }
+      caso_juridico_actuaciones: {
+        Row: {
+          caso_id: string
+          created_at: string
+          descripcion: string
+          estado_desde:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          estado_hasta:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          fecha: string
+          id: string
+          registrada_por: string | null
+          tenant_id: string
+          tipo_actuacion_id: number
+        }
+        Insert: {
+          caso_id: string
+          created_at?: string
+          descripcion: string
+          estado_desde?:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          estado_hasta?:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          fecha: string
+          id?: string
+          registrada_por?: string | null
+          tenant_id: string
+          tipo_actuacion_id: number
+        }
+        Update: {
+          caso_id?: string
+          created_at?: string
+          descripcion?: string
+          estado_desde?:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          estado_hasta?:
+            | Database["public"]["Enums"]["estado_caso_juridico_t"]
+            | null
+          fecha?: string
+          id?: string
+          registrada_por?: string | null
+          tenant_id?: string
+          tipo_actuacion_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caso_juridico_actuaciones_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_tipo_actuacion_id_fkey"
+            columns: ["tipo_actuacion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      casos_juridicos: {
+        Row: {
+          abogado_tercero_id: string | null
+          aprobado_at: string
+          aprobado_por: string | null
+          certificacion_id: string
+          ciudad: string | null
+          consecutivo: string
+          created_at: string
+          estado: Database["public"]["Enums"]["estado_caso_juridico_t"]
+          fecha_apertura: string | null
+          fecha_cierre: string | null
+          fecha_pretension: string
+          fecha_proxima_actuacion: string | null
+          fecha_remision: string
+          fecha_ultima_actuacion: string | null
+          id: string
+          inmueble_id: string
+          juzgado: string | null
+          monto_pretension: number
+          monto_recuperado: number
+          motivo_cierre: string | null
+          numero_radicado: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          abogado_tercero_id?: string | null
+          aprobado_at?: string
+          aprobado_por?: string | null
+          certificacion_id: string
+          ciudad?: string | null
+          consecutivo: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_caso_juridico_t"]
+          fecha_apertura?: string | null
+          fecha_cierre?: string | null
+          fecha_pretension: string
+          fecha_proxima_actuacion?: string | null
+          fecha_remision: string
+          fecha_ultima_actuacion?: string | null
+          id?: string
+          inmueble_id: string
+          juzgado?: string | null
+          monto_pretension: number
+          monto_recuperado?: number
+          motivo_cierre?: string | null
+          numero_radicado?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          abogado_tercero_id?: string | null
+          aprobado_at?: string
+          aprobado_por?: string | null
+          certificacion_id?: string
+          ciudad?: string | null
+          consecutivo?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_caso_juridico_t"]
+          fecha_apertura?: string | null
+          fecha_cierre?: string | null
+          fecha_pretension?: string
+          fecha_proxima_actuacion?: string | null
+          fecha_remision?: string
+          fecha_ultima_actuacion?: string | null
+          id?: string
+          inmueble_id?: string
+          juzgado?: string | null
+          monto_pretension?: number
+          monto_recuperado?: number
+          motivo_cierre?: string | null
+          numero_radicado?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casos_juridicos_abogado_tercero_id_fkey"
+            columns: ["abogado_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_certificacion_id_fkey"
+            columns: ["certificacion_id"]
+            isOneToOne: false
+            referencedRelation: "certificaciones_deuda"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_juridicos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificaciones_deuda: {
+        Row: {
+          anulada_at: string | null
+          anulada_motivo: string | null
+          anulada_por: string | null
+          cargo_firmante: string
+          certificacion_hash: string
+          consecutivo: string
+          created_at: string
+          detalle_cargos: Json
+          documento_url: string | null
+          estado: Database["public"]["Enums"]["estado_certificacion_t"]
+          expedida_por: string | null
+          fecha_corte: string
+          fecha_expedicion: string
+          id: string
+          inmueble_id: string
+          monto_expensas_extraordinarias: number
+          monto_expensas_ordinarias: number
+          monto_intereses_mora: number
+          monto_otros: number
+          monto_sanciones: number
+          monto_total: number
+          politica_financiera_id: string
+          politica_version: number
+          tenant_id: string
+        }
+        Insert: {
+          anulada_at?: string | null
+          anulada_motivo?: string | null
+          anulada_por?: string | null
+          cargo_firmante: string
+          certificacion_hash: string
+          consecutivo: string
+          created_at?: string
+          detalle_cargos: Json
+          documento_url?: string | null
+          estado?: Database["public"]["Enums"]["estado_certificacion_t"]
+          expedida_por?: string | null
+          fecha_corte: string
+          fecha_expedicion: string
+          id?: string
+          inmueble_id: string
+          monto_expensas_extraordinarias?: number
+          monto_expensas_ordinarias?: number
+          monto_intereses_mora?: number
+          monto_otros?: number
+          monto_sanciones?: number
+          monto_total: number
+          politica_financiera_id: string
+          politica_version: number
+          tenant_id: string
+        }
+        Update: {
+          anulada_at?: string | null
+          anulada_motivo?: string | null
+          anulada_por?: string | null
+          cargo_firmante?: string
+          certificacion_hash?: string
+          consecutivo?: string
+          created_at?: string
+          detalle_cargos?: Json
+          documento_url?: string | null
+          estado?: Database["public"]["Enums"]["estado_certificacion_t"]
+          expedida_por?: string | null
+          fecha_corte?: string
+          fecha_expedicion?: string
+          id?: string
+          inmueble_id?: string
+          monto_expensas_extraordinarias?: number
+          monto_expensas_ordinarias?: number
+          monto_intereses_mora?: number
+          monto_otros?: number
+          monto_sanciones?: number
+          monto_total?: number
+          politica_financiera_id?: string
+          politica_version?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificaciones_deuda_anulada_por_fkey"
+            columns: ["anulada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_expedida_por_fkey"
+            columns: ["expedida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_politica_financiera_id_fkey"
+            columns: ["politica_financiera_id"]
+            isOneToOne: false
+            referencedRelation: "politicas_financieras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificaciones_deuda_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coeficiente_sets: {
         Row: {
           created_at: string
@@ -1062,6 +1408,80 @@ export type Database = {
           },
         ]
       }
+      costas_judiciales: {
+        Row: {
+          autoridad: string
+          caso_id: string
+          created_at: string
+          documento_fuente: string
+          estado: Database["public"]["Enums"]["estado_costa_t"]
+          fecha_decision: string
+          id: string
+          monto: number
+          monto_recuperado: number
+          registrada_por: string | null
+          tenant_id: string
+          tipo_costa: Database["public"]["Enums"]["tipo_costa_t"]
+        }
+        Insert: {
+          autoridad: string
+          caso_id: string
+          created_at?: string
+          documento_fuente: string
+          estado?: Database["public"]["Enums"]["estado_costa_t"]
+          fecha_decision: string
+          id?: string
+          monto: number
+          monto_recuperado?: number
+          registrada_por?: string | null
+          tenant_id: string
+          tipo_costa: Database["public"]["Enums"]["tipo_costa_t"]
+        }
+        Update: {
+          autoridad?: string
+          caso_id?: string
+          created_at?: string
+          documento_fuente?: string
+          estado?: Database["public"]["Enums"]["estado_costa_t"]
+          fecha_decision?: string
+          id?: string
+          monto?: number
+          monto_recuperado?: number
+          registrada_por?: string | null
+          tenant_id?: string
+          tipo_costa?: Database["public"]["Enums"]["tipo_costa_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "costas_judiciales_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costas_judiciales_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costas_judiciales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costas_judiciales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activa: boolean
@@ -1126,6 +1546,7 @@ export type Database = {
       documentos: {
         Row: {
           busqueda_tsv: unknown
+          caso_juridico_id: string | null
           created_at: string
           fecha_vencimiento: string | null
           grupo_id: string
@@ -1141,6 +1562,7 @@ export type Database = {
         }
         Insert: {
           busqueda_tsv?: unknown
+          caso_juridico_id?: string | null
           created_at?: string
           fecha_vencimiento?: string | null
           grupo_id?: string
@@ -1156,6 +1578,7 @@ export type Database = {
         }
         Update: {
           busqueda_tsv?: unknown
+          caso_juridico_id?: string | null
           created_at?: string
           fecha_vencimiento?: string | null
           grupo_id?: string
@@ -1170,6 +1593,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "documentos_caso_juridico_id_fkey"
+            columns: ["caso_juridico_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_inmueble_id_fkey"
             columns: ["inmueble_id"]
@@ -4320,6 +4750,26 @@ export type Database = {
         | "cumplido"
         | "incumplido"
         | "cancelado"
+      estado_caso_juridico_t:
+        | "remitido"
+        | "documentacion"
+        | "radicado"
+        | "admitido"
+        | "en_tramite"
+        | "medidas_cautelares"
+        | "conciliacion"
+        | "sentencia"
+        | "ejecucion"
+        | "terminado"
+        | "desistido"
+        | "archivado"
+      estado_certificacion_t: "vigente" | "anulada"
+      estado_costa_t:
+        | "liquidada"
+        | "impugnada"
+        | "en_firme"
+        | "recuperada"
+        | "no_recuperable"
       estado_cuota_acuerdo_t:
         | "pendiente"
         | "parcial"
@@ -4403,6 +4853,11 @@ export type Database = {
         | "remision_juridica"
         | "propuesta_acuerdo"
         | "revision_manual"
+      tipo_costa_t:
+        | "gasto_proceso"
+        | "agencias_en_derecho"
+        | "honorario_auxiliar"
+        | "otro_costo_aprobado"
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
@@ -4575,6 +5030,28 @@ export const Constants = {
         "incumplido",
         "cancelado",
       ],
+      estado_caso_juridico_t: [
+        "remitido",
+        "documentacion",
+        "radicado",
+        "admitido",
+        "en_tramite",
+        "medidas_cautelares",
+        "conciliacion",
+        "sentencia",
+        "ejecucion",
+        "terminado",
+        "desistido",
+        "archivado",
+      ],
+      estado_certificacion_t: ["vigente", "anulada"],
+      estado_costa_t: [
+        "liquidada",
+        "impugnada",
+        "en_firme",
+        "recuperada",
+        "no_recuperable",
+      ],
       estado_cuota_acuerdo_t: [
         "pendiente",
         "parcial",
@@ -4666,6 +5143,12 @@ export const Constants = {
         "remision_juridica",
         "propuesta_acuerdo",
         "revision_manual",
+      ],
+      tipo_costa_t: [
+        "gasto_proceso",
+        "agencias_en_derecho",
+        "honorario_auxiliar",
+        "otro_costo_aprobado",
       ],
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],

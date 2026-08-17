@@ -107,6 +107,19 @@ export {
   type DecisionEscalamiento,
 } from './cartera-escalamiento.js'
 
+export {
+  construirCertificacionDeuda,
+  calcularCertificacionHash,
+  CertificacionSinDeudaError,
+  type DetalleCargoCertificado,
+  type CertificacionDeudaDatos,
+} from './cartera-juridico.js'
+
+export {
+  registrarCertificacionDeuda,
+  type OpcionesCertificarDeuda,
+} from './cartera-juridico-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

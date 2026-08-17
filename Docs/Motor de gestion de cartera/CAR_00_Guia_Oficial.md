@@ -404,9 +404,10 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
 | ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17), verificado end-to-end.** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — desplegado, `BREVO_SMS_SENDER` configurado como secreto del proyecto, SMS real enviado y confirmado recibido en un teléfono real por el usuario. **email/WhatsApp siguen sin resolver para el canal de cobranza**: existe un sistema de plantillas de correo generalizado (`email_templates` + `guardar-plantilla-email`/`sincronizar-plantilla-email`/`probar-plantilla-email` + panel `apps/web/app/pages/configuracion/plantillas-email.vue`, 2026-08-17, ver `PROMPT_PLANTILLAS_EMAIL.md`) que reutiliza los 4 `event_type` de cartera, pero **ningún worker dispara correo real todavía** (el worker de F4 solo dispara SMS) y la sincronización contra Brevo está bloqueada por un problema de verificación de remitente en la cuenta (`Sender is invalid / inactive`), aplazado por el usuario. `invite-user/index.ts` sigue aparte, con HTML inline, sin migrar a este sistema. WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
-| **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
+| ~~`GAP-CAR-007`~~ | ✅ **VERIFICADO RESUELTO (2026-08-17) — no bloqueaba.** Ya existía `documentos` (generalizada en `20260822130000`, antes `documentos_inmueble`), el bucket `documentos-inmueble` y la Edge Function `subir-documento` con upload+rollback reales, probados (`tests/tenancy/subir-documento.test.ts`). F7 la generalizó una vez más con `caso_juridico_id` nullable en vez de crear `caso_juridico_documentos` como tabla paralela (REC-CAR-004). `subir-documento` todavía no acepta ese campo — extensión de la Edge Function/frontend pendiente. | Ya no bloquea F7. | — |
 | ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
 | **`GAP-CAR-010`** | No existe vínculo `usuario ↔ inmueble`, y **`AD-26` lo prohíbe explícitamente** (propietario = dato de dominio, sin FK a `auth.users`). | ⤴ **Escalado fuera del bloque.** `PH-C35`/`REQ-CAR-025` quedan diferidos; **no bloquea F1-F9**. Ver §21.4. | — |
+| **`GAP-CAR-011`** | (Nuevo, 2026-08-17) El esquema no distingue una cuota extraordinaria (`fuente_financiacion.cuota_extraordinaria` es del presupuesto, no del cargo) ni una sanción (`TIPO_NOVEDAD` en `lista_tipos` existe sembrado pero ningún código lo referencia) a nivel de `cargos`. `fn_certificar_deuda` no puede discriminar esos 2 de los 4 rubros del art. 48 con certeza — decisión explícita del usuario: quedan siempre en 0, documentado, no inventado. | Certificaciones de deuda (F7) tienen `monto_expensas_extraordinarias`/`monto_sanciones` siempre en 0. No bloquea F7 (el total y los otros 3 rubros son exactos). | F7 |
 
 ### `GAP-CAR-001` — resolución (verificada contra el esquema)
 
@@ -3093,14 +3094,79 @@ Salida       Ninguna transición fuera de la matriz es posible ✅ —
 
 ```text
 Alcance      Certificación, expediente, proceso, costas
-Prerreq.     GAP-CAR-007 (storage) · ~~GAP-CAR-009~~ ✅ resuelto — ya existe
-             el rol administrador que firma la certificación del art. 48
+Prerreq.     ~~GAP-CAR-007~~ ✅ VERIFICADO RESUELTO (2026-08-17) — no
+             bloqueaba: ya existía `documentos` (generalizada en
+             20260822130000), el bucket `documentos-inmueble` y
+             subir-documento con upload+rollback reales, probados. Se
+             generalizó una vez más con `caso_juridico_id` nullable en
+             vez de crear caso_juridico_documentos como tabla paralela
+             (REC-CAR-004). subir-documento todavía NO acepta ese campo
+             — extensión de la Edge Function/frontend pendiente.
+             ~~GAP-CAR-009~~ ✅ resuelto — ya existe el rol administrador
+             que firma la certificación del art. 48
              PRQ-CAR-015 ya verificado (terceros + tenant_tercero_rol)
-Entregables  · certificaciones_deuda + fn_certificar_deuda (art. 48)
-             · casos_juridicos · caso_juridico_actuaciones · caso_juridico_documentos
-             · costas_judiciales
-Golden Cases PH-C21..PH-C23, PH-C32, PH-C43, PH-C44
-Salida       Título ejecutivo reproducible · cero costas automáticas
+Entregables  · certificaciones_deuda + fn_certificar_deuda ✅
+               (20260822340000_cartera_juridico.sql +
+               packages/liquidation-engine/src/cartera-juridico.ts —
+               a diferencia del resto de F4-F6, "fn_certificar_deuda"
+               vive en TS [construirCertificacionDeuda +
+               calcularCertificacionHash + registrarCertificacionDeuda],
+               no en SQL: el hash de reproducibilidad debe ser una
+               función pura testeable, mismo criterio que
+               calcularPosicionHash/registrarSnapshotPosicion — la BD
+               solo gobierna autorización/inmutabilidad. Inmutable salvo
+               la única transición vigente→anulada, con motivo
+               obligatorio y administrador explícito. 6 tests unitarios
+               + 7 tests RLS.)
+             · ~~GAP-CAR-011~~ (nuevo, decisión explícita del usuario
+               2026-08-17): el esquema no distingue una cuota
+               extraordinaria (fuente_financiacion.cuota_extraordinaria
+               es del presupuesto, no del cargo) ni una sanción
+               (TIPO_NOVEDAD en lista_tipos existe sembrado pero NINGÚN
+               código lo referencia — novedades.tipo es el enum
+               CHARGE/DISCOUNT/ADJUSTMENT/REFUND/CREDIT/DEBIT, sin
+               sub-clasificación) a nivel de cargo. Se certifican con
+               exactitud los 3 rubros que sí son cargo-discriminables
+               (capital→ordinarias, interés→intereses_mora, todo lo
+               demás→otros); monto_expensas_extraordinarias y
+               monto_sanciones quedan siempre en 0, documentado, no
+               inventado. El total siempre reconcilia con
+               fn_posicion_cartera (misma fuente de cargos).
+             · casos_juridicos + caso_juridico_actuaciones ✅
+               (20260822340000 — certificacion_id NOT NULL, sin
+               certificación vigente no hay caso. Remitir a jurídico y
+               CERRAR el caso exigen administrador explícito
+               [aprobado_por/at estampados al crear, mismo criterio de
+               firmante identificado]; el progreso normal del trámite
+               [radicado→admitido→...] lo hace cualquier agent.
+               Deliberadamente SIN matriz de transiciones rígida para
+               estado_caso_juridico_t [12 valores] — a diferencia de
+               etapa_cobranza_t (F6 §11.3), el documento nunca definió
+               los bordes válidos y el trámite real no sigue un único
+               orden lineal; caso_juridico_actuaciones [append-only] es
+               el registro histórico verificable, exista o no esa
+               matriz. abogado_tercero_id validado contra
+               tenant_tercero_rol+PERSONA_COPROPIEDAD.abogado vigente.
+               9 tests RLS.)
+             · costas_judiciales ✅ (20260822340000 — I-C11: documento_
+               fuente/fecha_decision/autoridad NOT NULL, evidencia
+               congelada tras el INSERT [solo estado/monto_recuperado
+               cambian]. Sin matriz de transiciones para estado_costa_t
+               [mismo criterio que casos_juridicos]. 3 tests RLS.)
+             · caso_juridico_documentos — NO se construyó como tabla
+               aparte (ver Prerreq. arriba): se resolvió generalizando
+               `documentos`.
+Golden Cases PH-C21..PH-C23, PH-C32, PH-C43, PH-C44 — PH-C32
+             (certificación art. 48 completa/discrimina 4 rubros) queda
+             parcial por GAP-CAR-011: discrimina 3 con exactitud, 2
+             siempre en 0. El resto (PH-C21..C23, C43, C44 — creación de
+             proceso desde certificación, costas) no se mapearon a
+             tests concretos con golden data en esta pieza.
+Salida       Título ejecutivo reproducible ✅ (certificacion_hash,
+             detalle_cargos congelado, verificado con tests de
+             reproducibilidad) · cero costas automáticas ✅ (I-C11:
+             monto/documento_fuente/fecha_decision/autoridad NOT NULL,
+             ninguna función calcula costas por antigüedad)
 ```
 
 ## F8 — Automatización
