@@ -141,6 +141,17 @@ export {
   type OpcionesCargarEntradaInmueble,
 } from './cartera-job-supabase.js'
 
+export {
+  calcularDashboardCartera,
+  type FilaDashboardCartera,
+  type TarjetasCartera,
+  type CodigoTramoAntiguedad,
+  type TramoAntiguedad,
+  type DashboardCartera,
+} from './cartera-dashboard.js'
+
+export { obtenerFilasDashboardCartera } from './cartera-dashboard-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

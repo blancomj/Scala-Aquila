@@ -4614,6 +4614,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_dashboard_cartera: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          deuda_corriente: number
+          deuda_total: number
+          deuda_vencida: number
+          dias_mora_maximo: number
+          etapa_cobranza: string
+          inmueble_id: string
+          interes_causado: number
+          saldo_credito: number
+        }[]
+      }
       fn_guardar_plantilla_email: {
         Args: {
           p_event_type: string

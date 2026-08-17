@@ -3265,12 +3265,43 @@ Salida       Job re-ejecutable sin efectos duplicados ✅
 ## F9 — BI
 
 ```text
-Alcance      Dashboard e indicadores
-Entregables  · Vistas de agregación (intra-tenant, SEC-03)
-             · Roll rate, cure rate, recovery rate, aging
-             · Panel de acciones y colas
-Golden Cases PH-C34   (PH-C35 diferido: ver §21.4 / AD-26)
-Salida       Indicadores comparables con benchmark de industria
+Alcance      Dashboard e indicadores. Secuenciado en piezas verificables
+             (decisión del usuario, 2026-08-17): §23.1/§23.2 primero,
+             §23.3 (indicadores roll/cure/recovery rate) y §23.5 (panel
+             de acciones) quedan para las próximas piezas de F9.
+Entregables  · fn_dashboard_cartera ✅ (20260823100000_cartera_dashboard_
+               fn.sql — agrega por inmueble TODOS los cargos abiertos
+               [vencidos + corrientes], distinta a propósito de
+               fn_posicion_cartera [F1, solo vencidos, para
+               clasificación/escalamiento]. security invoker, mismo
+               criterio SEC-03/PH-C34 que fn_posicion_cartera.)
+             · calcularDashboardCartera() ✅ (packages/liquidation-
+               engine/src/cartera-dashboard.ts — puro. Los 8 tramos de
+               antigüedad [§23.2] son un catálogo FIJO de la industria
+               [para benchmark externo], deliberadamente distinto de los
+               tramos configurables de politicas_clasificacion_cartera
+               [F1, gobiernan escalamiento]. "monto" de cada tramo es
+               deuda VENCIDA atribuida al inmueble completo [mismo
+               criterio REC-CAR-010 que la clasificación — coherente con
+               "número de inmuebles" de la especificación, no "número de
+               cargos"]; AL_DIA tiene monto=0 por definición [esta tabla
+               mide distribución de mora, no balance corriente — ese es
+               CARTERA_CORRIENTE, una tarjeta aparte]. pctDelTotal se
+               calcula sobre carteraVencida para que los 8 tramos sumen
+               exactamente 100%. 8 tests unitarios, incluyendo los bordes
+               exactos de cada tramo.)
+             · Edge Function `cartera-dashboard` ✅ (§23.1/§23.2, POST,
+               cualquier miembro del tenant [is_member, mismo criterio
+               que cartera-posicion: es lectura, no decisión de negocio].
+               4 tests de integración HTTP real, incluyendo PH-C34.)
+             · §23.3 (indicadores), §23.4 (transiciones críticas), §23.5
+               (panel de acciones) — pendientes, próxima pieza de F9.
+Golden Cases PH-C34 ✅ (verificado contra la BD real — un agent de otro
+             tenant recibe 403, nunca ve datos agregados de un tenant que
+             no es el suyo). PH-C35 diferido: ver §21.4 / AD-26.
+Salida       §23.1/§23.2 completos y reproducibles a una fecha de corte
+             explícita. Falta §23.3/§23.5 para el "Indicadores
+             comparables con benchmark de industria" que cierra F9.
 ```
 
 ## 28.1 Grafo de dependencias
