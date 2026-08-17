@@ -120,6 +120,27 @@ export {
   type OpcionesCertificarDeuda,
 } from './cartera-juridico-supabase.js'
 
+export {
+  evaluarPromesaIncumplida,
+  evaluarCuotaVencida,
+  evaluarJobCarteraInmueble,
+  calcularResultadoJobHash,
+  type PromesaPendiente,
+  type CuotaPendiente,
+  type CambioPromesa,
+  type CambioCuota,
+  type CambioAcuerdo,
+  type EntradaJobCarteraInmueble,
+  type PlanJobCarteraInmueble,
+} from './cartera-job.js'
+
+export {
+  obtenerInmueblesDelTenant,
+  obtenerEtapaActual,
+  cargarEntradaJobCarteraInmueble,
+  type OpcionesCargarEntradaInmueble,
+} from './cartera-job-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

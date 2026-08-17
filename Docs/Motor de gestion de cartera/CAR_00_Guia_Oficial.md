@@ -58,6 +58,16 @@ Toda regla enunciada aquí lleva una de estas etiquetas. El agente implementador
 
 **Regla dura:** nunca presentar una decisión `[ARQ]` o `[NEGOCIO]` como si fuera `[LEGAL]`.
 
+**Regla dura (D-24, DECISIONES.md):** todo bloque `create type ... as enum` dado
+en este documento (§9.2, §11.1 y cualquier otro) es una propuesta de catálogo,
+no una autorización a implementarlo tal cual. Antes de crear el tipo en una
+migración real, evaluar si gatilla lógica/transición de estado (entonces sí es
+un enum de Postgres, con su `COMMENT ON TYPE` explicando por qué) o si es
+vocabulario descriptivo ampliable (entonces va a `lista_tipos`,
+`20260814160000_tipos_lista_tipos.sql`). `tests/governance/enum-lista-tipos-
+coverage.test.ts` hace cumplir esto — copiar un `CREATE TYPE` de aquí sin ese
+comentario rompe `pnpm test`.
+
 ## 0.4 Desambiguación crítica del término "cartera"
 
 `[ARQ]` En este repositorio la palabra "cartera" ya tiene **dos significados distintos**. Este documento usa exclusivamente el segundo:
@@ -2223,7 +2233,7 @@ Sigue el precedente de `cuenta-corriente-supabase.ts`.
 
 | Función | Método | Responsabilidad | Rol mínimo |
 |---|---|---|---|
-| `cartera-recalcular` | POST | Ejecuta `JOB_CARTERA_DIARIA` para un tenant y fecha de corte | `admin` |
+| `cartera-recalcular` ✅ | POST | Ejecuta `JOB_CARTERA_DIARIA` para un tenant y fecha de corte | `admin` |
 | `cartera-posicion` ✅ | POST | Devuelve `fn_posicion_cartera` + clasificación por inmueble | `agent`/`auditor` |
 
 `[ARQ]` Corrección sobre la v2.0 de este documento: **todas** las Edge Functions reales del repo usan `POST` con cuerpo JSON, nunca `GET` (`calcular-intereses`, `registrar-pago`, etc. — verificado en `supabase/functions/`). La tabla original de esta sección sugería `GET` para lecturas antes de comprobar la convención real; se corrige aquí siguiendo `REC-CAR-004`: no inventar un estilo nuevo cuando ya existe uno establecido.
@@ -2815,8 +2825,9 @@ Entregables  · ✅ packages/liquidation-engine/src/cartera.ts:
                + `clasificarCartera`; responde 422
                `POLITICA_CLASIFICACION_NO_VIGENTE` si el tenant no ha
                configurado cartera todavía (PH-C26/I-C14, nunca un default)
-             · ⧗ Edge Function `cartera-recalcular` (§22.3, `JOB_CARTERA_
-               DIARIA` completo) — no escrita, pertenece a F8
+             · ~~⧗ Edge Function `cartera-recalcular` (§22.3, `JOB_CARTERA_
+               DIARIA` completo) — no escrita, pertenece a F8~~ ✅
+               escrita y desplegada en F8 (ver más abajo)
              · 9 códigos de error nuevos registrados en `error-codes.ts`
                (`PERIODO_SIN_FECHA_VENCIMIENTO`,
                `POLITICA_CLASIFICACION_*`, `TRAMO_CLASIFICACION_NO_
@@ -3173,12 +3184,82 @@ Salida       Título ejecutivo reproducible ✅ (certificacion_hash,
 
 ```text
 Alcance      Job diario, eventos, alertas
-Entregables  · JOB_CARTERA_DIARIA con modo simulación
-             · eventos_cartera completo
-             · Idempotencia verificada
-             · Alertas y colas de trabajo
-Golden Cases PH-C33
-Salida       Job re-ejecutable sin efectos duplicados
+Entregables  · eventos_cartera ✅ (20260822380000_cartera_eventos.sql —
+               tipo_evento_cartera_t con el catálogo COMPLETO de §19.1
+               [~30 valores, no solo los que esta pieza emite], append-
+               only vía forbid_mutation(), solo service_role escribe
+               [igual que posiciones_cartera_snapshot], unique nulls not
+               distinct (tenant_id, dedup_key) para IDEM-03)
+             · evaluarJobCarteraInmueble() ✅ (packages/liquidation-
+               engine/src/cartera-job.ts — orquestador PURO que compone
+               clasificarCartera()+evaluarEscalamiento() [ya existentes,
+               REC-CAR-004: nada se recalcula] con promesas/cuotas de
+               acuerdo vencidas. 13 tests unitarios. Alcance
+               deliberadamente acotado, documentado en la cabecera del
+               archivo — ver "Deferred" abajo.)
+             · cargarEntradaJobCarteraInmueble() ✅ (cartera-job-
+               supabase.ts — adaptador de solo lectura que arma la
+               entrada del orquestador desde acuerdos_pago,
+               casos_juridicos, certificaciones_deuda, promesas_pago,
+               acuerdo_pago_cuotas y acciones_cobranza)
+             · Edge Function `cartera-recalcular` ✅ (§22.3, POST, rol
+               mínimo administrador — has_role() ya trata administrador
+               ⊇ agent [20260822260000], así que el mismo caller
+               satisface tanto el gate de la función como los guards de
+               agent que tocan cartera_etapas/promesas_pago/etc. modo
+               'simulacion': calcula planes+resultadoHash sin escribir
+               nada [§18.1, "ningún administrador acepta que el sistema
+               empiece a enviar requerimientos sin haber visto antes qué
+               va a enviar"]. modo 'ejecucion': persiste vía
+               ctx.supabase [cartera_etapas/promesas_pago/
+               acuerdo_pago_cuotas/acuerdos_pago, autorizado por rol de
+               quien invoca] y ctx.supabaseAdmin [posiciones_cartera_
+               snapshot/eventos_cartera/audit_log, service_role]. 422
+               POLITICA_CLASIFICACION_NO_VIGENTE si falta prerrequisito
+               [PH-C26/I-C14, reutiliza el código de cartera-posicion].
+               6 tests de integración HTTP real.)
+             · Idempotencia (PH-C33) ✅ verificada de dos formas: (1) las
+               escrituras de estado son idempotentes por construcción —
+               evaluarJobCarteraInmueble() relee el estado ya escrito en
+               la corrida anterior y decide 'permanecer' cuando ya no
+               hay nada pendiente; (2) posiciones_cartera_snapshot y
+               eventos_cartera usan upsert+ignoreDuplicates sobre sus
+               unique constraints [IDEM-01/IDEM-03] — una segunda
+               corrida sobre la misma fecha_corte no duplica filas. El
+               test de integración corre el job dos veces y confirma
+               ambas cosas contra la base real, no solo en el motor
+               puro.
+             · Alertas ✅ (candidatos a escalamiento que requieren
+               aprobación, bloqueados por requisito faltante) — dentro
+               de la respuesta HTTP del job, no una tabla ni una cola
+               aparte [no había entregable previo que definiera "cola de
+               trabajo" como una pieza de esquema distinta].
+Deferred     · Creación automática de acciones_cobranza: evaluarAcciones
+               Aplicables() [F4] ya decide QUÉ estrategia corresponde,
+               pero crear la fila exige resolver un destinatario real
+               [destinatario_tercero_id/rol_codigo] — esa resolución no
+               existe en ningún punto del código [ejecutar-accion-
+               cobranza.ts asume la fila ya creada]. No se inventa una
+               convención de "a quién se le cobra" sin ese diseño.
+             · CARTERA_CLASIFICACION_CAMBIO: el catálogo de eventos lo
+               contempla, pero emitirlo exige comparar contra el
+               snapshot de AYER [lectura extra por inmueble, no
+               construida en esta pieza] — cambiosClasificacion queda en
+               0 en la respuesta, documentado, no inventado.
+             · Umbral cuota vencida→incumplida: el guard de
+               acuerdo_pago_cuotas [20260822310000] modela esa
+               transición como un paso aparte de vencida, pero el
+               documento nunca definió cuántos días de diferencia — el
+               job solo marca 'vencida', nunca 'incumplida'.
+             · pg_cron: el job se invoca a mano, por un administrador —
+               NO está agendado. Mismo criterio de "un humano aprieta el
+               botón" aplicado a todo el bloque de cobranza con efecto
+               real [ejecutar-accion-cobranza, cobranza-aprobar-accion].
+               Agendarlo es una decisión operativa aparte, no una pieza
+               de este job.
+Golden Cases PH-C33 ✅ (verificado contra la BD real, ver Idempotencia
+             arriba). PH-C34/PH-C35 pertenecen a F9.
+Salida       Job re-ejecutable sin efectos duplicados ✅
 ```
 
 ## F9 — BI

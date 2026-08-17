@@ -1863,6 +1863,105 @@ export type Database = {
           },
         ]
       }
+      eventos_cartera: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          dedup_key: string | null
+          ejecucion_id: string | null
+          entidad_id: string | null
+          entidad_tipo: string | null
+          estado_anterior: Json | null
+          estado_nuevo: Json | null
+          fecha_corte: string
+          id: string
+          inmueble_id: string | null
+          motivo: string
+          ocurrido_at: string
+          origen: Database["public"]["Enums"]["origen_evento_t"]
+          politica_id: string | null
+          politica_version: number | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["tipo_evento_cartera_t"]
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          dedup_key?: string | null
+          ejecucion_id?: string | null
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado_anterior?: Json | null
+          estado_nuevo?: Json | null
+          fecha_corte: string
+          id?: string
+          inmueble_id?: string | null
+          motivo: string
+          ocurrido_at?: string
+          origen: Database["public"]["Enums"]["origen_evento_t"]
+          politica_id?: string | null
+          politica_version?: number | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["tipo_evento_cartera_t"]
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          dedup_key?: string | null
+          ejecucion_id?: string | null
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado_anterior?: Json | null
+          estado_nuevo?: Json | null
+          fecha_corte?: string
+          id?: string
+          inmueble_id?: string | null
+          motivo?: string
+          ocurrido_at?: string
+          origen?: Database["public"]["Enums"]["origen_evento_t"]
+          politica_id?: string | null
+          politica_version?: number | null
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["tipo_evento_cartera_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_cartera_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_cartera_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_cartera_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fondo_movimientos: {
         Row: {
           autorizado_por: string | null
@@ -4820,6 +4919,7 @@ export type Database = {
         | "CREDIT"
         | "DEBIT"
       origen_accion_cobranza_t: "job" | "manual"
+      origen_evento_t: "job" | "usuario" | "sistema" | "integracion"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
@@ -4858,6 +4958,41 @@ export type Database = {
         | "agencias_en_derecho"
         | "honorario_auxiliar"
         | "otro_costo_aprobado"
+      tipo_evento_cartera_t:
+        | "CARGO_VENCIDO"
+        | "CARGO_SALDADO"
+        | "CARTERA_CLASIFICACION_CAMBIO"
+        | "CARTERA_ETAPA_CAMBIO"
+        | "CARTERA_POSICION_CONGELADA"
+        | "COBRANZA_ACCION_PROGRAMADA"
+        | "COBRANZA_ACCION_APROBADA"
+        | "COBRANZA_ACCION_RECHAZADA"
+        | "COBRANZA_ACCION_EJECUTADA"
+        | "COBRANZA_ACCION_FALLIDA"
+        | "COBRANZA_ACCION_OMITIDA"
+        | "COBRANZA_ACCION_CANCELADA"
+        | "COBRANZA_RESULTADO_REGISTRADO"
+        | "PROMESA_REGISTRADA"
+        | "PROMESA_CUMPLIDA"
+        | "PROMESA_INCUMPLIDA"
+        | "ACUERDO_CREADO"
+        | "ACUERDO_APROBADO"
+        | "ACUERDO_CUOTA_VENCIDA"
+        | "ACUERDO_CUOTA_PAGADA"
+        | "ACUERDO_CUMPLIDO"
+        | "ACUERDO_INCUMPLIDO"
+        | "CERTIFICACION_DEUDA_EXPEDIDA"
+        | "CERTIFICACION_DEUDA_ANULADA"
+        | "CASO_JURIDICO_CREADO"
+        | "CASO_JURIDICO_ACTUACION"
+        | "CASO_JURIDICO_ESTADO_CAMBIO"
+        | "CASO_JURIDICO_CERRADO"
+        | "COSTA_JUDICIAL_REGISTRADA"
+        | "PAGO_REGISTRADO"
+        | "PAGO_IMPUTADO"
+        | "INTERES_CALCULADO"
+        | "NOVEDAD_APROBADA"
+        | "LIQUIDACION_COMPLETADA"
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
@@ -5109,6 +5244,7 @@ export const Constants = {
         "DEBIT",
       ],
       origen_accion_cobranza_t: ["job", "manual"],
+      origen_evento_t: ["job", "usuario", "sistema", "integracion"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
@@ -5149,6 +5285,42 @@ export const Constants = {
         "agencias_en_derecho",
         "honorario_auxiliar",
         "otro_costo_aprobado",
+      ],
+      tipo_evento_cartera_t: [
+        "CARGO_VENCIDO",
+        "CARGO_SALDADO",
+        "CARTERA_CLASIFICACION_CAMBIO",
+        "CARTERA_ETAPA_CAMBIO",
+        "CARTERA_POSICION_CONGELADA",
+        "COBRANZA_ACCION_PROGRAMADA",
+        "COBRANZA_ACCION_APROBADA",
+        "COBRANZA_ACCION_RECHAZADA",
+        "COBRANZA_ACCION_EJECUTADA",
+        "COBRANZA_ACCION_FALLIDA",
+        "COBRANZA_ACCION_OMITIDA",
+        "COBRANZA_ACCION_CANCELADA",
+        "COBRANZA_RESULTADO_REGISTRADO",
+        "PROMESA_REGISTRADA",
+        "PROMESA_CUMPLIDA",
+        "PROMESA_INCUMPLIDA",
+        "ACUERDO_CREADO",
+        "ACUERDO_APROBADO",
+        "ACUERDO_CUOTA_VENCIDA",
+        "ACUERDO_CUOTA_PAGADA",
+        "ACUERDO_CUMPLIDO",
+        "ACUERDO_INCUMPLIDO",
+        "CERTIFICACION_DEUDA_EXPEDIDA",
+        "CERTIFICACION_DEUDA_ANULADA",
+        "CASO_JURIDICO_CREADO",
+        "CASO_JURIDICO_ACTUACION",
+        "CASO_JURIDICO_ESTADO_CAMBIO",
+        "CASO_JURIDICO_CERRADO",
+        "COSTA_JUDICIAL_REGISTRADA",
+        "PAGO_REGISTRADO",
+        "PAGO_IMPUTADO",
+        "INTERES_CALCULADO",
+        "NOVEDAD_APROBADA",
+        "LIQUIDACION_COMPLETADA",
       ],
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
