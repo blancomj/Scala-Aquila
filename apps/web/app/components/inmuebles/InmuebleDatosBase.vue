@@ -26,6 +26,18 @@ function nombreTipoIdentificacion(id: number | null): string {
   return tiposIdentificacion.value.find((t) => t.id === id)?.nombre ?? '—'
 }
 
+const opcionesTipoInmueble = computed(() =>
+  tiposInmueble.value.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+)
+const opcionesHabitabilidad = computed(() => [
+  { valor: null, etiqueta: '— Sin especificar —' },
+  ...habitabilidades.value.map((h) => ({ valor: h.id, etiqueta: h.nombre })),
+])
+const opcionesEstadoLegal = computed(() => [
+  { valor: null, etiqueta: '— Sin novedad —' },
+  ...estadosLegales.value.map((e) => ({ valor: e.id, etiqueta: e.nombre })),
+])
+
 // ── formulario "Datos generales" (creación y edición) ──────────────────
 const editando = ref(false)
 const codigo = ref('')
@@ -38,7 +50,8 @@ const estadoLegalId = ref<number | null>(null)
 const estadoLegalObservaciones = ref('')
 const habitabilidadId = ref<number | null>(null)
 
-const mostrarFormulario = computed(() => props.esCreacion || editando.value)
+const errorEdicion = ref<string | null>(null)
+const guardandoEdicion = ref(false)
 
 function precargarFormulario(): void {
   const inm = inmueblesStore.inmuebleActivo
@@ -56,7 +69,26 @@ function precargarFormulario(): void {
 
 function alternarEdicion(): void {
   if (!editando.value) precargarFormulario()
+  errorEdicion.value = null
   editando.value = !editando.value
+}
+
+// Antes no había forma de guardar este formulario en modo ficha (el botón
+// "Editar ficha" solo togglaba `editando`, sin acción de guardado propia —
+// `guardar()` ya existía y cubría ambas ramas, pero nadie la invocaba desde
+// aquí). El drawer necesita un botón "Guardar cambios" real, así que se
+// expone este wrapper con manejo de error.
+async function guardarEdicion(): Promise<void> {
+  errorEdicion.value = null
+  guardandoEdicion.value = true
+  try {
+    await guardar()
+  } catch (excepcion) {
+    errorEdicion.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudieron guardar los cambios.'
+  } finally {
+    guardandoEdicion.value = false
+  }
 }
 
 // ── personas asociadas ──────────────────────────────────────────────────
@@ -102,17 +134,18 @@ async function marcarPagador(personaRolId: string): Promise<void> {
   await tercerosStore.marcarPagador(personaRolId, tenantId, props.inmuebleId)
 }
 
-// ── guardar (expuesto al padre — solo se usa en modo creación) ─────────
+// ── guardar (expuesto al padre para creación; en modo ficha lo invoca
+//    guardarEdicion desde el drawer de edición) ─────────────────────────
 async function guardar(): Promise<string> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) throw new Error('No hay copropiedad activa.')
   if (!codigo.value.trim()) throw new Error('El código del inmueble es obligatorio.')
   if (tipoId.value === null) throw new Error('Elige un tipo de inmueble.')
-  if (personasEnEspera.value.length === 0) {
-    throw new Error('Agrega al menos una persona asociada antes de guardar.')
-  }
 
   if (props.esCreacion) {
+    if (personasEnEspera.value.length === 0) {
+      throw new Error('Agrega al menos una persona asociada antes de guardar.')
+    }
     const nuevo = await inmueblesStore.crearInmueble({
       tenantId,
       codigo: codigo.value.trim(),
@@ -175,7 +208,69 @@ watchEffect(async () => {
 
 <template>
   <div>
-    <div v-if="!mostrarFormulario" class="grid-2">
+    <div v-if="esCreacion">
+      <div class="section-title" style="margin-top: 0"><h2>Datos generales</h2></div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-codigo">Código del inmueble</label>
+          <input id="f-codigo" v-model="codigo" type="text" placeholder="AP-501">
+          <span class="field-hint">Debe ser único dentro de la copropiedad.</span>
+        </div>
+        <div class="field">
+          <label for="f-tipo">Tipo</label>
+          <UiSelectorBuscable
+            id="f-tipo"
+            v-model="tipoId"
+            variante="ficha"
+            :opciones="opcionesTipoInmueble"
+            placeholder="— Elegir —"
+          />
+        </div>
+        <div class="field">
+          <label for="f-matricula">Matrícula inmobiliaria</label>
+          <input id="f-matricula" v-model="matricula" type="text" placeholder="060-987654">
+        </div>
+        <div class="field">
+          <label for="f-estado">Estado</label>
+          <select id="f-estado" v-model="estado">
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-area-priv">Área privada (m²)</label>
+          <input id="f-area-priv" v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40">
+        </div>
+        <div class="field">
+          <label for="f-area-com">Área común asignada (m²)</label>
+          <input id="f-area-com" v-model.number="areaComun" type="number" step="0.01" placeholder="6.20">
+        </div>
+        <div class="field">
+          <label for="f-habitabilidad">Habitabilidad</label>
+          <UiSelectorBuscable
+            id="f-habitabilidad"
+            v-model="habitabilidadId"
+            variante="ficha"
+            :opciones="opcionesHabitabilidad"
+          />
+        </div>
+        <div class="field">
+          <label for="f-estado-legal">Estado legal</label>
+          <UiSelectorBuscable
+            id="f-estado-legal"
+            v-model="estadoLegalId"
+            variante="ficha"
+            :opciones="opcionesEstadoLegal"
+          />
+        </div>
+        <div v-if="estadoLegalId !== null" class="field span-2">
+          <label for="f-estado-legal-obs">Observaciones</label>
+          <input id="f-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="grid-2">
       <div>
         <div class="section-title" style="margin-top: 0">
           <p class="card-title" style="margin: 0">Ficha técnica</p>
@@ -229,64 +324,81 @@ watchEffect(async () => {
       </div>
     </div>
 
-    <div v-else>
-      <div class="section-title" style="margin-top: 0"><h2>Datos generales</h2></div>
+    <UiDrawer
+      :abierto="editando"
+      titulo="Editar ficha técnica"
+      subtitulo="Datos generales del inmueble."
+      @cerrar="editando = false"
+    >
       <div class="form-grid">
         <div class="field">
-          <label for="f-codigo">Código del inmueble</label>
-          <input id="f-codigo" v-model="codigo" type="text" placeholder="AP-501">
+          <label for="fe-codigo">Código del inmueble</label>
+          <input id="fe-codigo" v-model="codigo" type="text" placeholder="AP-501">
           <span class="field-hint">Debe ser único dentro de la copropiedad.</span>
         </div>
         <div class="field">
-          <label for="f-tipo">Tipo</label>
-          <select id="f-tipo" v-model.number="tipoId">
-            <option :value="null" disabled>— Elegir —</option>
-            <option v-for="t in tiposInmueble" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-          </select>
+          <label for="fe-tipo">Tipo</label>
+          <UiSelectorBuscable
+            id="fe-tipo"
+            v-model="tipoId"
+            variante="ficha"
+            :opciones="opcionesTipoInmueble"
+            placeholder="— Elegir —"
+          />
         </div>
         <div class="field">
-          <label for="f-matricula">Matrícula inmobiliaria</label>
-          <input id="f-matricula" v-model="matricula" type="text" placeholder="060-987654">
+          <label for="fe-matricula">Matrícula inmobiliaria</label>
+          <input id="fe-matricula" v-model="matricula" type="text" placeholder="060-987654">
         </div>
         <div class="field">
-          <label for="f-estado">Estado</label>
-          <select id="f-estado" v-model="estado">
+          <label for="fe-estado">Estado</label>
+          <select id="fe-estado" v-model="estado">
             <option value="activo">Activo</option>
             <option value="inactivo">Inactivo</option>
           </select>
         </div>
         <div class="field">
-          <label for="f-area-priv">Área privada (m²)</label>
-          <input id="f-area-priv" v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40">
+          <label for="fe-area-priv">Área privada (m²)</label>
+          <input id="fe-area-priv" v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40">
         </div>
         <div class="field">
-          <label for="f-area-com">Área común asignada (m²)</label>
-          <input id="f-area-com" v-model.number="areaComun" type="number" step="0.01" placeholder="6.20">
+          <label for="fe-area-com">Área común asignada (m²)</label>
+          <input id="fe-area-com" v-model.number="areaComun" type="number" step="0.01" placeholder="6.20">
         </div>
         <div class="field">
-          <label for="f-habitabilidad">Habitabilidad</label>
-          <select id="f-habitabilidad" v-model.number="habitabilidadId">
-            <option :value="null">— Sin especificar —</option>
-            <option v-for="h in habitabilidades" :key="h.id" :value="h.id">{{ h.nombre }}</option>
-          </select>
+          <label for="fe-habitabilidad">Habitabilidad</label>
+          <UiSelectorBuscable
+            id="fe-habitabilidad"
+            v-model="habitabilidadId"
+            variante="ficha"
+            :opciones="opcionesHabitabilidad"
+          />
         </div>
         <div class="field">
-          <label for="f-estado-legal">Estado legal</label>
-          <select id="f-estado-legal" v-model.number="estadoLegalId">
-            <option :value="null">— Sin novedad —</option>
-            <option v-for="e in estadosLegales" :key="e.id" :value="e.id">{{ e.nombre }}</option>
-          </select>
+          <label for="fe-estado-legal">Estado legal</label>
+          <UiSelectorBuscable
+            id="fe-estado-legal"
+            v-model="estadoLegalId"
+            variante="ficha"
+            :opciones="opcionesEstadoLegal"
+          />
         </div>
         <div v-if="estadoLegalId !== null" class="field span-2">
-          <label for="f-estado-legal-obs">Observaciones</label>
-          <input id="f-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
+          <label for="fe-estado-legal-obs">Observaciones</label>
+          <input id="fe-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
         </div>
       </div>
-    </div>
+      <p v-if="errorEdicion" class="note" style="color: var(--ladrillo-text)">{{ errorEdicion }}</p>
+      <template #foot>
+        <button type="button" class="btn btn--ghost" @click="editando = false">Cancelar</button>
+        <button type="button" class="btn btn--primary" :disabled="guardandoEdicion" @click="guardarEdicion">
+          {{ guardandoEdicion ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </template>
+    </UiDrawer>
 
     <!-- Personas asociadas: en creación quedan en espera hasta guardar el
-         inmueble; en ficha (viendo o editando datos generales) ya están
-         persistidas — independiente de si mostrarFormulario está activo. -->
+         inmueble; en ficha ya están persistidas. -->
     <template v-if="esCreacion">
       <div class="section-title">
         <h2>Personas asociadas</h2>
@@ -295,19 +407,26 @@ watchEffect(async () => {
         </button>
       </div>
       <InmueblesInmueblePersonaForm v-if="mostrarFormPersona" :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
-      <table v-if="personasEnEspera.length > 0">
-        <thead><tr><th>Persona</th><th>Documento</th><th>Rol</th><th class="num">Participación</th><th /></tr></thead>
-        <tbody>
-          <tr v-for="(p, i) in personasEnEspera" :key="i">
-            <td>{{ p.nombre }}</td>
-            <td class="mono">{{ nombreTipoIdentificacion(p.tipoIdentificacionId) }} {{ p.numeroDocumento }}</td>
-            <td>{{ nombreRol(p.rolId) }}</td>
-            <td class="num mono">{{ p.porcentaje ? `${p.porcentaje} %` : '—' }}</td>
-            <td><button type="button" class="icon-btn-sm reject" @click="quitarPersonaEnEspera(i)">✕</button></td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-state">Todavía no hay personas agregadas.</p>
+      <UiTabla
+        variante="ficha"
+        :columnas="[
+          { clave: 'nombre', etiqueta: 'Persona' },
+          { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
+          { clave: 'rol', etiqueta: 'Rol' },
+          { clave: 'participacion', etiqueta: 'Participación', alinear: 'derecha', claseCelda: 'mono' },
+          { clave: 'acciones', etiqueta: '' },
+        ]"
+        :filas="personasEnEspera"
+        :clave-fila="(_p, i) => i"
+        vacio="Todavía no hay personas agregadas."
+      >
+        <template #celda-documento="{ fila }">{{ nombreTipoIdentificacion(fila.tipoIdentificacionId) }} {{ fila.numeroDocumento }}</template>
+        <template #celda-rol="{ fila }">{{ nombreRol(fila.rolId) }}</template>
+        <template #celda-participacion="{ fila }">{{ fila.porcentaje ? `${fila.porcentaje} %` : '—' }}</template>
+        <template #celda-acciones="{ indice }">
+          <button type="button" class="icon-btn-sm reject" @click="quitarPersonaEnEspera(indice)">✕</button>
+        </template>
+      </UiTabla>
     </template>
 
     <template v-else>
@@ -320,47 +439,63 @@ watchEffect(async () => {
           Agregar persona
         </button>
       </div>
-      <InmueblesInmueblePersonaForm v-if="mostrarFormPersona" :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
+      <UiDrawer
+        :abierto="mostrarFormPersona"
+        titulo="Agregar persona"
+        subtitulo="Asocia una persona natural o jurídica a este inmueble."
+        @cerrar="mostrarFormPersona = false"
+      >
+        <InmueblesInmueblePersonaForm :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
+      </UiDrawer>
       <div class="chips">
         <button type="button" class="chip" :class="{ 'is-active': filtroRol === 'todas' }" @click="filtroRol = 'todas'">Todas</button>
         <button v-for="r in rolesDisponibles" :key="r.id" type="button" class="chip" :class="{ 'is-active': filtroRol === r.codigo }" @click="filtroRol = r.codigo">
           {{ r.nombre }}
         </button>
       </div>
-      <table v-if="personasAsociadasFiltradas.length > 0">
-        <thead>
-          <tr>
-            <th>Persona</th><th>Documento</th><th>Rol</th><th class="num">Participación</th><th>Pagador</th><th>Notificaciones</th><th>Vigencia</th><th>Contacto</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in personasAsociadasFiltradas" :key="p.id">
-            <td>{{ p.tercero.nombre_completo }}</td>
-            <td class="mono">{{ nombreTipoIdentificacion(p.tercero.tipo_identificacion_id) }} {{ p.tercero.numero_documento }}</td>
-            <td><span class="badge badge--gris">{{ p.rol.nombre }}</span></td>
-            <td class="num mono">{{ p.porcentaje ? `${p.porcentaje} %` : '—' }}</td>
-            <td style="text-align: center">
-              <button
-                type="button"
-                class="icon-btn-sm"
-                :class="{ approve: p.es_pagador }"
-                :title="p.es_pagador ? 'Recibe la factura' : 'Marcar como pagador'"
-                @click="marcarPagador(p.id)"
-              >
-                {{ p.es_pagador ? '✓' : '✕' }}
-              </button>
-            </td>
-            <td style="text-align: center">{{ p.recibe_notificaciones ? '✓' : '✕' }}</td>
-            <td class="mono">
-              desde {{ p.vigente_desde }}<template v-if="p.vigente_hasta"> → {{ p.vigente_hasta }}</template>
-            </td>
-            <td style="color: var(--ink-faint); font-size: 12.5px">
-              {{ p.tercero.email ?? '—' }}<br>{{ p.tercero.telefono ?? '' }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-state">Sin personas asociadas todavía.</p>
+      <UiTabla
+        variante="ficha"
+        :columnas="[
+          { clave: 'nombre', etiqueta: 'Persona' },
+          { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
+          { clave: 'rol', etiqueta: 'Rol' },
+          { clave: 'participacion', etiqueta: 'Participación', alinear: 'derecha', claseCelda: 'mono' },
+          { clave: 'pagador', etiqueta: 'Pagador' },
+          { clave: 'notificaciones', etiqueta: 'Notificaciones' },
+          { clave: 'vigencia', etiqueta: 'Vigencia', claseCelda: 'mono' },
+          { clave: 'contacto', etiqueta: 'Contacto' },
+        ]"
+        :filas="personasAsociadasFiltradas"
+        :clave-fila="(p) => p.id"
+        vacio="Sin personas asociadas todavía."
+      >
+        <template #celda-nombre="{ fila }">{{ fila.tercero.nombre_completo }}</template>
+        <template #celda-documento="{ fila }">{{ nombreTipoIdentificacion(fila.tercero.tipo_identificacion_id) }} {{ fila.tercero.numero_documento }}</template>
+        <template #celda-rol="{ fila }"><span class="badge badge--gris">{{ fila.rol.nombre }}</span></template>
+        <template #celda-participacion="{ fila }">{{ fila.porcentaje ? `${fila.porcentaje} %` : '—' }}</template>
+        <template #celda-pagador="{ fila }">
+          <div style="text-align: center">
+            <button
+              type="button"
+              class="icon-btn-sm"
+              :class="{ approve: fila.es_pagador }"
+              :title="fila.es_pagador ? 'Recibe la factura' : 'Marcar como pagador'"
+              @click="marcarPagador(fila.id)"
+            >
+              {{ fila.es_pagador ? '✓' : '✕' }}
+            </button>
+          </div>
+        </template>
+        <template #celda-notificaciones="{ fila }">
+          <div style="text-align: center">{{ fila.recibe_notificaciones ? '✓' : '✕' }}</div>
+        </template>
+        <template #celda-vigencia="{ fila }">
+          desde {{ fila.vigente_desde }}<template v-if="fila.vigente_hasta"> → {{ fila.vigente_hasta }}</template>
+        </template>
+        <template #celda-contacto="{ fila }">
+          <span style="color: var(--ink-faint); font-size: 12.5px">{{ fila.tercero.email ?? '—' }}<br>{{ fila.tercero.telefono ?? '' }}</span>
+        </template>
+      </UiTabla>
       <p class="note">
         Los roles (copropietario, inquilino, apoderado, codeudor…) vienen de un catálogo
         <strong>por copropiedad, ampliable sin despliegue</strong> — cada administradora puede

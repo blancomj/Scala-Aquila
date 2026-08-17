@@ -9,6 +9,9 @@ const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
 
 const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
+const opcionesInmueble = computed(() =>
+  cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
+)
 
 await useAsyncData('cuenta-corriente-novedades-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -116,16 +119,7 @@ async function rechazar(novedadId: string): Promise<void> {
       </p>
       <form v-else class="space-y-4 max-w-sm" @submit.prevent="crearNovedad">
         <UFormField label="Inmueble" name="inmueble">
-          <select
-            v-model="inmuebleId"
-            required
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option :value="null" disabled>— Elegir —</option>
-            <option v-for="i in cuentaStore.inmuebles" :key="i.id" :value="i.id">
-              {{ i.codigo }}
-            </option>
-          </select>
+          <UiSelectorBuscable v-model="inmuebleId" :opciones="opcionesInmueble" placeholder="— Elegir —" />
         </UFormField>
         <UFormField label="Tipo" name="tipo">
           <select
@@ -161,65 +155,58 @@ async function rechazar(novedadId: string): Promise<void> {
     <div>
       <h2 class="text-lg font-semibold mb-2">Novedades registradas</h2>
       <UAlert v-if="errorAccion" color="error" variant="soft" :title="errorAccion" class="mb-2" />
-      <p v-if="cuentaStore.novedades.length === 0" class="text-gray-500 text-sm">Ninguna.</p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Fecha efectiva</th>
-            <th class="py-1 font-medium">Inmueble</th>
-            <th class="py-1 font-medium">Tipo</th>
-            <th class="py-1 font-medium">Monto</th>
-            <th class="py-1 font-medium">Descripción</th>
-            <th class="py-1 font-medium">Estado</th>
-            <th class="py-1 font-medium">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="novedad in cuentaStore.novedades"
-            :key="novedad.id"
-            class="border-b border-gray-100 dark:border-gray-900"
-          >
-            <td class="py-1.5">{{ novedad.fecha_efectiva }}</td>
-            <td class="py-1.5 text-gray-500">
-              {{ inmueblePorId.get(novedad.inmueble_id) ?? novedad.inmueble_id }}
-            </td>
-            <td class="py-1.5">{{ novedad.tipo }}</td>
-            <td class="py-1.5">{{ formatoMoneda(novedad.monto) }}</td>
-            <td class="py-1.5 text-gray-500">{{ novedad.descripcion }}</td>
-            <td class="py-1.5 text-gray-500">{{ novedad.estado }}</td>
-            <td class="py-1.5">
-              <div v-if="novedad.estado === 'pendiente'" class="flex items-center gap-2">
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :loading="accionEnCursoId === novedad.id"
-                  @click="aprobar(novedad.id)"
-                >
-                  Aprobar
-                </UButton>
-                <UInput
-                  v-model="motivoPorNovedad[novedad.id]"
-                  placeholder="Motivo de rechazo"
-                  size="xs"
-                  class="w-36"
-                />
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  color="error"
-                  :disabled="!motivoPorNovedad[novedad.id]"
-                  :loading="accionEnCursoId === novedad.id"
-                  @click="rechazar(novedad.id)"
-                >
-                  Rechazar
-                </UButton>
-              </div>
-              <span v-else class="text-gray-500">—</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UiTabla
+        :columnas="[
+          { clave: 'fechaEfectiva', etiqueta: 'Fecha efectiva' },
+          { clave: 'inmueble', etiqueta: 'Inmueble' },
+          { clave: 'tipo', etiqueta: 'Tipo' },
+          { clave: 'monto', etiqueta: 'Monto' },
+          { clave: 'descripcion', etiqueta: 'Descripción' },
+          { clave: 'estado', etiqueta: 'Estado' },
+          { clave: 'acciones', etiqueta: 'Acciones' },
+        ]"
+        :filas="cuentaStore.novedades"
+        :clave-fila="(novedad) => novedad.id"
+        vacio="Ninguna."
+      >
+        <template #celda-fechaEfectiva="{ fila }">{{ fila.fecha_efectiva }}</template>
+        <template #celda-inmueble="{ fila }">
+          <span class="text-gray-500">{{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}</span>
+        </template>
+        <template #celda-tipo="{ fila }">{{ fila.tipo }}</template>
+        <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
+        <template #celda-descripcion="{ fila }"><span class="text-gray-500">{{ fila.descripcion }}</span></template>
+        <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado }}</span></template>
+        <template #celda-acciones="{ fila }">
+          <div v-if="fila.estado === 'pendiente'" class="flex items-center gap-2">
+            <UButton
+              size="xs"
+              variant="soft"
+              :loading="accionEnCursoId === fila.id"
+              @click="aprobar(fila.id)"
+            >
+              Aprobar
+            </UButton>
+            <UInput
+              v-model="motivoPorNovedad[fila.id]"
+              placeholder="Motivo de rechazo"
+              size="xs"
+              class="w-36"
+            />
+            <UButton
+              size="xs"
+              variant="soft"
+              color="error"
+              :disabled="!motivoPorNovedad[fila.id]"
+              :loading="accionEnCursoId === fila.id"
+              @click="rechazar(fila.id)"
+            >
+              Rechazar
+            </UButton>
+          </div>
+          <span v-else class="text-gray-500">—</span>
+        </template>
+      </UiTabla>
     </div>
   </div>
 </template>

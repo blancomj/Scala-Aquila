@@ -1,10 +1,13 @@
 /**
  * Liquidación de periodos — F6 (PLAN §5, "el administrador liquida un
- * periodo... desde la UI"). Lectura de `periodos`/`liquidaciones` directo
- * por RLS; la liquidación en sí pasa por la Edge Function `liquidar-periodo`
- * porque `liquidaciones`/`liquidacion_lineas` no tienen política de INSERT
- * para `authenticated` — es una escritura privilegiada (service_role),
- * mismo criterio que invitations.ts/presupuesto.ts para operaciones que no
+ * periodo... desde la UI"). `periodos` se lee y se crea directo por RLS
+ * (`crearPeriodo`, PLAN_DATOS_REALES.md §3.1.5) — solo INSERT, sin tocar
+ * `estado` (nace 'abierto'); las transiciones posteriores las rige
+ * `guard_periodo_transicion`, no hay UPDATE de estado en este store.
+ * `liquidaciones`/`liquidacion_lineas` sí pasan por la Edge Function
+ * `liquidar-periodo` porque no tienen política de INSERT para
+ * `authenticated` — es una escritura privilegiada (service_role), mismo
+ * criterio que invitations.ts/presupuesto.ts para operaciones que no
  * pueden resolverse solo con RLS.
  */
 import { defineStore } from 'pinia'
@@ -49,6 +52,32 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /** SELECT/INSERT directo por RLS — sin Edge Function. estado nace 'abierto'
+   * (default de columna); las transiciones posteriores las rige
+   * guard_periodo_transicion, no se tocan aquí. */
+  async function crearPeriodo(params: {
+    tenantId: string
+    anio: number
+    mes: number
+    fechaVencimiento?: string
+  }): Promise<PeriodoRow> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorInsert } = await cliente
+      .from('periodos')
+      .insert({
+        tenant_id: params.tenantId,
+        anio: params.anio,
+        mes: params.mes,
+        fecha_vencimiento: params.fechaVencimiento,
+      })
+      .select('*')
+      .single()
+    if (errorInsert) throw errorInsert
+
+    await cargarPeriodos(params.tenantId)
+    return data
   }
 
   async function cargarLiquidaciones(tenantId: string): Promise<LiquidacionRow[]> {
@@ -106,6 +135,7 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     lineasPorInmueble,
     loading,
     cargarPeriodos,
+    crearPeriodo,
     cargarLiquidaciones,
     cargarLineasPorInmueble,
     liquidarPeriodo,

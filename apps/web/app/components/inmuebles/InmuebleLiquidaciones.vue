@@ -26,24 +26,27 @@ watchEffect(async () => {
         <p class="panel-sub">Historial de liquidación de este inmueble por periodo.</p>
       </div>
     </div>
-    <table v-if="liquidacionStore.lineasPorInmueble.length > 0">
-      <thead><tr><th>Periodo</th><th>Estado</th><th class="num">Monto liquidado</th><th>Fecha</th></tr></thead>
-      <tbody>
-        <tr v-for="l in liquidacionStore.lineasPorInmueble" :key="l.id">
-          <td class="mono">
-            {{ l.liquidacion.periodo.anio }}-{{ String(l.liquidacion.periodo.mes).padStart(2, '0') }}
-          </td>
-          <td>
-            <span class="badge" :class="l.liquidacion.estado === 'completada' ? 'badge--sello' : 'badge--ladrillo'">
-              {{ l.liquidacion.estado }}
-            </span>
-          </td>
-          <td class="num mono">$ {{ Number(l.monto).toLocaleString('es-CO') }}</td>
-          <td class="mono">{{ l.created_at?.slice(0, 10) }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="empty-state">Sin liquidaciones registradas para este inmueble.</p>
+    <UiTabla
+      variante="ficha"
+      :columnas="[
+        { clave: 'periodo', etiqueta: 'Periodo', claseCelda: 'mono' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'monto', etiqueta: 'Monto liquidado', alinear: 'derecha', claseCelda: 'mono' },
+        { clave: 'fecha', etiqueta: 'Fecha', claseCelda: 'mono' },
+      ]"
+      :filas="liquidacionStore.lineasPorInmueble"
+      :clave-fila="(l) => l.id"
+      vacio="Sin liquidaciones registradas para este inmueble."
+    >
+      <template #celda-periodo="{ fila }">{{ fila.liquidacion.periodo.anio }}-{{ String(fila.liquidacion.periodo.mes).padStart(2, '0') }}</template>
+      <template #celda-estado="{ fila }">
+        <span class="badge" :class="fila.liquidacion.estado === 'completada' ? 'badge--sello' : 'badge--ladrillo'">
+          {{ fila.liquidacion.estado }}
+        </span>
+      </template>
+      <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
+      <template #celda-fecha="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
+    </UiTabla>
     <p class="note">
       Un cierre solo se revierte mediante <strong>reversión auditada</strong> — nunca editando la
       liquidación directamente.

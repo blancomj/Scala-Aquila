@@ -19,35 +19,27 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
     <p v-if="platformStore.tenants.length === 0" class="text-gray-500 text-sm">
       Sin copropiedades.
     </p>
-    <table v-else class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-          <th class="py-1 font-medium">Nombre</th>
-          <th class="py-1 font-medium">Slug</th>
-          <th class="py-1 font-medium">Estado</th>
-          <th class="py-1 font-medium">Miembros</th>
-          <th class="py-1 font-medium">Última actividad</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="tenant in platformStore.tenants"
-          :key="tenant.id ?? tenant.slug ?? undefined"
-          class="border-b border-gray-100 dark:border-gray-900"
-        >
-          <td class="py-1.5">{{ tenant.name }}</td>
-          <td class="py-1.5 text-gray-500">{{ tenant.slug }}</td>
-          <td class="py-1.5">{{ tenant.status }}</td>
-          <td class="py-1.5">{{ tenant.member_count }}</td>
-          <td class="py-1.5 whitespace-nowrap">
-            {{
-              tenant.last_activity_at
-                ? new Date(tenant.last_activity_at).toLocaleString('es-CO')
-                : '—'
-            }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <UiTabla
+      v-else
+      :columnas="[
+        { clave: 'nombre', etiqueta: 'Nombre' },
+        { clave: 'slug', etiqueta: 'Slug' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'miembros', etiqueta: 'Miembros' },
+        { clave: 'ultimaActividad', etiqueta: 'Última actividad' },
+      ]"
+      :filas="platformStore.tenants"
+      :clave-fila="(tenant) => tenant.id ?? tenant.slug ?? ''"
+    >
+      <template #celda-nombre="{ fila }">{{ fila.name }}</template>
+      <template #celda-slug="{ fila }"><span class="text-gray-500">{{ fila.slug }}</span></template>
+      <template #celda-estado="{ fila }">{{ fila.status }}</template>
+      <template #celda-miembros="{ fila }">{{ fila.member_count }}</template>
+      <template #celda-ultimaActividad="{ fila }">
+        <span class="whitespace-nowrap">
+          {{ fila.last_activity_at ? new Date(fila.last_activity_at).toLocaleString('es-CO') : '—' }}
+        </span>
+      </template>
+    </UiTabla>
   </div>
 </template>

@@ -18,7 +18,10 @@ const csp = [
   // cerrado. Limitación conocida, no un descuido.
   `script-src 'self' 'unsafe-inline'${esDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
+  // Supabase: URLs públicas de Storage (bucket logo-copropiedad) sirven
+  // imágenes desde el dominio del proyecto — sin esto un <img> con esa URL
+  // queda bloqueado por CSP aunque la petición HTTP responda 200.
+  `img-src 'self' data: ${supabaseHttp}`,
   "font-src 'self' data:",
   "base-uri 'self'",
   "form-action 'self'",

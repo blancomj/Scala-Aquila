@@ -80,30 +80,40 @@ watchEffect(cargar)
     </div>
 
     <div class="section-title" style="margin-top: 0"><h2>Cargos pendientes</h2></div>
-    <table v-if="cuentaStore.cargosAbiertos.length > 0">
-      <thead><tr><th>Categoría</th><th class="num">Pendiente</th><th>Desde</th></tr></thead>
-      <tbody>
-        <tr v-for="c in cuentaStore.cargosAbiertos" :key="c.id ?? undefined">
-          <td><span class="badge" :class="c.categoria === 'interes' ? 'badge--ladrillo' : 'badge--gris'">{{ c.categoria }}</span></td>
-          <td class="num mono">$ {{ Number(c.monto_pendiente).toLocaleString('es-CO') }}</td>
-          <td class="mono">{{ c.created_at?.slice(0, 10) }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="empty-state">Sin cargos pendientes.</p>
+    <UiTabla
+      variante="ficha"
+      :columnas="[
+        { clave: 'categoria', etiqueta: 'Categoría' },
+        { clave: 'pendiente', etiqueta: 'Pendiente', alinear: 'derecha', claseCelda: 'mono' },
+        { clave: 'desde', etiqueta: 'Desde', claseCelda: 'mono' },
+      ]"
+      :filas="cuentaStore.cargosAbiertos"
+      :clave-fila="(c, i) => c.id ?? i"
+      vacio="Sin cargos pendientes."
+    >
+      <template #celda-categoria="{ fila }">
+        <span class="badge" :class="fila.categoria === 'interes' ? 'badge--ladrillo' : 'badge--gris'">{{ fila.categoria }}</span>
+      </template>
+      <template #celda-pendiente="{ fila }">$ {{ Number(fila.monto_pendiente).toLocaleString('es-CO') }}</template>
+      <template #celda-desde="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
+    </UiTabla>
 
     <div class="section-title"><h2>Pagos recientes</h2></div>
-    <table v-if="cuentaStore.pagos.length > 0">
-      <thead><tr><th>Fecha</th><th class="num">Monto</th><th>Referencia</th></tr></thead>
-      <tbody>
-        <tr v-for="p in cuentaStore.pagos" :key="p.id">
-          <td class="mono">{{ p.fecha_pago }}</td>
-          <td class="num mono">$ {{ Number(p.monto).toLocaleString('es-CO') }}</td>
-          <td class="mono">{{ p.referencia ?? '—' }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="empty-state">Sin pagos registrados.</p>
+    <UiTabla
+      variante="ficha"
+      :columnas="[
+        { clave: 'fecha', etiqueta: 'Fecha', claseCelda: 'mono' },
+        { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
+        { clave: 'referencia', etiqueta: 'Referencia', claseCelda: 'mono' },
+      ]"
+      :filas="cuentaStore.pagos"
+      :clave-fila="(p) => p.id"
+      vacio="Sin pagos registrados."
+    >
+      <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
+      <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
+      <template #celda-referencia="{ fila }">{{ fila.referencia ?? '—' }}</template>
+    </UiTabla>
 
     <div class="section-title"><h2>Registrar pago</h2></div>
     <div class="form-grid">

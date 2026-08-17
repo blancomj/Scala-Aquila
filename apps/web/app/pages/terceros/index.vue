@@ -64,35 +64,40 @@ watchEffect(async () => {
         <button type="button" class="chip" :class="{ 'is-active': filtro === 'juridica' }" @click="filtro = 'juridica'">Persona jurídica</button>
       </div>
 
-      <table v-if="tercerosFiltrados.length > 0">
-        <thead>
-          <tr><th>Tercero</th><th>Documento</th><th>Email</th><th>Teléfono</th><th>Estado</th><th /></tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in tercerosFiltrados" :key="t.id">
-            <td>
-              <div class="tercero-nombre">{{ t.nombre_completo }}</div>
-              <div class="tercero-sub">
-                {{ t.tipo_persona === 'natural' ? 'Persona natural' : 'Persona jurídica' }}
-              </div>
-            </td>
-            <td class="mono">{{ t.numero_documento }}<template v-if="t.digito_verificacion">-{{ t.digito_verificacion }}</template></td>
-            <td>{{ t.email ?? '—' }}</td>
-            <td class="mono">{{ t.telefono ?? '—' }}</td>
-            <td>
-              <span class="badge" :class="nombreEstado(t.estado_id) === 'Activo' ? 'badge--sello' : 'badge--gris'">
-                {{ nombreEstado(t.estado_id) }}
-              </span>
-            </td>
-            <td>
-              <div class="row-actions">
-                <button type="button" class="icon-btn-sm" aria-label="Editar" @click="abrirEditar(t.id)">✎</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-state">Ninguno.</p>
+      <UiTabla
+        variante="ficha"
+        :columnas="[
+          { clave: 'tercero', etiqueta: 'Tercero' },
+          { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
+          { clave: 'email', etiqueta: 'Email' },
+          { clave: 'telefono', etiqueta: 'Teléfono', claseCelda: 'mono' },
+          { clave: 'estado', etiqueta: 'Estado' },
+          { clave: 'acciones', etiqueta: '' },
+        ]"
+        :filas="tercerosFiltrados"
+        :clave-fila="(t) => t.id"
+        vacio="Ninguno."
+      >
+        <template #celda-tercero="{ fila }">
+          <div class="tercero-nombre">{{ fila.nombre_completo }}</div>
+          <div class="tercero-sub">
+            {{ fila.tipo_persona === 'natural' ? 'Persona natural' : 'Persona jurídica' }}
+          </div>
+        </template>
+        <template #celda-documento="{ fila }">{{ fila.numero_documento }}<template v-if="fila.digito_verificacion">-{{ fila.digito_verificacion }}</template></template>
+        <template #celda-email="{ fila }">{{ fila.email ?? '—' }}</template>
+        <template #celda-telefono="{ fila }">{{ fila.telefono ?? '—' }}</template>
+        <template #celda-estado="{ fila }">
+          <span class="badge" :class="nombreEstado(fila.estado_id) === 'Activo' ? 'badge--sello' : 'badge--gris'">
+            {{ nombreEstado(fila.estado_id) }}
+          </span>
+        </template>
+        <template #celda-acciones="{ fila }">
+          <div class="row-actions">
+            <button type="button" class="icon-btn-sm" aria-label="Editar" @click="abrirEditar(fila.id)">✎</button>
+          </div>
+        </template>
+      </UiTabla>
     </div>
 
     <TercerosTerceroModal v-if="modalAbierto" :tercero-id="terceroEditando" @cerrar="cerrarModal" @guardado="alGuardar" />

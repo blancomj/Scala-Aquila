@@ -21,6 +21,19 @@ const presupuestoSeleccionado = computed(
 const fundamentoPorId = computed(
   () => new Map(fundamentoStore.fundamentos.map((f) => [f.id, f.norma])),
 )
+const opcionesPresupuesto = computed(() =>
+  presupuestoStore.presupuestos.map((p) => ({
+    valor: p.id,
+    etiqueta: `${p.anio} — v${p.version} (${p.estado})`,
+  })),
+)
+const opcionesCategoriaRubro = computed(() =>
+  presupuestoStore.categoriasRubro.map((c) => ({ valor: c.id, etiqueta: c.nombre })),
+)
+const opcionesFundamento = computed(() => [
+  { valor: null, etiqueta: '— Ninguno —' },
+  ...fundamentoStore.fundamentos.map((f) => ({ valor: f.id, etiqueta: f.norma })),
+])
 
 // ── crear presupuesto ──────────────────────────────────────────────────
 const nuevoAnio = ref<number | null>(new Date().getFullYear())
@@ -258,14 +271,7 @@ async function previsualizar(): Promise<void> {
 
     <template v-else>
       <UFormField label="Presupuesto" name="presupuesto">
-        <select
-          v-model="presupuestoSeleccionadoId"
-          class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-        >
-          <option v-for="p in presupuestoStore.presupuestos" :key="p.id" :value="p.id">
-            {{ p.anio }} — v{{ p.version }} ({{ p.estado }})
-          </option>
-        </select>
+        <UiSelectorBuscable v-model="presupuestoSeleccionadoId" :opciones="opcionesPresupuesto" />
       </UFormField>
 
       <div>
@@ -282,35 +288,26 @@ async function previsualizar(): Promise<void> {
           </UButton>
         </div>
 
-        <p v-if="presupuestoStore.rubros.length === 0" class="text-gray-500 text-sm">Ninguno.</p>
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Código</th>
-              <th class="py-1 font-medium">Nombre</th>
-              <th class="py-1 font-medium">Monto anual</th>
-              <th class="py-1 font-medium">Fundamento</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="rubro in presupuestoStore.rubros"
-              :key="rubro.id"
-              class="border-b border-gray-100 dark:border-gray-900"
-            >
-              <td class="py-1.5">{{ rubro.codigo }}</td>
-              <td class="py-1.5">{{ rubro.nombre }}</td>
-              <td class="py-1.5">{{ formatoMoneda(rubro.monto_anual) }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{
-                  rubro.fundamento_normativo_id
-                    ? fundamentoPorId.get(rubro.fundamento_normativo_id)
-                    : '—'
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UiTabla
+          :columnas="[
+            { clave: 'codigo', etiqueta: 'Código' },
+            { clave: 'nombre', etiqueta: 'Nombre' },
+            { clave: 'montoAnual', etiqueta: 'Monto anual' },
+            { clave: 'fundamento', etiqueta: 'Fundamento' },
+          ]"
+          :filas="presupuestoStore.rubros"
+          :clave-fila="(rubro) => rubro.id"
+          vacio="Ninguno."
+        >
+          <template #celda-codigo="{ fila }">{{ fila.codigo }}</template>
+          <template #celda-nombre="{ fila }">{{ fila.nombre }}</template>
+          <template #celda-montoAnual="{ fila }">{{ formatoMoneda(fila.monto_anual) }}</template>
+          <template #celda-fundamento="{ fila }">
+            <span class="text-gray-500">
+              {{ fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—' }}
+            </span>
+          </template>
+        </UiTabla>
 
         <p v-if="presupuestoSeleccionado" class="text-sm text-gray-500 mt-2">
           Σ rubros: {{ formatoMoneda(sumaRubros) }} / monto_total:
@@ -343,15 +340,11 @@ async function previsualizar(): Promise<void> {
             <UInput v-model="rubroNombre" required class="w-full" />
           </UFormField>
           <UFormField label="Categoría" name="categoria">
-            <select
+            <UiSelectorBuscable
               v-model="rubroCategoriaId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null" disabled>— Elegir —</option>
-              <option v-for="c in presupuestoStore.categoriasRubro" :key="c.id" :value="c.id">
-                {{ c.nombre }}
-              </option>
-            </select>
+              :opciones="opcionesCategoriaRubro"
+              placeholder="— Elegir —"
+            />
           </UFormField>
           <UFormField label="Monto anual" name="monto_anual">
             <UInput
@@ -363,15 +356,7 @@ async function previsualizar(): Promise<void> {
             />
           </UFormField>
           <UFormField label="Fundamento normativo" name="fundamento_normativo_id">
-            <select
-              v-model="rubroFundamentoId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">— Ninguno —</option>
-              <option v-for="f in fundamentoStore.fundamentos" :key="f.id" :value="f.id">
-                {{ f.norma }}
-              </option>
-            </select>
+            <UiSelectorBuscable v-model="rubroFundamentoId" :opciones="opcionesFundamento" />
           </UFormField>
           <UAlert v-if="errorRubro" color="error" variant="soft" :title="errorRubro" />
           <UButton type="submit" :loading="creandoRubro">Agregar rubro</UButton>
@@ -380,37 +365,28 @@ async function previsualizar(): Promise<void> {
 
       <div>
         <h2 class="text-lg font-semibold mb-2">Fuentes registradas</h2>
-        <p v-if="presupuestoStore.fuentes.length === 0" class="text-gray-500 text-sm">Ninguna.</p>
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Tipo</th>
-              <th class="py-1 font-medium">Disponible</th>
-              <th class="py-1 font-medium">Aplicado</th>
-              <th class="py-1 font-medium">Descripción</th>
-              <th class="py-1 font-medium">Fundamento</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="fuente in presupuestoStore.fuentes"
-              :key="fuente.id"
-              class="border-b border-gray-100 dark:border-gray-900"
-            >
-              <td class="py-1.5">{{ fuente.tipo }}</td>
-              <td class="py-1.5">{{ formatoMoneda(fuente.valor_disponible) }}</td>
-              <td class="py-1.5">{{ formatoMoneda(fuente.valor_aplicado) }}</td>
-              <td class="py-1.5 text-gray-500">{{ fuente.descripcion ?? '—' }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{
-                  fuente.fundamento_normativo_id
-                    ? fundamentoPorId.get(fuente.fundamento_normativo_id)
-                    : '—'
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UiTabla
+          :columnas="[
+            { clave: 'tipo', etiqueta: 'Tipo' },
+            { clave: 'disponible', etiqueta: 'Disponible' },
+            { clave: 'aplicado', etiqueta: 'Aplicado' },
+            { clave: 'descripcion', etiqueta: 'Descripción' },
+            { clave: 'fundamento', etiqueta: 'Fundamento' },
+          ]"
+          :filas="presupuestoStore.fuentes"
+          :clave-fila="(fuente) => fuente.id"
+          vacio="Ninguna."
+        >
+          <template #celda-tipo="{ fila }">{{ fila.tipo }}</template>
+          <template #celda-disponible="{ fila }">{{ formatoMoneda(fila.valor_disponible) }}</template>
+          <template #celda-aplicado="{ fila }">{{ formatoMoneda(fila.valor_aplicado) }}</template>
+          <template #celda-descripcion="{ fila }"><span class="text-gray-500">{{ fila.descripcion ?? '—' }}</span></template>
+          <template #celda-fundamento="{ fila }">
+            <span class="text-gray-500">
+              {{ fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—' }}
+            </span>
+          </template>
+        </UiTabla>
       </div>
 
       <div>
@@ -443,26 +419,20 @@ async function previsualizar(): Promise<void> {
               {{ formatoMoneda(previsualizacion.otros_ingresos_aplicados) }})
             </span>
           </p>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-                <th class="py-1 font-medium">Inmueble</th>
-                <th class="py-1 font-medium">Coeficiente</th>
-                <th class="py-1 font-medium">Valor asignado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="fila in previsualizacion.distribucion"
-                :key="fila.inmueble_id"
-                class="border-b border-gray-100 dark:border-gray-900"
-              >
-                <td class="py-1.5">{{ fila.codigo }}</td>
-                <td class="py-1.5 text-gray-500">{{ fila.coeficiente ?? '—' }}</td>
-                <td class="py-1.5">{{ formatoMoneda(fila.valor_asignado) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <UiTabla
+            :columnas="[
+              { clave: 'inmueble', etiqueta: 'Inmueble' },
+              { clave: 'coeficiente', etiqueta: 'Coeficiente' },
+              { clave: 'valorAsignado', etiqueta: 'Valor asignado' },
+            ]"
+            :filas="previsualizacion.distribucion"
+            :clave-fila="(fila) => fila.inmueble_id"
+            vacio="Sin distribución para este presupuesto."
+          >
+            <template #celda-inmueble="{ fila }">{{ fila.codigo }}</template>
+            <template #celda-coeficiente="{ fila }"><span class="text-gray-500">{{ fila.coeficiente ?? '—' }}</span></template>
+            <template #celda-valorAsignado="{ fila }">{{ formatoMoneda(fila.valor_asignado) }}</template>
+          </UiTabla>
         </template>
       </div>
 
@@ -504,15 +474,7 @@ async function previsualizar(): Promise<void> {
           </UFormField>
 
           <UFormField label="Fundamento normativo" name="fundamento_normativo_id">
-            <select
-              v-model="fuenteFundamentoId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">— Ninguno —</option>
-              <option v-for="f in fundamentoStore.fundamentos" :key="f.id" :value="f.id">
-                {{ f.norma }}
-              </option>
-            </select>
+            <UiSelectorBuscable v-model="fuenteFundamentoId" :opciones="opcionesFundamento" />
           </UFormField>
 
           <UAlert v-if="error" color="error" variant="soft" :title="error" />

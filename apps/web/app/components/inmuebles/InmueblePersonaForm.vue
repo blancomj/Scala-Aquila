@@ -48,6 +48,11 @@ const vigenteHasta = ref('')
 const rolSeleccionado = computed(() => props.roles.find((r) => r.id === rolId.value) ?? null)
 const esCopropietario = computed(() => rolSeleccionado.value?.codigo === 'copropietario')
 
+const opcionesRol = computed(() => props.roles.map((r) => ({ valor: r.id, etiqueta: r.nombre })))
+const opcionesTipoIdentificacion = computed(() =>
+  tiposIdentificacion.value.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+)
+
 function guardar(): void {
   if (
     rolId.value === null ||
@@ -76,10 +81,7 @@ function guardar(): void {
   <div class="form-grid">
     <div class="field">
       <label for="pf-rol">Rol</label>
-      <select id="pf-rol" v-model.number="rolId">
-        <option :value="null" disabled>— Elegir —</option>
-        <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.nombre }}</option>
-      </select>
+      <UiSelectorBuscable id="pf-rol" v-model="rolId" variante="ficha" :opciones="opcionesRol" placeholder="— Elegir —" />
     </div>
     <div class="field">
       <label for="pf-nombre">Nombre completo</label>
@@ -87,10 +89,13 @@ function guardar(): void {
     </div>
     <div class="field">
       <label for="pf-tipo-doc">Tipo de documento</label>
-      <select id="pf-tipo-doc" v-model.number="tipoIdentificacionId">
-        <option :value="null" disabled>— Elegir —</option>
-        <option v-for="t in tiposIdentificacion" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-      </select>
+      <UiSelectorBuscable
+        id="pf-tipo-doc"
+        v-model="tipoIdentificacionId"
+        variante="ficha"
+        :opciones="opcionesTipoIdentificacion"
+        placeholder="— Elegir —"
+      />
     </div>
     <div class="field">
       <label for="pf-num-doc">Número de documento</label>

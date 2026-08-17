@@ -105,12 +105,20 @@ export const ERROR_CODES = {
   // ── Ficha de inmueble: documentos (§8.1) ────────────────────────────────
   ARCHIVO_INVALIDO: 'ARCHIVO_INVALIDO',
   TIPO_DOCUMENTO_INVALIDO: 'TIPO_DOCUMENTO_INVALIDO',
+  INMUEBLE_INVALIDO: 'INMUEBLE_INVALIDO',
 
   // ── Terceros: generalización natural/jurídica ───────────────────────────
   TIPO_IDENTIFICACION_INVALIDO: 'TIPO_IDENTIFICACION_INVALIDO',
   ESTADO_TERCERO_INVALIDO: 'ESTADO_TERCERO_INVALIDO',
   TERCERO_REPRESENTANTE_INVALIDO: 'TERCERO_REPRESENTANTE_INVALIDO',
   TERCERO_PAGADOR_INVALIDO: 'TERCERO_PAGADOR_INVALIDO',
+
+  // ── Ficha de copropiedad: datos básicos del tenant ──────────────────────
+  TIPO_DIVISION_INVALIDO: 'TIPO_DIVISION_INVALIDO',
+
+  // ── Estado de cuenta (PLAN_DATOS_REALES.md §3.3) ─────────────────────────
+  ESTADO_CUENTA_NO_ENCONTRADO: 'ESTADO_CUENTA_NO_ENCONTRADO',
+  ESTADO_CUENTA_VENCIDO: 'ESTADO_CUENTA_VENCIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

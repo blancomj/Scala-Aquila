@@ -1,15 +1,29 @@
 /**
- * Terceros — mantenimiento (PROMPT_MANTENIMIENTO_TERCEROS.md §6.3) y
+ * Terceros — mantenimiento (PROMPT_MANTENIMIENTO_TERCEROS.md §6.3),
  * asociación de terceros a un inmueble (ficha de inmueble,
- * PROMPT_FICHA_INMUEBLE.md §4.2, §7.1-7.3). Antes `personas.ts` — la tabla
- * se generalizó a natural/jurídica (migración 20260821100000).
+ * PROMPT_FICHA_INMUEBLE.md §4.2, §7.1-7.3) y asociación de terceros a la
+ * copropiedad misma (ficha de copropiedad, PROMPT_FICHA_COPROPIEDAD.md
+ * §4.4, §7.3 — cierra el gap §8.2 de PROMPT_MANTENIMIENTO_TERCEROS.md, que
+ * daba estas funciones por existentes sin estarlo). Antes `personas.ts` —
+ * la tabla se generalizó a natural/jurídica (migración 20260821100000).
  *
  * SELECT/INSERT/UPDATE van directo por RLS (agent) — sin Edge Function,
  * mismo criterio que fundamentoNormativo.ts/members.ts. `marcarPagador` es
- * la única excepción: pasa por el RPC `fn_marcar_pagador` para que
- * desmarcar+marcar sea una sola transacción — nunca un UPDATE directo
- * sobre `es_pagador` desde aquí (violaría el índice único parcial si ya
- * hay otro pagador vigente).
+ * la única excepción de tipo "swap atómico de un solo X vigente": pasa por
+ * el RPC `fn_marcar_pagador` para que desmarcar+marcar sea una sola
+ * transacción — nunca un UPDATE directo sobre `es_pagador` (violaría el
+ * índice único parcial si ya hay otro pagador vigente).
+ *
+ * `asociarTerceroInmueble` y `asociarTerceroTenant` además llaman a
+ * `fn_cerrar_rol_anterior`/`fn_cerrar_rol_anterior_tenant` tras insertar:
+ * cierran la vigencia (vigente_hasta = vigente_desde de la persona nueva)
+ * de quien tenía ese mismo rol activo en el inmueble/la copropiedad — un
+ * solo titular vigente por rol a la vez. Excepción única: copropietario en
+ * `inmueble_persona_rol`, que sí admite varias personas activas (decisión
+ * explícita del usuario). `tenant_tercero_rol` no tiene esa excepción —
+ * ningún rol de PERSONA_COPROPIEDAD admite varios titulares vigentes
+ * (decisión explícita del usuario, esta sesión, revierte lo documentado en
+ * 20260822090000_tenant_tercero_rol.sql).
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -17,9 +31,15 @@ import type { Database } from '@aquila/shared'
 type TerceroRow = Database['public']['Tables']['terceros']['Row']
 type TerceroTipo = Database['public']['Enums']['tercero_tipo_t']
 type InmueblePersonaRolRow = Database['public']['Tables']['inmueble_persona_rol']['Row']
+type TenantTerceroRolRow = Database['public']['Tables']['tenant_tercero_rol']['Row']
 type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 
 export interface TerceroAsociado extends InmueblePersonaRolRow {
+  readonly tercero: TerceroRow
+  readonly rol: ListaTipoRow
+}
+
+export interface PersonaTenant extends TenantTerceroRolRow {
   readonly tercero: TerceroRow
   readonly rol: ListaTipoRow
 }
@@ -80,7 +100,9 @@ export const useTercerosStore = defineStore('terceros', () => {
   const tiposIdentificacion = shallowRef<ListaTipoRow[]>([])
   const estadosGenerales = shallowRef<ListaTipoRow[]>([])
   const rolesPersonaPredio = shallowRef<ListaTipoRow[]>([])
+  const rolesPersonaCopropiedad = shallowRef<ListaTipoRow[]>([])
   const tercerosAsociados = shallowRef<TerceroAsociado[]>([])
+  const personasTenant = shallowRef<PersonaTenant[]>([])
   const loading = ref(false)
 
   // ── Mantenimiento de terceros (PROMPT_MANTENIMIENTO_TERCEROS.md) ───────
@@ -102,12 +124,14 @@ export const useTercerosStore = defineStore('terceros', () => {
   }
 
   async function cargarCatalogos(tenantId: string): Promise<void> {
-    const [tipos, estados] = await Promise.all([
+    const [tipos, estados, rolesCopropiedad] = await Promise.all([
       cargarListaTipos(tenantId, 'TIPO_IDENTIFICACION'),
       cargarListaTipos(tenantId, 'ESTADO_TERCERO'),
+      cargarListaTipos(tenantId, 'PERSONA_COPROPIEDAD'),
     ])
     tiposIdentificacion.value = tipos
     estadosGenerales.value = estados
+    rolesPersonaCopropiedad.value = rolesCopropiedad
   }
 
   async function cargarTercerosNaturales(tenantId: string): Promise<TerceroRow[]> {
@@ -304,6 +328,19 @@ export const useTercerosStore = defineStore('terceros', () => {
       .single()
     if (errorInsert) throw errorInsert
 
+    // Cierra la vigencia de quien tenía este mismo rol activo en el
+    // inmueble — excepto copropietario, que sí admite varios activos a la
+    // vez (copropiedad compartida). No-op silencioso si no había nadie con
+    // ese rol o si el rol es copropietario (fn_cerrar_rol_anterior).
+    const { error: errorCierre } = await cliente.rpc('fn_cerrar_rol_anterior', {
+      p_persona_rol_id: asociacion.id,
+      p_tenant_id: params.tenantId,
+      p_inmueble_id: params.inmuebleId,
+      p_rol_id: params.rolId,
+      p_vigente_desde: params.vigenteDesde,
+    })
+    if (errorCierre) throw errorCierre
+
     if (params.esPagador) {
       await marcarPagador(asociacion.id, params.tenantId, params.inmuebleId)
     }
@@ -353,10 +390,84 @@ export const useTercerosStore = defineStore('terceros', () => {
     await cargarTercerosAsociados(tenantId, inmuebleId)
   }
 
+  // ── Asociación de terceros a la copropiedad (ficha de copropiedad) ─────
+  async function cargarPersonasTenant(tenantId: string): Promise<PersonaTenant[]> {
+    loading.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error: errorPersonas } = await cliente
+        .from('tenant_tercero_rol')
+        .select('*, tercero:terceros(*), rol:lista_tipos(*)')
+        .eq('tenant_id', tenantId)
+        .order('vigente_desde', { ascending: false })
+      if (errorPersonas) throw errorPersonas
+      personasTenant.value = (data ?? []) as PersonaTenant[]
+      return personasTenant.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** Sin restricción de tipo_persona (a diferencia de representante legal/pagador) —
+   * un administrador o contador de la copropiedad puede ser natural o jurídico. */
+  async function asociarTerceroTenant(params: {
+    tenantId: string
+    terceroId: string
+    rolId: number
+    vigenteDesde: string
+    recibeNotificaciones: boolean
+  }): Promise<PersonaTenant> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorInsert } = await cliente
+      .from('tenant_tercero_rol')
+      .insert({
+        tenant_id: params.tenantId,
+        tercero_id: params.terceroId,
+        rol_id: params.rolId,
+        vigente_desde: params.vigenteDesde,
+        recibe_notificaciones: params.recibeNotificaciones,
+      })
+      .select('*, tercero:terceros(*), rol:lista_tipos(*)')
+      .single()
+    if (errorInsert) throw errorInsert
+
+    // Cierra la vigencia de quien tenía este mismo rol activo en la
+    // copropiedad — sin excepción de rol (a diferencia de
+    // fn_cerrar_rol_anterior, aquí no existe el concepto "copropietario").
+    const { error: errorCierre } = await cliente.rpc('fn_cerrar_rol_anterior_tenant', {
+      p_tenant_tercero_rol_id: data.id,
+      p_tenant_id: params.tenantId,
+      p_rol_id: params.rolId,
+      p_vigente_desde: params.vigenteDesde,
+    })
+    if (errorCierre) throw errorCierre
+
+    await cargarPersonasTenant(params.tenantId)
+    return data as PersonaTenant
+  }
+
+  /** Termina la relación poniendo vigente_hasta — nunca DELETE, mismo criterio
+   * que inmueble_persona_rol/terceros.estado_id. */
+  async function finalizarRelacionTenant(
+    id: string,
+    tenantId: string,
+    vigenteHasta: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error: errorUpdate } = await cliente
+      .from('tenant_tercero_rol')
+      .update({ vigente_hasta: vigenteHasta })
+      .eq('id', id)
+    if (errorUpdate) throw errorUpdate
+
+    await cargarPersonasTenant(tenantId)
+  }
+
   function limpiar(): void {
     terceros.value = []
     tercerosNaturales.value = []
     tercerosAsociados.value = []
+    personasTenant.value = []
   }
 
   return {
@@ -365,7 +476,9 @@ export const useTercerosStore = defineStore('terceros', () => {
     tiposIdentificacion,
     estadosGenerales,
     rolesPersonaPredio,
+    rolesPersonaCopropiedad,
     tercerosAsociados,
+    personasTenant,
     loading,
     cargarTerceros,
     cargarCatalogos,
@@ -377,6 +490,9 @@ export const useTercerosStore = defineStore('terceros', () => {
     asociarTerceroInmueble,
     actualizarAsociacion,
     marcarPagador,
+    cargarPersonasTenant,
+    asociarTerceroTenant,
+    finalizarRelacionTenant,
     limpiar,
   }
 })

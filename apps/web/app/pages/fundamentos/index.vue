@@ -64,30 +64,24 @@ async function crear(): Promise<void> {
       <p v-if="fundamentoStore.fundamentos.length === 0" class="text-gray-500 text-sm">
         Ninguno todavía.
       </p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Tipo</th>
-            <th class="py-1 font-medium">Norma</th>
-            <th class="py-1 font-medium">Artículo</th>
-            <th class="py-1 font-medium">Origen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="fundamento in fundamentoStore.fundamentos"
-            :key="fundamento.id"
-            class="border-b border-gray-100 dark:border-gray-900"
-          >
-            <td class="py-1.5">{{ fundamento.tipo }}</td>
-            <td class="py-1.5">{{ fundamento.norma }}</td>
-            <td class="py-1.5 text-gray-500">{{ fundamento.articulo ?? '—' }}</td>
-            <td class="py-1.5 text-gray-500">
-              {{ fundamento.tenant_id === null ? 'Plataforma' : 'Esta copropiedad' }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UiTabla
+        v-else
+        :columnas="[
+          { clave: 'tipo', etiqueta: 'Tipo' },
+          { clave: 'norma', etiqueta: 'Norma' },
+          { clave: 'articulo', etiqueta: 'Artículo' },
+          { clave: 'origen', etiqueta: 'Origen' },
+        ]"
+        :filas="fundamentoStore.fundamentos"
+        :clave-fila="(fundamento) => fundamento.id"
+      >
+        <template #celda-tipo="{ fila }">{{ fila.tipo }}</template>
+        <template #celda-norma="{ fila }">{{ fila.norma }}</template>
+        <template #celda-articulo="{ fila }"><span class="text-gray-500">{{ fila.articulo ?? '—' }}</span></template>
+        <template #celda-origen="{ fila }">
+          <span class="text-gray-500">{{ fila.tenant_id === null ? 'Plataforma' : 'Esta copropiedad' }}</span>
+        </template>
+      </UiTabla>
     </div>
 
     <div>

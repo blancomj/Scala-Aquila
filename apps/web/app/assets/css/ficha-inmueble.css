@@ -731,6 +731,17 @@
 .ficha-inmueble .field.span-2 {
   grid-column: span 2;
 }
+.ficha-inmueble .field-row-2 {
+  display: flex;
+  gap: 16px;
+}
+.ficha-inmueble .field-row-2 > .field {
+  flex: 1;
+  min-width: 0;
+}
+.ficha-inmueble .field-row-2 > .field.field-dv {
+  flex: 0 0 64px;
+}
 .ficha-inmueble .field label {
   font-size: 12px;
   font-weight: 500;
@@ -755,6 +766,65 @@
 .ficha-inmueble .field-hint {
   font-size: 11px;
   color: var(--ink-faint);
+}
+
+/* UiSelectorBuscable.vue, variante="ficha" — mismos tokens que .field select
+   (trigger normal) / select.cat-select (trigger compacta), sin cambio visual
+   frente al <select> nativo que reemplaza. */
+.ficha-inmueble .selector-buscable-trigger.is-ficha {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.ficha-inmueble .selector-buscable-trigger.is-ficha:focus-visible {
+  outline: none;
+  border-color: var(--sello);
+  box-shadow: 0 0 0 3px var(--sello-soft);
+}
+.ficha-inmueble .selector-buscable-trigger.is-ficha.is-compacta {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
+.ficha-inmueble .selector-buscable-panel.is-ficha {
+  background: var(--sheet);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 20px rgba(28, 35, 32, 0.14);
+}
+.ficha-inmueble .selector-buscable-busqueda.is-ficha {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  padding: 8px 11px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.ficha-inmueble .selector-buscable-opcion.is-ficha {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+.ficha-inmueble .selector-buscable-opcion.is-ficha.is-activa {
+  background: var(--sello-soft);
+  color: var(--sello-text);
+}
+.ficha-inmueble .selector-buscable-opcion.is-ficha.is-seleccionada {
+  font-weight: 500;
+}
+.ficha-inmueble .selector-buscable-vacio.is-ficha {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--ink-faint);
+  padding: 8px 9px;
 }
 
 .ficha-inmueble .empty-state {
@@ -875,9 +945,82 @@
   border-top: 1px solid var(--line);
 }
 
+/* Drawer — panel lateral derecho (agregar persona, nueva novedad, editar
+   ficha técnica). Mismos tokens que .modal, pero anclado a la derecha y
+   con alto completo en vez de centrado — esas tres acciones ahora abren
+   aquí en vez de reemplazar contenido en línea. */
+.ficha-inmueble .drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 35, 32, 0.45);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 30;
+}
+.ficha-inmueble .drawer {
+  height: 100%;
+  width: 100%;
+  max-width: 460px;
+  background: var(--sheet);
+  border-left: 1px solid var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 24px rgba(28, 35, 32, 0.12);
+}
+.ficha-inmueble .drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.5rem 1.75rem 1.25rem;
+  border-bottom: 1px solid var(--ink);
+}
+.ficha-inmueble .drawer-head h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 3px;
+}
+.ficha-inmueble .drawer-head p {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin: 0;
+}
+.ficha-inmueble .drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem;
+}
+.ficha-inmueble .drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.drawer-transition-enter-active,
+.drawer-transition-leave-active {
+  transition: opacity 0.18s ease;
+}
+.drawer-transition-enter-active .drawer,
+.drawer-transition-leave-active .drawer {
+  transition: transform 0.22s ease;
+}
+.drawer-transition-enter-from,
+.drawer-transition-leave-to {
+  opacity: 0;
+}
+.drawer-transition-enter-from .drawer,
+.drawer-transition-leave-to .drawer {
+  transform: translateX(100%);
+}
+
 @media (max-width: 760px) {
   .ficha-inmueble .sheet {
     padding: 1.5rem;
+  }
+  .ficha-inmueble .drawer {
+    max-width: 100%;
   }
   .ficha-inmueble .grid-2,
   .ficha-inmueble .form-grid {

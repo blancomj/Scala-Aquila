@@ -154,6 +154,12 @@ const mensajeSoloLectura = computed(() => {
 // ── historial de versiones + diff visual (AEL-004 Fase 3) ───────────────
 const versionCompararA = ref<string | null>(null)
 const versionCompararB = ref<string | null>(null)
+const opcionesVersion = computed(() =>
+  conceptoStore.versiones.map((v) => ({
+    valor: v.id,
+    etiqueta: `Versión ${v.version} — ${new Date(v.created_at).toLocaleString()}`,
+  })),
+)
 
 const versionA = computed(
   () => conceptoStore.versiones.find((v) => v.id === versionCompararA.value) ?? null,
@@ -394,6 +400,15 @@ async function guardar(): Promise<void> {
 // ── probar fórmula (AEL-004 Fase 1) ─────────────────────────────────────
 const inmuebleIdPrueba = ref<string | null>(null)
 const periodoIdPrueba = ref<string | null>(null)
+const opcionesInmueblePrueba = computed(() =>
+  cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
+)
+const opcionesPeriodoPrueba = computed(() =>
+  liquidacionStore.periodos.map((p) => ({
+    valor: p.id,
+    etiqueta: `${p.anio}-${String(p.mes).padStart(2, '0')}`,
+  })),
+)
 const probando = ref(false)
 const errorPrueba = ref<string | null>(null)
 const resultadoPrueba = ref<ResultadoPruebaFormula | null>(null)
@@ -637,112 +652,108 @@ async function confirmarAccionMasiva(): Promise<void> {
             Archivar ({{ idsArchivable.length }})
           </UButton>
         </div>
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium w-8">
-                <input
-                  type="checkbox"
-                  :checked="todosSeleccionados"
-                  :disabled="conceptosSeleccionables.length === 0"
-                  @change="alternarSeleccionTodos"
-                >
-              </th>
-              <th class="py-1 font-medium">Código</th>
-              <th class="py-1 font-medium">Nombre</th>
-              <th class="py-1 font-medium">Modo</th>
-              <th class="py-1 font-medium">Estado</th>
-              <th class="py-1 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="concepto in conceptoStore.conceptos"
-              :key="concepto.id"
-              class="border-b border-gray-100 dark:border-gray-900"
+        <UiTabla
+          :columnas="[
+            { clave: 'seleccion', etiqueta: '' },
+            { clave: 'codigo', etiqueta: 'Código' },
+            { clave: 'nombre', etiqueta: 'Nombre' },
+            { clave: 'modo', etiqueta: 'Modo' },
+            { clave: 'estado', etiqueta: 'Estado' },
+            { clave: 'acciones', etiqueta: '' },
+          ]"
+          :filas="conceptoStore.conceptos"
+          :clave-fila="(concepto) => concepto.id"
+        >
+          <template #encabezado-seleccion>
+            <input
+              type="checkbox"
+              :checked="todosSeleccionados"
+              :disabled="conceptosSeleccionables.length === 0"
+              @change="alternarSeleccionTodos"
             >
-              <td class="py-1.5">
-                <input
-                  v-if="conceptoEsSeleccionable(concepto)"
-                  type="checkbox"
-                  :checked="seleccionados.has(concepto.id)"
-                  @change="alternarSeleccion(concepto.id)"
+          </template>
+          <template #celda-seleccion="{ fila }">
+            <input
+              v-if="conceptoEsSeleccionable(fila)"
+              type="checkbox"
+              :checked="seleccionados.has(fila.id)"
+              @change="alternarSeleccion(fila.id)"
+            >
+          </template>
+          <template #celda-codigo="{ fila }">{{ fila.codigo }}</template>
+          <template #celda-nombre="{ fila }">{{ fila.nombre }}</template>
+          <template #celda-modo="{ fila }"><span class="text-gray-500">{{ fila.modo_calculo }}</span></template>
+          <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado }}</span></template>
+          <template #celda-acciones="{ fila }">
+            <div class="space-x-2">
+              <UButton size="xs" variant="soft" @click="iniciarEdicion(fila)">Editar</UButton>
+
+              <template v-if="fila.estado === 'borrador'">
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="enviarARevision(fila)"
                 >
-              </td>
-              <td class="py-1.5">{{ concepto.codigo }}</td>
-              <td class="py-1.5">{{ concepto.nombre }}</td>
-              <td class="py-1.5 text-gray-500">{{ concepto.modo_calculo }}</td>
-              <td class="py-1.5 text-gray-500">{{ concepto.estado }}</td>
-              <td class="py-1.5 space-x-2">
-                <UButton size="xs" variant="soft" @click="iniciarEdicion(concepto)">Editar</UButton>
+                  Enviar a revisión
+                </UButton>
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="archivar(fila)"
+                >
+                  Archivar
+                </UButton>
+              </template>
 
-                <template v-if="concepto.estado === 'borrador'">
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="enviarARevision(concepto)"
-                  >
-                    Enviar a revisión
-                  </UButton>
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="archivar(concepto)"
-                  >
-                    Archivar
-                  </UButton>
-                </template>
+              <template v-else-if="fila.estado === 'en_revision'">
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="aprobar(fila)"
+                >
+                  Aprobar
+                </UButton>
+                <UInput
+                  v-model="motivosRechazo[fila.id]"
+                  size="xs"
+                  placeholder="Motivo de rechazo"
+                  class="w-32"
+                />
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  color="error"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="rechazar(fila)"
+                >
+                  Rechazar
+                </UButton>
+              </template>
 
-                <template v-else-if="concepto.estado === 'en_revision'">
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="aprobar(concepto)"
-                  >
-                    Aprobar
-                  </UButton>
-                  <UInput
-                    v-model="motivosRechazo[concepto.id]"
-                    size="xs"
-                    placeholder="Motivo de rechazo"
-                    class="w-32"
-                  />
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    color="error"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="rechazar(concepto)"
-                  >
-                    Rechazar
-                  </UButton>
-                </template>
-
-                <template v-else-if="concepto.estado === 'activo'">
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="volverABorrador(concepto)"
-                  >
-                    Volver a borrador
-                  </UButton>
-                  <UButton
-                    size="xs"
-                    variant="soft"
-                    :loading="cambiandoEstadoId === concepto.id"
-                    @click="archivar(concepto)"
-                  >
-                    Archivar
-                  </UButton>
-                </template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <template v-else-if="fila.estado === 'activo'">
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="volverABorrador(fila)"
+                >
+                  Volver a borrador
+                </UButton>
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  :loading="cambiandoEstadoId === fila.id"
+                  @click="archivar(fila)"
+                >
+                  Archivar
+                </UButton>
+              </template>
+            </div>
+          </template>
+        </UiTabla>
       </template>
 
       <UModal
@@ -905,26 +916,18 @@ async function confirmarAccionMasiva(): Promise<void> {
           </p>
           <div class="flex items-end gap-4 flex-wrap">
             <UFormField label="Inmueble" name="inmueble_prueba">
-              <select
+              <UiSelectorBuscable
                 v-model="inmuebleIdPrueba"
-                class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-              >
-                <option :value="null" disabled>— Elegir —</option>
-                <option v-for="i in cuentaStore.inmuebles" :key="i.id" :value="i.id">
-                  {{ i.codigo }}
-                </option>
-              </select>
+                :opciones="opcionesInmueblePrueba"
+                placeholder="— Elegir —"
+              />
             </UFormField>
             <UFormField label="Periodo" name="periodo_prueba">
-              <select
+              <UiSelectorBuscable
                 v-model="periodoIdPrueba"
-                class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-              >
-                <option :value="null" disabled>— Elegir —</option>
-                <option v-for="p in liquidacionStore.periodos" :key="p.id" :value="p.id">
-                  {{ p.anio }}-{{ String(p.mes).padStart(2, '0') }}
-                </option>
-              </select>
+                :opciones="opcionesPeriodoPrueba"
+                placeholder="— Elegir —"
+              />
             </UFormField>
             <UButton
               type="button"
@@ -984,51 +987,27 @@ async function confirmarAccionMasiva(): Promise<void> {
         Sin versiones registradas todavía.
       </p>
       <template v-else>
-        <table class="w-full text-sm mb-4">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Versión</th>
-              <th class="py-1 font-medium">Fecha</th>
-              <th class="py-1 font-medium">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="v in conceptoStore.versiones"
-              :key="v.id"
-              class="border-b border-gray-100 dark:border-gray-900"
-            >
-              <td class="py-1.5">{{ v.version }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{ new Date(v.created_at).toLocaleString() }}
-              </td>
-              <td class="py-1.5 text-gray-500">{{ v.estado_concepto }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <UiTabla
+          class="mb-4"
+          :columnas="[
+            { clave: 'version', etiqueta: 'Versión' },
+            { clave: 'fecha', etiqueta: 'Fecha' },
+            { clave: 'estado', etiqueta: 'Estado' },
+          ]"
+          :filas="conceptoStore.versiones"
+          :clave-fila="(v) => v.id"
+        >
+          <template #celda-version="{ fila }">{{ fila.version }}</template>
+          <template #celda-fecha="{ fila }"><span class="text-gray-500">{{ new Date(fila.created_at).toLocaleString() }}</span></template>
+          <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado_concepto }}</span></template>
+        </UiTabla>
 
         <div class="flex items-end gap-4 flex-wrap mb-2">
           <UFormField label="Comparar — versión A (original)" name="version_a">
-            <select
-              v-model="versionCompararA"
-              class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-            >
-              <option :value="null" disabled>— Elegir —</option>
-              <option v-for="v in conceptoStore.versiones" :key="v.id" :value="v.id">
-                Versión {{ v.version }} — {{ new Date(v.created_at).toLocaleString() }}
-              </option>
-            </select>
+            <UiSelectorBuscable v-model="versionCompararA" :opciones="opcionesVersion" placeholder="— Elegir —" />
           </UFormField>
           <UFormField label="Comparar — versión B (nueva)" name="version_b">
-            <select
-              v-model="versionCompararB"
-              class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-            >
-              <option :value="null" disabled>— Elegir —</option>
-              <option v-for="v in conceptoStore.versiones" :key="v.id" :value="v.id">
-                Versión {{ v.version }} — {{ new Date(v.created_at).toLocaleString() }}
-              </option>
-            </select>
+            <UiSelectorBuscable v-model="versionCompararB" :opciones="opcionesVersion" placeholder="— Elegir —" />
           </UFormField>
         </div>
 
@@ -1100,50 +1079,46 @@ async function confirmarAccionMasiva(): Promise<void> {
             <span class="text-red-500">{{ resumenEjecucion.failed }} failed</span>
           </p>
         </div>
-        <table class="w-full text-sm mb-4">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Nombre</th>
-              <th class="py-1 font-medium">Esperado</th>
-              <th class="py-1 font-medium">Resultado</th>
-              <th class="py-1 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="caso in conceptoStore.casosPrueba"
-              :key="caso.id"
-              class="border-b border-gray-100 dark:border-gray-900"
+        <UiTabla
+          class="mb-4"
+          :columnas="[
+            { clave: 'nombre', etiqueta: 'Nombre' },
+            { clave: 'esperado', etiqueta: 'Esperado' },
+            { clave: 'resultado', etiqueta: 'Resultado' },
+            { clave: 'acciones', etiqueta: '' },
+          ]"
+          :filas="conceptoStore.casosPrueba"
+          :clave-fila="(caso) => caso.id"
+        >
+          <template #celda-nombre="{ fila }">{{ fila.nombre }}</template>
+          <template #celda-esperado="{ fila }">
+            <span class="text-gray-500">
+              {{ fila.tipoEsperado
+              }}<template v-if="fila.resultadoEsperado && fila.resultadoEsperado.tipo !== 'NULO'">
+                = {{ fila.resultadoEsperado.valor }}</template
+              >
+            </span>
+          </template>
+          <template #celda-resultado="{ fila }">
+            <span
+              v-if="resultadosEjecucion[fila.id]"
+              :class="
+                resultadosEjecucion[fila.id]?.estado === 'passed'
+                  ? 'text-green-600'
+                  : 'text-red-500'
+              "
             >
-              <td class="py-1.5">{{ caso.nombre }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{ caso.tipoEsperado
-                }}<template v-if="caso.resultadoEsperado && caso.resultadoEsperado.tipo !== 'NULO'">
-                  = {{ caso.resultadoEsperado.valor }}</template
-                >
-              </td>
-              <td class="py-1.5">
-                <span
-                  v-if="resultadosEjecucion[caso.id]"
-                  :class="
-                    resultadosEjecucion[caso.id]?.estado === 'passed'
-                      ? 'text-green-600'
-                      : 'text-red-500'
-                  "
-                >
-                  {{ resultadosEjecucion[caso.id]?.estado }} —
-                  {{ resultadosEjecucion[caso.id]?.mensaje }}
-                </span>
-                <span v-else class="text-gray-400">sin ejecutar</span>
-              </td>
-              <td class="py-1.5">
-                <UButton size="xs" variant="ghost" color="error" @click="eliminarCaso(caso)">
-                  Eliminar
-                </UButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              {{ resultadosEjecucion[fila.id]?.estado }} —
+              {{ resultadosEjecucion[fila.id]?.mensaje }}
+            </span>
+            <span v-else class="text-gray-400">sin ejecutar</span>
+          </template>
+          <template #celda-acciones="{ fila }">
+            <UButton size="xs" variant="ghost" color="error" @click="eliminarCaso(fila)">
+              Eliminar
+            </UButton>
+          </template>
+        </UiTabla>
       </template>
 
       <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3 max-w-lg">

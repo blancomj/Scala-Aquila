@@ -88,51 +88,46 @@ async function revocarMiembro(membershipId: string): Promise<void> {
         :title="errorMiembros"
         class="mb-2"
       />
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Correo</th>
-            <th class="py-1 font-medium">Rol</th>
-            <th class="py-1 font-medium" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="miembro in membersStore.miembros"
-            :key="miembro.id"
-            class="border-b border-gray-100 dark:border-gray-900"
+      <UiTabla
+        :columnas="[
+          { clave: 'correo', etiqueta: 'Correo' },
+          { clave: 'rol', etiqueta: 'Rol' },
+          { clave: 'acciones', etiqueta: '' },
+        ]"
+        :filas="membersStore.miembros"
+        :clave-fila="(miembro) => miembro.id"
+      >
+        <template #celda-correo="{ fila }">{{ fila.profile?.email ?? fila.user_id }}</template>
+        <template #celda-rol="{ fila }">
+          <select
+            :value="fila.role"
+            :disabled="fila.user_id === authStore.profile?.id"
+            class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-1.5 py-1 text-sm"
+            @change="
+              cambiarRolMiembro(
+                fila.id,
+                ($event.target as HTMLSelectElement).value as 'agent' | 'auditor',
+              )
+            "
           >
-            <td class="py-1.5">{{ miembro.profile?.email ?? miembro.user_id }}</td>
-            <td class="py-1.5">
-              <select
-                :value="miembro.role"
-                :disabled="miembro.user_id === authStore.profile?.id"
-                class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-1.5 py-1 text-sm"
-                @change="
-                  cambiarRolMiembro(
-                    miembro.id,
-                    ($event.target as HTMLSelectElement).value as 'agent' | 'auditor',
-                  )
-                "
-              >
-                <option value="agent">agent</option>
-                <option value="auditor">auditor</option>
-              </select>
-            </td>
-            <td class="py-1.5 text-right">
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="error"
-                :disabled="miembro.user_id === authStore.profile?.id"
-                @click="revocarMiembro(miembro.id)"
-              >
-                Revocar
-              </UButton>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <option value="agent">agent</option>
+            <option value="auditor">auditor</option>
+          </select>
+        </template>
+        <template #celda-acciones="{ fila }">
+          <div class="text-right">
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="error"
+              :disabled="fila.user_id === authStore.profile?.id"
+              @click="revocarMiembro(fila.id)"
+            >
+              Revocar
+            </UButton>
+          </div>
+        </template>
+      </UiTabla>
     </div>
 
     <div>

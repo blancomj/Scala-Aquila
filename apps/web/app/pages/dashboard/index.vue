@@ -47,21 +47,6 @@ await useAsyncData('auditoria-reciente', () => {
       </div>
     </div>
 
-    <div class="flex gap-4">
-      <NuxtLink to="/presupuesto" class="text-sm text-primary-500"
-        >Fuentes de financiación →</NuxtLink
-      >
-      <NuxtLink to="/fundamentos" class="text-sm text-primary-500"
-        >Fundamentos normativos →</NuxtLink
-      >
-      <NuxtLink to="/politicas" class="text-sm text-primary-500">Políticas financieras →</NuxtLink>
-      <NuxtLink to="/liquidacion" class="text-sm text-primary-500">Liquidación →</NuxtLink>
-      <NuxtLink to="/conceptos" class="text-sm text-primary-500">Conceptos →</NuxtLink>
-      <NuxtLink to="/cuenta-corriente" class="text-sm text-primary-500"
-        >Cuenta corriente →</NuxtLink
-      >
-    </div>
-
     <div>
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-lg font-semibold">Actividad reciente</h2>

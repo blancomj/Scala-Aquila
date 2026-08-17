@@ -1,13 +1,15 @@
 /**
  * Cuenta corriente — pagos, saldo por inmueble y novedades (motor E1-E8).
  * Lectura directa por RLS de `inmuebles`/`v_cargo_saldo`/`pagos`/`novedades`
- * (agent+auditor); escritura siempre vía Edge Function porque ninguna de
- * las tablas del ledger tiene política de INSERT/UPDATE para
- * `authenticated` — mismo criterio que `liquidacion.ts`/`presupuesto.ts`
- * para operaciones que no pueden resolverse solo con RLS. `crear-novedad`
- * se invoca por la Edge Function y no por `.insert()` directo (aunque RLS
- * lo permitiría) porque solo la función valida el signo del monto según el
- * tipo (AD-30) y `ADJUSTMENT_ZERO_AMOUNT`.
+ * (agent+auditor); casi toda la escritura va por Edge Function porque
+ * `cargos`/`pagos`/`pago_aplicaciones` no tienen política de
+ * INSERT/UPDATE para `authenticated` — mismo criterio que
+ * `liquidacion.ts`/`presupuesto.ts`. `crear-novedad` se invoca por la
+ * Edge Function y no por `.insert()` directo (aunque RLS lo permitiría)
+ * porque solo la función valida el signo del monto según el tipo (AD-30)
+ * y `ADJUSTMENT_ZERO_AMOUNT`. `generarEstadoCuenta` es la excepción: sí
+ * escribe directo por RLS (agent) — `estados_cuenta_generados` no
+ * necesita ninguna validación que no pueda expresar un CHECK/policy.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -18,6 +20,7 @@ type CargoSaldoRow = Database['public']['Views']['v_cargo_saldo']['Row']
 type PagoRow = Database['public']['Tables']['pagos']['Row']
 type NovedadRow = Database['public']['Tables']['novedades']['Row']
 type NovedadTipo = Database['public']['Enums']['novedad_tipo_t']
+type JsonColumnaEstadoCuenta = Database['public']['Tables']['estados_cuenta_generados']['Row']['datos']
 
 interface ResultadoPago {
   pago_id: string
@@ -30,6 +33,31 @@ interface ResultadoInteres {
   inmueble_id: string
   monto_generado: string
   tope_aplicado: boolean
+}
+
+const CATEGORIA_ESTADO_CUENTA_LABEL: Record<string, string> = {
+  capital: 'Capital',
+  interes: 'Interés',
+  otro: 'Otro',
+}
+
+export interface MovimientoEstadoCuenta {
+  fecha: string
+  descripcion: string
+  cargo: number | null
+  abono: number | null
+  saldo: number
+}
+
+/** Forma de estados_cuenta_generados.datos — misma estructura que devuelve
+ * la Edge Function ver-estado-cuenta (PLAN_DATOS_REALES.md §3.3). */
+export interface EstadoCuentaDatos {
+  tenant_nombre: string
+  tenant_nit: string | null
+  inmueble_codigo: string
+  movimientos: MovimientoEstadoCuenta[]
+  saldo_final: number
+  generado_en: string
 }
 
 export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
@@ -192,6 +220,96 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     await cargarNovedades(tenantId)
   }
 
+  /** Calcula el ledger completo (todos los cargos + pagos del inmueble, no
+   * solo los abiertos) e inserta un snapshot en estados_cuenta_generados —
+   * directo por RLS (agent), sin Edge Function: no hay privilegio que
+   * escalar aquí (PLAN_DATOS_REALES.md §3.3, decisión revisada — el HTML
+   * se sirve desde apps/web, no desde Storage/Edge Functions, ver
+   * 20260822120000_estados_cuenta_datos_jsonb.sql). Devuelve el id de la
+   * fila — la página pública es /estado-cuenta/{id}. */
+  async function generarEstadoCuenta(params: {
+    tenantId: string
+    inmuebleId: string
+    inmuebleCodigo: string
+    tenantNombre: string
+    tenantNit: string | null
+  }): Promise<string> {
+    const cliente = useSupabaseClient<Database>()
+    const [{ data: todosCargos, error: errorCargos }, { data: todosPagos, error: errorPagos }] =
+      await Promise.all([
+        cliente
+          .from('cargos')
+          .select('monto_original, created_at, categoria')
+          .eq('inmueble_id', params.inmuebleId)
+          .order('created_at'),
+        cliente
+          .from('pagos')
+          .select('monto, fecha_pago, referencia')
+          .eq('inmueble_id', params.inmuebleId)
+          .order('fecha_pago'),
+      ])
+    if (errorCargos) throw errorCargos
+    if (errorPagos) throw errorPagos
+
+    interface Evento {
+      fecha: string
+      descripcion: string
+      monto: number
+      esCargo: boolean
+    }
+    const eventos: Evento[] = [
+      ...(todosCargos ?? []).map(
+        (c): Evento => ({
+          fecha: c.created_at,
+          descripcion: CATEGORIA_ESTADO_CUENTA_LABEL[c.categoria] ?? c.categoria,
+          monto: Number(c.monto_original),
+          esCargo: true,
+        }),
+      ),
+      ...(todosPagos ?? []).map(
+        (p): Evento => ({
+          fecha: p.fecha_pago,
+          descripcion: p.referencia ? `Pago — ${p.referencia}` : 'Pago',
+          monto: Number(p.monto),
+          esCargo: false,
+        }),
+      ),
+    ].sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+    let saldo = 0
+    const movimientos = eventos.map((e) => {
+      saldo += e.esCargo ? e.monto : -e.monto
+      return {
+        fecha: e.fecha,
+        descripcion: e.descripcion,
+        cargo: e.esCargo ? e.monto : null,
+        abono: e.esCargo ? null : e.monto,
+        saldo,
+      }
+    })
+
+    const datos: EstadoCuentaDatos = {
+      tenant_nombre: params.tenantNombre,
+      tenant_nit: params.tenantNit,
+      inmueble_codigo: params.inmuebleCodigo,
+      movimientos,
+      saldo_final: saldo,
+      generado_en: new Date().toISOString(),
+    }
+
+    const { data, error: errorInsert } = await cliente
+      .from('estados_cuenta_generados')
+      .insert({
+        tenant_id: params.tenantId,
+        inmueble_id: params.inmuebleId,
+        datos: datos as unknown as JsonColumnaEstadoCuenta,
+      })
+      .select('id')
+      .single()
+    if (errorInsert) throw errorInsert
+    return data.id
+  }
+
   function limpiar(): void {
     inmuebles.value = []
     cargosAbiertos.value = []
@@ -214,6 +332,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     crearNovedad,
     aprobarNovedad,
     rechazarNovedad,
+    generarEstadoCuenta,
     limpiar,
   }
 })

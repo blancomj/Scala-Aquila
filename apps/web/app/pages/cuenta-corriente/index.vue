@@ -31,6 +31,10 @@ const totalPendiente = computed(() =>
   cuentaStore.cargosAbiertos.reduce((acc, c) => acc + Number(c.monto_pendiente ?? 0), 0),
 )
 
+const opcionesInmueble = computed(() =>
+  cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
+)
+
 await useAsyncData('cuenta-corriente-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
@@ -82,6 +86,33 @@ function origenLegible(cargo: { concepto_id: string | null; categoria: string | 
   if (cargo.concepto_id) return conceptoPorId.value.get(cargo.concepto_id) ?? cargo.concepto_id
   return cargo.categoria ? (etiquetaCategoria[cargo.categoria] ?? cargo.categoria) : '—'
 }
+
+const generandoPdf = ref(false)
+const errorPdf = ref<string | null>(null)
+
+async function generarEstadoCuenta(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  const inmueble = cuentaStore.inmuebles.find((i) => i.id === inmuebleSeleccionadoId.value)
+  if (!tenantId || !inmueble) return
+
+  errorPdf.value = null
+  generandoPdf.value = true
+  try {
+    const id = await cuentaStore.generarEstadoCuenta({
+      tenantId,
+      inmuebleId: inmueble.id,
+      inmuebleCodigo: inmueble.codigo,
+      tenantNombre: tenantStore.activeTenant?.name ?? '',
+      tenantNit: tenantStore.activeTenant?.nit ?? null,
+    })
+    window.open(`/estado-cuenta/${id}`, '_blank')
+  } catch (excepcion) {
+    errorPdf.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo generar el estado de cuenta.'
+  } finally {
+    generandoPdf.value = false
+  }
+}
 </script>
 
 <template>
@@ -99,17 +130,16 @@ function origenLegible(cargo: { concepto_id: string | null; categoria: string | 
     </p>
 
     <template v-else>
-      <UFormField label="Inmueble" name="inmueble">
-        <select
-          v-model="inmuebleSeleccionadoId"
-          class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-        >
-          <option v-for="i in cuentaStore.inmuebles" :key="i.id" :value="i.id">
-            {{ i.codigo }}
-          </option>
-        </select>
-      </UFormField>
+      <div class="flex items-end gap-3">
+        <UFormField label="Inmueble" name="inmueble">
+          <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" />
+        </UFormField>
+        <UButton variant="soft" :loading="generandoPdf" @click="generarEstadoCuenta">
+          Generar estado de cuenta
+        </UButton>
+      </div>
 
+      <UAlert v-if="errorPdf" color="error" variant="soft" :title="errorPdf" />
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
       <div>
@@ -117,70 +147,48 @@ function origenLegible(cargo: { concepto_id: string | null; categoria: string | 
           <h2 class="text-lg font-semibold">Cargos pendientes</h2>
           <p class="text-sm text-gray-500">Total: {{ formatoMoneda(totalPendiente) }}</p>
         </div>
-        <p v-if="cuentaStore.cargosAbiertos.length === 0" class="text-gray-500 text-sm">
-          Sin saldo pendiente.
-        </p>
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Categoría</th>
-              <th class="py-1 font-medium">Concepto / origen</th>
-              <th class="py-1 font-medium">Periodo</th>
-              <th class="py-1 font-medium">Pendiente</th>
-              <th class="py-1 font-medium">Creado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="cargo in cuentaStore.cargosAbiertos"
-              :key="cargo.id ?? undefined"
-              class="border-b border-gray-100 dark:border-gray-900"
-            >
-              <td class="py-1.5">
-                {{
-                  cargo.categoria ? (etiquetaCategoria[cargo.categoria] ?? cargo.categoria) : '—'
-                }}
-              </td>
-              <td class="py-1.5 text-gray-500">{{ origenLegible(cargo) }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{ cargo.periodo_id ? (periodoPorId.get(cargo.periodo_id) ?? '—') : '—' }}
-              </td>
-              <td class="py-1.5">{{ formatoMoneda(cargo.monto_pendiente ?? 0) }}</td>
-              <td class="py-1.5 text-gray-500">
-                {{
-                  cargo.created_at ? new Date(cargo.created_at).toLocaleDateString('es-CO') : '—'
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UiTabla
+          :columnas="[
+            { clave: 'categoria', etiqueta: 'Categoría' },
+            { clave: 'origen', etiqueta: 'Concepto / origen' },
+            { clave: 'periodo', etiqueta: 'Periodo' },
+            { clave: 'pendiente', etiqueta: 'Pendiente' },
+            { clave: 'creado', etiqueta: 'Creado' },
+          ]"
+          :filas="cuentaStore.cargosAbiertos"
+          :clave-fila="(cargo, i) => cargo.id ?? i"
+          vacio="Sin saldo pendiente."
+        >
+          <template #celda-categoria="{ fila }">
+            {{ fila.categoria ? (etiquetaCategoria[fila.categoria] ?? fila.categoria) : '—' }}
+          </template>
+          <template #celda-origen="{ fila }"><span class="text-gray-500">{{ origenLegible(fila) }}</span></template>
+          <template #celda-periodo="{ fila }">
+            <span class="text-gray-500">{{ fila.periodo_id ? (periodoPorId.get(fila.periodo_id) ?? '—') : '—' }}</span>
+          </template>
+          <template #celda-pendiente="{ fila }">{{ formatoMoneda(fila.monto_pendiente ?? 0) }}</template>
+          <template #celda-creado="{ fila }">
+            <span class="text-gray-500">{{ fila.created_at ? new Date(fila.created_at).toLocaleDateString('es-CO') : '—' }}</span>
+          </template>
+        </UiTabla>
       </div>
 
       <div>
         <h2 class="text-lg font-semibold mb-2">Pagos recientes</h2>
-        <p v-if="cuentaStore.pagos.length === 0" class="text-gray-500 text-sm">
-          Sin pagos registrados todavía.
-        </p>
-        <table v-else class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th class="py-1 font-medium">Fecha</th>
-              <th class="py-1 font-medium">Monto</th>
-              <th class="py-1 font-medium">Referencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="pago in cuentaStore.pagos"
-              :key="pago.id"
-              class="border-b border-gray-100 dark:border-gray-900"
-            >
-              <td class="py-1.5">{{ pago.fecha_pago }}</td>
-              <td class="py-1.5">{{ formatoMoneda(pago.monto) }}</td>
-              <td class="py-1.5 text-gray-500">{{ pago.referencia ?? '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <UiTabla
+          :columnas="[
+            { clave: 'fecha', etiqueta: 'Fecha' },
+            { clave: 'monto', etiqueta: 'Monto' },
+            { clave: 'referencia', etiqueta: 'Referencia' },
+          ]"
+          :filas="cuentaStore.pagos"
+          :clave-fila="(pago) => pago.id"
+          vacio="Sin pagos registrados todavía."
+        >
+          <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
+          <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
+          <template #celda-referencia="{ fila }"><span class="text-gray-500">{{ fila.referencia ?? '—' }}</span></template>
+        </UiTabla>
       </div>
     </template>
   </div>

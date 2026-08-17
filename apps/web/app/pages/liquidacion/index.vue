@@ -1,14 +1,20 @@
 <script setup lang="ts">
 // F6 — el administrador liquida un periodo desde la UI (PLAN §5). Lista los
 // periodos del tenant, marca cuáles ya tienen liquidación, y dispara
-// liquidar-periodo para los que no. No incluye creación de periodos (fuera
-// de alcance; hoy solo existen los que sembró un seed/test) ni un detalle
-// línea por línea de la liquidación — el resumen (total + conteo) alcanza
-// para este primer corte.
+// liquidar-periodo para los que no. Creación de periodos: PLAN_DATOS_REALES.md
+// §3.1.5 — antes solo existían los que sembró un seed/test. No incluye un
+// detalle línea por línea de la liquidación — el resumen (total + conteo)
+// alcanza para este primer corte.
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
 const liquidacionStore = useLiquidacionStore()
+
+const nuevoAnio = ref<number | null>(null)
+const nuevoMes = ref<number | null>(null)
+const nuevaFechaVencimiento = ref('')
+const creandoPeriodo = ref(false)
+const errorPeriodo = ref<string | null>(null)
 
 const liquidandoId = ref<string | null>(null)
 const error = ref<string | null>(null)
@@ -43,6 +49,30 @@ function formatoMoneda(valor: string | number): string {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(Number(valor))
+}
+
+async function crearPeriodo(): Promise<void> {
+  errorPeriodo.value = null
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || nuevoAnio.value === null || nuevoMes.value === null) return
+
+  creandoPeriodo.value = true
+  try {
+    await liquidacionStore.crearPeriodo({
+      tenantId,
+      anio: nuevoAnio.value,
+      mes: nuevoMes.value,
+      fechaVencimiento: nuevaFechaVencimiento.value || undefined,
+    })
+    nuevoAnio.value = null
+    nuevoMes.value = null
+    nuevaFechaVencimiento.value = ''
+  } catch (excepcion) {
+    errorPeriodo.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo crear el periodo.'
+  } finally {
+    creandoPeriodo.value = false
+  }
 }
 
 async function liquidar(periodoId: string): Promise<void> {
@@ -88,42 +118,65 @@ async function liquidar(periodoId: string): Promise<void> {
     <p v-if="liquidacionStore.periodos.length === 0" class="text-gray-500 text-sm">
       Esta copropiedad todavía no tiene periodos registrados.
     </p>
-    <table v-else class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-          <th class="py-1 font-medium">Periodo</th>
-          <th class="py-1 font-medium">Estado</th>
-          <th class="py-1 font-medium">Liquidación</th>
-          <th class="py-1 font-medium" />
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="periodo in liquidacionStore.periodos"
-          :key="periodo.id"
-          class="border-b border-gray-100 dark:border-gray-900"
+    <UiTabla
+      v-else
+      :columnas="[
+        { clave: 'periodo', etiqueta: 'Periodo' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'liquidacion', etiqueta: 'Liquidación' },
+        { clave: 'acciones', etiqueta: '' },
+      ]"
+      :filas="liquidacionStore.periodos"
+      :clave-fila="(periodo) => periodo.id"
+    >
+      <template #celda-periodo="{ fila }">{{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}</template>
+      <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado }}</span></template>
+      <template #celda-liquidacion="{ fila }">
+        <span class="text-gray-500">
+          <template v-if="liquidacionPorPeriodo.get(fila.id)">
+            {{ formatoMoneda(liquidacionPorPeriodo.get(fila.id)!.tenant_total) }}
+          </template>
+          <template v-else>—</template>
+        </span>
+      </template>
+      <template #celda-acciones="{ fila }">
+        <UButton
+          v-if="!liquidacionPorPeriodo.get(fila.id)"
+          size="xs"
+          variant="soft"
+          :loading="liquidandoId === fila.id"
+          @click="liquidar(fila.id)"
         >
-          <td class="py-1.5">{{ periodo.anio }}-{{ String(periodo.mes).padStart(2, '0') }}</td>
-          <td class="py-1.5 text-gray-500">{{ periodo.estado }}</td>
-          <td class="py-1.5 text-gray-500">
-            <template v-if="liquidacionPorPeriodo.get(periodo.id)">
-              {{ formatoMoneda(liquidacionPorPeriodo.get(periodo.id)!.tenant_total) }}
-            </template>
-            <template v-else>—</template>
-          </td>
-          <td class="py-1.5">
-            <UButton
-              v-if="!liquidacionPorPeriodo.get(periodo.id)"
-              size="xs"
-              variant="soft"
-              :loading="liquidandoId === periodo.id"
-              @click="liquidar(periodo.id)"
-            >
-              Liquidar
-            </UButton>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          Liquidar
+        </UButton>
+      </template>
+    </UiTabla>
+
+    <div>
+      <h2 class="text-lg font-semibold mb-2">Crear periodo</h2>
+      <form class="space-y-4 max-w-sm" @submit.prevent="crearPeriodo">
+        <UFormField label="Año" name="anio">
+          <UInput v-model.number="nuevoAnio" type="number" min="2000" class="w-full" />
+        </UFormField>
+
+        <UFormField label="Mes" name="mes">
+          <select
+            v-model.number="nuevoMes"
+            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+          >
+            <option :value="null" disabled>— Elegir —</option>
+            <option v-for="m in 12" :key="m" :value="m">{{ m }}</option>
+          </select>
+        </UFormField>
+
+        <UFormField label="Fecha de vencimiento (opcional)" name="fecha_vencimiento">
+          <UInput v-model="nuevaFechaVencimiento" type="date" class="w-full" />
+        </UFormField>
+
+        <UAlert v-if="errorPeriodo" color="error" variant="soft" :title="errorPeriodo" />
+
+        <UButton type="submit" :loading="creandoPeriodo">Crear periodo</UButton>
+      </form>
+    </div>
   </div>
 </template>

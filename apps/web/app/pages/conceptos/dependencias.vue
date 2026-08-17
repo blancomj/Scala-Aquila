@@ -74,38 +74,34 @@ const ordenPorCodigo = computed(() => {
       <p v-if="conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">
         No hay conceptos registrados.
       </p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Código</th>
-            <th class="py-1 font-medium">Orden de cálculo</th>
-            <th class="py-1 font-medium">Depende de</th>
-            <th class="py-1 font-medium">Usado por</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="nodo in grafo.nodos"
-            :key="nodo.concepto.codigo"
-            class="border-b border-gray-100 dark:border-gray-900"
-          >
-            <td class="py-1.5 font-medium">{{ nodo.concepto.codigo }}</td>
-            <td class="py-1.5 text-gray-500">
-              {{ ordenPorCodigo.get(nodo.concepto.codigo) ?? '—' }}
-            </td>
-            <td class="py-1.5 text-gray-500">
-              {{ nodo.dependencias.length > 0 ? nodo.dependencias.join(', ') : '—' }}
-            </td>
-            <td class="py-1.5 text-gray-500">
-              {{
-                (usadoPor.get(nodo.concepto.codigo) ?? []).length > 0
-                  ? (usadoPor.get(nodo.concepto.codigo) ?? []).join(', ')
-                  : '—'
-              }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <UiTabla
+        v-else
+        :columnas="[
+          { clave: 'codigo', etiqueta: 'Código' },
+          { clave: 'orden', etiqueta: 'Orden de cálculo' },
+          { clave: 'dependeDe', etiqueta: 'Depende de' },
+          { clave: 'usadoPor', etiqueta: 'Usado por' },
+        ]"
+        :filas="grafo.nodos"
+        :clave-fila="(nodo) => nodo.concepto.codigo"
+      >
+        <template #celda-codigo="{ fila }"><span class="font-medium">{{ fila.concepto.codigo }}</span></template>
+        <template #celda-orden="{ fila }">
+          <span class="text-gray-500">{{ ordenPorCodigo.get(fila.concepto.codigo) ?? '—' }}</span>
+        </template>
+        <template #celda-dependeDe="{ fila }">
+          <span class="text-gray-500">{{ fila.dependencias.length > 0 ? fila.dependencias.join(', ') : '—' }}</span>
+        </template>
+        <template #celda-usadoPor="{ fila }">
+          <span class="text-gray-500">
+            {{
+              (usadoPor.get(fila.concepto.codigo) ?? []).length > 0
+                ? (usadoPor.get(fila.concepto.codigo) ?? []).join(', ')
+                : '—'
+            }}
+          </span>
+        </template>
+      </UiTabla>
     </div>
 
     <div>
@@ -115,28 +111,22 @@ const ordenPorCodigo = computed(() => {
         PARAMETER/UNIT/CONCEPTO.campo o función — Doc 10 §79-80.
       </p>
       <p v-if="impacto.length === 0" class="text-gray-500 text-sm">Sin dependencias detectadas.</p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Tipo</th>
-            <th class="py-1 font-medium">Contract / Function</th>
-            <th class="py-1 font-medium">Usado por</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="entrada in impacto"
-            :key="entrada.etiqueta"
-            class="border-b border-gray-100 dark:border-gray-900"
-          >
-            <td class="py-1.5 text-gray-500">
-              {{ entrada.tipo === 'contrato' ? 'Contract' : 'Function' }}
-            </td>
-            <td class="py-1.5 font-mono">{{ entrada.etiqueta }}</td>
-            <td class="py-1.5 text-gray-500">{{ entrada.conceptos.join(', ') }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <UiTabla
+        v-else
+        :columnas="[
+          { clave: 'tipo', etiqueta: 'Tipo' },
+          { clave: 'etiqueta', etiqueta: 'Contract / Function' },
+          { clave: 'conceptos', etiqueta: 'Usado por' },
+        ]"
+        :filas="impacto"
+        :clave-fila="(entrada) => entrada.etiqueta"
+      >
+        <template #celda-tipo="{ fila }">
+          <span class="text-gray-500">{{ fila.tipo === 'contrato' ? 'Contract' : 'Function' }}</span>
+        </template>
+        <template #celda-etiqueta="{ fila }"><span class="font-mono">{{ fila.etiqueta }}</span></template>
+        <template #celda-conceptos="{ fila }"><span class="text-gray-500">{{ fila.conceptos.join(', ') }}</span></template>
+      </UiTabla>
     </div>
   </div>
 </template>

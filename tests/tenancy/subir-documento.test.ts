@@ -1,8 +1,9 @@
 /**
  * subir-documento (Edge Function, HTTP real) — cierra el gap §8.1 de
  * PROMPT_FICHA_INMUEBLE.md. Único punto de escritura hacia el bucket
- * `documentos-inmueble` y hacia documentos_inmueble (que no tiene política
- * INSERT para `authenticated`, mismo criterio que pagos/liquidaciones).
+ * `documentos-inmueble` y hacia documentos (antes documentos_inmueble, que
+ * no tiene política INSERT para `authenticated`, mismo criterio que
+ * pagos/liquidaciones).
  *
  * No repite el rate limit de punta a punta (ya probado en
  * tests/tenancy/create-tenant.test.ts) — se enfoca en el contrato HTTP:
@@ -58,7 +59,7 @@ async function tipoDocumentoEscrituraId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
     .select('id')
-    .eq('tipo', 'TIPO_DOCUMENTO_PREDIO')
+    .eq('tipo', 'TIPO_DOCUMENTO')
     .eq('codigo', 'escritura_publica')
     .is('tenant_id', null)
     .single<{ id: number }>()
@@ -139,7 +140,7 @@ d('subir-documento (Edge Function)', () => {
     expect(bajado?.size).toBeGreaterThan(0)
 
     const { data: fila } = await admin
-      .from('documentos_inmueble')
+      .from('documentos')
       .select('id, tenant_id, subido_por')
       .eq('id', data!.id)
       .single()
@@ -158,7 +159,7 @@ d('subir-documento (Edge Function)', () => {
     expect(response?.status).toBe(400)
   }, 30_000)
 
-  it('TIPO_DOCUMENTO_INVALIDO (400): tipo_documento_id no pertenece a TIPO_DOCUMENTO_PREDIO', async () => {
+  it('TIPO_DOCUMENTO_INVALIDO (400): tipo_documento_id no pertenece a TIPO_DOCUMENTO', async () => {
     const tipoInmuebleId = await tipoApartamentoId(admin)
     const { data, response } = await clienteAgent.functions.invoke<RespuestaDocumento>(
       'subir-documento',

@@ -1,5 +1,5 @@
-// Cierra el gap §8.1 de PROMPT_FICHA_INMUEBLE.md: documentos_inmueble no
-// tiene política INSERT para `authenticated` (mismo criterio que
+// Cierra el gap §8.1 de PROMPT_FICHA_INMUEBLE.md: documentos (antes
+// documentos_inmueble) no tiene política INSERT para `authenticated` (mismo criterio que
 // pagos/liquidaciones — calcular la siguiente versión bajo concurrencia
 // necesita coordinación con Storage) y el bucket tampoco tenía política de
 // escritura para el mismo rol. Esta función es el único punto de escritura:
@@ -175,7 +175,7 @@ export default {
       .from('lista_tipos')
       .select('id')
       .eq('id', tipoDocumentoId)
-      .eq('tipo', 'TIPO_DOCUMENTO_PREDIO')
+      .eq('tipo', 'TIPO_DOCUMENTO')
       .maybeSingle()
     if (errorTipo) {
       return errorResponse(500, 'INTERNAL_ERROR', errorTipo.message, undefined, correlationId)
@@ -194,9 +194,10 @@ export default {
     const nombreSaneado = sanearNombreArchivo(archivo.name)
     const storagePath = `${inmueble.tenant_id}/${inmuebleId}/${grupoId}/1_${nombreSaneado}`
 
-    // Único uso de service_role: ni el bucket ni documentos_inmueble tienen
-    // política de escritura para `authenticated` (ver cabecera). El rol ya
-    // se verificó arriba, así que este bypass de RLS es intencional y acotado.
+    // Único uso de service_role: ni el bucket ni documentos (antes
+    // documentos_inmueble, generalizada en 20260822130000) tienen política
+    // de escritura para `authenticated` (ver cabecera). El rol ya se
+    // verificó arriba, así que este bypass de RLS es intencional y acotado.
     const { error: errorUpload } = await ctx.supabaseAdmin.storage
       .from(BUCKET)
       .upload(storagePath, archivo, { contentType: archivo.type, upsert: false })
@@ -213,7 +214,7 @@ export default {
     }
 
     const { data: documento, error: errorInsert } = await ctx.supabaseAdmin
-      .from('documentos_inmueble')
+      .from('documentos')
       .insert({
         tenant_id: inmueble.tenant_id,
         inmueble_id: inmuebleId,

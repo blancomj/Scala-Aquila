@@ -16,6 +16,9 @@ const etiquetaCategoria: Record<string, string> = {
   otro: 'Otro',
 }
 const cargoPorId = computed(() => new Map(cuentaStore.cargosAbiertos.map((c) => [c.id, c])))
+const opcionesInmueble = computed(() =>
+  cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
+)
 
 await useAsyncData('cuenta-corriente-pagos-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -135,14 +138,7 @@ async function calcularIntereses(): Promise<void> {
 
     <template v-else>
       <UFormField label="Inmueble" name="inmueble">
-        <select
-          v-model="inmuebleSeleccionadoId"
-          class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-        >
-          <option v-for="i in cuentaStore.inmuebles" :key="i.id" :value="i.id">
-            {{ i.codigo }}
-          </option>
-        </select>
+        <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" />
       </UFormField>
 
       <div>
@@ -175,30 +171,26 @@ async function calcularIntereses(): Promise<void> {
               — crédito a favor: {{ formatoMoneda(resultadoPago.no_aplicado) }}
             </span>
           </p>
-          <table class="w-full">
-            <thead>
-              <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-                <th class="py-1 font-medium">Cargo</th>
-                <th class="py-1 font-medium">Monto aplicado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="aplicacion in resultadoPago.aplicaciones"
-                :key="aplicacion.cargo_id"
-                class="border-b border-gray-100 dark:border-gray-900"
-              >
-                <td class="py-1.5 text-gray-500">
-                  {{
-                    cargoPorId.get(aplicacion.cargo_id)?.categoria
-                      ? etiquetaCategoria[cargoPorId.get(aplicacion.cargo_id)!.categoria!]
-                      : aplicacion.cargo_id
-                  }}
-                </td>
-                <td class="py-1.5">{{ formatoMoneda(aplicacion.monto) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <UiTabla
+            :columnas="[
+              { clave: 'cargo', etiqueta: 'Cargo' },
+              { clave: 'montoAplicado', etiqueta: 'Monto aplicado' },
+            ]"
+            :filas="resultadoPago.aplicaciones"
+            :clave-fila="(aplicacion) => aplicacion.cargo_id"
+            vacio="Sin aplicaciones."
+          >
+            <template #celda-cargo="{ fila }">
+              <span class="text-gray-500">
+                {{
+                  cargoPorId.get(fila.cargo_id)?.categoria
+                    ? etiquetaCategoria[cargoPorId.get(fila.cargo_id)!.categoria!]
+                    : fila.cargo_id
+                }}
+              </span>
+            </template>
+            <template #celda-montoAplicado="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
+          </UiTabla>
         </div>
       </div>
 
@@ -218,33 +210,22 @@ async function calcularIntereses(): Promise<void> {
           class="mt-2"
         />
 
-        <template v-if="resultadoIntereses">
-          <p v-if="resultadoIntereses.length === 0" class="text-gray-500 text-sm mt-2">
-            Ningún inmueble generó interés de mora para esta fecha.
-          </p>
-          <table v-else class="w-full text-sm mt-2">
-            <thead>
-              <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-                <th class="py-1 font-medium">Inmueble</th>
-                <th class="py-1 font-medium">Monto generado</th>
-                <th class="py-1 font-medium">Tope aplicado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="fila in resultadoIntereses"
-                :key="fila.inmueble_id"
-                class="border-b border-gray-100 dark:border-gray-900"
-              >
-                <td class="py-1.5">
-                  {{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}
-                </td>
-                <td class="py-1.5">{{ formatoMoneda(fila.monto_generado) }}</td>
-                <td class="py-1.5 text-gray-500">{{ fila.tope_aplicado ? 'Sí' : 'No' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </template>
+        <UiTabla
+          v-if="resultadoIntereses"
+          class="mt-2"
+          :columnas="[
+            { clave: 'inmueble', etiqueta: 'Inmueble' },
+            { clave: 'montoGenerado', etiqueta: 'Monto generado' },
+            { clave: 'topeAplicado', etiqueta: 'Tope aplicado' },
+          ]"
+          :filas="resultadoIntereses"
+          :clave-fila="(fila) => fila.inmueble_id"
+          vacio="Ningún inmueble generó interés de mora para esta fecha."
+        >
+          <template #celda-inmueble="{ fila }">{{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}</template>
+          <template #celda-montoGenerado="{ fila }">{{ formatoMoneda(fila.monto_generado) }}</template>
+          <template #celda-topeAplicado="{ fila }"><span class="text-gray-500">{{ fila.tope_aplicado ? 'Sí' : 'No' }}</span></template>
+        </UiTabla>
       </div>
     </template>
   </div>

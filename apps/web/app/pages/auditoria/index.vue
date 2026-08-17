@@ -18,27 +18,21 @@ await useAsyncData('auditoria-completa', () => {
     <h1 class="text-xl font-semibold mb-4">Auditoría</h1>
 
     <p v-if="auditStore.eventos.length === 0" class="text-gray-500 text-sm">Sin eventos todavía.</p>
-    <table v-else class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-          <th class="py-1 font-medium">Fecha</th>
-          <th class="py-1 font-medium">Acción</th>
-          <th class="py-1 font-medium">Entidad</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="evento in auditStore.eventos"
-          :key="evento.id"
-          class="border-b border-gray-100 dark:border-gray-900"
-        >
-          <td class="py-1.5 whitespace-nowrap">
-            {{ new Date(evento.created_at).toLocaleString('es-CO') }}
-          </td>
-          <td class="py-1.5">{{ evento.action }}</td>
-          <td class="py-1.5 text-gray-500">{{ evento.entity_type ?? '—' }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <UiTabla
+      v-else
+      :columnas="[
+        { clave: 'fecha', etiqueta: 'Fecha' },
+        { clave: 'accion', etiqueta: 'Acción' },
+        { clave: 'entidad', etiqueta: 'Entidad' },
+      ]"
+      :filas="auditStore.eventos"
+      :clave-fila="(evento) => evento.id"
+    >
+      <template #celda-fecha="{ fila }">
+        <span class="whitespace-nowrap">{{ new Date(fila.created_at).toLocaleString('es-CO') }}</span>
+      </template>
+      <template #celda-accion="{ fila }">{{ fila.action }}</template>
+      <template #celda-entidad="{ fila }"><span class="text-gray-500">{{ fila.entity_type ?? '—' }}</span></template>
+    </UiTabla>
   </div>
 </template>

@@ -36,7 +36,7 @@ const TABLAS_ESPERADAS = [
   'coeficientes',
   'terceros',
   'inmueble_persona_rol',
-  'documentos_inmueble',
+  'documentos',
   'periodos',
   'conceptos',
   'politicas_financieras',

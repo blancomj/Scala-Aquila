@@ -95,46 +95,40 @@ async function activar(id: string): Promise<void> {
       <p v-if="politicaStore.politicas.length === 0" class="text-gray-500 text-sm">
         Esta copropiedad todavía no tiene una política financiera.
       </p>
-      <table v-else class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-            <th class="py-1 font-medium">Versión</th>
-            <th class="py-1 font-medium">Estado</th>
-            <th class="py-1 font-medium">Redondeo</th>
-            <th class="py-1 font-medium">Interés</th>
-            <th class="py-1 font-medium">Σ coeficientes</th>
-            <th class="py-1 font-medium" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="politica in politicaStore.politicas"
-            :key="politica.id"
-            class="border-b border-gray-100 dark:border-gray-900"
+      <UiTabla
+        v-else
+        :columnas="[
+          { clave: 'version', etiqueta: 'Versión' },
+          { clave: 'estado', etiqueta: 'Estado' },
+          { clave: 'redondeo', etiqueta: 'Redondeo' },
+          { clave: 'interes', etiqueta: 'Interés' },
+          { clave: 'suma', etiqueta: 'Σ coeficientes' },
+          { clave: 'acciones', etiqueta: '' },
+        ]"
+        :filas="politicaStore.politicas"
+        :clave-fila="(politica) => politica.id"
+      >
+        <template #celda-version="{ fila }">v{{ fila.version }}</template>
+        <template #celda-estado="{ fila }">{{ fila.estado }}</template>
+        <template #celda-redondeo="{ fila }">
+          <span class="text-gray-500">{{ fila.redondeo_modo }} · escala {{ fila.redondeo_escala }}</span>
+        </template>
+        <template #celda-interes="{ fila }">
+          <span class="text-gray-500">{{ fila.interes_day_count }} · {{ fila.interes_descuento_orden }}</span>
+        </template>
+        <template #celda-suma="{ fila }"><span class="text-gray-500">{{ fila.coeficientes_suma_esperada }}</span></template>
+        <template #celda-acciones="{ fila }">
+          <UButton
+            v-if="fila.estado === 'borrador'"
+            size="xs"
+            variant="soft"
+            :loading="activandoId === fila.id"
+            @click="activar(fila.id)"
           >
-            <td class="py-1.5">v{{ politica.version }}</td>
-            <td class="py-1.5">{{ politica.estado }}</td>
-            <td class="py-1.5 text-gray-500">
-              {{ politica.redondeo_modo }} · escala {{ politica.redondeo_escala }}
-            </td>
-            <td class="py-1.5 text-gray-500">
-              {{ politica.interes_day_count }} · {{ politica.interes_descuento_orden }}
-            </td>
-            <td class="py-1.5 text-gray-500">{{ politica.coeficientes_suma_esperada }}</td>
-            <td class="py-1.5">
-              <UButton
-                v-if="politica.estado === 'borrador'"
-                size="xs"
-                variant="soft"
-                :loading="activandoId === politica.id"
-                @click="activar(politica.id)"
-              >
-                Activar
-              </UButton>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            Activar
+          </UButton>
+        </template>
+      </UiTabla>
     </div>
 
     <div>

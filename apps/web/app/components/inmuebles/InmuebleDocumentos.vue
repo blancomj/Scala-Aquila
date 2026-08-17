@@ -25,6 +25,10 @@ function nombreTipo(tipoDocumentoId: number | null): string {
   return tiposDocumento.value.find((t) => t.id === tipoDocumentoId)?.nombre ?? 'Documento'
 }
 
+const opcionesTipoDocumento = computed(() =>
+  tiposDocumento.value.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+)
+
 function formatearTamano(bytes: number | null): string {
   if (!bytes) return '—'
   const kb = bytes / 1024
@@ -81,7 +85,7 @@ watchEffect(async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
   ;[tiposDocumento.value] = await Promise.all([
-    cargarListaTipos(tenantId, 'TIPO_DOCUMENTO_PREDIO'),
+    cargarListaTipos(tenantId, 'TIPO_DOCUMENTO'),
     documentosStore.cargarDocumentos(tenantId, props.inmuebleId),
   ])
 })
@@ -103,10 +107,13 @@ watchEffect(async () => {
         <span>PDF, JPG o PNG · hasta 15 MB</span>
       </div>
       <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="max-width: 180px" @change="elegirArchivo">
-      <select v-model.number="tipoSeleccionado" class="cat-select">
-        <option :value="null" disabled>— Elegir categoría —</option>
-        <option v-for="t in tiposDocumento" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-      </select>
+      <UiSelectorBuscable
+        v-model="tipoSeleccionado"
+        variante="ficha"
+        compacta
+        :opciones="opcionesTipoDocumento"
+        placeholder="— Elegir categoría —"
+      />
       <input v-model="fechaVencimiento" type="date" title="Fecha de vencimiento (opcional)">
       <button
         type="button"

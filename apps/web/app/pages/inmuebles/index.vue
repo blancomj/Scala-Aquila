@@ -42,29 +42,23 @@ await useAsyncData('inmuebles-listado', async () => {
     </div>
 
     <p v-if="cuentaStore.inmuebles.length === 0" class="text-gray-500 text-sm">Ninguno.</p>
-    <table v-else class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-gray-500 border-b border-gray-200 dark:border-gray-800">
-          <th class="py-1 font-medium">Código</th>
-          <th class="py-1 font-medium">Tipo</th>
-          <th class="py-1 font-medium">Estado</th>
-          <th class="py-1 font-medium" />
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="inmueble in cuentaStore.inmuebles"
-          :key="inmueble.id"
-          class="border-b border-gray-100 dark:border-gray-900"
-        >
-          <td class="py-1.5">{{ inmueble.codigo }}</td>
-          <td class="py-1.5 text-gray-500">{{ nombreTipo(inmueble.tipo_id) }}</td>
-          <td class="py-1.5 text-gray-500">{{ inmueble.estado }}</td>
-          <td class="py-1.5">
-            <UButton size="xs" variant="soft" :to="`/inmuebles/${inmueble.id}`">Ver ficha</UButton>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <UiTabla
+      v-else
+      :columnas="[
+        { clave: 'codigo', etiqueta: 'Código' },
+        { clave: 'tipo', etiqueta: 'Tipo' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'acciones', etiqueta: '' },
+      ]"
+      :filas="cuentaStore.inmuebles"
+      :clave-fila="(inmueble) => inmueble.id"
+    >
+      <template #celda-codigo="{ fila }">{{ fila.codigo }}</template>
+      <template #celda-tipo="{ fila }"><span class="text-gray-500">{{ nombreTipo(fila.tipo_id) }}</span></template>
+      <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado }}</span></template>
+      <template #celda-acciones="{ fila }">
+        <UButton size="xs" variant="soft" :to="`/inmuebles/${fila.id}`">Ver ficha</UButton>
+      </template>
+    </UiTabla>
   </div>
 </template>

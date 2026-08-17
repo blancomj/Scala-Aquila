@@ -95,35 +95,43 @@ watchEffect(cargar)
         <h2>Novedades activas</h2>
         <p class="panel-sub">Solicitudes de cargo, descuento o ajuste sobre este inmueble.</p>
       </div>
-      <button type="button" class="btn btn--primary" style="font-size: 12.5px; padding: 7px 14px" @click="mostrarForm = !mostrarForm">
+      <button type="button" class="btn btn--primary" style="font-size: 12.5px; padding: 7px 14px" @click="mostrarForm = true">
         Nueva novedad
       </button>
     </div>
 
-    <div v-if="mostrarForm" class="form-grid" style="margin-bottom: 1.5rem">
-      <div class="field">
-        <label for="nov-tipo">Tipo</label>
-        <select id="nov-tipo" v-model="tipo">
-          <option v-for="t in TIPOS" :key="t" :value="t">{{ t }}</option>
-        </select>
+    <UiDrawer
+      :abierto="mostrarForm"
+      titulo="Nueva novedad"
+      subtitulo="Cargo, descuento o ajuste sobre este inmueble."
+      @cerrar="mostrarForm = false"
+    >
+      <div class="form-grid">
+        <div class="field">
+          <label for="nov-tipo">Tipo</label>
+          <select id="nov-tipo" v-model="tipo">
+            <option v-for="t in TIPOS" :key="t" :value="t">{{ t }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="nov-monto">Monto</label>
+          <input id="nov-monto" v-model.number="montoNovedad" type="number" step="0.01" placeholder="45000">
+        </div>
+        <div class="field span-2">
+          <label for="nov-desc">Descripción</label>
+          <input id="nov-desc" v-model="descripcion" type="text" placeholder="Corrección por cobro doble de parqueadero">
+        </div>
+        <div class="field">
+          <label for="nov-fecha">Fecha efectiva</label>
+          <input id="nov-fecha" v-model="fechaEfectiva" type="date">
+        </div>
       </div>
-      <div class="field">
-        <label for="nov-monto">Monto</label>
-        <input id="nov-monto" v-model.number="montoNovedad" type="number" step="0.01" placeholder="45000">
-      </div>
-      <div class="field span-2">
-        <label for="nov-desc">Descripción</label>
-        <input id="nov-desc" v-model="descripcion" type="text" placeholder="Corrección por cobro doble de parqueadero">
-      </div>
-      <div class="field">
-        <label for="nov-fecha">Fecha efectiva</label>
-        <input id="nov-fecha" v-model="fechaEfectiva" type="date">
-      </div>
-      <div class="field" style="align-self: flex-end">
+      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <template #foot>
+        <button type="button" class="btn btn--ghost" @click="mostrarForm = false">Cancelar</button>
         <button type="button" class="btn btn--primary" @click="crear">Crear novedad</button>
-      </div>
-    </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      </template>
+    </UiDrawer>
 
     <div class="chips">
       <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'todas' }" @click="filtroEstado = 'todas'">Todas</button>
@@ -132,39 +140,44 @@ watchEffect(cargar)
       <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'rechazada' }" @click="filtroEstado = 'rechazada'">Rechazadas</button>
     </div>
 
-    <table v-if="novedadesFiltradas.length > 0">
-      <thead>
-        <tr><th>Tipo</th><th class="num">Monto</th><th>Descripción</th><th>Fecha efectiva</th><th>Estado</th><th /></tr>
-      </thead>
-      <tbody>
-        <tr v-for="n in novedadesFiltradas" :key="n.id">
-          <td><span class="badge badge--gris">{{ n.tipo }}</span></td>
-          <td class="num mono">$ {{ Number(n.monto).toLocaleString('es-CO') }}</td>
-          <td>{{ n.descripcion }}</td>
-          <td class="mono">{{ n.fecha_efectiva }}</td>
-          <td>
-            <span
-              class="badge"
-              :class="n.estado === 'aprobada' ? 'badge--sello' : n.estado === 'rechazada' ? 'badge--ladrillo' : 'badge--oro'"
-            >
-              {{ n.estado }}
-            </span>
-          </td>
-          <td>
-            <div v-if="n.estado === 'pendiente'" class="row-actions" style="align-items: center">
-              <input
-                v-model="motivoRechazo[n.id]"
-                type="text"
-                placeholder="Motivo de rechazo"
-                style="width: 130px; font-size: 12px; padding: 5px 8px"
-              >
-              <button type="button" class="icon-btn-sm approve" :disabled="procesando === n.id" @click="aprobar(n.id)">✓</button>
-              <button type="button" class="icon-btn-sm reject" :disabled="procesando === n.id" @click="rechazar(n.id)">✕</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="empty-state">Sin novedades para este filtro.</p>
+    <UiTabla
+      variante="ficha"
+      :columnas="[
+        { clave: 'tipo', etiqueta: 'Tipo' },
+        { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
+        { clave: 'descripcion', etiqueta: 'Descripción' },
+        { clave: 'fechaEfectiva', etiqueta: 'Fecha efectiva', claseCelda: 'mono' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'acciones', etiqueta: '' },
+      ]"
+      :filas="novedadesFiltradas"
+      :clave-fila="(n) => n.id"
+      vacio="Sin novedades para este filtro."
+    >
+      <template #celda-tipo="{ fila }"><span class="badge badge--gris">{{ fila.tipo }}</span></template>
+      <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
+      <template #celda-descripcion="{ fila }">{{ fila.descripcion }}</template>
+      <template #celda-fechaEfectiva="{ fila }">{{ fila.fecha_efectiva }}</template>
+      <template #celda-estado="{ fila }">
+        <span
+          class="badge"
+          :class="fila.estado === 'aprobada' ? 'badge--sello' : fila.estado === 'rechazada' ? 'badge--ladrillo' : 'badge--oro'"
+        >
+          {{ fila.estado }}
+        </span>
+      </template>
+      <template #celda-acciones="{ fila }">
+        <div v-if="fila.estado === 'pendiente'" class="row-actions" style="align-items: center">
+          <input
+            v-model="motivoRechazo[fila.id]"
+            type="text"
+            placeholder="Motivo de rechazo"
+            style="width: 130px; font-size: 12px; padding: 5px 8px"
+          >
+          <button type="button" class="icon-btn-sm approve" :disabled="procesando === fila.id" @click="aprobar(fila.id)">✓</button>
+          <button type="button" class="icon-btn-sm reject" :disabled="procesando === fila.id" @click="rechazar(fila.id)">✕</button>
+        </div>
+      </template>
+    </UiTabla>
   </div>
 </template>

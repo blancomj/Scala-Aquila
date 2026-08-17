@@ -89,6 +89,15 @@ verify_jwt = true
 import_map = "./functions/calcular-intereses/deno.json"
 entrypoint = "./functions/calcular-intereses/index.ts"
 
+# Pública a propósito: el propietario/residente no tiene sesión (AD-26).
+# La única barrera es que `id` es un uuid v4 no adivinable — ver cabecera
+# de ver-estado-cuenta/index.ts.
+[functions.ver-estado-cuenta]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ver-estado-cuenta/deno.json"
+entrypoint = "./functions/ver-estado-cuenta/index.ts"
+
 [functions.probar-formula]
 enabled = true
 verify_jwt = true

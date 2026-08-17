@@ -63,6 +63,26 @@ const opcionesRepresentantePagador = computed(() =>
   tercerosStore.tercerosNaturales.filter((t) => t.id !== props.terceroId),
 )
 
+const opcionesTipoIdentificacion = computed(() =>
+  tercerosStore.tiposIdentificacion.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+)
+function opcionesPersona(etiquetaVacia: string): { valor: string; etiqueta: string }[] {
+  return [
+    { valor: '', etiqueta: etiquetaVacia },
+    ...opcionesRepresentantePagador.value.map((t) => ({
+      valor: t.id,
+      etiqueta: t.nombre_completo ?? t.numero_documento,
+    })),
+  ]
+}
+const opcionesRepresentanteLegal = computed(() =>
+  opcionesPersona('Seleccionar representante legal'),
+)
+const opcionesPagador = computed(() => opcionesPersona('Seleccionar pagador'))
+const opcionesEstado = computed(() =>
+  tercerosStore.estadosGenerales.map((e) => ({ valor: e.id, etiqueta: e.nombre })),
+)
+
 async function alSeleccionarJuridica(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || tercerosNaturalesCargados) return
@@ -192,115 +212,113 @@ async function guardar(): Promise<void> {
 </script>
 
 <template>
-  <div class="modal-backdrop is-open" @click.self="emit('cerrar')">
-    <div class="modal">
-      <div class="modal-head">
-        <div>
-          <h2>{{ esCreacion ? 'Nuevo tercero' : 'Editar tercero' }}</h2>
-          <p>{{ esCreacion ? 'Ingresa los datos del nuevo tercero' : 'Actualiza los datos del tercero' }}</p>
-        </div>
-        <button type="button" class="modal-close" aria-label="Cerrar" @click="emit('cerrar')">✕</button>
+  <UiDrawer
+    :abierto="true"
+    :titulo="esCreacion ? 'Nuevo tercero' : 'Editar tercero'"
+    :subtitulo="esCreacion ? 'Ingresa los datos del nuevo tercero' : 'Actualiza los datos del tercero'"
+    @cerrar="emit('cerrar')"
+  >
+    <div class="segmented">
+      <button type="button" :class="{ 'is-active': tipoPersona === 'natural' }" :disabled="!esCreacion" @click="tipoPersona = 'natural'">
+        Natural
+      </button>
+      <button type="button" :class="{ 'is-active': tipoPersona === 'juridica' }" :disabled="!esCreacion" @click="tipoPersona = 'juridica'">
+        Jurídica
+      </button>
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="t-tipo-id">Tipo identificación</label>
+        <UiSelectorBuscable
+          id="t-tipo-id"
+          v-model="tipoIdentificacionId"
+          variante="ficha"
+          :opciones="opcionesTipoIdentificacion"
+          placeholder="Seleccione"
+        />
+      </div>
+      <div class="field">
+        <label for="t-documento">Documento</label>
+        <input id="t-documento" v-model="numeroDocumento" type="text" placeholder="Ingrese el documento">
+      </div>
+      <div v-if="esNit" class="field">
+        <label for="t-dv">Dígito de verificación</label>
+        <input id="t-dv" :value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly>
+        <span class="field-hint">Calculado con el algoritmo de la DIAN — no editable.</span>
       </div>
 
-      <div class="modal-body">
-        <div class="segmented">
-          <button type="button" :class="{ 'is-active': tipoPersona === 'natural' }" :disabled="!esCreacion" @click="tipoPersona = 'natural'">
-            Natural
-          </button>
-          <button type="button" :class="{ 'is-active': tipoPersona === 'juridica' }" :disabled="!esCreacion" @click="tipoPersona = 'juridica'">
-            Jurídica
-          </button>
+      <template v-if="tipoPersona === 'natural'">
+        <div class="field span-2">
+          <label for="t-primer-nombre">Primer nombre</label>
+          <input id="t-primer-nombre" v-model="primerNombre" type="text" placeholder="Primer nombre">
         </div>
-
-        <div class="form-grid">
-          <div class="field">
-            <label for="t-tipo-id">Tipo identificación</label>
-            <select id="t-tipo-id" v-model.number="tipoIdentificacionId">
-              <option :value="null" disabled>Seleccione</option>
-              <option v-for="t in tercerosStore.tiposIdentificacion" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="t-documento">Documento</label>
-            <input id="t-documento" v-model="numeroDocumento" type="text" placeholder="Ingrese el documento">
-          </div>
-          <div v-if="esNit" class="field">
-            <label for="t-dv">Dígito de verificación</label>
-            <input id="t-dv" :value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly>
-            <span class="field-hint">Calculado con el algoritmo de la DIAN — no editable.</span>
-          </div>
-
-          <template v-if="tipoPersona === 'natural'">
-            <div class="field span-2">
-              <label for="t-primer-nombre">Primer nombre</label>
-              <input id="t-primer-nombre" v-model="primerNombre" type="text" placeholder="Primer nombre">
-            </div>
-            <div class="field">
-              <label for="t-segundo-nombre">Segundo nombre</label>
-              <input id="t-segundo-nombre" v-model="segundoNombre" type="text" placeholder="Segundo nombre">
-            </div>
-            <div class="field">
-              <label for="t-primer-apellido">Primer apellido</label>
-              <input id="t-primer-apellido" v-model="primerApellido" type="text" placeholder="Primer apellido">
-            </div>
-            <div class="field">
-              <label for="t-segundo-apellido">Segundo apellido</label>
-              <input id="t-segundo-apellido" v-model="segundoApellido" type="text" placeholder="Segundo apellido">
-            </div>
-          </template>
-
-          <template v-else>
-            <div class="field span-2">
-              <label for="t-razon-social">Razón social</label>
-              <input id="t-razon-social" v-model="razonSocial" type="text" placeholder="Ingrese la razón social">
-            </div>
-            <div class="field span-2">
-              <label for="t-rep-legal">Representante legal</label>
-              <select id="t-rep-legal" v-model="representanteLegalId">
-                <option value="">Seleccionar representante legal</option>
-                <option v-for="t in opcionesRepresentantePagador" :key="t.id" :value="t.id">{{ t.nombre_completo }}</option>
-              </select>
-              <span class="field-hint">Solo personas naturales ya registradas como tercero.</span>
-            </div>
-            <div class="field span-2">
-              <label for="t-pagador">Pagador (contacto de facturación por defecto)</label>
-              <select id="t-pagador" v-model="pagadorId">
-                <option value="">Seleccionar pagador</option>
-                <option v-for="t in opcionesRepresentantePagador" :key="t.id" :value="t.id">{{ t.nombre_completo }}</option>
-              </select>
-              <span class="field-hint">Default de esta empresa — se puede sobrescribir por inmueble.</span>
-            </div>
-          </template>
-
-          <div class="field">
-            <label for="t-email">Email</label>
-            <input id="t-email" v-model="email" type="text" placeholder="Ingrese el email">
-          </div>
-          <div class="field">
-            <label for="t-telefono">Teléfono</label>
-            <input id="t-telefono" v-model="telefono" type="text" placeholder="Ingrese el teléfono">
-          </div>
-          <div class="field span-2">
-            <label for="t-direccion">Dirección</label>
-            <input id="t-direccion" v-model="direccion" type="text" placeholder="Dirección de correspondencia">
-          </div>
-          <div class="field">
-            <label for="t-estado">Estado</label>
-            <select id="t-estado" v-model.number="estadoId">
-              <option v-for="e in tercerosStore.estadosGenerales" :key="e.id" :value="e.id">{{ e.nombre }}</option>
-            </select>
-          </div>
+        <div class="field">
+          <label for="t-segundo-nombre">Segundo nombre</label>
+          <input id="t-segundo-nombre" v-model="segundoNombre" type="text" placeholder="Segundo nombre">
         </div>
+        <div class="field">
+          <label for="t-primer-apellido">Primer apellido</label>
+          <input id="t-primer-apellido" v-model="primerApellido" type="text" placeholder="Primer apellido">
+        </div>
+        <div class="field">
+          <label for="t-segundo-apellido">Segundo apellido</label>
+          <input id="t-segundo-apellido" v-model="segundoApellido" type="text" placeholder="Segundo apellido">
+        </div>
+      </template>
 
-        <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <template v-else>
+        <div class="field span-2">
+          <label for="t-razon-social">Razón social</label>
+          <input id="t-razon-social" v-model="razonSocial" type="text" placeholder="Ingrese la razón social">
+        </div>
+        <div class="field span-2">
+          <label for="t-rep-legal">Representante legal</label>
+          <UiSelectorBuscable
+            id="t-rep-legal"
+            v-model="representanteLegalId"
+            variante="ficha"
+            :opciones="opcionesRepresentanteLegal"
+          />
+          <span class="field-hint">Solo personas naturales ya registradas como tercero.</span>
+        </div>
+        <div class="field span-2">
+          <label for="t-pagador">Pagador (contacto de facturación por defecto)</label>
+          <UiSelectorBuscable
+            id="t-pagador"
+            v-model="pagadorId"
+            variante="ficha"
+            :opciones="opcionesPagador"
+          />
+          <span class="field-hint">Default de esta empresa — se puede sobrescribir por inmueble.</span>
+        </div>
+      </template>
+
+      <div class="field">
+        <label for="t-email">Email</label>
+        <input id="t-email" v-model="email" type="text" placeholder="Ingrese el email">
       </div>
-
-      <div class="modal-foot">
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Guardando…' : 'Guardar' }}
-        </button>
+      <div class="field">
+        <label for="t-telefono">Teléfono</label>
+        <input id="t-telefono" v-model="telefono" type="text" placeholder="Ingrese el teléfono">
+      </div>
+      <div class="field span-2">
+        <label for="t-direccion">Dirección</label>
+        <input id="t-direccion" v-model="direccion" type="text" placeholder="Dirección de correspondencia">
+      </div>
+      <div class="field">
+        <label for="t-estado">Estado</label>
+        <UiSelectorBuscable id="t-estado" v-model="estadoId" variante="ficha" :opciones="opcionesEstado" />
       </div>
     </div>
-  </div>
+
+    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+
+    <template #foot>
+      <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
+      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
+        {{ guardando ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </template>
+  </UiDrawer>
 </template>
