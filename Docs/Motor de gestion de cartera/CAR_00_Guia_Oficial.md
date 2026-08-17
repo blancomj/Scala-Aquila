@@ -1,0 +1,3119 @@
+# AQUILA_SAAS — MOTOR DE GESTIÓN DE CARTERA
+
+## Guía oficial de diseño, desarrollo e implementación
+
+| Campo | Valor |
+|---|---|
+| **Código de bloque** | `CAR` (Cartera / Collections) |
+| **Estado del documento** | Guía oficial — normativa para diseño e implementación |
+| **Versión** | 2.0 (enriquecida y reconciliada contra el código existente) |
+| **Ruta canónica** | `Docs/Motor de gestion de cartera/CAR_00_Guia_Oficial.md` |
+| **Reemplaza a** | `Casos de uso/Gestion de cartera/AQUILA_PROMPT_Motor_Gestion_Cartera.md` (v1.0, prompt conceptual sin reconciliar) |
+| **Documentos canónicos que consume** | `Docs/16`, `Docs/17`, `Docs/18`, `Docs/19`, `Docs/20`, `Docs/22`, `Docs/12`, `Docs/21`, `Docs/23`, `Docs/24` |
+| **Código existente que NO puede contradecir** | `packages/liquidation-engine/src/cuenta-corriente.ts`, `supabase/migrations/20260816100000_cuenta_corriente_ledger.sql`, `PLAN_MAESTRO_IMPLEMENTACION.md` |
+| **Patrón de reconciliación aplicado** | El de `Docs/Motor presupuestal/…E16_Reconciliacion_Bloque_Autonomo…md` |
+
+---
+
+# 0. Cómo usar este documento
+
+## 0.1 Qué es
+
+Este documento es simultáneamente:
+
+1. **Especificación de dominio** — qué es la cartera, cómo se clasifica, cómo escala.
+2. **Especificación técnica** — DDL, máquinas de estado, contratos de función, RLS.
+3. **Prompt operativo para el agente implementador** — reglas de trabajo, prohibiciones, criterios de terminación.
+
+No es un documento de ideas. Cada sección normativa es ejecutable o verificable.
+
+## 0.2 Jerarquía normativa (orden de precedencia en caso de conflicto)
+
+```text
+1. Ley 675 de 2001 y normas que la modifican (Ley 2079 de 2021)
+2. Código General del Proceso (Ley 1564 de 2012) — para lo judicial
+3. Reglamento de Propiedad Horizontal de la copropiedad
+4. Decisiones de Asamblea General debidamente actas
+5. Documentos canónicos AQUILA 01–24
+6. PLAN_MAESTRO_IMPLEMENTACION.md (decisiones AD-*, GAP-*, REQ-*)
+7. Este documento
+8. Criterio del implementador
+```
+
+Si este documento contradice un nivel superior, **gana el nivel superior y este documento se corrige**. No al revés.
+
+## 0.3 Clasificación obligatoria de cada regla
+
+Toda regla enunciada aquí lleva una de estas etiquetas. El agente implementador debe mantenerlas y debe etiquetar toda regla nueva que introduzca:
+
+| Etiqueta | Significado | Puede cambiarse por |
+|---|---|---|
+| `[LEGAL]` | Derivada directamente de norma citada y verificable | Solo un cambio normativo |
+| `[NEGOCIO]` | Regla de negocio derivada de la norma o de la práctica de PH | Decisión de producto |
+| `[ARQ]` | Decisión arquitectónica de AQUILA | Decisión técnica documentada |
+| `[CONFIG]` | Parámetro configurable por copropiedad | Configuración, sin código |
+| `[PRQ]` | Prerrequisito de otro bloque | Se resuelve en el bloque dueño |
+| `[GAP]` | Vacío conocido, no resuelto | Requiere trabajo explícito |
+| `[VERIFICAR]` | Afirmación que requiere validación jurídica antes de implementarse | Concepto jurídico externo |
+
+**Regla dura:** nunca presentar una decisión `[ARQ]` o `[NEGOCIO]` como si fuera `[LEGAL]`.
+
+## 0.4 Desambiguación crítica del término "cartera"
+
+`[ARQ]` En este repositorio la palabra "cartera" ya tiene **dos significados distintos**. Este documento usa exclusivamente el segundo:
+
+| Uso | Significado | Alcance | Estado |
+|---|---|---|---|
+| **Cartera de administrador** | Portafolio de copropiedades que gestiona una misma persona/empresa | **Cross-tenant** | `GAP-17` — fuera de alcance, diferido, no relajar `SEC-03` |
+| **Cartera vencida / gestión de cartera** ← **este documento** | Obligaciones vencidas y su cobro dentro de UNA copropiedad | **Intra-tenant** | Este bloque |
+
+Además, el componente `apps/web/app/components/inmuebles/InmuebleCartera.vue` ya usa "Cartera" como nombre de pestaña de la cuenta corriente de un inmueble. **No implementa clasificación, antigüedad ni cobranza.** Este bloque lo extenderá; no lo reemplaza ni lo renombra sin decisión explícita.
+
+## 0.5 Convención de nombres — decisión cerrada
+
+`[ARQ]` **`REC-CAR-001`** — El prompt v1 proponía nombres de tabla en inglés (`portfolio_classification_policy`, `collection_action`, `judicial_case`). **Esto se rechaza.** El esquema físico de AQUILA es uniformemente **snake_case en español** (`cargos`, `pagos`, `pago_aplicaciones`, `politicas_financieras`, `novedades`, `liquidacion_lineas`). Introducir tablas en inglés crearía dos convenciones en la misma base de datos.
+
+**Decisión:** todo objeto físico (tabla, columna, enum, función, vista, política RLS) de este bloque se nombra en **español snake_case**. Los tipos TypeScript del motor puro mantienen el estilo del paquete (`camelCase`, español), igual que `CargoAbierto`, `PlanImputacion`, `PoliticaMora`.
+
+Tabla de equivalencias v1 → v2:
+
+```text
+portfolio_classification_policy   →  politicas_clasificacion_cartera
+                                     politica_clasificacion_tramos
+collection_strategy               →  estrategias_cobranza
+collection_action                 →  acciones_cobranza
+payment_promise                   →  promesas_pago
+payment_agreement                 →  acuerdos_pago
+payment_agreement_installment     →  acuerdo_pago_cuotas
+judicial_case                     →  casos_juridicos
+judicial_case_document            →  caso_juridico_documentos
+judicial_cost                     →  costas_judiciales
+collection_cost_policy            →  politicas_gastos_cobranza
+portfolio_event                   →  eventos_cartera
+PortfolioPosition                 →  v_posicion_cartera (vista) +
+                                     posiciones_cartera_snapshot (histórico)
+```
+
+## 0.6 Ubicación del documento en el corpus
+
+`[ARQ]` El corpus canónico `Docs/01…24` está **cerrado** (`Docs/24` declara explícitamente el cierre). Por tanto este bloque **no toma un número canónico nuevo**. Sigue el precedente del Motor Presupuestal: vive en su propia carpeta y se referencia por código de bloque `CAR`.
+
+```text
+Docs/
+├── 01..24                       ← corpus canónico CERRADO
+├── Motor presupuestal/          ← bloque autónomo (E01..E16)
+├── Motor de formulas/           ← bloque autónomo
+└── Motor de gestion de cartera/ ← ESTE BLOQUE
+    └── CAR_00_Guia_Oficial.md   ← este documento
+```
+
+`[ARQ]` Convención de rutas: **sin tildes en nombres de carpeta y archivo**, coherente con `Motor presupuestal/`, `Motor de formulas/` y `Casos de uso/Barra de Busqueda/`.
+
+Los entregables derivados se numeran a partir de aquí:
+
+```text
+CAR_00_Guia_Oficial.md              ← este documento (normativo)
+CAR_01_Modelo_Datos_DDL.md          ← DDL consolidado y ejecutable
+CAR_02_Maquinas_Estado.md           ← diagramas y tablas de transición
+CAR_03_Diccionario_Datos.md         ← pendiente (F0)
+CAR_04_Matriz_Legal_Extendida.md    ← con conceptos VER-CAR-* resueltos
+CAR_05_Plan_Migracion.md            ← pendiente (F0)
+CAR_06_Plan_Pruebas.md              ← pendiente (F0)
+```
+
+---
+
+# 1. Objetivo y ciclo de vida
+
+## 1.1 Objetivo
+
+Diseñar e implementar el **Motor de Gestión de Cartera** de AQUILA_SAAS: el bloque que responde, para cada inmueble de una copropiedad y en cualquier fecha de corte, las preguntas:
+
+```text
+¿Cuánto debe?
+¿Desde cuándo?
+¿En qué clasificación de cartera está?
+¿Qué acción de cobro corresponde ahora?
+¿Qué se ha hecho ya y con qué resultado?
+¿Debe escalar?
+¿Puede certificarse la deuda para cobro ejecutivo?
+```
+
+## 1.2 Ciclo completo
+
+```text
+LIQUIDACIÓN (Docs 17-20, ya existe)
+    ↓  materializa
+CARGOS  (tabla cargos, ya existe)
+    ↓  con fecha de vencimiento
+VENCIMIENTO
+    ↓
+MORA  (calcularInteresMora, ya existe)
+    ↓
+ANTIGÜEDAD  ← INICIA ESTE BLOQUE
+    ↓
+CLASIFICACIÓN DE CARTERA
+    ↓
+ETAPA DE COBRO
+    ↓
+ACCIONES DE COBRANZA
+    ↓
+        ¿PAGO?
+    ┌─────┴─────┐
+   SÍ           NO
+    ↓            ↓
+IMPUTACIÓN   ESCALAMIENTO
+(imputarPago,     ↓
+ ya existe)   PREJURÍDICO
+    ↓             ↓
+ SALDO        JURÍDICO
+              (art. 48 L675 → título ejecutivo)
+                  ↓
+            PROCESO JUDICIAL
+                  ↓
+          RESULTADO / COSTAS (CGP arts. 365-366)
+```
+
+## 1.3 Lo que este bloque NO hace
+
+`[ARQ]` Delimitación negativa explícita. Este bloque **no**:
+
+- No calcula intereses de mora → lo hace `calcularInteresMora()` en `packages/liquidation-engine/src/cuenta-corriente.ts`.
+- No imputa pagos → lo hace `imputarPago()` en el mismo archivo.
+- No liquida períodos → lo hace el motor de liquidación (`Docs/17-20`).
+- No define la política financiera → vive en `politicas_financieras`.
+- No emite estados de cuenta → existe `estados_cuenta_generados`.
+- No agrega copropiedades entre sí → `GAP-17`, cross-tenant, prohibido.
+- No evalúa fórmulas → todo cálculo parametrizable pasa por AEL.
+
+---
+
+# 2. Principio arquitectónico fundamental
+
+`[ARQ]` **La separación de conceptos es la decisión de diseño más importante de este bloque.** Confundirlos es el error clásico en software de propiedad horizontal.
+
+```text
+Antigüedad de cartera
+        ≠
+Tasa de mora
+        ≠
+Etapa de cobranza
+        ≠
+Acción de cobranza
+        ≠
+Proceso jurídico
+        ≠
+Costas judiciales
+```
+
+Formalizado:
+
+| Concepto | Pregunta que responde | Determinado por | Dueño |
+|---|---|---|---|
+| **Antigüedad** | ¿Cuántos días lleva vencida esta obligación? | `fecha_vencimiento` vs `fecha_corte` | Este bloque |
+| **Tasa de mora** | ¿Cuánto interés se causa? | `politicas_financieras.interes_*` + Art. 30 L675 | Motor de mora (existe) |
+| **Clasificación** | ¿En qué tramo de riesgo está el inmueble? | Política versionada de tramos | Este bloque |
+| **Etapa de cobranza** | ¿En qué fase del proceso de cobro está? | Máquina de estados + eventos | Este bloque |
+| **Acción de cobranza** | ¿Qué se hace y cuándo? | Estrategia configurable | Este bloque |
+| **Proceso jurídico** | ¿Hay demanda? ¿en qué estado? | Actuación real del abogado/juzgado | Este bloque |
+| **Costas** | ¿Cuánto liquidó el juez? | Auto de liquidación de costas (CGP 366) | Este bloque, solo por evidencia |
+
+## 2.1 Los seis anti-patrones prohibidos
+
+`[ARQ]` Cada uno de estos se ha visto en sistemas reales de PH y está **prohibido** en AQUILA:
+
+```text
+AP-01  Persistir un booleano "esta_en_mora" en el inmueble.
+       → La mora es DERIVADA de obligaciones reales, nunca un flag.
+
+AP-02  Escalar la tasa de mora con la antigüedad (30d=1%, 60d=2%...).
+       → Ilegal. Art. 30 L675 fija un único tope; no hay tasa progresiva.
+
+AP-03  Generar costas judiciales por antigüedad (180d=10%, 360d=15%).
+       → Ilegal. Las costas las liquida el juez (CGP 366), no un cron.
+
+AP-04  Reescribir o borrar cargos al firmar un acuerdo de pago.
+       → El acuerdo es una capa de gestión; la obligación original sobrevive.
+
+AP-05  Recalcular la clasificación histórica con la política vigente hoy.
+       → Toda clasificación se congela con la versión de política que la produjo.
+
+AP-06  Que la UI calcule saldos, antigüedad o clasificación.
+       → Toda lógica financiera vive en el motor puro o en SQL, nunca en Vue.
+```
+
+---
+
+# 3. Marco legal — matriz normativa
+
+`[LEGAL]` Fundamento verificado. Toda regla financiera de este bloque debe trazar a una fila de esta matriz o declararse `[NEGOCIO]`.
+
+## 3.1 Ley 675 de 2001
+
+| Norma | Regla interpretada | Implicación para AQUILA | Etiqueta | Implementación |
+|---|---|---|---|---|
+| **Art. 29** | Los propietarios están obligados a contribuir a las expensas comunes necesarias según el **coeficiente de copropiedad** fijado en el reglamento. | La obligación nace de la liquidación por coeficiente. Ya implementado: `coeficiente_sets`/`coeficientes` → `liquidacion_lineas` → `cargos`. | `[LEGAL]` | Existe (motor de liquidación) |
+| **Art. 30** | El retardo en el pago de expensas causa **interés de mora equivalente a una y media veces el interés bancario corriente** certificado por la Superintendencia (hoy Financiera), **sin perjuicio de que la asamblea establezca uno inferior**. | Tope legal = 1.5 × IBC. La asamblea puede fijar **menos**, nunca más. → `politicas_financieras.interes_tasa_mensual` (lo que decide la asamblea) y `interes_tope_mensual` (el tope legal). | `[LEGAL]` | Existe parcialmente |
+| **Art. 30 (par.)** | Mientras subsista el incumplimiento, la situación puede publicarse en el edificio y constar en el acta de asamblea. | Habilita la acción `PUBLICACION_MOROSOS` como acción de cobranza, sujeta a habeas data. | `[LEGAL]` + `[VERIFICAR]` | Este bloque |
+| **Art. 48** | La **certificación expedida por el administrador** sobre el valor adeudado, acompañada del certificado de existencia y representación legal, **presta mérito ejecutivo**. Debe señalar valores por expensas ordinarias, extraordinarias, intereses moratorios y sanciones. | Este es el artefacto crítico del bloque jurídico: `fn_certificar_deuda()` debe producir un documento inmutable, fechado, versionado y firmado, discriminado por los cuatro rubros del artículo. | `[LEGAL]` | Este bloque — **§18** |
+| **Art. 51** | Funciones del administrador, incluida la de **cobrar y recaudar** cuotas, multas y demás obligaciones. | Legitima que el sistema ejecute acciones de cobro en nombre de la copropiedad y que el rol `admin` sea el responsable por defecto. | `[LEGAL]` | Este bloque (roles) |
+
+## 3.2 Ley 2079 de 2021
+
+| Norma | Regla interpretada | Implicación | Etiqueta |
+|---|---|---|---|
+| **Art. 44** (modifica art. 29 L675) | Para VIS/VIP de **5 o menos unidades**, la asamblea puede determinar de forma distinta qué expensas asumen los copropietarios. | La política de contribución debe ser configurable por copropiedad; no asumir coeficiente puro universalmente. Ya cubierto por `ApplicabilityPolicy`/coeficientes versionados. | `[LEGAL]` |
+| **Art. 45** (modifica art. 35 L675) | Fondo de imprevistos **opcional** para VIS/VIP de 5 o menos unidades. | No es de este bloque (`fondos` ya existe), pero afecta la composición de la deuda certificable. | `[LEGAL]` |
+
+## 3.3 Código General del Proceso (Ley 1564 de 2012)
+
+| Norma | Regla interpretada | Implicación | Etiqueta |
+|---|---|---|---|
+| **Art. 365** | Condena en costas a la parte vencida, bajo criterio objetivo-valorativo. | Las costas **existen solo si hay condena**. No hay costas sin proceso ni sin sentencia/auto. | `[LEGAL]` |
+| **Art. 366** | Las costas y **agencias en derecho** se liquidan de forma concentrada en el juzgado de primera instancia, una vez en firme la providencia. Son impugnables por reposición/apelación. | `costas_judiciales` solo admite registros con `documento_fuente` y `fecha_decision`. Estado `impugnada` obligatorio en la máquina de estados. | `[LEGAL]` |
+| **Art. 366** | Las **agencias en derecho** dependen de las **tarifas del Consejo Superior de la Judicatura**, no del contrato privado de honorarios. | Prohibido derivar agencias en derecho de un % del contrato con el abogado. Se registran como valor decidido. | `[LEGAL]` |
+| **Art. 422 y ss.** | Proceso ejecutivo: requiere título que preste mérito ejecutivo, obligación clara, expresa y exigible. | La certificación del art. 48 L675 es el título. `fn_certificar_deuda()` debe garantizar claridad, expresividad y exigibilidad (vencida). | `[LEGAL]` |
+
+## 3.4 Tasa de referencia — Interés Bancario Corriente
+
+`[LEGAL]` `[CONFIG]` La Superintendencia Financiera de Colombia **certifica mensualmente** el Interés Bancario Corriente por modalidad de crédito, mediante resolución. El IBC es la base para el máximo de interés remuneratorio y moratorio (C. Co. art. 884) y para la usura (C.P. art. 305).
+
+Consecuencias de diseño:
+
+```text
+[ARQ] REC-CAR-002
+La tasa NO se quema en código.  ← ya cumplido: politicas_financieras
+La tasa es VERSIONADA por vigencia.
+La fuente (número de resolución, fecha, modalidad) es TRAZABLE.
+Actualizar el valor mensual es TAREA OPERATIVA, no despliegue de código.
+```
+
+`[GAP]` **`GAP-CAR-004`** — Hoy `politicas_financieras` tiene `interes_tasa_mensual` / `interes_tope_mensual` como columnas escalares dentro de la política, sin registro de la resolución fuente ni segmentación temporal intra-mora. Ver §14.3.
+
+## 3.5 Lo que NO está resuelto y debe verificarse antes de implementar
+
+`[VERIFICAR]` **No inventar. Bloquear si es crítico.**
+
+| Id | Incertidumbre | Fuente que debe verificarse | ¿Bloqueante? |
+|---|---|---|---|
+| `VER-CAR-01` | ¿El IBC certificado es EA (efectivo anual)? ¿Cómo se convierte a mensual/diario para 1.5×? ¿1.5 se aplica a la tasa EA o a la mensual equivalente? | Doctrina Superfinanciera + concepto jurídico. Impacta directamente el monto cobrado. | **SÍ** |
+| `VER-CAR-02` | ¿Los intereses de mora en PH admiten capitalización (anatocismo)? La doctrina mayoritaria dice **no**. | Concepto jurídico + reglamento de PH. | **SÍ** |
+| `VER-CAR-03` | ¿Puede la copropiedad cobrar "gastos de cobranza prejurídica" y bajo qué límite? No hay porcentaje legal universal. | Reglamento de PH + acta de asamblea + concepto. | **SÍ** — ver §19 |
+| `VER-CAR-04` | Publicación de morosos vs. Habeas Data (Ley 1581/2012). Qué datos, dónde, por cuánto tiempo. | Concepto de protección de datos. | **SÍ** para esa acción |
+| `VER-CAR-05` | Prescripción de la obligación por expensas comunes. | Régimen civil aplicable. Afecta indicadores y castigo de cartera. | No (afecta BI) |
+| `VER-CAR-06` | Efecto de la transferencia de dominio sobre la deuda anterior (solidaridad del adquirente). | Art. 29 L675 + jurisprudencia. Afecta `PH-C24`/`PH-C25`. | **SÍ** para transferencias |
+
+**Regla:** mientras un `VER-CAR-*` bloqueante esté abierto, la funcionalidad que depende de él queda en estado `BLOCKED` y **no se implementa con un valor por defecto inventado**.
+
+---
+
+# 4. Reconciliación con lo que ya existe
+
+`[ARQ]` Aplicando el patrón de `E16 — Reconciliación de Bloque Autónomo`. El prompt v1 se escribió como si el dominio financiero no existiera. **Sí existe y está en funcionamiento.**
+
+## 4.1 Tabla de reconciliación: necesidad declarada → qué ya la resuelve
+
+| # | Necesidad del prompt v1 | ¿Ya existe en AQUILA? | Objeto real | Veredicto |
+|---|---|---|---|---|
+| 1 | `FinancialObligation` | **Sí** | Tabla `cargos` (append-only, `categoria` ∈ capital/interes/otro) | **Reutilizar.** No crear entidad nueva. |
+| 2 | Saldo de la obligación | **Sí** | Vista `v_cargo_saldo` = `monto_original − Σ pago_aplicaciones.monto` | **Reutilizar.** Nunca persistir saldo. |
+| 3 | `Payment` | **Sí** | Tabla `pagos` (inmutable) | **Reutilizar.** |
+| 4 | `PaymentAllocation` | **Sí** | Tabla `pago_aplicaciones` + guard `guard_pago_aplicacion_no_excede` | **Reutilizar.** |
+| 5 | `PaymentAllocationPolicy` | **Sí** | `politicas_financieras.imputacion_orden` + `imputacion_estrategia` (AD-36) | **Reutilizar.** |
+| 6 | Algoritmo de imputación | **Sí** | `imputarPago()` — waterfall greedy, `packages/liquidation-engine/src/cuenta-corriente.ts` | **Reutilizar.** No escribir un segundo imputador. |
+| 7 | `InterestRateVersion` | **Parcial** | Columnas `interes_tasa_mensual`, `interes_tope_mensual`, `interes_dias_gracia`, `interes_day_count`, `interes_descuento_orden` en `politicas_financieras` | **Extender** — ver `GAP-CAR-004`. |
+| 8 | Cálculo de interés / `InterestSegment` | **Parcial** | `calcularInteresMora()` (day-count configurable, D-23) | **Reutilizar**; falta segmentación por cambio de tasa intra-mora. |
+| 9 | Ajustes / novedades | **Sí** | `novedades` + `fn_aprobar_novedad` → materializa `cargos.categoria='otro'` (AD-33) | **Reutilizar.** |
+| 10 | `Snapshot` / reproducibilidad | **Sí** | Motor de liquidación: `result_hash`, `policy_hash`, `snapshotHash` (Docs 17/20) | **Reutilizar el patrón**, aplicarlo a cartera. |
+| 11 | Auditoría | **Sí** | `audit_log` | **Reutilizar** para actor/acción; añadir `eventos_cartera` para semántica de dominio. |
+| 12 | Aislamiento multi-tenant | **Sí** | `tenant_id` + RLS `enable + force` en toda tabla | **Obligatorio replicar.** |
+| 13 | Política versionada | **Sí** (patrón) | `politicas_financieras`: `version`, `estado`, `vigente_desde/hasta`, `policy_hash`, unicidad de vigente, `guard_politica_inmutable` | **Obligatorio replicar el patrón.** |
+| 14 | Antigüedad / `daysOverdue` | **No** | — | **Nuevo.** |
+| 15 | Clasificación de cartera | **No** | — | **Nuevo.** |
+| 16 | Estrategias y acciones de cobranza | **No** | — | **Nuevo.** |
+| 17 | Promesas y acuerdos de pago | **No** | — | **Nuevo.** |
+| 18 | Escalamiento | **No** | — | **Nuevo.** |
+| 19 | Gestión jurídica y costas | **No** | — | **Nuevo.** |
+| 20 | Notificaciones | **No** | — | **`[PRQ]` externo** — ver `PRQ-CAR-009`. |
+
+**Conclusión:** de 20 necesidades, **13 ya están resueltas**. Lo genuinamente nuevo son los puntos 14–19: el **proceso de gestión**, no el modelo financiero.
+
+## 4.2 Frontera del bloque
+
+`[ARQ]` **`REC-CAR-003`**
+
+```text
+        ENTRADA (solo lectura, NO redefinir)
+        ┌───────────────────────────────────────────┐
+        │ cargos · v_cargo_saldo · pagos            │
+        │ pago_aplicaciones · politicas_financieras │
+        │ periodos · inmuebles · propietarios       │
+        │ inmueble_propietario · conceptos          │
+        └───────────────────┬───────────────────────┘
+                            ↓
+        ┌───────────────────────────────────────────┐
+        │      BLOQUE MOTOR DE GESTIÓN DE CARTERA   │
+        │                                           │
+        │  antigüedad → clasificación → etapa →     │
+        │  acción → promesa/acuerdo → escalamiento  │
+        │  → jurídico → costas                      │
+        │                                           │
+        │  (proceso de negocio; cero cálculo        │
+        │   financiero propio)                      │
+        └───────────────────┬───────────────────────┘
+                            ↓
+        SALIDA (materializa donde el consumidor ya lee)
+        ┌───────────────────────────────────────────┐
+        │ · cargos (categoría 'otro') ← gastos de   │
+        │   cobranza aprobados, vía novedades       │
+        │ · eventos_cartera ← trazabilidad          │
+        │ · certificaciones_deuda ← art. 48 L675    │
+        │ · v_posicion_cartera ← lectura para UI/BI │
+        └───────────────────────────────────────────┘
+```
+
+**Regla de frontera dura:** este bloque **nunca** hace `INSERT` directo en `cargos`. Si un gasto de cobranza debe volverse deuda, entra por `novedades` → `fn_aprobar_novedad` (AD-33), respetando el flujo de aprobación existente.
+
+## 4.3 Decisiones cerradas de reconciliación
+
+```text
+REC-CAR-001  Nombres físicos en español snake_case. No inglés.
+REC-CAR-002  Ninguna tasa se quema en código. Versionada y trazable a resolución.
+REC-CAR-003  El bloque no escribe en cargos directamente. Entra por novedades.
+REC-CAR-004  El bloque no implementa un segundo imputador ni un segundo
+             calculador de interés. Usa imputarPago() y calcularInteresMora().
+REC-CAR-005  La posición de cartera es DERIVADA (vista). El snapshot histórico
+             es una materialización fechada, no la fuente de verdad.
+REC-CAR-006  Toda política de este bloque replica el patrón de
+             politicas_financieras: version + estado + vigencia + hash +
+             inmutabilidad una vez vigente.
+REC-CAR-007  Toda tabla nueva lleva tenant_id + RLS enable & force. Sin excepción.
+REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
+             Prohibido now()/Date.now() implícito dentro de la lógica (AD-32).
+```
+
+## 4.4 GAPs detectados en la reconciliación
+
+`[GAP]` Vacíos reales encontrados al contrastar el prompt v1 contra el esquema. **Deben resolverse antes o durante la fase indicada.**
+
+| Id | Descripción | Impacto | Fase |
+|---|---|---|---|
+| **`GAP-CAR-001`** | `cargos` no tiene `fecha_vencimiento`; se deriva de `periodos.fecha_vencimiento`, que **existe pero es `nullable`**. Un período sin fecha de vencimiento produce antigüedad indefinida. | **Bloqueante** — reducido de "total" a "acotado" tras verificación. | F0 |
+| **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
+| **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
+| **`GAP-CAR-004`** | La tasa de mora no está versionada como entidad propia ni segmentada; no registra resolución fuente. Si la tasa cambia a mitad de la mora, no hay `InterestSegment`. | Afecta `PH-C11`. | F2 |
+| **`GAP-CAR-005`** | No existe infraestructura de notificaciones (email/SMS/WhatsApp) ni de tareas. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
+| ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
+| **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
+| **`GAP-CAR-009`** | **`tenant_role_t` solo tiene `('agent','auditor')`.** No existen los roles `administrador` (que firma la certificación del art. 48) ni `residente`, ni separación proponer/aprobar. | Bloquea la aprobación de acciones de alto impacto y la certificación legalmente correcta. Ver §21.2. | F4 |
+| **`GAP-CAR-010`** | No existe vínculo `usuario ↔ inmueble`, y **`AD-26` lo prohíbe explícitamente** (propietario = dato de dominio, sin FK a `auth.users`). | ⤴ **Escalado fuera del bloque.** `PH-C35`/`REQ-CAR-025` quedan diferidos; **no bloquea F1-F9**. Ver §21.4. | — |
+
+### `GAP-CAR-001` — resolución (verificada contra el esquema)
+
+`[ARQ]` **Verificación realizada.** `periodos` **sí tiene** la columna:
+
+```sql
+-- 20260814100100_domain_tables.sql:171-185
+create table public.periodos (
+  id                uuid primary key default gen_random_uuid(),
+  tenant_id         uuid not null references public.tenants (id) on delete cascade,
+  anio              int not null,
+  mes               int not null,
+  estado            public.periodo_estado_t not null default 'abierto',
+  fecha_vencimiento date,                                   -- ⚠ NULLABLE
+  cerrado_at        timestamptz,
+  cerrado_por       uuid references public.profiles (id),
+  ...
+);
+```
+
+Esto **reduce el gap** de "no existe la fecha de vencimiento" a "la fecha de vencimiento es opcional". El diseño ya contemplaba el concepto; solo no lo hace obligatorio.
+
+```text
+Opción A (CONFIRMADA VIABLE): derivar de periodos.
+  cargos.periodo_id → periodos.fecha_vencimiento
+  + La columna YA EXISTE. Sin migración destructiva.
+  + Una sola fuente de verdad para el vencimiento del período.
+  ⚠ Es nullable: un período sin fecha produce antigüedad indefinida.
+
+Opción B: cargos.fecha_vencimiento date (nullable) como override.
+  + Soporta cuotas extraordinarias con calendario propio.
+  + Aditiva y no rompe el append-only.
+
+DECISIÓN: Opción A como base + Opción B como override opcional.
+  fecha_vencimiento_efectiva(cargo) =
+      coalesce(cargo.fecha_vencimiento, periodo.fecha_vencimiento)
+```
+
+**Trabajo real que queda en F0** (mucho menor de lo estimado inicialmente):
+
+```text
+1. Guard: un período no puede pasar a estado 'en_liquidacion'
+   con fecha_vencimiento NULL.
+   → extender guard_periodo_transicion() (ya existe, 20260814100300)
+2. Backfill de periodos históricos con fecha_vencimiento NULL.
+3. Añadir cargos.fecha_vencimiento nullable (override).
+4. Función fn_dias_mora(cargo_id, fecha_corte) con el coalesce.
+5. Error explícito PeriodoSinFechaVencimientoError — nunca asumir
+   un día del mes por defecto.
+```
+
+`[ARQ]` El punto 5 es crítico: **nunca inferir "vence el día 10"** porque sea lo habitual. Un vencimiento inventado produce una mora inventada, que produce un interés inventado que se le cobra a una persona real.
+
+---
+
+# 5. Responsabilidades de dominio
+
+`[ARQ]` Siete responsabilidades. **No son siete módulos de UI ni siete paquetes.** Son fronteras de responsabilidad.
+
+```text
+R1  MOTOR DE CARTERA        Antigüedad · clasificación · riesgo · posición
+R2  MOTOR DE COBRANZA       Estrategias · acciones · seguimiento · resultado
+R3  MOTOR DE ESCALAMIENTO   Preventiva→Administrativa→Prejurídica→Jurídica
+R4  GESTIÓN JURÍDICA        Certificación · expediente · proceso · actuaciones
+R5  MOTOR DE MORA           Intereses por obligación y período      ← YA EXISTE
+R6  MOTOR DE PAGOS          Aplicación · saldo · crédito            ← YA EXISTE
+R7  AUDITORÍA Y REPORTES    Trazabilidad · indicadores · evidencia
+```
+
+## 5.1 Matriz de responsabilidad por artefacto
+
+| Responsabilidad | Paquete / capa | Artefacto principal | Estado |
+|---|---|---|---|
+| R1 | `packages/liquidation-engine/src/cartera.ts` (nuevo, puro) | `clasificarCartera()`, `calcularAntiguedad()` | Nuevo |
+| R1 | SQL | `v_posicion_cartera`, `v_cargo_antiguedad` | Nuevo |
+| R2 | SQL + Edge Function | `estrategias_cobranza`, `fn_evaluar_acciones_pendientes()` | Nuevo |
+| R3 | `packages/liquidation-engine/src/cartera-escalamiento.ts` | `evaluarEscalamiento()` (máquina de estados pura) | Nuevo |
+| R4 | Edge Function + SQL | `fn_certificar_deuda()`, `casos_juridicos` | Nuevo |
+| R5 | `packages/liquidation-engine/src/cuenta-corriente.ts` | `calcularInteresMora()` | **Existe** |
+| R6 | `packages/liquidation-engine/src/cuenta-corriente.ts` | `imputarPago()` | **Existe** |
+| R7 | SQL | `eventos_cartera`, `audit_log`, vistas de indicadores | Parcial |
+
+## 5.2 Regla de pureza
+
+`[ARQ]` **`REC-CAR-009`** — Toda lógica de decisión (clasificar, escalar, decidir si corresponde una acción) vive en **funciones puras** de `packages/liquidation-engine`, sin dependencia de Supabase, igual que `allocation.ts`, `graph.ts` y `cuenta-corriente.ts`. Los adaptadores I/O van en archivos `*-supabase.ts`, siguiendo el precedente de `cuenta-corriente-supabase.ts`.
+
+Motivo: testabilidad determinista y reutilización desde Edge Functions, jobs y pruebas sin base de datos.
+
+---
+
+# 6. Posición de cartera
+
+## 6.1 Principio
+
+`[ARQ]` `[NEGOCIO]` **La posición de cartera es derivada, nunca declarada.**
+
+```text
+Un inmueble tiene cartera vencida
+        ⟺
+existe al menos un cargo con
+    fecha_vencimiento < fecha_corte
+    AND saldo > 0
+```
+
+No existe un campo `esta_en_mora`. No existe un botón "marcar como moroso". Si el dato no se puede derivar de `cargos` + `pago_aplicaciones`, no es cartera.
+
+## 6.2 Vista `v_posicion_cartera`
+
+Contrato conceptual (equivalente español del `PortfolioPosition` v1):
+
+```text
+v_posicion_cartera
+------------------
+tenant_id                    uuid
+inmueble_id                  uuid
+fecha_corte                  date        ← parámetro, no columna almacenada
+deuda_total                  numeric(18,2)
+deuda_capital                numeric(18,2)
+deuda_interes                numeric(18,2)
+deuda_otros                  numeric(18,2)   ← ajustes, gastos aprobados
+saldo_credito                numeric(18,2)   ← excedentes no aplicados
+cargo_vencido_mas_antiguo_id uuid
+fecha_vencimiento_mas_antigua date
+dias_mora_maximo             int             ← el que clasifica
+periodo_mas_antiguo_id       uuid
+cantidad_cargos_vencidos     int
+clasificacion_codigo         text
+clasificacion_version        int
+nivel_riesgo                 text
+etapa_cobranza               text
+estado_cobranza              text
+fecha_ultimo_pago            date
+ultima_accion_id             uuid
+proxima_accion_fecha         date
+tiene_acuerdo_vigente        boolean
+acuerdo_id                   uuid
+estado_juridico              text
+caso_juridico_id             uuid
+```
+
+`[ARQ]` **`REC-CAR-005`** — `fecha_corte` es un **parámetro de función**, no una columna. La vista se expone como función con parámetro:
+
+```sql
+create or replace function public.fn_posicion_cartera(
+  p_tenant_id   uuid,
+  p_fecha_corte date,
+  p_inmueble_id uuid default null
+) returns table ( /* columnas de arriba */ )
+language sql stable
+as $$ ... $$;
+```
+
+Esto garantiza reproducibilidad: la misma `fecha_corte` produce el mismo resultado siempre, cumpliendo `AD-32`.
+
+## 6.3 Snapshot histórico
+
+`[ARQ]` Para BI, roll-rate y auditoría se necesita la foto de cada día. `fn_posicion_cartera` recalcula; el snapshot congela.
+
+```sql
+create table public.posiciones_cartera_snapshot (
+  id                            uuid primary key default gen_random_uuid(),
+  tenant_id                     uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id                   uuid not null references public.inmuebles (id),
+  fecha_corte                   date not null,
+  deuda_total                   numeric(18,2) not null,
+  deuda_capital                 numeric(18,2) not null,
+  deuda_interes                 numeric(18,2) not null,
+  deuda_otros                   numeric(18,2) not null,
+  saldo_credito                 numeric(18,2) not null default 0,
+  dias_mora_maximo              int not null,
+  fecha_vencimiento_mas_antigua date,
+  clasificacion_codigo          text not null,
+  politica_clasificacion_id     uuid not null references public.politicas_clasificacion_cartera (id),
+  politica_version              int not null,
+  nivel_riesgo                  text not null,
+  etapa_cobranza                public.etapa_cobranza_t not null,
+  posicion_hash                 text not null,
+  created_at                    timestamptz not null default now(),
+  constraint posiciones_cartera_snapshot_unico
+    unique (tenant_id, inmueble_id, fecha_corte)
+);
+
+alter table public.posiciones_cartera_snapshot enable row level security;
+alter table public.posiciones_cartera_snapshot force row level security;
+
+create trigger posiciones_cartera_snapshot_append_only
+  before update or delete on public.posiciones_cartera_snapshot
+  for each row execute function public.forbid_mutation();
+
+create index on public.posiciones_cartera_snapshot (tenant_id, fecha_corte);
+create index on public.posiciones_cartera_snapshot (tenant_id, inmueble_id, fecha_corte desc);
+```
+
+`posicion_hash` = hash determinista de los montos + política, siguiendo el patrón de `result_hash`/`policy_hash`. Permite verificar que un recálculo reproduce la historia (`I-C15`).
+
+---
+
+# 7. Antigüedad
+
+## 7.1 Dato primario y derivado
+
+```text
+PRIMARIO   fecha_vencimiento    ← del período o del cargo (GAP-CAR-001)
+PRIMARIO   fecha_corte          ← parámetro explícito de la consulta
+DERIVADO   dias_mora = fecha_corte − fecha_vencimiento
+```
+
+`[ARQ]` Los **meses son representación secundaria**. Nunca se almacenan meses de mora; se derivan para presentación.
+
+## 7.2 Definición exacta de `dias_mora`
+
+`[NEGOCIO]` Reglas de borde, alineadas con `PLAN_MAESTRO_IMPLEMENTACION.md §6.6` (devengo desde el día siguiente al vencimiento):
+
+```text
+dias_mora(cargo, fecha_corte) =
+    GREATEST(0, fecha_corte − fecha_vencimiento)
+
+Casos:
+  fecha_corte  <  fecha_vencimiento  →  dias_mora = 0   (no vencido)
+  fecha_corte  =  fecha_vencimiento  →  dias_mora = 0   (último día hábil de pago)
+  fecha_corte  =  fecha_vencimiento + 1  →  dias_mora = 1   (primer día de mora)
+```
+
+**Importante:** `dias_mora` (antigüedad, este bloque) y **días de causación de interés** (motor de mora) son magnitudes distintas. El interés respeta además `interes_dias_gracia` y el `interes_day_count` configurado. **Un cargo puede tener `dias_mora = 3` y `0` interés causado si la gracia es de 5 días.** Esto es correcto y es la manifestación práctica del principio de §2.
+
+## 7.3 Antigüedad por obligación, no por inmueble
+
+`[ARQ]` La antigüedad se calcula **por cargo** y se conserva. La clasificación del inmueble **usa** el máximo, pero no destruye el detalle.
+
+Ejemplo canónico (`fecha_corte = 2026-08-16`):
+
+```text
+Cargo    Período   Vencimiento   Saldo      dias_mora
+-------  --------  ------------  ---------  ---------
+C-001    2026-03   2026-03-10    500.000    159
+C-002    2026-04   2026-04-10    500.000    128
+C-003    2026-05   2026-05-10    500.000     98
+C-004    2026-06   2026-06-10    500.000     67
+C-005    2026-07   2026-07-10          0     —      (pagado, no cuenta)
+C-006    2026-09   2026-09-10    500.000      0     (no vencido)
+
+Posición del inmueble:
+  deuda_total          = 2.000.000
+  dias_mora_maximo     = 159        ← C-001, el más antiguo CON SALDO
+  cargos_vencidos      = 4
+  clasificación        = MORA_CRITICA (tramo 121–180)
+```
+
+`[NEGOCIO]` **`REC-CAR-010`** — El cargo que determina la clasificación es **el más antiguo con saldo > 0**, no el más antiguo en absoluto. Un cargo pagado sale del cálculo de antigüedad inmediatamente (`I-C01`).
+
+## 7.4 Interacción con imputación
+
+`[ARQ]` Consecuencia no obvia y crítica: **la estrategia de imputación configurada cambia la antigüedad resultante.**
+
+```text
+politicas_financieras.imputacion_estrategia = 'deuda_mas_antigua'
+    → un pago reduce primero el cargo más viejo
+    → dias_mora_maximo BAJA con cada pago
+    → la clasificación mejora
+
+politicas_financieras.imputacion_estrategia = 'periodo_actual'
+    → un pago va al período corriente
+    → el cargo más viejo permanece
+    → dias_mora_maximo NO baja; el inmueble sigue escalando
+```
+
+Esto **debe documentarse en la UI de configuración**, porque una copropiedad puede quedar sorprendida de que sus residentes "pagan y siguen escalando". Es comportamiento correcto y configurado, no un bug. Golden case obligatorio: `PH-C31`.
+
+---
+
+# 8. Clasificación de cartera
+
+## 8.1 Naturaleza de los rangos
+
+`[NEGOCIO]` **Los rangos de antigüedad NO son ley.** La Ley 675 no define tramos de cartera. Son **política de gestión** de cada copropiedad y por eso deben ser configurables y versionados.
+
+Presentar los tramos como obligación legal sería violar la regla `[LEGAL]` vs `[NEGOCIO]` de §0.3.
+
+## 8.2 Política versionada — DDL
+
+Replica el patrón de `politicas_financieras` (`REC-CAR-006`):
+
+```sql
+create type public.nivel_riesgo_t as enum (
+  'ninguno', 'bajo', 'medio', 'alto', 'critico'
+);
+
+create type public.etapa_cobranza_t as enum (
+  'preventiva', 'administrativa', 'prejuridica', 'juridica', 'judicial'
+);
+
+create table public.politicas_clasificacion_cartera (
+  id             uuid primary key default gen_random_uuid(),
+  tenant_id      uuid not null references public.tenants (id) on delete cascade,
+  version        int not null,
+  estado         public.vigencia_estado_t not null default 'borrador',
+  vigente_desde  date,
+  vigente_hasta  date,
+  nombre         text not null,
+  descripcion    text,
+  base_antiguedad public.base_antiguedad_t not null default 'cargo_mas_antiguo_con_saldo',
+  policy_hash    text not null,
+  aprobada_por   uuid references public.profiles (id),
+  acta_referencia text,                        -- acta de asamblea que la aprueba
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz,
+  constraint politicas_clasif_version_unica unique (tenant_id, version)
+);
+
+create table public.politica_clasificacion_tramos (
+  id                 uuid primary key default gen_random_uuid(),
+  tenant_id          uuid not null references public.tenants (id) on delete cascade,
+  politica_id        uuid not null references public.politicas_clasificacion_cartera (id) on delete cascade,
+  codigo             text not null,
+  nombre             text not null,
+  dias_min           int not null check (dias_min >= 0),
+  dias_max           int,                       -- null = sin tope superior
+  nivel_riesgo       public.nivel_riesgo_t not null,
+  etapa_cobranza     public.etapa_cobranza_t not null,
+  prioridad          int not null,
+  orden              int not null,
+  created_at         timestamptz not null default now(),
+  constraint tramo_codigo_unico unique (politica_id, codigo),
+  constraint tramo_rango_valido check (dias_max is null or dias_max >= dias_min)
+);
+```
+
+## 8.3 Invariantes estructurales de la política
+
+`[ARQ]` Una política de clasificación es válida **solo si** sus tramos:
+
+```text
+IC-TRAMO-01  Cubren completamente [0, ∞).            (sin huecos)
+IC-TRAMO-02  No se solapan entre sí.                 (sin ambigüedad)
+IC-TRAMO-03  Exactamente un tramo tiene dias_max = null. (el último)
+IC-TRAMO-04  Exactamente un tramo contiene dias_min = 0. (el estado "al día")
+IC-TRAMO-05  Los códigos son únicos dentro de la política.
+```
+
+Deben validarse en un `constraint trigger` **antes** de permitir `estado = 'vigente'`. Una política inválida no puede activarse.
+
+```sql
+create or replace function public.guard_politica_clasificacion_completa()
+returns trigger language plpgsql as $$
+-- verifica IC-TRAMO-01..05; lanza excepción si falla
+$$;
+```
+
+## 8.4 Política inicial sugerida `[CONFIG]`
+
+Valores **por defecto sugeridos**, no impuestos. Cada copropiedad los ajusta por acta de asamblea.
+
+| Orden | Código | Nombre | días min | días max | Riesgo | Etapa |
+|---|---|---|---|---|---|---|
+| 1 | `AL_DIA` | Al día | 0 | 0 | ninguno | preventiva |
+| 2 | `MORA_TEMPRANA` | Mora temprana | 1 | 30 | bajo | administrativa |
+| 3 | `MORA_INICIAL` | Mora inicial | 31 | 60 | bajo | administrativa |
+| 4 | `MORA_MEDIA` | Mora media | 61 | 90 | medio | administrativa |
+| 5 | `MORA_AVANZADA` | Mora avanzada | 91 | 120 | medio | prejuridica |
+| 6 | `MORA_CRITICA` | Mora crítica | 121 | 180 | alto | prejuridica |
+| 7 | `ALTO_RIESGO` | Alto riesgo | 181 | 360 | alto | juridica |
+| 8 | `CRITICA` | Crítica | 361 | *null* | critico | juridica |
+
+`[NEGOCIO]` Nota de alineación con la industria: los tramos de 30 días son el estándar de *aging buckets* en gestión de cobranza (`no vencido / 1-30 / 31-60 / 61-90 / >90`), lo que permite comparar los indicadores de AQUILA contra benchmarks del sector. Los tramos por encima de 90 días son extensión propia del dominio PH, donde la deuda no se castiga sino que escala a proceso ejecutivo por título del art. 48.
+
+## 8.5 Regla de versionado
+
+`[ARQ]` **`REC-CAR-011`** — Igual que `guard_politica_inmutable` en `politicas_financieras`:
+
+```text
+Una política con estado='vigente' es INMUTABLE.
+Corregir = crear versión nueva, no UPDATE.
+Solo una política vigente por tenant a la vez.
+Toda clasificación registrada guarda politica_id + politica_version.
+Cambiar la política NO reescribe clasificaciones históricas.  (I-C10, PH-C30)
+```
+
+## 8.6 Función de clasificación (pura)
+
+```typescript
+// packages/liquidation-engine/src/cartera.ts
+
+export interface TramoClasificacion {
+  readonly codigo: string
+  readonly diasMin: number
+  readonly diasMax: number | null
+  readonly nivelRiesgo: NivelRiesgo
+  readonly etapaCobranza: EtapaCobranza
+  readonly prioridad: number
+}
+
+export interface PoliticaClasificacion {
+  readonly id: string
+  readonly version: number
+  readonly tramos: readonly TramoClasificacion[]
+}
+
+export interface ResultadoClasificacion {
+  readonly codigo: string
+  readonly nivelRiesgo: NivelRiesgo
+  readonly etapaCobranza: EtapaCobranza
+  readonly prioridad: number
+  readonly diasMora: number
+  readonly politicaId: string
+  readonly politicaVersion: number
+}
+
+/** Determinista. Lanza TramoClasificacionNoEncontradoError si la política
+ *  no cubre diasMora (violación de IC-TRAMO-01). Nunca devuelve un default. */
+export function clasificarCartera(
+  diasMora: number,
+  politica: PoliticaClasificacion,
+): ResultadoClasificacion
+```
+
+`[ARQ]` **No hay valor por defecto.** Si ningún tramo cubre `diasMora`, es un error de configuración y debe **fallar ruidosamente**, no clasificar como "AL_DIA" silenciosamente. Esto es coherente con el estilo de errores del paquete (`PoliticaMoraNoConfiguradaError`, `OrdenImputacionInvalidoError`).
+
+---
+
+# 9. Motor de cobranza — estrategias
+
+## 9.1 Principio
+
+`[ARQ]` La clasificación **no ejecuta** acciones. La clasificación **habilita** una estrategia, y la estrategia decide qué acción, por qué canal, con qué frecuencia y con qué tope.
+
+```text
+clasificación  →  estrategia  →  acción programada  →  acción ejecutada  →  resultado
+   (estado)      (política)        (intención)          (hecho)          (evidencia)
+```
+
+Separar "acción programada" de "acción ejecutada" es esencial: una acción puede planearse y fallar (email rebotado, teléfono equivocado). El sistema debe distinguirlo.
+
+## 9.2 Catálogo de tipos de acción
+
+```sql
+create type public.tipo_accion_cobranza_t as enum (
+  'email',                  -- notificación por correo
+  'sms',
+  'whatsapp',
+  'llamada',                -- gestión telefónica, resultado manual
+  'carta',                  -- comunicación física
+  'requerimiento_formal',   -- comunicación con efectos de constitución en mora
+  'aviso_prejuridico',      -- último aviso antes de remisión
+  'publicacion_morosos',    -- art. 30 par. L675  [VERIFICAR VER-CAR-04]
+  'restriccion_servicios',  -- [VERIFICAR] limitado por ley y reglamento
+  'visita',
+  'asignacion_abogado',
+  'remision_juridica',
+  'propuesta_acuerdo',
+  'revision_manual'
+);
+```
+
+`[VERIFICAR]` `restriccion_servicios` y `publicacion_morosos` tienen límites legales estrictos (no puede suspenderse el suministro de servicios públicos domiciliarios ni restringirse el acceso a la vivienda). **No implementar sin concepto jurídico.** Se listan para que el catálogo sea completo, con estado `bloqueado` en el seed inicial.
+
+## 9.3 DDL de estrategias
+
+```sql
+create table public.estrategias_cobranza (
+  id                       uuid primary key default gen_random_uuid(),
+  tenant_id                uuid not null references public.tenants (id) on delete cascade,
+  politica_id              uuid not null references public.politicas_clasificacion_cartera (id) on delete cascade,
+  tramo_id                 uuid not null references public.politica_clasificacion_tramos (id) on delete cascade,
+  codigo                   text not null,
+  nombre                   text not null,
+  tipo_accion              public.tipo_accion_cobranza_t not null,
+  canal                    public.canal_cobranza_t not null,
+  dias_desde_clasificacion int not null default 0,   -- espera tras entrar al tramo
+  frecuencia_dias          int,                       -- null = una sola vez
+  max_intentos             int not null default 1,
+  plantilla_id             uuid,                      -- PRQ-CAR-009
+  rol_responsable          public.tenant_role_t not null,   -- ver GAP-CAR-009
+  requiere_aprobacion      boolean not null default false,
+  monto_minimo_deuda       numeric(18,2),             -- no gestionar deudas triviales
+  activa                   boolean not null default true,
+  orden                    int not null,
+  created_at               timestamptz not null default now(),
+  constraint estrategia_codigo_unico unique (tenant_id, politica_id, codigo)
+);
+
+alter table public.estrategias_cobranza enable row level security;
+alter table public.estrategias_cobranza force row level security;
+```
+
+`[NEGOCIO]` `monto_minimo_deuda` implementa una práctica estándar de la industria: **no gastar una llamada de cobranza en una deuda de $2.000**. El costo de la acción no puede exceder el valor recuperado.
+
+## 9.4 Estrategia inicial sugerida `[CONFIG]`
+
+| Tramo | Acción | Canal | Días tras clasificar | Frecuencia | Máx. | Aprobación |
+|---|---|---|---|---|---|---|
+| `AL_DIA` | — | — | — | — | — | — |
+| `MORA_TEMPRANA` | `email` recordatorio | email | 3 | 15 | 2 | no |
+| `MORA_INICIAL` | `email` + `sms` formal | email/sms | 0 | 15 | 2 | no |
+| `MORA_MEDIA` | `llamada` | teléfono | 0 | 15 | 3 | no |
+| `MORA_MEDIA` | `carta` | físico | 10 | — | 1 | no |
+| `MORA_AVANZADA` | `requerimiento_formal` | físico + email | 0 | — | 1 | **sí** |
+| `MORA_AVANZADA` | `propuesta_acuerdo` | email | 5 | — | 1 | no |
+| `MORA_CRITICA` | `aviso_prejuridico` | físico certificado | 0 | — | 1 | **sí** |
+| `ALTO_RIESGO` | `asignacion_abogado` | interno | 0 | — | 1 | **sí** |
+| `ALTO_RIESGO` | `remision_juridica` | interno | 15 | — | 1 | **sí** |
+| `CRITICA` | `revision_manual` | interno | 0 | 30 | — | **sí** |
+
+`[NEGOCIO]` Nótese que las acciones de alto impacto (`requerimiento_formal`, `aviso_prejuridico`, `asignacion_abogado`, `remision_juridica`) **exigen aprobación humana**. El sistema nunca demanda a alguien automáticamente.
+
+---
+
+# 10. Registro de acciones de cobranza
+
+## 10.1 Principio
+
+`[ARQ]` **Nunca depender solo de `ultima_accion`.** Toda acción es un registro inmutable con su propio ciclo de vida y su evidencia.
+
+## 10.2 DDL
+
+```sql
+create type public.estado_accion_cobranza_t as enum (
+  'programada',   -- el job la creó, aún no se ejecuta
+  'pendiente_aprobacion',
+  'aprobada',
+  'rechazada',
+  'ejecutando',
+  'ejecutada',    -- se envió/realizó
+  'fallida',      -- error técnico (email rebotado, teléfono inválido)
+  'cancelada'     -- ya no aplica (el inmueble se puso al día)
+);
+
+create type public.resultado_accion_cobranza_t as enum (
+  'sin_respuesta',
+  'contacto_efectivo',
+  'contacto_no_efectivo',
+  'promesa_de_pago',
+  'acuerdo_solicitado',
+  'pago_recibido',
+  'rechazo_deudor',
+  'datos_incorrectos',
+  'no_aplica'
+);
+
+create table public.acciones_cobranza (
+  id                        uuid primary key default gen_random_uuid(),
+  tenant_id                 uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id               uuid not null references public.inmuebles (id),
+  estrategia_id             uuid references public.estrategias_cobranza (id),
+  tipo_accion               public.tipo_accion_cobranza_t not null,
+  canal                     public.canal_cobranza_t not null,
+
+  -- FOTO DEL MOMENTO — congelada, nunca recalculada
+  fecha_programada          date not null,
+  fecha_ejecucion           timestamptz,
+  clasificacion_codigo      text not null,
+  politica_clasificacion_id uuid not null references public.politicas_clasificacion_cartera (id),
+  politica_version          int not null,
+  dias_mora_al_momento      int not null,
+  deuda_total_al_momento    numeric(18,2) not null,
+
+  -- ALCANCE
+  alcance                   public.alcance_obligacion_t not null default 'inmueble',
+  cargo_id                  uuid references public.cargos (id),
+
+  -- DESTINATARIO
+  destinatario_tipo         public.destinatario_t not null,   -- propietario|arrendatario|ambos
+  destinatario_id           uuid,
+  destinatario_contacto     text,                              -- email/teléfono usado
+
+  -- EJECUCIÓN
+  estado                    public.estado_accion_cobranza_t not null default 'programada',
+  plantilla_id              uuid,
+  contenido_hash            text,                              -- hash del mensaje enviado
+  referencia_externa        text,                              -- id del proveedor de envío
+  intento_numero            int not null default 1,
+
+  -- RESULTADO
+  resultado                 public.resultado_accion_cobranza_t,
+  resultado_fecha           timestamptz,
+  notas                     text,
+
+  -- AUTORÍA
+  aprobada_por              uuid references public.profiles (id),
+  aprobada_at               timestamptz,
+  ejecutada_por             uuid references public.profiles (id),
+  creada_por                public.origen_accion_t not null,   -- job|manual
+  created_at                timestamptz not null default now()
+);
+
+alter table public.acciones_cobranza enable row level security;
+alter table public.acciones_cobranza force row level security;
+
+create index on public.acciones_cobranza (tenant_id, inmueble_id, fecha_programada desc);
+create index on public.acciones_cobranza (tenant_id, estado) where estado in ('programada','pendiente_aprobacion');
+```
+
+## 10.3 Congelamiento del contexto
+
+`[ARQ]` **`REC-CAR-012`** — Los campos `clasificacion_codigo`, `politica_version`, `dias_mora_al_momento`, `deuda_total_al_momento` se **escriben una vez y nunca se actualizan**. Son la respuesta a "¿por qué se envió este requerimiento?" seis meses después, cuando el inmueble ya está al día y la política ya cambió de versión.
+
+Sin esto, es imposible defender una actuación de cobro ante un juez o ante la asamblea. Es el mismo principio de `snapshotHash`/`policy_hash` del motor de liquidación aplicado a la gestión.
+
+## 10.4 Regla de no duplicación
+
+`[NEGOCIO]` `I-C07` — Una acción no se duplica cuando la política lo prohíbe.
+
+```text
+Antes de crear una acción, verificar:
+
+  1. ¿Existe ya una acción del mismo tipo, misma estrategia, mismo inmueble,
+     en estado (programada | pendiente_aprobacion | aprobada | ejecutada),
+     dentro de la ventana de `frecuencia_dias`?
+        → SÍ  : NO crear. Registrar evento COBRANZA_ACCION_OMITIDA.
+        → NO  : continuar.
+
+  2. ¿El conteo de intentos ejecutados alcanza `max_intentos`?
+        → SÍ  : NO crear. Marcar la estrategia como agotada para ese inmueble.
+        → NO  : crear con intento_numero = ejecutadas + 1.
+
+  3. ¿La deuda es menor a `monto_minimo_deuda`?
+        → SÍ  : NO crear.
+
+  4. ¿Existe un acuerdo de pago vigente y al día?
+        → SÍ  : NO crear acciones del flujo normal.  (ver §12.5)
+```
+
+Implementar como constraint parcial + verificación en la función, no solo en la función. La base de datos debe ser la última línea de defensa.
+
+---
+
+# 11. Escalamiento
+
+## 11.1 Máquina de estados
+
+`[ARQ]` La etapa de cobranza es una **máquina de estados explícita**, no un campo de texto libre.
+
+```text
+        ┌──────────────┐
+        │  PREVENTIVA  │  al día / sin mora
+        └──────┬───────┘
+               │ primer cargo vencido
+               ↓
+        ┌──────────────────┐
+        │  ADMINISTRATIVA  │  gestión interna: email, sms, llamada, carta
+        └──────┬───────────┘
+               │ tramo con etapa=prejuridica  +  aprobación
+               ↓
+        ┌────────────────┐
+        │  PREJURIDICA   │  requerimiento formal, aviso prejurídico
+        └──────┬─────────┘
+               │ tramo con etapa=juridica  +  aprobación  +  certificación art.48
+               ↓
+        ┌──────────────┐
+        │   JURIDICA   │  abogado asignado, expediente abierto
+        └──────┬───────┘
+               │ demanda radicada
+               ↓
+        ┌──────────────┐
+        │   JUDICIAL   │  proceso ejecutivo en curso
+        └──────────────┘
+```
+
+## 11.2 Regreso de etapa (recuperación)
+
+`[NEGOCIO]` El escalamiento **no es de una sola vía**. Ignorar esto es un error frecuente.
+
+```text
+Cualquier etapa
+      │ pago total  →  saldo = 0
+      ↓
+  PREVENTIVA        (des-escalamiento total)
+
+PREJURIDICA / JURIDICA
+      │ acuerdo de pago firmado y aprobado
+      ↓
+  ACUERDO_VIGENTE   (etapa congelada, acciones normales suspendidas)
+      │
+      ├── cumplimiento total  →  PREVENTIVA
+      └── incumplimiento      →  reanuda en la etapa congelada, o escala
+```
+
+## 11.3 Tabla de transiciones permitidas
+
+`[ARQ]` Matriz explícita. Cualquier transición fuera de esta tabla es un error y debe rechazarse.
+
+| Desde | Hacia | Disparador | ¿Aprobación? |
+|---|---|---|---|
+| `preventiva` | `administrativa` | Primer cargo vencido con saldo | No (automático) |
+| `administrativa` | `preventiva` | Saldo vencido = 0 | No (automático) |
+| `administrativa` | `prejuridica` | Clasificación alcanza tramo prejurídico Y agotadas las acciones administrativas | **Sí** |
+| `prejuridica` | `administrativa` | Pago parcial que baja la clasificación | No (automático) |
+| `prejuridica` | `preventiva` | Saldo vencido = 0 | No (automático) |
+| `prejuridica` | `juridica` | Clasificación alcanza tramo jurídico Y aviso prejurídico ejecutado Y certificación emitida | **Sí** |
+| `juridica` | `judicial` | Demanda radicada (`casos_juridicos.estado = 'radicado'`) | No (refleja hecho externo) |
+| `juridica` | `prejuridica` | Retiro de la remisión con justificación | **Sí** |
+| `juridica` | `preventiva` | Saldo = 0 (pago total antes de demandar) | **Sí** (requiere cierre del caso) |
+| `judicial` | `preventiva` | Proceso terminado por pago total | **Sí** (requiere cierre del caso) |
+| cualquiera | *(congelada)* | Acuerdo de pago vigente | **Sí** |
+
+`[ARQ]` **`REC-CAR-013`** — Un des-escalamiento desde `juridica` o `judicial` **nunca es automático**, porque hay un proceso externo, un abogado contratado y posibles costas. Requiere acto humano y cierre explícito del caso.
+
+## 11.4 Función pura de escalamiento
+
+```typescript
+// packages/liquidation-engine/src/cartera-escalamiento.ts
+
+export interface ContextoEscalamiento {
+  readonly etapaActual: EtapaCobranza
+  readonly clasificacion: ResultadoClasificacion
+  readonly saldoVencido: number
+  readonly accionesEjecutadasEnEtapa: readonly ResumenAccion[]
+  readonly tieneAcuerdoVigente: boolean
+  readonly tieneCasoJuridicoAbierto: boolean
+  readonly tieneCertificacionVigente: boolean
+}
+
+export type DecisionEscalamiento =
+  | { readonly tipo: 'permanecer' }
+  | { readonly tipo: 'escalar'; readonly hacia: EtapaCobranza; readonly requiereAprobacion: boolean; readonly motivo: string }
+  | { readonly tipo: 'desescalar'; readonly hacia: EtapaCobranza; readonly requiereAprobacion: boolean; readonly motivo: string }
+  | { readonly tipo: 'congelar'; readonly motivo: string }
+  | { readonly tipo: 'bloqueado'; readonly requisitoFaltante: string }
+
+/** Pura y determinista. Nunca ejecuta la transición: la propone. */
+export function evaluarEscalamiento(ctx: ContextoEscalamiento): DecisionEscalamiento
+```
+
+`[ARQ]` La función **propone**, no ejecuta. La ejecución (con su aprobación, su evento y su auditoría) es responsabilidad de la capa de aplicación. Esto permite simular escalamientos sin efectos secundarios — necesario para `PH-C27`.
+
+---
+
+# 12. Promesas y acuerdos de pago
+
+## 12.1 Distinción
+
+`[NEGOCIO]` Dos figuras distintas, frecuentemente confundidas:
+
+| | Promesa de pago | Acuerdo de pago |
+|---|---|---|
+| **Naturaleza** | Manifestación informal de intención | Negocio jurídico formal |
+| **Origen** | Resultado de una llamada de cobranza | Aprobación de consejo/administración |
+| **Formalidad** | Verbal o email | Documento firmado |
+| **Efecto en escalamiento** | Ninguno; solo pospone la siguiente acción | Congela la etapa |
+| **Cuotas** | Una sola | Múltiples, con calendario |
+| **Incumplimiento** | Se registra y se reanuda gestión | Genera evento de default y escalamiento |
+
+## 12.2 Promesa de pago — DDL
+
+```sql
+create type public.estado_promesa_t as enum (
+  'pendiente', 'cumplida', 'incumplida', 'cancelada'
+);
+
+create table public.promesas_pago (
+  id                     uuid primary key default gen_random_uuid(),
+  tenant_id              uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id            uuid not null references public.inmuebles (id),
+  accion_cobranza_id     uuid references public.acciones_cobranza (id),
+  fecha_promesa          date not null,
+  monto_prometido        numeric(18,2) not null check (monto_prometido > 0),
+  fecha_pago_prometida   date not null,
+  estado                 public.estado_promesa_t not null default 'pendiente',
+  cumplida_at            timestamptz,
+  pago_id                uuid references public.pagos (id),   -- el pago que la cumplió
+  monto_cumplido         numeric(18,2),
+  registrada_por         uuid not null references public.profiles (id),
+  notas                  text,
+  created_at             timestamptz not null default now(),
+  constraint promesa_fecha_futura check (fecha_pago_prometida >= fecha_promesa)
+);
+```
+
+`[NEGOCIO]` Regla de cumplimiento (`PH-C14`/`PH-C15`):
+
+```text
+Una promesa se marca CUMPLIDA si:
+    existe un pago del inmueble
+    con fecha_pago <= fecha_pago_prometida + tolerancia_dias
+    y monto >= monto_prometido × (1 − tolerancia_porcentaje)
+
+tolerancia_dias y tolerancia_porcentaje son [CONFIG] de la copropiedad.
+Por defecto: 0 días, 0%.  (estricto)
+
+Una promesa se marca INCUMPLIDA por el job diario cuando
+    fecha_corte > fecha_pago_prometida + tolerancia_dias
+    y sigue en estado 'pendiente'.
+```
+
+## 12.3 Acuerdo de pago — DDL
+
+```sql
+create type public.estado_acuerdo_t as enum (
+  'borrador', 'pendiente_aprobacion', 'vigente',
+  'cumplido', 'incumplido', 'cancelado'
+);
+
+create table public.acuerdos_pago (
+  id                     uuid primary key default gen_random_uuid(),
+  tenant_id              uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id            uuid not null references public.inmuebles (id),
+  consecutivo            text not null,
+  fecha_acuerdo          date not null,
+  fecha_inicio           date not null,
+  fecha_fin              date not null,
+
+  -- COMPOSICIÓN DE LO ACORDADO — discriminada, art. 48 L675
+  monto_capital          numeric(18,2) not null default 0,
+  monto_interes          numeric(18,2) not null default 0,
+  monto_otros            numeric(18,2) not null default 0,
+  monto_total            numeric(18,2) not null,
+
+  -- CONDICIONES
+  numero_cuotas          int not null check (numero_cuotas > 0),
+  cuota_inicial          numeric(18,2) not null default 0,
+  condona_interes        boolean not null default false,
+  monto_condonado        numeric(18,2) not null default 0,
+  interes_durante_acuerdo boolean not null default true,
+
+  -- ESTADO
+  estado                 public.estado_acuerdo_t not null default 'borrador',
+  etapa_congelada        public.etapa_cobranza_t,   -- a dónde vuelve si incumple
+  fecha_incumplimiento   date,
+  motivo_incumplimiento  text,
+
+  -- APROBACIÓN
+  aprobado_por           uuid references public.profiles (id),
+  aprobado_at            timestamptz,
+  acta_referencia        text,
+  documento_url          text,
+
+  created_at             timestamptz not null default now(),
+  constraint acuerdo_consecutivo_unico unique (tenant_id, consecutivo),
+  constraint acuerdo_total_coherente
+    check (monto_total = monto_capital + monto_interes + monto_otros),
+  constraint acuerdo_periodo_valido check (fecha_fin >= fecha_inicio)
+);
+
+create table public.acuerdo_pago_cuotas (
+  id                uuid primary key default gen_random_uuid(),
+  tenant_id         uuid not null references public.tenants (id) on delete cascade,
+  acuerdo_id        uuid not null references public.acuerdos_pago (id) on delete cascade,
+  numero_cuota      int not null,
+  fecha_vencimiento date not null,
+  monto             numeric(18,2) not null check (monto > 0),
+  monto_pagado      numeric(18,2) not null default 0,
+  estado            public.estado_cuota_acuerdo_t not null default 'pendiente',
+  fecha_pago        date,
+  created_at        timestamptz not null default now(),
+  constraint cuota_numero_unico unique (acuerdo_id, numero_cuota),
+  constraint cuota_pagado_no_excede check (monto_pagado <= monto)
+);
+
+create type public.estado_cuota_acuerdo_t as enum (
+  'pendiente', 'parcial', 'pagada', 'vencida', 'incumplida', 'cancelada'
+);
+```
+
+## 12.4 Regla cardinal del acuerdo
+
+`[ARQ]` `I-C08` — **Un acuerdo NUNCA elimina, reescribe ni reemplaza las obligaciones originales.**
+
+```text
+      cargos (append-only, intacto)
+            ↑ referencia
+      acuerdos_pago  ←  capa de GESTIÓN sobre la deuda
+            ↓ genera
+      acuerdo_pago_cuotas  ←  calendario de recaudo esperado
+            ↓ cuando se paga
+      pagos → pago_aplicaciones → cargos
+            (el flujo normal, sin excepción)
+```
+
+Un pago de cuota de acuerdo entra por `registrar-pago` como cualquier otro pago y se imputa con `imputarPago()` según la política vigente. El acuerdo **no tiene su propio imputador**. La cuota se marca pagada por conciliación posterior, no por escritura directa en el ledger.
+
+`[GAP]` **`GAP-CAR-008`** — Conciliar "pago recibido" con "cuota de acuerdo cubierta" requiere una regla: ¿el pago se asocia explícitamente al acuerdo, o se infiere por monto y fecha? **Decisión pendiente.** Recomendación: asociación explícita opcional (`pagos.acuerdo_cuota_id` nullable) más inferencia como respaldo, para no obligar al usuario a clasificar cada pago.
+
+## 12.5 Efecto sobre la gestión
+
+`[NEGOCIO]`
+
+```text
+Acuerdo en estado 'vigente' y sin cuotas vencidas:
+    → etapa_cobranza se CONGELA (se guarda en etapa_congelada)
+    → las acciones de cobranza del flujo normal se SUSPENDEN
+    → se activan acciones específicas de seguimiento de acuerdo
+    → el interés de mora sigue causándose salvo interes_durante_acuerdo = false
+
+Cuota vencida (job diario):
+    → estado cuota = 'vencida'
+    → evento ACUERDO_CUOTA_VENCIDA
+    → acción de recordatorio de acuerdo
+
+Incumplimiento (según regla configurable):
+    → acuerdo.estado = 'incumplido'
+    → evento ACUERDO_INCUMPLIDO
+    → la etapa se DESCONGELA en etapa_congelada
+    → reevaluación de escalamiento inmediata
+```
+
+`[CONFIG]` Regla de incumplimiento por defecto: **2 cuotas vencidas consecutivas** o **1 cuota con más de 30 días de vencida**. Configurable por copropiedad y registrable en el propio acuerdo.
+
+## 12.6 Condonación de intereses
+
+`[VERIFICAR]` `[NEGOCIO]` La condonación de intereses de mora en PH es una figura frecuente en acuerdos, pero su validez depende de quién la autoriza: la doctrina sostiene que corresponde a la **asamblea general** o a quien el reglamento faculte, no al administrador de forma unilateral, porque implica disponer de un recurso de la copropiedad.
+
+```text
+Si condona_interes = true:
+    monto_condonado > 0 es OBLIGATORIO
+    acta_referencia es OBLIGATORIO             ← quién lo autorizó
+    aprobado_por es OBLIGATORIO
+    Se genera novedad tipo 'DISCOUNT' → fn_aprobar_novedad → cargo 'otro' negativo
+    NUNCA se borra ni edita el cargo de interés original.
+```
+
+Se implementa como constraint condicional en la tabla y como paso obligatorio del flujo de aprobación.
+
+---
+
+# 13. Integración con el Motor de Mora (existente)
+
+## 13.1 Frontera
+
+`[ARQ]` Este bloque **no calcula intereses**. Ya existe `calcularInteresMora()`.
+
+```text
+El Motor de CARTERA responde:      El Motor de MORA responde:
+  ¿Cuántos días lleva vencida?       ¿Cuánto interés se causó?
+  ¿En qué clasificación está?        ¿Sobre qué base?
+  ¿Qué acción corresponde?           ¿Con qué tasa y qué day-count?
+  ¿Debe escalar?                     ¿Desde qué fecha?
+```
+
+## 13.2 Lo que ya está implementado
+
+```typescript
+// packages/liquidation-engine/src/cuenta-corriente.ts  (NO reescribir)
+calcularInteresMora(
+  cargosAbiertos: readonly CargoAbierto[],
+  fechaReferencia: Date,
+  politica: PoliticaMora,
+  redondeo: ConfigRedondeo,
+): readonly CargoInteresGenerado[]
+```
+
+Características ya resueltas:
+
+- Interés **solo sobre `categoria = 'capital'`** — no hay anatocismo (`I-C02`, alineado con `VER-CAR-02`).
+- Day-count configurable: `mensual_30_dias_reales | actual_365 | actual_360 | treinta_360` (`D-23`).
+- Orden descuento-vs-interés configurable (`interes_descuento_orden`).
+- Días de gracia (`interes_dias_gracia`).
+- Tope de tasa (`interes_tope_mensual`).
+- **Fecha de referencia explícita** (`AD-32`) — nunca `Date.now()` implícito.
+- Idempotencia entre corridas vía `obtenerUltimaFechaInteresPorCapital`.
+- Se ejecuta bajo demanda por Edge Function `calcular-intereses`.
+
+## 13.3 Lo que falta — `GAP-CAR-004`
+
+`[GAP]` Versionamiento y segmentación de la tasa.
+
+Situación actual: la tasa es una columna escalar de `politicas_financieras`. Si la Superfinanciera certifica un IBC distinto el mes siguiente, se crea una **nueva versión de política financiera completa**, lo cual funciona pero:
+
+1. No registra la **resolución fuente** (número, fecha, modalidad).
+2. No produce **segmentos** cuando la tasa cambia a mitad de un período de mora (`PH-C11`).
+3. Obliga a versionar toda la política financiera por un cambio que solo afecta la tasa.
+
+Propuesta:
+
+```sql
+create table public.tasas_referencia (
+  id                 uuid primary key default gen_random_uuid(),
+  tipo_tasa          public.tipo_tasa_t not null,      -- 'ibc_consumo_ordinario'
+  vigente_desde      date not null,
+  vigente_hasta      date,
+  valor_ea           numeric(8,6) not null,            -- efectiva anual certificada
+  valor_mensual      numeric(8,6) not null,            -- equivalente derivado [VER-CAR-01]
+  resolucion_numero  text not null,                    -- p.ej. 'Resolución 0965'
+  resolucion_fecha   date not null,
+  entidad_fuente     text not null default 'Superintendencia Financiera de Colombia',
+  url_fuente         text,
+  registrada_por     uuid references public.profiles (id),
+  created_at         timestamptz not null default now(),
+  constraint tasa_vigencia_valida check (vigente_hasta is null or vigente_hasta >= vigente_desde)
+);
+
+-- exclusión de solapamiento por tipo de tasa
+create extension if not exists btree_gist;
+alter table public.tasas_referencia
+  add constraint tasas_sin_solape
+  exclude using gist (
+    tipo_tasa with =,
+    daterange(vigente_desde, coalesce(vigente_hasta, 'infinity'::date), '[]') with &&
+  );
+```
+
+`[ARQ]` Esta tabla es **global, no por tenant** — el IBC es el mismo para todo el país. Es la única excepción a `REC-CAR-007`, y por eso su RLS es de solo lectura para todo usuario autenticado y escritura restringida a rol de plataforma. Debe documentarse explícitamente como excepción.
+
+Luego `politicas_financieras` referencia el tipo de tasa y el multiplicador (1.5 por defecto, art. 30 L675), en lugar de un valor quemado:
+
+```text
+politicas_financieras.interes_tipo_tasa      = 'ibc_consumo_ordinario'
+politicas_financieras.interes_multiplicador  = 1.5      ← tope legal art. 30
+politicas_financieras.interes_tasa_mensual   = <lo que decidió la asamblea>
+                                                (debe ser ≤ tope calculado)
+```
+
+Y `calcularInteresMora()` se extiende para recibir `readonly SegmentoTasa[]` en lugar de una tasa escalar, produciendo el desglose de `InterestSegment` que exige `PH-C11`:
+
+```typescript
+export interface SegmentoTasa {
+  readonly desde: Date
+  readonly hasta: Date
+  readonly tasaMensual: number
+  readonly fuenteResolucion: string
+}
+```
+
+`[ARQ]` Esta extensión es **retrocompatible**: una lista de un solo segmento equivale al comportamiento actual.
+
+---
+
+# 14. Integración con Pagos e Imputación (existente)
+
+## 14.1 Flujo existente — no modificar
+
+```text
+pagos  →  imputarPago()  →  pago_aplicaciones  →  v_cargo_saldo
+```
+
+`imputarPago()` es un waterfall greedy secuencial (no `allocate()`, que es reparto proporcional). Respeta:
+
+- `politicas_financieras.imputacion_orden` — orden de categorías.
+- `politicas_financieras.imputacion_estrategia` — `deuda_mas_antigua | periodo_actual` (`AD-36`).
+- Base legal del orden por defecto: **Código Civil art. 1653** (el pago se imputa primero a intereses, luego a capital), reflejado en `PLAN_MAESTRO_IMPLEMENTACION.md §6.3`.
+
+## 14.2 Lo que este bloque aporta
+
+Este bloque **consume** el resultado de la imputación para recalcular posición, clasificación y etapa. No lo altera.
+
+```text
+Evento PAGO_REGISTRADO
+    ↓
+recalcular v_posicion_cartera
+    ↓
+¿cambió la clasificación?  →  evento CARTERA_CLASIFICACION_CAMBIO
+    ↓
+¿cambió la etapa?          →  evaluarEscalamiento()
+    ↓
+¿hay acciones programadas que ya no aplican?  →  cancelarlas
+    ↓
+¿hay promesas pendientes que este pago cumple? →  marcarlas cumplidas
+    ↓
+¿hay cuotas de acuerdo que este pago cubre?    →  conciliarlas
+```
+
+## 14.3 Sobrepago y saldo a favor
+
+`[ARQ]` `I-C06` — **Un sobrepago no desaparece.**
+
+```text
+pago > total adeudado
+    ↓
+el excedente queda SIN APLICAR
+    ↓
+Σ pago_aplicaciones < pagos.monto
+    ↓
+saldo_credito = pagos.monto − Σ aplicaciones   ← derivado, no persistido
+```
+
+Consecuencia para cartera: `saldo_credito > 0` **no reduce automáticamente** `deuda_total` de períodos futuros. Se aplica cuando el cargo futuro existe, no antes. La posición debe reportar ambos: deuda y crédito, sin netearlos silenciosamente.
+
+`[NEGOCIO]` Un inmueble con `deuda_vencida = 0` y `saldo_credito > 0` está **al día con crédito a favor**, y esto debe ser visible en la posición y en el estado de cuenta.
+
+---
+
+# 15. Gestión jurídica
+
+## 15.1 Principio
+
+`[LEGAL]` `[ARQ]` La remisión jurídica es una **acción de escalamiento con evidencia**, no una generación automática de costas ni de honorarios.
+
+## 15.2 Certificación de deuda — el artefacto del art. 48
+
+`[LEGAL]` Este es el objeto más importante del bloque jurídico. El art. 48 de la Ley 675 exige que el administrador expida una certificación del valor adeudado que, acompañada del certificado de existencia y representación legal, **presta mérito ejecutivo**. Debe discriminar: expensas ordinarias, extraordinarias, intereses moratorios y sanciones.
+
+```sql
+create table public.certificaciones_deuda (
+  id                    uuid primary key default gen_random_uuid(),
+  tenant_id             uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id           uuid not null references public.inmuebles (id),
+  consecutivo           text not null,
+  fecha_expedicion      date not null,
+  fecha_corte           date not null,
+
+  -- DISCRIMINACIÓN EXIGIDA POR EL ART. 48
+  monto_expensas_ordinarias     numeric(18,2) not null default 0,
+  monto_expensas_extraordinarias numeric(18,2) not null default 0,
+  monto_intereses_mora          numeric(18,2) not null default 0,
+  monto_sanciones               numeric(18,2) not null default 0,
+  monto_otros                   numeric(18,2) not null default 0,
+  monto_total                   numeric(18,2) not null,
+
+  -- TRAZABILIDAD Y REPRODUCIBILIDAD
+  detalle_cargos        jsonb not null,   -- snapshot inmutable de los cargos certificados
+  politica_financiera_id uuid not null references public.politicas_financieras (id),
+  politica_version      int not null,
+  certificacion_hash    text not null,
+
+  -- RESPONSABILIDAD
+  expedida_por          uuid not null references public.profiles (id),
+  cargo_firmante        text not null,     -- 'Administrador'
+  documento_url         text,
+
+  estado                public.estado_certificacion_t not null default 'vigente',
+  anulada_at            timestamptz,
+  anulada_motivo        text,
+
+  created_at            timestamptz not null default now(),
+  constraint certificacion_consecutivo_unico unique (tenant_id, consecutivo),
+  constraint certificacion_total_coherente check (
+    monto_total = monto_expensas_ordinarias + monto_expensas_extraordinarias
+                + monto_intereses_mora + monto_sanciones + monto_otros
+  )
+);
+
+create trigger certificaciones_deuda_append_only
+  before update or delete on public.certificaciones_deuda
+  for each row execute function public.forbid_mutation();
+```
+
+`[ARQ]` **`REC-CAR-014`** — La certificación es **inmutable**. Si tiene un error, se **anula** (estado, no borrado) y se expide una nueva. Un título ejecutivo modificable no es un título ejecutivo.
+
+`[ARQ]` `detalle_cargos` congela el desglose exacto: id, período, concepto, vencimiento, monto original, saldo a la fecha de corte. Sin esto, la certificación no es reproducible y no resiste una objeción en juicio (`PH-C27`).
+
+## 15.3 Caso judicial — DDL
+
+```sql
+create type public.estado_caso_juridico_t as enum (
+  'remitido',          -- enviado al abogado
+  'documentacion',     -- reuniendo soportes
+  'radicado',          -- demanda presentada
+  'admitido',          -- auto admisorio
+  'en_tramite',
+  'medidas_cautelares',
+  'conciliacion',
+  'sentencia',
+  'ejecucion',
+  'terminado',
+  'desistido',
+  'archivado'
+);
+
+create table public.casos_juridicos (
+  id                    uuid primary key default gen_random_uuid(),
+  tenant_id             uuid not null references public.tenants (id) on delete cascade,
+  inmueble_id           uuid not null references public.inmuebles (id),
+  consecutivo           text not null,
+  certificacion_id      uuid not null references public.certificaciones_deuda (id),
+
+  fecha_remision        date not null,
+  fecha_apertura        date,
+  abogado_tercero_id    uuid,               -- FK a tenant_tercero_rol
+  numero_radicado       text,
+  juzgado               text,
+  ciudad                text,
+
+  monto_pretension      numeric(18,2) not null,
+  fecha_pretension      date not null,
+
+  estado                public.estado_caso_juridico_t not null default 'remitido',
+  fecha_ultima_actuacion date,
+  fecha_proxima_actuacion date,
+
+  fecha_cierre          date,
+  motivo_cierre         text,
+  monto_recuperado      numeric(18,2) not null default 0,
+
+  aprobado_por          uuid not null references public.profiles (id),
+  aprobado_at           timestamptz not null,
+
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz,
+  constraint caso_consecutivo_unico unique (tenant_id, consecutivo)
+);
+```
+
+`[ARQ]` `certificacion_id` es **`not null`**: no puede existir un caso judicial sin la certificación que le da mérito ejecutivo. Esto convierte el requisito del art. 48 en una restricción de integridad referencial, no en una recomendación.
+
+## 15.4 Actuaciones y expediente
+
+```sql
+create table public.caso_juridico_actuaciones (
+  id             uuid primary key default gen_random_uuid(),
+  tenant_id      uuid not null references public.tenants (id) on delete cascade,
+  caso_id        uuid not null references public.casos_juridicos (id) on delete cascade,
+  fecha          date not null,
+  tipo           public.tipo_actuacion_juridica_t not null,
+  descripcion    text not null,
+  estado_desde   public.estado_caso_juridico_t,
+  estado_hasta   public.estado_caso_juridico_t,
+  registrada_por uuid not null references public.profiles (id),
+  created_at     timestamptz not null default now()
+);
+
+create table public.caso_juridico_documentos (
+  id                 uuid primary key default gen_random_uuid(),
+  tenant_id          uuid not null references public.tenants (id) on delete cascade,
+  caso_id            uuid not null references public.casos_juridicos (id) on delete cascade,
+  tipo_documento     public.tipo_documento_juridico_t not null,
+  nombre             text not null,
+  fecha_documento    date not null,
+  version            int not null default 1,
+  storage_path       text not null,     -- PRQ-CAR-013
+  documento_hash     text not null,
+  cargado_por        uuid not null references public.profiles (id),
+  created_at         timestamptz not null default now()
+);
+```
+
+---
+
+# 16. Costas judiciales
+
+## 16.1 La prohibición central
+
+`[LEGAL]` **NO calcular costas por antigüedad.** Esto **no debe existir** como regla automática:
+
+```text
+❌  180 días → 10% del capital
+❌  360 días → 15% del capital
+❌  cualquier % de costas derivado del tiempo de mora
+```
+
+Las costas y agencias en derecho las **liquida el juez** de forma concentrada (CGP art. 366), una vez en firme la providencia, según las **tarifas del Consejo Superior de la Judicatura**. No dependen del contrato privado de honorarios ni de la antigüedad de la deuda.
+
+`[ARQ]` `I-C11` — **Una costa judicial no puede insertarse sin `documento_fuente` y `fecha_decision`.** Se implementa como `not null`, no como validación de aplicación.
+
+## 16.2 DDL
+
+```sql
+create type public.tipo_costa_t as enum (
+  'gasto_proceso',        -- expensas del proceso
+  'agencias_en_derecho',  -- CGP 366, tarifas CSJ
+  'honorario_auxiliar',   -- perito, secuestre, curador
+  'otro_costo_aprobado'
+);
+
+create type public.estado_costa_t as enum (
+  'liquidada',    -- el juzgado la liquidó
+  'impugnada',    -- reposición/apelación en curso (CGP 366)
+  'en_firme',     -- liquidación aprobada y en firme
+  'recuperada',
+  'no_recuperable'
+);
+
+create table public.costas_judiciales (
+  id                uuid primary key default gen_random_uuid(),
+  tenant_id         uuid not null references public.tenants (id) on delete cascade,
+  caso_id           uuid not null references public.casos_juridicos (id) on delete cascade,
+  tipo_costa        public.tipo_costa_t not null,
+  monto             numeric(18,2) not null check (monto > 0),
+
+  -- EVIDENCIA OBLIGATORIA — sin esto no existe la costa
+  documento_fuente  text not null,
+  fecha_decision    date not null,
+  autoridad         text not null,     -- juzgado que decidió
+
+  estado            public.estado_costa_t not null default 'liquidada',
+  monto_recuperado  numeric(18,2) not null default 0,
+  registrada_por    uuid not null references public.profiles (id),
+  created_at        timestamptz not null default now()
+);
+```
+
+## 16.3 Separación de costas y gastos de cobranza
+
+`[LEGAL]` Son cosas distintas y **no pueden mezclarse**:
+
+| | Costas judiciales | Gastos de cobranza extrajudicial |
+|---|---|---|
+| **Origen** | Decisión judicial en firme | Gestión administrativa de la copropiedad |
+| **Norma** | CGP arts. 365-366 | Reglamento de PH + acta de asamblea `[VERIFICAR]` |
+| **Quién los fija** | El juez, por tarifas del CSJ | La asamblea, dentro de límites `[VER-CAR-03]` |
+| **Cuándo existen** | Solo si hay proceso y condena | Pueden existir sin proceso |
+| **Tabla** | `costas_judiciales` | `politicas_gastos_cobranza` → `novedades` → `cargos` |
+| **Automatizable** | **NUNCA** | Sí, si la asamblea lo aprobó |
+
+---
+
+# 17. Gastos de cobranza extrajudicial
+
+## 17.1 Advertencia
+
+`[VERIFICAR]` **`VER-CAR-03`** — **No existe un porcentaje legal universal** para gastos de cobranza en propiedad horizontal. Cualquier cobro por este concepto debe estar respaldado por el reglamento de PH o por decisión de asamblea, y su razonabilidad puede ser objetada. **No implementar valores por defecto.** La política debe nacer vacía y requerir configuración explícita con referencia al acta.
+
+## 17.2 DDL
+
+```sql
+create table public.politicas_gastos_cobranza (
+  id                  uuid primary key default gen_random_uuid(),
+  tenant_id           uuid not null references public.tenants (id) on delete cascade,
+  version             int not null,
+  estado              public.vigencia_estado_t not null default 'borrador',
+  vigente_desde       date,
+  vigente_hasta       date,
+  acta_referencia     text not null,     -- OBLIGATORIO: quién lo autorizó
+  fundamento_texto    text not null,     -- cláusula del reglamento o de la asamblea
+  aprobada_por        uuid not null references public.profiles (id),
+  policy_hash         text not null,
+  created_at          timestamptz not null default now(),
+  constraint politica_gastos_version_unica unique (tenant_id, version)
+);
+
+create table public.politica_gasto_cobranza_items (
+  id                  uuid primary key default gen_random_uuid(),
+  tenant_id           uuid not null references public.tenants (id) on delete cascade,
+  politica_id         uuid not null references public.politicas_gastos_cobranza (id) on delete cascade,
+  etapa               public.etapa_cobranza_t not null,
+  tipo_gasto          text not null,
+  base_calculo        public.base_gasto_t not null,  -- 'fijo'|'porcentaje_capital'|'porcentaje_total'
+  valor               numeric(18,6) not null,
+  tope_maximo         numeric(18,2),
+  requiere_aprobacion boolean not null default true,
+  created_at          timestamptz not null default now()
+);
+```
+
+`[ARQ]` **`REC-CAR-015`** — Un gasto de cobranza **nunca** se inserta directo en `cargos`. Recorre: política → propuesta → **aprobación** → `novedades` (tipo `CHARGE`) → `fn_aprobar_novedad` → `cargos` (categoría `otro`). Esto garantiza que quede sujeto al flujo de aprobación existente (`AD-33`) y sea auditable y reversible.
+
+---
+
+# 18. Automatización — Job diario de cartera
+
+## 18.1 Contrato
+
+`[ARQ]` **`REC-CAR-008`** — El job recibe **fecha de corte explícita**. Nunca usa la fecha del sistema internamente. Esto lo hace re-ejecutable, testeable y auditable (`AD-32`).
+
+```typescript
+interface EntradaJobCartera {
+  readonly tenantId: string
+  readonly fechaCorte: Date          // explícita, obligatoria
+  readonly modo: 'simulacion' | 'ejecucion'
+  readonly alcanceInmuebles?: readonly string[]  // subconjunto opcional
+}
+
+interface ResultadoJobCartera {
+  readonly ejecucionId: string
+  readonly fechaCorte: Date
+  readonly inmueblesEvaluados: number
+  readonly cambiosClasificacion: number
+  readonly cambiosEtapa: number
+  readonly accionesCreadas: number
+  readonly accionesOmitidas: number
+  readonly promesasIncumplidas: number
+  readonly acuerdosIncumplidos: number
+  readonly candidatosEscalamiento: number
+  readonly alertas: readonly AlertaCartera[]
+  readonly resultadoHash: string
+}
+```
+
+`modo: 'simulacion'` ejecuta todo el pipeline **sin escribir**, devolviendo lo que habría pasado. Requisito de negocio real: ningún administrador acepta que el sistema empiece a enviar requerimientos sin haber visto antes qué va a enviar.
+
+## 18.2 Secuencia
+
+```text
+JOB_CARTERA_DIARIA(tenantId, fechaCorte, modo)
+
+ 0. Verificar prerrequisitos bloqueantes.  Si falta uno → ABORTAR con BLOCKED.
+ 1. Cargar política de clasificación vigente a fechaCorte.
+ 2. Cargar política de cobranza vigente a fechaCorte.
+ 3. Obtener cargos con saldo > 0 y fecha_vencimiento < fechaCorte.
+ 4. Calcular antigüedad por cargo.
+ 5. Agregar posición por inmueble (deuda, dias_mora_maximo, crédito).
+ 6. Clasificar cada inmueble  → clasificarCartera().
+ 7. Comparar contra el snapshot del día anterior.
+ 8. Detectar cambios de clasificación  → evento CARTERA_CLASIFICACION_CAMBIO.
+ 9. Evaluar escalamiento               → evaluarEscalamiento().
+10. Detectar cambios de etapa          → evento CARTERA_ETAPA_CAMBIO.
+11. Detectar promesas vencidas         → evento PROMESA_INCUMPLIDA.
+12. Detectar cuotas de acuerdo vencidas→ evento ACUERDO_CUOTA_VENCIDA.
+13. Evaluar incumplimiento de acuerdos → evento ACUERDO_INCUMPLIDO + descongelar.
+14. Evaluar acciones aplicables por estrategia.
+15. Aplicar reglas anti-duplicación (§10.4).
+16. Crear acciones en estado 'programada' o 'pendiente_aprobacion'.
+17. Cancelar acciones programadas que ya no aplican (inmueble al día).
+18. Identificar candidatos a escalamiento que requieren aprobación → alertas.
+19. Escribir posiciones_cartera_snapshot con posicion_hash.
+20. Registrar eventos_cartera de todo lo anterior.
+21. Registrar la ejecución en audit_log.
+22. Devolver ResultadoJobCartera.
+
+NOTA: la ejecución material de notificaciones NO ocurre aquí.
+El job CREA acciones; un worker separado las EJECUTA (§18.4).
+```
+
+## 18.3 Idempotencia
+
+`[ARQ]` **El job debe poder correrse dos veces el mismo día sin efectos duplicados.**
+
+```text
+IDEM-01  posiciones_cartera_snapshot tiene unique (tenant, inmueble, fecha_corte).
+         Segunda corrida → ON CONFLICT DO NOTHING, o verificación de hash.
+
+IDEM-02  Las acciones se crean con las reglas anti-duplicación de §10.4,
+         que ya cubren la re-ejecución.
+
+IDEM-03  Los eventos llevan una clave de deduplicación:
+         (tipo, inmueble_id, fecha_corte, entidad_id).
+
+IDEM-04  Si el hash de posición coincide con el del día anterior y no hubo
+         cambio de clasificación, no se emite evento de cambio.
+```
+
+`[GAP]` **`GAP-CAR-003`** — Un pago registrado con `fecha_pago` retroactiva **cambia el pasado**. El snapshot del día anterior deja de ser reproducible. Decisión requerida:
+
+```text
+Opción 1: los snapshots son inmutables; un pago retroactivo no los reescribe.
+          El histórico refleja "lo que se sabía entonces".   ← recomendada
+Opción 2: recalcular snapshots afectados y versionarlos.
+          Más correcto contablemente, mucho más costoso.
+
+RECOMENDACIÓN: Opción 1 + registro del pago retroactivo como evento
+que explica la discontinuidad. Es coherente con la inmutabilidad de
+resultados del motor de liquidación (Docs 20 §69 RESULT IMMUTABILITY).
+```
+
+## 18.4 Worker de ejecución de acciones
+
+`[ARQ]` Separado del job de cálculo, por tres razones: las notificaciones fallan y hay que reintentar; el cálculo debe poder correrse sin enviar nada (`modo: 'simulacion'`); y el volumen de envío tiene límites de proveedor.
+
+```text
+WORKER_ACCIONES_COBRANZA
+
+  1. Tomar acciones en estado 'aprobada' o 'programada' (si no requiere aprobación)
+     con fecha_programada <= hoy.
+  2. Resolver destinatario y contacto vigente.
+  3. Renderizar plantilla → contenido_hash.
+  4. Enviar por el canal → referencia_externa.
+  5. estado = 'ejecutada' | 'fallida'.
+  6. Evento COBRANZA_ACCION_EJECUTADA | COBRANZA_ACCION_FALLIDA.
+  7. Reintentos con backoff, hasta max_intentos.
+```
+
+---
+
+# 19. Eventos de dominio
+
+## 19.1 Catálogo
+
+```text
+-- OBLIGACIONES
+CARGO_VENCIDO
+CARGO_SALDADO
+
+-- CARTERA
+CARTERA_CLASIFICACION_CAMBIO
+CARTERA_ETAPA_CAMBIO
+CARTERA_POSICION_CONGELADA
+
+-- COBRANZA
+COBRANZA_ACCION_PROGRAMADA
+COBRANZA_ACCION_APROBADA
+COBRANZA_ACCION_RECHAZADA
+COBRANZA_ACCION_EJECUTADA
+COBRANZA_ACCION_FALLIDA
+COBRANZA_ACCION_OMITIDA
+COBRANZA_ACCION_CANCELADA
+COBRANZA_RESULTADO_REGISTRADO
+
+-- PROMESAS Y ACUERDOS
+PROMESA_REGISTRADA
+PROMESA_CUMPLIDA
+PROMESA_INCUMPLIDA
+ACUERDO_CREADO
+ACUERDO_APROBADO
+ACUERDO_CUOTA_VENCIDA
+ACUERDO_CUOTA_PAGADA
+ACUERDO_CUMPLIDO
+ACUERDO_INCUMPLIDO
+
+-- JURÍDICO
+CERTIFICACION_DEUDA_EXPEDIDA
+CERTIFICACION_DEUDA_ANULADA
+CASO_JURIDICO_CREADO
+CASO_JURIDICO_ACTUACION
+CASO_JURIDICO_ESTADO_CAMBIO
+CASO_JURIDICO_CERRADO
+COSTA_JUDICIAL_REGISTRADA
+
+-- INTEGRACIÓN (consumidos, no producidos por este bloque)
+PAGO_REGISTRADO
+PAGO_IMPUTADO
+INTERES_CALCULADO
+NOVEDAD_APROBADA
+LIQUIDACION_COMPLETADA
+```
+
+## 19.2 Estructura del evento
+
+```sql
+create table public.eventos_cartera (
+  id                uuid primary key default gen_random_uuid(),
+  tenant_id         uuid not null references public.tenants (id) on delete cascade,
+  tipo              public.tipo_evento_cartera_t not null,
+  inmueble_id       uuid references public.inmuebles (id),
+  entidad_tipo      text,          -- 'accion_cobranza'|'acuerdo_pago'|'caso_juridico'...
+  entidad_id        uuid,
+
+  fecha_corte       date not null,
+  ocurrido_at       timestamptz not null default now(),
+
+  -- ANTES / DESPUÉS — obligatorio para transiciones
+  estado_anterior   jsonb,
+  estado_nuevo      jsonb,
+  motivo            text not null,
+
+  -- REPRODUCIBILIDAD
+  politica_id       uuid,
+  politica_version  int,
+
+  -- AUTORÍA
+  origen            public.origen_evento_t not null,  -- 'job'|'usuario'|'sistema'|'integracion'
+  actor_id          uuid references public.profiles (id),
+  ejecucion_id      uuid,          -- correlaciona todos los eventos de una corrida
+
+  dedup_key         text,
+  created_at        timestamptz not null default now(),
+  constraint evento_dedup unique nulls not distinct (tenant_id, dedup_key)
+);
+
+create trigger eventos_cartera_append_only
+  before update or delete on public.eventos_cartera
+  for each row execute function public.forbid_mutation();
+
+create index on public.eventos_cartera (tenant_id, inmueble_id, ocurrido_at desc);
+create index on public.eventos_cartera (tenant_id, tipo, fecha_corte);
+create index on public.eventos_cartera (ejecucion_id);
+```
+
+## 19.3 Criterio de auditabilidad
+
+`[ARQ]` `I-C13` — **AQUILA debe poder explicar por qué un inmueble cambió de etapa.** Un evento sin `motivo` legible por humanos es un evento incompleto.
+
+Ejemplo de evento completo:
+
+```json
+{
+  "tipo": "CARTERA_CLASIFICACION_CAMBIO",
+  "inmueble_id": "…",
+  "fecha_corte": "2026-08-16",
+  "estado_anterior": { "codigo": "MORA_INICIAL", "dias_mora": 60 },
+  "estado_nuevo":    { "codigo": "MORA_MEDIA",   "dias_mora": 61 },
+  "motivo": "El cargo C-001 (período 2026-06, vence 2026-06-10) alcanzó 61 días de mora, superando el límite del tramo MORA_INICIAL (31-60).",
+  "politica_id": "…",
+  "politica_version": 3,
+  "origen": "job",
+  "ejecucion_id": "…"
+}
+```
+
+---
+
+# 20. Parámetros y políticas
+
+## 20.1 Regla anti-monolito
+
+`[ARQ]` **No crear una tabla monolítica de parámetros.** Cada dominio tiene su política, con su propio ciclo de versionado, su propia autoridad de aprobación y su propio hash.
+
+```text
+politicas_financieras            ← YA EXISTE (mora, imputación, redondeo)
+politicas_clasificacion_cartera  ← nuevo   (tramos de antigüedad)
+politica_clasificacion_tramos    ← nuevo
+estrategias_cobranza             ← nuevo   (qué acción, cuándo, cuántas)
+politicas_gastos_cobranza        ← nuevo   (gastos extrajudiciales)
+politica_gasto_cobranza_items    ← nuevo
+tasas_referencia                 ← nuevo   (IBC, GLOBAL, no por tenant)
+politicas_escalamiento           ← nuevo   (reglas de transición configurables)
+```
+
+## 20.2 Contrato común de política versionada
+
+`[ARQ]` **`REC-CAR-006`** — Toda política de este bloque implementa el mismo contrato, copiado de `politicas_financieras`:
+
+```text
+version           int not null
+estado            vigencia_estado_t   ('borrador'|'vigente'|'historica')
+vigente_desde     date
+vigente_hasta     date
+policy_hash       text not null
+aprobada_por      uuid
+acta_referencia   text
+
++ constraint: una sola vigente por tenant
++ trigger:    guard_politica_inmutable  (vigente ⇒ no UPDATE)
++ regla:      corregir = nueva versión
++ regla:      todo registro que la usó guarda politica_id + version
+```
+
+## 20.3 Reglas de resolución temporal
+
+```text
+Política aplicable a una fecha F =
+    la política con estado='vigente'
+    y vigente_desde <= F
+    y (vigente_hasta is null or vigente_hasta >= F)
+
+Si no existe → ERROR explícito. NUNCA un default.
+    PoliticaClasificacionNoConfiguradaError
+    EstrategiaCobranzaNoConfiguradaError
+```
+
+Coherente con el estilo de errores existente (`PoliticaMoraNoConfiguradaError`).
+
+---
+
+# 21. Seguridad, RLS y aislamiento
+
+## 21.1 Regla no negociable
+
+`[ARQ]` **`REC-CAR-007`** — Toda tabla nueva de este bloque lleva:
+
+```sql
+tenant_id uuid not null references public.tenants (id) on delete cascade
+alter table … enable row level security;
+alter table … force row level security;
+```
+
+Sin excepción, salvo `tasas_referencia` (§13.3), que es global y debe documentarse como excepción explícita con su justificación.
+
+## 21.2 Modelo de roles real — advertencia
+
+`[GAP]` **`GAP-CAR-009`** — **Los roles que este bloque necesita no existen todavía.** El modelo actual es:
+
+```sql
+-- 20260813190000_extensions_and_enums.sql
+create type public.tenant_role_t as enum ('agent', 'auditor');
+
+-- helpers disponibles (20260813190200_helper_functions.sql)
+public.current_tenant_id()
+public.is_member(p_tenant uuid)
+public.has_role(p_tenant uuid, p_roles public.tenant_role_t[])
+public.shares_tenant_with(p_user uuid)
+public.is_platform_admin()
+```
+
+Es decir: **solo hay dos roles de tenant (`agent`, `auditor`) más un administrador de plataforma.** No existen `owner`, `admin` ni `resident`.
+
+Esto tiene tres consecuencias que **deben resolverse antes de F4**:
+
+```text
+1. La certificación del art. 48 exige la figura del ADMINISTRADOR
+   como persona identificada y responsable. Hoy `agent` es un rol
+   genérico. [LEGAL] — no es un detalle cosmético: el título ejecutivo
+   lo expide el administrador, no "un usuario con permisos".
+
+2. La aprobación de acciones de alto impacto (requerimiento formal,
+   remisión jurídica, condonación) exige separación de funciones
+   entre quien PROPONE y quien APRUEBA. Con un solo rol operativo
+   no hay separación posible.
+
+3. El acceso del residente a su propia cartera no tiene hoy ningún
+   mecanismo: no existe el rol, ni el vínculo usuario↔inmueble.
+```
+
+Opciones (decisión pendiente, no la toma este documento):
+
+```text
+Opción A: extender tenant_role_t con 'administrador' y 'residente'.
+          Simple, pero toca un enum usado en todo el sistema.
+Opción B: capa de permisos granular separada del rol
+          (tabla de permisos por membresía).
+          Más flexible, más trabajo.
+Opción C: mantener tenant_role_t y añadir un campo de "cargo"
+          en la membresía, usado solo para responsabilidad legal.
+          Mínimo cambio; resuelve (1) pero no (2) ni (3).
+```
+
+## 21.3 Matriz de permisos objetivo
+
+`[NEGOCIO]` Matriz **objetivo**, expresada en los roles que resultarán de `GAP-CAR-009`. Hasta que ese gap se resuelva, todo lo marcado `admin` se implementa como `agent` + verificación adicional explícita, y lo marcado `residente` queda **fuera de alcance**.
+
+| Objeto | `administrador` | `agent` | `auditor` | `residente` |
+|---|---|---|---|---|
+| Posición de cartera (todos los inmuebles) | R | R | R | — |
+| Posición de cartera (propio inmueble) | R | R | R | **R** |
+| `politicas_clasificacion_cartera` | RW | — | R | — |
+| `estrategias_cobranza` | RW | R | R | — |
+| `acciones_cobranza` | RW | RW | R | R (propias) |
+| Aprobar acción de alto impacto | ✔ | — | — | — |
+| `promesas_pago` | RW | RW | R | R (propias) |
+| `acuerdos_pago` | RW | R | R | R (propios) |
+| Aprobar acuerdo | ✔ | — | — | — |
+| Condonar intereses *(requiere acta)* | ✔ | — | — | — |
+| `certificaciones_deuda` | **RW** | R | R | — |
+| `casos_juridicos` | RW | R | R | — |
+| `costas_judiciales` | RW | — | R | — |
+| `eventos_cartera` | R | R | R | — |
+
+`[LEGAL]` Solo el **administrador** expide la certificación del art. 48 — es una función prevista en la ley para ese cargo. El campo `cargo_firmante` debe reflejar la persona y su calidad, no solo el `user_id`.
+
+## 21.4 Acceso del residente a su propia cartera
+
+`[NEGOCIO]` `[GAP]` Un residente debería poder ver su propia deuda, antigüedad, acciones recibidas y acuerdo; y **nunca** la cartera de otros ni la política de escalamiento.
+
+`[GAP]` **`GAP-CAR-010`** — **No es un olvido: es una decisión arquitectónica vigente en contra.** La tabla `propietarios` lleva este comentario en su migración:
+
+> `'Datos del dominio, no usuarios (AD-26): sin FK a auth.users, sin política RLS propia de identidad — se leen a través del tenant (PLAN §7.5).'`
+
+Es decir, **`AD-26` establece deliberadamente que un propietario NO es un usuario.** No hay FK a `auth.users` y no la hay por diseño.
+
+Consecuencia: dar acceso al residente **no es implementar una política RLS faltante, es revisar `AD-26`**. Eso excede este bloque y debe escalarse como decisión de arquitectura, no resolverse aquí.
+
+```text
+Hasta que AD-26 se revise formalmente:
+  · PH-C35 (residente ve solo lo suyo) queda FUERA DE ALCANCE.
+  · El bloque de cartera es una herramienta de gestión INTERNA
+    (administrador, agente, auditor), no un portal del residente.
+  · La comunicación con el residente ocurre por NOTIFICACIÓN saliente
+    (email/SMS al contacto de `propietarios`), no por acceso a la app.
+```
+
+`[ARQ]` Esto en realidad **simplifica las fases F1-F9**: no hay que diseñar una superficie de lectura para residentes. Si más adelante se revisa `AD-26`, se añade como fase F10 sin tocar lo construido.
+
+Forma esperada una vez resuelto, usando los helpers reales del proyecto:
+
+```sql
+create policy posicion_cartera_lectura on public.posiciones_cartera_snapshot
+  for select to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+    and (
+      public.has_role(tenant_id, array['agent','auditor']::public.tenant_role_t[])
+      or inmueble_id in (select public.fn_inmuebles_del_usuario(auth.uid()))
+    )
+  );
+```
+
+`fn_inmuebles_del_usuario` **no existe** y es entregable de `GAP-CAR-010`.
+
+`[VERIFICAR]` **`VER-CAR-04`** — La publicación de morosos autorizada por el art. 30 par. de la L675 debe conciliarse con la Ley 1581 de 2012 (habeas data). **No implementar sin concepto.** Nunca exponer datos de deuda de un tercero a otro residente por vía de API.
+
+## 21.4 Prohibición cross-tenant
+
+`[ARQ]` `SEC-03` — Ninguna consulta, vista, función o índice de este bloque puede agregar datos de más de un `tenant_id`. Esto incluye los indicadores y el dashboard. `GAP-17` sigue cerrado.
+
+---
+
+# 22. Servicios, APIs y funciones
+
+## 22.1 Funciones puras (paquete `liquidation-engine`)
+
+```typescript
+// packages/liquidation-engine/src/cartera.ts
+calcularAntiguedad(cargos, fechaCorte): readonly CargoConAntiguedad[]
+agregarPosicion(cargosConAntiguedad, creditos): PosicionCartera
+clasificarCartera(diasMora, politica): ResultadoClasificacion
+
+// packages/liquidation-engine/src/cartera-escalamiento.ts
+evaluarEscalamiento(ctx): DecisionEscalamiento
+evaluarAccionesAplicables(ctx, estrategias, historial): readonly AccionPropuesta[]
+evaluarIncumplimientoAcuerdo(acuerdo, cuotas, fechaCorte, regla): ResultadoIncumplimiento
+evaluarCumplimientoPromesa(promesa, pagos, tolerancia): ResultadoPromesa
+```
+
+Todas: **puras, deterministas, sin I/O, sin `Date.now()`**. Mismo estándar que `cuenta-corriente.ts`.
+
+## 22.2 Adaptadores I/O
+
+```typescript
+// packages/liquidation-engine/src/cartera-supabase.ts
+obtenerCargosVencidos(client, tenantId, fechaCorte, inmuebleId?)
+obtenerPoliticaClasificacionVigente(client, tenantId, fecha)
+obtenerEstrategiasVigentes(client, tenantId, politicaId)
+obtenerHistorialAcciones(client, tenantId, inmuebleId, desde)
+registrarAccionesCobranza(client, acciones)
+registrarSnapshotPosicion(client, snapshots)
+registrarEventosCartera(client, eventos)
+```
+
+Sigue el precedente de `cuenta-corriente-supabase.ts`.
+
+## 22.3 Edge Functions
+
+| Función | Método | Responsabilidad | Rol mínimo |
+|---|---|---|---|
+| `cartera-recalcular` | POST | Ejecuta `JOB_CARTERA_DIARIA` para un tenant y fecha de corte | `admin` |
+| `cartera-posicion` | GET | Devuelve `fn_posicion_cartera` para un inmueble o todos | `agent` |
+| `cobranza-ejecutar-acciones` | POST | Worker de envío (§18.4) | sistema |
+| `cobranza-aprobar-accion` | POST | Aprueba acción de alto impacto | `admin` |
+| `cobranza-registrar-resultado` | POST | Registra resultado de gestión (llamada, visita) | `agent` |
+| `acuerdo-crear` | POST | Crea acuerdo + genera cuotas | `admin` |
+| `acuerdo-aprobar` | POST | Aprueba y congela etapa | `admin` |
+| `certificar-deuda` | POST | Expide certificación art. 48 | `admin` |
+| `caso-juridico-crear` | POST | Abre caso desde certificación | `admin` |
+
+`[ARQ]` Todas las Edge Functions de escritura reciben `fecha_referencia` / `fecha_corte` explícita en el payload, siguiendo el precedente de `calcular-intereses` (`AD-32`).
+
+## 22.4 Contrato de error
+
+Reutiliza el patrón de `packages/liquidation-engine/src/errors.ts`:
+
+```typescript
+PoliticaClasificacionNoConfiguradaError
+TramoClasificacionNoEncontradoError        // viola IC-TRAMO-01
+PoliticaClasificacionInvalidaError         // viola IC-TRAMO-02..05
+TransicionEtapaNoPermitidaError            // fuera de la matriz §11.3
+AccionCobranzaDuplicadaError
+CertificacionSinCargosVencidosError
+CasoJuridicoSinCertificacionError
+CostaSinDocumentoFuenteError
+PrerrequisitoCarteraNoVerificadoError      // → estado BLOCKED
+```
+
+---
+
+# 23. Dashboard e indicadores
+
+## 23.1 Tarjetas principales
+
+```text
+CARTERA TOTAL              Σ saldo de todos los cargos con saldo > 0
+CARTERA VENCIDA            Σ saldo de cargos con vencimiento < fecha_corte
+CARTERA CORRIENTE          Σ saldo de cargos no vencidos
+INTERESES CAUSADOS         Σ saldo de cargos categoria = 'interes'
+CARTERA > 90 DÍAS          Σ saldo con dias_mora > 90
+CARTERA > 180 DÍAS         Σ saldo con dias_mora > 180
+CARTERA PREJURÍDICA        Σ deuda de inmuebles en etapa 'prejuridica'
+CARTERA JURÍDICA           Σ deuda de inmuebles en etapa 'juridica' + 'judicial'
+SALDOS A FAVOR             Σ saldo_credito
+```
+
+## 23.2 Distribución por antigüedad (aging)
+
+```text
+Al día      dias_mora = 0
+1–30        MORA_TEMPRANA
+31–60       MORA_INICIAL
+61–90       MORA_MEDIA
+91–120      MORA_AVANZADA
+121–180     MORA_CRITICA
+181–360     ALTO_RIESGO
+>360        CRITICA
+```
+
+Por cada tramo: **número de inmuebles**, **monto**, **% del total**, **variación vs. mes anterior**.
+
+## 23.3 Indicadores — fórmulas exactas
+
+`[NEGOCIO]` Alineados con la práctica estándar de la industria de cobranza, para permitir benchmark externo.
+
+| Indicador | Fórmula | Interpretación |
+|---|---|---|
+| **Overdue Portfolio %** | `cartera_vencida / cartera_total` | Salud general |
+| **Recovery Rate** | `Σ pagos aplicados a cargos vencidos en el período / cartera vencida al inicio del período` | Eficacia global de recaudo |
+| **Roll Rate (t→t+1)** | `Σ deuda que estaba en tramo T en t−1 y está en tramo T+1 en t / Σ deuda en tramo T en t−1` | **El indicador predictivo clave.** Mide deterioro |
+| **Cure Rate** | `Σ deuda que estaba vencida en t−1 y está al día en t / Σ deuda vencida en t−1` | Recuperación a estado sano |
+| **Collection Effectiveness** | `acciones con resultado ∈ (pago_recibido, promesa_de_pago, acuerdo_solicitado) / acciones ejecutadas` | Eficacia por canal y por gestor |
+| **Promise Fulfillment Rate** | `promesas cumplidas / promesas vencidas` | Confiabilidad de la promesa como señal |
+| **Agreement Fulfillment Rate** | `acuerdos cumplidos / acuerdos terminados` | Calidad del diseño de acuerdos |
+| **Legal Referral Rate** | `inmuebles remitidos a jurídico / inmuebles que alcanzaron el tramo jurídico` | Disciplina de escalamiento |
+| **Legal Recovery Rate** | `Σ monto_recuperado en casos / Σ monto_pretension` | Rentabilidad de la vía judicial |
+| **Average Days to Recovery** | `promedio(fecha_pago − fecha_vencimiento)` sobre cargos saldados | Velocidad de recaudo |
+| **Cost to Collect** | `Σ costos de acciones + costas / Σ recuperado` | Si > 1, la gestión destruye valor |
+
+## 23.4 Transiciones críticas a vigilar
+
+`[NEGOCIO]` La industria concentra el análisis en los puntos donde la deuda se vuelve estructuralmente más difícil de recuperar:
+
+```text
+31–60   →  61–90       ← primera señal de deterioro sostenido
+61–90   →  91–120      ← punto de inflexión: entra a prejurídico
+91–120  →  121–180     ← la gestión administrativa ya falló
+181–360 →  jurídica    ← decisión de invertir en proceso
+```
+
+`[ARQ]` Un roll rate alto entre `61-90 → 91-120` indica que la estrategia de cobranza administrativa **no está funcionando**, y es la métrica que debe disparar revisión de la política. Esto es lo que convierte al dashboard en una herramienta de gestión y no en un reporte.
+
+## 23.5 Panel de acciones
+
+```text
+Acciones pendientes de aprobación     ← cola de trabajo del administrador
+Acciones programadas para hoy
+Acciones fallidas (requieren datos)
+Llamadas pendientes                   ← cola de trabajo del gestor
+Promesas que vencen hoy
+Cuotas de acuerdo que vencen esta semana
+Casos jurídicos sin actuación en 30 días
+Certificaciones por vencer
+```
+
+---
+
+# 24. Prerrequisitos
+
+## 24.1 Registro
+
+`[PRQ]` Cada prerrequisito tiene dueño, documento dueño, estado real y razón de dependencia. **Si un prerrequisito bloqueante no está verificado, el bloque pasa de `READY` a `BLOCKED`. No se inventan valores por defecto.**
+
+| Id | Prerrequisito | Dueño | Estado real | ¿Bloqueante? | Razón |
+|---|---|---|---|---|---|
+| `PRQ-CAR-001` | Obligación financiera (`cargos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | Sin obligación no hay cartera |
+| `PRQ-CAR-002` | **Fecha de vencimiento por cargo** | Este bloque + `periodos` | ⚠️ **Parcial** — `periodos.fecha_vencimiento` existe pero es nullable (`GAP-CAR-001`) | **Sí** | Sin vencimiento no hay antigüedad |
+| `PRQ-CAR-003` | Versionado de tasa de interés | Política financiera | ⚠️ **Parcial — `GAP-CAR-004`** | No (para clasificar) / Sí (para `PH-C11`) | Segmentación intra-mora |
+| `PRQ-CAR-004` | Modelo de pagos (`pagos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
+| `PRQ-CAR-005` | Política de imputación | `politicas_financieras` | ✅ **Verificado** (`AD-36`) | Sí | Determina la antigüedad resultante |
+| `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
+| `PRQ-CAR-007` | Historial de propiedad / responsabilidad | Dominio inmuebles | ✅ **Verificado** — `inmueble_propietario(desde, hasta, porcentaje)` | Sí | A quién se le cobra qué período |
+| `PRQ-CAR-008` | Snapshot / reproducibilidad | Motor liquidación (patrón) | ✅ **Patrón disponible** | Sí | `I-C15` |
+| `PRQ-CAR-009` | Infraestructura de notificaciones | **No existe** | ❌ **`GAP-CAR-005`** — *pero los datos de contacto sí existen: `propietarios.email` (citext), `propietarios.telefono`, `tenant_tercero_rol.recibe_notificaciones`* | **Sí** para F4 | Falta el envío, no el destinatario |
+| `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** | **Sí** para F4 | Worker de ejecución |
+| `PRQ-CAR-011` | Registro de fuente/autoridad | `fundamento_normativo` | ⚠️ **Verificar cobertura** | Sí para costas | `I-C11` |
+| `PRQ-CAR-012` | Infraestructura de auditoría | `audit_log` | ✅ **Verificado** | Sí | — |
+| `PRQ-CAR-013` | Almacenamiento de documentos | Supabase Storage | ⚠️ **`GAP-CAR-007`** | **Sí** para F7 | Expediente jurídico |
+| `PRQ-CAR-014` | Modelo de aprobación / decisión | `novedades` (`AD-33`) | ✅ **Patrón disponible** | Sí | Aprobación de acciones y acuerdos |
+| `PRQ-CAR-015` | Terceros (abogados) | `tenant_tercero_rol` | ✅ **Verificado** — `terceros` + `tenant_tercero_rol(rol_id, vigente_desde, vigente_hasta, recibe_notificaciones)` | Sí para F7 | Asignación de abogado |
+| `PRQ-CAR-016` | Conceptos jurídicos `VER-CAR-01..06` | **Externo — jurídico** | ❌ **Abierto** | **Sí, varios** | §3.5 |
+| `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ❌ **`GAP-CAR-009`** | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
+| `PRQ-CAR-018` | Vínculo usuario ↔ inmueble | **Arquitectura (`AD-26`)** | ⤴ **Diferido** — `GAP-CAR-010` | No para F1-F9 | Solo para acceso del residente |
+
+## 24.2 Regla de bloqueo
+
+```text
+estado_bloque(fase) =
+    BLOCKED   si  ∃ prq ∈ prerrequisitos(fase) : prq.bloqueante ∧ ¬prq.verificado
+    READY     en otro caso
+
+Un bloque en BLOCKED no se implementa.
+No se sustituye un prerrequisito faltante por un valor inventado.
+Se escala el bloqueo al dueño del prerrequisito.
+```
+
+## 24.3 Ruta crítica de desbloqueo
+
+```text
+1. GAP-CAR-001 (fecha de vencimiento no nula)  ← desbloquea TODO el bloque
+2. VER-CAR-01  (conversión de tasa IBC→mensual)← desbloquea el cálculo de mora
+3. VER-CAR-02  (anatocismo)                    ← confirma el diseño actual
+4. GAP-CAR-009 (rol administrador + aprobación)← desbloquea las fases 4 y 7
+5. GAP-CAR-005 (envío de notificaciones)       ← desbloquea la fase 4
+6. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
+7. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
+
+RESUELTOS POR VERIFICACIÓN (no requieren trabajo):
+  ✅ GAP-CAR-006  inmueble_propietario ya es temporal con porcentaje
+  ✅ PRQ-CAR-015  terceros + tenant_tercero_rol ya existen
+
+ESCALADO FUERA DEL BLOQUE (no bloquea F1-F9):
+  ⤴ GAP-CAR-010  requiere revisar AD-26 (propietario ≠ usuario)
+```
+
+---
+
+# 25. Matriz de requisitos
+
+`[ARQ]` Formato `REQ-CAR-NNN`, coherente con `Docs/22` (`REQ-<DOMAIN>-<NNN>`).
+
+| Id | Requisito | Fuente | Golden Case | Invariante |
+|---|---|---|---|---|
+| `REQ-CAR-001` | Toda obligación vencida tiene antigüedad calculable y reproducible | `[ARQ]` | `PH-C02` | `I-C01` |
+| `REQ-CAR-002` | La antigüedad se calcula por obligación, no solo por inmueble | `[ARQ]` | `PH-C06` | — |
+| `REQ-CAR-003` | La clasificación usa el cargo vencido más antiguo **con saldo** | `[NEGOCIO]` | `PH-C05` | `I-C01` |
+| `REQ-CAR-004` | Los tramos son configurables y versionados por copropiedad | `[NEGOCIO]` | `PH-C29` | `I-C10` |
+| `REQ-CAR-005` | Un cambio de política no altera clasificaciones históricas | `[ARQ]` | `PH-C30` | `I-C10` |
+| `REQ-CAR-006` | La antigüedad no modifica la tasa de mora | `[LEGAL]` art. 30 | `PH-C10` | `I-C03` |
+| `REQ-CAR-007` | El interés se causa solo sobre capital vencido elegible | `[LEGAL]` + `VER-CAR-02` | `PH-C10` | `I-C02`,`I-C04` |
+| `REQ-CAR-008` | Un cambio de tasa durante la mora produce segmentos | `[LEGAL]` | `PH-C11` | — |
+| `REQ-CAR-009` | Cada acción de cobranza congela su contexto | `[ARQ]` | `PH-C28` | `I-C13` |
+| `REQ-CAR-010` | Las acciones no se duplican cuando la política lo prohíbe | `[NEGOCIO]` | `PH-C13` | `I-C07` |
+| `REQ-CAR-011` | Las acciones de alto impacto requieren aprobación humana | `[NEGOCIO]` | `PH-C19`,`PH-C20` | `I-C12` |
+| `REQ-CAR-012` | Un acuerdo no elimina ni reescribe obligaciones | `[ARQ]` | `PH-C16` | `I-C08` |
+| `REQ-CAR-013` | El incumplimiento de acuerdo descongela la etapa y escala | `[NEGOCIO]` | `PH-C18` | — |
+| `REQ-CAR-014` | Un sobrepago genera crédito y no desaparece | `[ARQ]` | `PH-C09` | `I-C06` |
+| `REQ-CAR-015` | La certificación de deuda discrimina los rubros del art. 48 | `[LEGAL]` art. 48 | `PH-C32` | — |
+| `REQ-CAR-016` | No existe caso judicial sin certificación de deuda | `[LEGAL]` art. 48 | `PH-C21` | `I-C12` |
+| `REQ-CAR-017` | Las costas requieren documento fuente y fecha de decisión | `[LEGAL]` CGP 366 | `PH-C22` | `I-C11` |
+| `REQ-CAR-018` | No se generan costas por antigüedad | `[LEGAL]` CGP 365-366 | `PH-C23` | `I-C11` |
+| `REQ-CAR-019` | Toda transición de cartera es auditable con antes/después/motivo | `[ARQ]` | `PH-C28` | `I-C13` |
+| `REQ-CAR-020` | Un prerrequisito bloqueante no verificado produce `BLOCKED` | `[ARQ]` | `PH-C26` | `I-C14` |
+| `REQ-CAR-021` | Una posición histórica es reproducible con la política y datos de la fecha | `[ARQ]` | `PH-C27` | `I-C15` |
+| `REQ-CAR-022` | El job es idempotente ante re-ejecución con la misma fecha de corte | `[ARQ]` | `PH-C33` | — |
+| `REQ-CAR-023` | La estrategia de imputación afecta la antigüedad de forma predecible | `[ARQ]` | `PH-C31` | — |
+| `REQ-CAR-024` | Ninguna consulta agrega datos de más de un tenant | `[ARQ]` `SEC-03` | `PH-C34` | — |
+| ~~`REQ-CAR-025`~~ | ~~Un residente solo ve su propia cartera~~ ⤴ **Diferido** — bloqueado por `AD-26`, ver §21.4 | `[NEGOCIO]` | `PH-C35` | — |
+
+---
+
+# 26. Golden Cases
+
+`[ARQ]` Casos de prueba obligatorios con **datos concretos**. Un golden case sin números no es un golden case. Todos usan `fecha_corte` explícita.
+
+## 26.1 Antigüedad y clasificación
+
+```text
+PH-C01  UNIDAD AL DÍA
+  Cargo: período 2026-08, vence 2026-08-10, saldo 500.000
+  Corte: 2026-08-05
+  → dias_mora = 0 · clasificación = AL_DIA · etapa = preventiva
+  → cartera_vencida = 0 · deuda_total = 500.000
+
+PH-C02  MORA DE 1 DÍA
+  Cargo: vence 2026-08-10, saldo 500.000
+  Corte: 2026-08-11
+  → dias_mora = 1 · clasificación = MORA_TEMPRANA · etapa = administrativa
+  → evento CARTERA_CLASIFICACION_CAMBIO emitido
+
+PH-C03  MORA DE 30 DÍAS — límite superior del tramo
+  Corte: 2026-09-09 (vence 2026-08-10)
+  → dias_mora = 30 · clasificación = MORA_TEMPRANA (aún)
+
+PH-C04  FRONTERA 30 → 31
+  Corte: 2026-09-10
+  → dias_mora = 31 · clasificación = MORA_INICIAL
+  → evento con motivo explícito del cruce de tramo
+  ⚠ Este caso detecta el clásico error off-by-one de rangos inclusivos.
+
+PH-C05  EL MÁS ANTIGUO CON SALDO CLASIFICA
+  C-001 vence 2026-03-10, saldo 0        (pagado)
+  C-002 vence 2026-06-10, saldo 500.000
+  Corte: 2026-08-16
+  → dias_mora_maximo = 67 (de C-002, NO 159 de C-001)
+  → clasificación = MORA_MEDIA
+
+PH-C06  VARIAS OBLIGACIONES, DISTINTAS ANTIGÜEDADES
+  Los 4 cargos del ejemplo de §7.3
+  → detalle por cargo preservado: 159/128/98/67
+  → dias_mora_maximo = 159 · clasificación = MORA_CRITICA
+  → la consulta por cargo devuelve las 4 antigüedades individuales
+```
+
+## 26.2 Pagos
+
+```text
+PH-C07  PAGO TOTAL ELIMINA CARTERA VENCIDA
+  Deuda vencida 2.000.000 · pago 2.000.000
+  → cartera_vencida = 0 · clasificación = AL_DIA
+  → etapa des-escala a preventiva automáticamente
+  → acciones programadas pendientes se CANCELAN
+
+PH-C08  PAGO PARCIAL MANTIENE CARTERA
+  Deuda 2.000.000 (4 cargos de 500.000) · pago 500.000
+  estrategia = 'deuda_mas_antigua'
+  → C-001 saldado · dias_mora_maximo pasa de 159 a 128
+  → clasificación pasa de MORA_CRITICA a MORA_MEDIA
+  → evento de cambio con motivo "pago aplicado"
+
+PH-C09  SOBREPAGO GENERA CRÉDITO
+  Deuda 2.000.000 · pago 2.500.000
+  → Σ pago_aplicaciones = 2.000.000
+  → saldo_credito = 500.000
+  → deuda_total = 0 · saldo_credito = 500.000 (NO se netean a −500.000)
+
+PH-C31  LA ESTRATEGIA DE IMPUTACIÓN CAMBIA LA ANTIGÜEDAD
+  Mismo escenario de PH-C08 con estrategia = 'periodo_actual'
+  → el pago va al período corriente
+  → C-001 sigue con saldo · dias_mora_maximo SIGUE en 159
+  → clasificación NO mejora
+  ⚠ Comportamiento correcto y configurado. Documentar en UI.
+```
+
+## 26.3 Mora e intereses
+
+```text
+PH-C10  INTERÉS SEPARADO DE CLASIFICACIÓN
+  Cargo capital vencido, dias_mora = 3, interes_dias_gracia = 5
+  → clasificación = MORA_TEMPRANA (hay antigüedad)
+  → interés causado = 0 (hay gracia)
+  ⚠ Verifica el principio central de §2. Ambas cosas son ciertas a la vez.
+
+PH-C11  CAMBIO DE TASA DURANTE LA MORA
+  Mora del 2026-06-01 al 2026-08-16
+  Tasa vigente hasta 2026-06-30: X% · desde 2026-07-01: Y%
+  → se producen 2 segmentos con sus fechas, tasas y resoluciones fuente
+  → el interés total = suma de segmentos
+  → cada segmento traza a su resolución de la Superfinanciera
+  Depende de GAP-CAR-004.
+
+PH-C36  TOPE LEGAL RESPETADO
+  Asamblea fija tasa por encima de 1.5 × IBC
+  → la configuración es RECHAZADA con error explícito
+  → [LEGAL] art. 30 L675: el tope es indisponible al alza
+
+PH-C37  ASAMBLEA FIJA TASA INFERIOR
+  Asamblea fija tasa por debajo del tope
+  → se acepta y se aplica la tasa de la asamblea
+  → [LEGAL] art. 30 L675 lo permite expresamente
+```
+
+## 26.4 Acciones de cobranza
+
+```text
+PH-C12  ACCIÓN AUTOMÁTICA POR CLASIFICACIÓN
+  Inmueble entra a MORA_TEMPRANA, estrategia dice email a los 3 días
+  Corte: día de entrada + 3
+  → se crea acción tipo email, estado 'programada'
+  → congela clasificación, política_version, dias_mora, deuda
+
+PH-C13  ACCIÓN DUPLICADA BLOQUEADA
+  Ya existe email ejecutado hace 5 días · frecuencia_dias = 15
+  → NO se crea acción nueva
+  → evento COBRANZA_ACCION_OMITIDA con motivo
+
+PH-C38  MÁXIMO DE INTENTOS AGOTADO
+  max_intentos = 2, ya hay 2 ejecutadas
+  → NO se crea acción · estrategia agotada para ese inmueble
+
+PH-C39  DEUDA BAJO EL MÍNIMO
+  deuda_total = 1.500 · monto_minimo_deuda = 10.000
+  → NO se crea acción
+
+PH-C40  ACCIÓN CANCELADA POR PAGO
+  Acción programada para mañana · hoy el inmueble paga todo
+  → acción pasa a 'cancelada' con motivo
+```
+
+## 26.5 Promesas y acuerdos
+
+```text
+PH-C14  PROMESA CUMPLIDA
+  Promesa: 500.000 para 2026-08-20
+  Pago: 500.000 el 2026-08-19
+  → promesa = 'cumplida' · pago_id vinculado
+
+PH-C15  PROMESA INCUMPLIDA
+  Misma promesa · sin pago al 2026-08-21
+  → job marca 'incumplida' · evento PROMESA_INCUMPLIDA
+  → se reanuda la gestión normal
+
+PH-C16  ACUERDO CREADO
+  Deuda 2.000.000 → acuerdo de 4 cuotas de 500.000
+  → 4 registros en acuerdo_pago_cuotas
+  → los 4 cargos originales SIGUEN INTACTOS en `cargos`
+  → suma de cuotas = monto_total = capital + interés + otros
+
+PH-C17  CUOTA DE ACUERDO VENCIDA
+  Cuota 2 vence 2026-09-15 · corte 2026-09-16 sin pago
+  → cuota = 'vencida' · evento ACUERDO_CUOTA_VENCIDA
+  → acuerdo SIGUE vigente (regla: 2 cuotas o 30 días)
+
+PH-C18  ACUERDO INCUMPLIDO GENERA ESCALAMIENTO
+  Cuotas 2 y 3 vencidas
+  → acuerdo = 'incumplido' · evento ACUERDO_INCUMPLIDO
+  → etapa se descongela a etapa_congelada
+  → reevaluación inmediata de escalamiento
+
+PH-C41  CONDONACIÓN CON ACTA
+  Acuerdo con condona_interes = true, monto_condonado = 300.000
+  → exige acta_referencia y aprobado_por
+  → genera novedad DISCOUNT → cargo 'otro' negativo de 300.000
+  → el cargo de interés original permanece intacto
+
+PH-C42  CONDONACIÓN SIN ACTA ES RECHAZADA
+  Mismo acuerdo sin acta_referencia
+  → INSERT rechazado por constraint
+```
+
+## 26.6 Escalamiento y jurídico
+
+```text
+PH-C19  REMISIÓN PREJURÍDICA
+  Inmueble alcanza MORA_AVANZADA, acciones administrativas agotadas
+  → evaluarEscalamiento() propone escalar con requiereAprobacion = true
+  → NO escala hasta que un admin aprueba
+  → al aprobar: evento CARTERA_ETAPA_CAMBIO con antes/después/motivo
+
+PH-C20  REMISIÓN JURÍDICA
+  Inmueble en ALTO_RIESGO, aviso prejurídico ejecutado
+  → propone escalar a 'juridica' con aprobación
+  → exige certificación de deuda vigente
+  → sin certificación: DecisionEscalamiento = 'bloqueado'
+
+PH-C32  CERTIFICACIÓN ART. 48 COMPLETA
+  Deuda: 1.500.000 ordinarias + 200.000 extraordinarias
+       + 180.000 intereses + 50.000 sanciones
+  → certificación discrimina los 4 rubros · total = 1.930.000
+  → detalle_cargos congela los cargos con id, período, vencimiento, saldo
+  → certificacion_hash reproducible
+  → firmante = administrador
+
+PH-C21  PROCESO JUDICIAL CREADO
+  Caso creado desde certificación PH-C32
+  → certificacion_id NOT NULL cumplido
+  → estado inicial 'remitido' · monto_pretension = 1.930.000
+  → etapa del inmueble pasa a 'juridica'
+
+PH-C43  CASO SIN CERTIFICACIÓN RECHAZADO
+  Intento de crear caso sin certificacion_id
+  → CasoJuridicoSinCertificacionError · INSERT rechazado por NOT NULL
+
+PH-C22  COSTAS REGISTRADAS POR FUENTE VÁLIDA
+  Auto de liquidación de costas del 2026-11-20, Juzgado 5 Civil Municipal
+  agencias en derecho 400.000
+  → registro aceptado con documento_fuente, fecha_decision, autoridad
+  → estado 'liquidada' · puede pasar a 'impugnada' (CGP 366)
+
+PH-C23  ANTIGÜEDAD NO GENERA COSTAS  ⚠ CRÍTICO
+  Inmueble con 400 días de mora, sin proceso judicial
+  → costas_judiciales = ∅
+  → NO existe ninguna regla, job ni trigger que cree una costa
+  → el test debe verificar la AUSENCIA del comportamiento
+
+PH-C44  COSTA SIN DOCUMENTO RECHAZADA
+  Intento de insertar costa sin documento_fuente
+  → rechazado por NOT NULL · CostaSinDocumentoFuenteError
+```
+
+## 26.7 Integridad, historia y seguridad
+
+```text
+PH-C24  TRANSFERENCIA SIN REESCRIBIR DEUDA
+  Inmueble cambia de propietario el 2026-05-01 con deuda previa
+  → los cargos anteriores NO se modifican, NO se reasignan, NO se borran
+  → la posición del inmueble es continua
+  → la responsabilidad se resuelve por inmueble_propietario(desde, hasta)
+  Depende de VER-CAR-06.
+
+PH-C25  SOLIDARIDAD SIN DUPLICACIÓN
+  Dos propietarios del mismo inmueble
+  → UNA sola obligación · UNA sola posición de cartera
+  → dos destinatarios posibles para la acción de cobranza
+  → NUNCA dos cargos por el mismo concepto y período
+
+PH-C26  PRERREQUISITO AUSENTE → BLOCKED
+  Política de clasificación no configurada
+  → PoliticaClasificacionNoConfiguradaError
+  → el job ABORTA · NO clasifica con un default inventado
+  → no se crea ninguna acción
+
+PH-C27  SNAPSHOT HISTÓRICO REPRODUCIBLE
+  Recalcular la posición del 2026-06-30 con la política v2 de entonces
+  → el resultado coincide con posiciones_cartera_snapshot
+  → posicion_hash idéntico
+
+PH-C28  AUDITORÍA COMPLETA DE ACCIÓN
+  Para cualquier acción ejecutada, se puede responder:
+  quién, cuándo, por qué clasificación, con qué política y versión,
+  con qué deuda, a quién, por qué canal, con qué resultado
+  → todos los campos presentes y no nulos
+
+PH-C29  CLASIFICACIÓN VERSIONADA
+  Toda clasificación registrada guarda politica_id + politica_version
+
+PH-C30  CAMBIO DE POLÍTICA NO ALTERA HISTORIA
+  Política v2 cambia MORA_MEDIA de 61-90 a 61-75
+  → las clasificaciones de junio (hechas con v1) NO cambian
+  → las de agosto usan v2
+  → ambas conviven y son explicables
+
+PH-C33  JOB IDEMPOTENTE
+  Ejecutar JOB_CARTERA_DIARIA dos veces con la misma fecha_corte
+  → mismo resultadoHash
+  → cero acciones duplicadas · cero eventos duplicados
+  → cero filas nuevas en posiciones_cartera_snapshot
+
+PH-C34  AISLAMIENTO CROSS-TENANT
+  Usuario del tenant A consulta posición
+  → cero filas del tenant B, en toda vista, función e indicador
+  → SEC-03 respetado
+
+PH-C35  RESIDENTE VE SOLO LO SUYO           ⤴ FUERA DE ALCANCE
+  Bloqueado por AD-26 (propietario ≠ usuario, sin FK a auth.users).
+  Ver §21.4 / GAP-CAR-010. Se conserva especificado para el día en que
+  AD-26 se revise; NO se implementa en F1-F9.
+  Mientras tanto, la comunicación al residente es saliente
+  (notificación al contacto de `propietarios`), no acceso a la app.
+```
+
+---
+
+# 27. Invariantes
+
+`[ARQ]` Verdades que **nunca** pueden violarse. Cada una tiene test automatizado y, cuando es posible, refuerzo en la base de datos.
+
+| Id | Invariante | Refuerzo |
+|---|---|---|
+| `I-C01` | Una obligación pagada no permanece como cartera vencida | Vista derivada de `v_cargo_saldo` |
+| `I-C02` | Una obligación no vencida no genera mora | `calcularInteresMora` + test |
+| `I-C03` | La antigüedad no modifica por sí sola la tasa de mora | Test de no-acoplamiento |
+| `I-C04` | El interés se calcula solo sobre obligaciones elegibles (capital) | `calcularInteresMora` |
+| `I-C05` | Un pago no duplica una obligación | `guard_pago_aplicacion_no_excede` |
+| `I-C06` | Un sobrepago no desaparece | Derivación de crédito + test |
+| `I-C07` | Una acción no se duplica cuando la política lo prohíbe | Constraint parcial + función |
+| `I-C08` | Un acuerdo no elimina obligaciones históricas | `cargos` append-only |
+| `I-C09` | Una transferencia no reescribe obligaciones históricas | `cargos` append-only |
+| `I-C10` | Una clasificación es reproducible con su política y versión | `politica_version` + hash |
+| `I-C11` | Una costa judicial no aparece sin fuente y decisión válidas | `NOT NULL` en `documento_fuente`, `fecha_decision` |
+| `I-C12` | Una remisión jurídica tiene evidencia y aprobación | `certificacion_id NOT NULL` + `aprobado_por NOT NULL` |
+| `I-C13` | Una transición de cartera es auditable (antes/después/motivo) | `eventos_cartera.motivo NOT NULL` |
+| `I-C14` | Un prerrequisito bloqueante no puede ignorarse | Error explícito, sin default |
+| `I-C15` | Un resultado histórico puede reconstruirse | `posicion_hash` + snapshot |
+| `I-C16` | Ninguna consulta cruza el límite del tenant | RLS `force` en toda tabla |
+| `I-C17` | Ninguna política vigente puede modificarse | `guard_politica_inmutable` |
+| `I-C18` | Ninguna tabla de historia admite `UPDATE` ni `DELETE` | `forbid_mutation()` |
+| `I-C19` | Toda función de cálculo recibe fecha explícita | Revisión de código + lint |
+| `I-C20` | La UI no calcula saldos, antigüedad ni clasificación | Revisión de código |
+
+`[ARQ]` Los invariantes `I-C11`, `I-C12`, `I-C17`, `I-C18` **se refuerzan en el esquema**, no solo en tests. Un invariante que solo vive en un test se viola el día que alguien escribe SQL a mano.
+
+---
+
+# 28. Roadmap de implementación
+
+`[ARQ]` Nueve fases con entregables verificables y criterios de salida. Ninguna fase inicia con un prerrequisito bloqueante abierto.
+
+## F0 — Desbloqueo (prerrequisito de todo)
+
+```text
+Alcance      Resolver GAP-CAR-001 y los VER-CAR bloqueantes
+Entregables  · Guard: periodo no pasa a 'en_liquidacion' con
+               fecha_vencimiento NULL (extender guard_periodo_transicion)
+             · Backfill de periodos históricos sin fecha_vencimiento
+             · cargos.fecha_vencimiento nullable (override por cargo)
+             · fn_dias_mora(cargo_id, fecha_corte) con coalesce
+             · PeriodoSinFechaVencimientoError
+             · Conceptos jurídicos VER-CAR-01, VER-CAR-02
+             · Entregables pendientes: diccionario de datos (CAR-03),
+               plan de migración (CAR-05), plan de pruebas (CAR-06)
+Verificación fn_dias_mora devuelve el valor correcto para los 6 casos
+             de borde de §7.2, y falla ruidosamente si falta la fecha
+Salida       PRQ-CAR-002 = Verificado
+NOTA         PRQ-CAR-007 y PRQ-CAR-015 ya quedaron verificados; no
+             requieren trabajo en F0.
+```
+
+## F1 — Antigüedad
+
+```text
+Alcance      Cálculo de antigüedad por cargo y agregación por inmueble
+Entregables  · packages/liquidation-engine/src/cartera.ts (calcularAntiguedad, agregarPosicion)
+             · v_cargo_antiguedad · fn_posicion_cartera
+             · Tests unitarios puros
+Golden Cases PH-C01..PH-C06, PH-C09
+Salida       Antigüedad reproducible y verificada contra datos reales
+```
+
+## F2 — Mora versionada (extiende lo existente)
+
+```text
+Alcance      Cerrar GAP-CAR-004
+Entregables  · tabla tasas_referencia + carga histórica de IBC
+             · politicas_financieras.interes_tipo_tasa / interes_multiplicador
+             · calcularInteresMora extendido con SegmentoTasa[]
+             · Validación de tope legal 1.5 × IBC
+Golden Cases PH-C10, PH-C11, PH-C36, PH-C37
+Salida       Tasa trazable a resolución · segmentos correctos
+Riesgo       Retrocompatibilidad con intereses ya calculados. Migración
+             cuidadosa: los cargos de interés existentes NO se recalculan.
+```
+
+## F3 — Clasificación
+
+```text
+Alcance      Política de tramos, clasificación, snapshot
+Entregables  · politicas_clasificacion_cartera + politica_clasificacion_tramos
+             · guard_politica_clasificacion_completa (IC-TRAMO-01..05)
+             · clasificarCartera() puro
+             · posiciones_cartera_snapshot + posicion_hash
+             · UI de configuración de tramos
+Golden Cases PH-C29, PH-C30, PH-C26, PH-C27, PH-C31
+Salida       Clasificación versionada, reproducible y explicable
+```
+
+## F4 — Cobranza
+
+```text
+Alcance      Estrategias, acciones, ejecución
+Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen)
+             GAP-CAR-009 (rol administrador + separación proponer/aprobar)
+Entregables  · estrategias_cobranza · acciones_cobranza
+             · evaluarAccionesAplicables() puro
+             · Reglas anti-duplicación
+             · Worker de ejecución
+             · Bandeja de aprobación para el administrador
+Golden Cases PH-C12, PH-C13, PH-C28, PH-C38, PH-C39, PH-C40
+Salida       Acciones auditables, no duplicadas, con aprobación donde toca
+```
+
+## F5 — Promesas y acuerdos
+
+```text
+Alcance      Promesas, acuerdos, cuotas, conciliación
+Entregables  · promesas_pago · acuerdos_pago · acuerdo_pago_cuotas
+             · Resolución de GAP-CAR-008 (conciliación pago↔cuota)
+             · Congelamiento y descongelamiento de etapa
+             · Flujo de condonación con acta
+Golden Cases PH-C14..PH-C18, PH-C41, PH-C42
+Salida       Acuerdos que no tocan el ledger original
+```
+
+## F6 — Escalamiento
+
+```text
+Alcance      Máquina de estados de etapa
+Entregables  · evaluarEscalamiento() puro
+             · Matriz de transiciones §11.3 como tabla configurable
+             · politicas_gastos_cobranza (bloqueado por VER-CAR-03)
+             · Flujo de aprobación de escalamiento
+Golden Cases PH-C19, PH-C20
+Salida       Ninguna transición fuera de la matriz es posible
+```
+
+## F7 — Jurídico
+
+```text
+Alcance      Certificación, expediente, proceso, costas
+Prerreq.     GAP-CAR-007 (storage) · GAP-CAR-009 (rol administrador,
+             indispensable: firma la certificación del art. 48)
+             PRQ-CAR-015 ya verificado (terceros + tenant_tercero_rol)
+Entregables  · certificaciones_deuda + fn_certificar_deuda (art. 48)
+             · casos_juridicos · caso_juridico_actuaciones · caso_juridico_documentos
+             · costas_judiciales
+Golden Cases PH-C21..PH-C23, PH-C32, PH-C43, PH-C44
+Salida       Título ejecutivo reproducible · cero costas automáticas
+```
+
+## F8 — Automatización
+
+```text
+Alcance      Job diario, eventos, alertas
+Entregables  · JOB_CARTERA_DIARIA con modo simulación
+             · eventos_cartera completo
+             · Idempotencia verificada
+             · Alertas y colas de trabajo
+Golden Cases PH-C33
+Salida       Job re-ejecutable sin efectos duplicados
+```
+
+## F9 — BI
+
+```text
+Alcance      Dashboard e indicadores
+Entregables  · Vistas de agregación (intra-tenant, SEC-03)
+             · Roll rate, cure rate, recovery rate, aging
+             · Panel de acciones y colas
+Golden Cases PH-C34   (PH-C35 diferido: ver §21.4 / AD-26)
+Salida       Indicadores comparables con benchmark de industria
+```
+
+## 28.1 Grafo de dependencias
+
+```text
+F0 ─┬─→ F1 ─┬─→ F3 ─┬─→ F4 ─→ F5 ─→ F6 ─→ F7
+    │       │       │
+    └─→ F2 ─┘       └────────────────────────→ F8 ─→ F9
+
+F2 puede correr en paralelo con F1 (equipos distintos).
+F8 requiere F3 como mínimo; se enriquece con F4-F7.
+F9 requiere F8.
+```
+
+---
+
+# 29. Entregables previos a código
+
+`[ARQ]` **No comenzar la implementación definitiva hasta producir:**
+
+```text
+01. Modelo de dominio                         → §5, §6
+02. Máquina de estados de cartera             → §11
+03. Máquina de estados de cobranza            → §10
+04. Máquina de estados de acuerdos            → §12
+05. Máquina de estados jurídicos              → §15
+06. Modelo de datos (DDL)                     → §8, §9, §10, §12, §15..§19
+07. Diccionario de datos                      → PENDIENTE — entregable CAR-03
+08. Parámetros maestros                       → §20
+09. Políticas versionadas                     → §20.2
+10. Catálogo de eventos                       → §19
+11. Jobs                                      → §18
+12. Catálogo de acciones                      → §9.2
+13. Reglas de negocio                         → transversal, etiquetadas
+14. Prerrequisitos                            → §24
+15. Matriz legal                              → §3
+16. Matriz de trazabilidad                    → §25
+17. Golden Cases                              → §26
+18. Invariantes                               → §27
+19. APIs / servicios                          → §22
+20. RLS y seguridad                           → §21
+21. Auditoría                                 → §19
+22. Dashboard                                 → §23
+23. Plan de migración                         → PENDIENTE — entregable CAR-05
+24. Plan de pruebas                           → PENDIENTE — entregable CAR-06
+25. Definition of Done                        → §30
+```
+
+Los tres pendientes se producen en F0.
+
+---
+
+# 30. Definition of Done
+
+## 30.1 Por unidad de trabajo
+
+```text
+✓ La regla está etiquetada ([LEGAL]/[NEGOCIO]/[ARQ]/[CONFIG]/[PRQ]/[GAP]/[VERIFICAR])
+✓ Existe migración aplicada y tipos regenerados (db:types)
+✓ RLS enable + force verificados con test de aislamiento
+✓ La lógica de decisión está en función pura, no en SQL ad-hoc ni en la UI
+✓ Existe test unitario determinista
+✓ Existe el golden case correspondiente y pasa
+✓ Los invariantes afectados tienen test y, si aplica, refuerzo en esquema
+✓ Los eventos emitidos tienen motivo legible
+✓ Ninguna fecha implícita (`now()`/`Date.now()`) en lógica de cálculo
+✓ Requisito REQ-CAR-* actualizado en la matriz
+```
+
+## 30.2 Por fase
+
+```text
+✓ Todos los golden cases de la fase pasan
+✓ Todos los prerrequisitos de la fase están verificados
+✓ Cero GAPs bloqueantes abiertos para la fase
+✓ Cero VER-CAR bloqueantes abiertos para la fase
+✓ Test de aislamiento multi-tenant pasa
+✓ Test de idempotencia pasa (donde aplica)
+✓ La documentación de la fase está actualizada
+```
+
+## 30.3 Del bloque completo
+
+```text
+✓ Obligaciones identificadas correctamente desde `cargos`
+✓ Antigüedad reproducible y verificada en casos de borde
+✓ Clasificación versionada; historia inmutable ante cambio de política
+✓ Estrategias configurables por copropiedad
+✓ Acciones auditables con contexto congelado
+✓ Notificaciones integradas y reintentables
+✓ Promesas de pago con detección de cumplimiento e incumplimiento
+✓ Acuerdos de pago que no tocan el ledger original
+✓ Escalamiento por máquina de estados explícita, con aprobación humana
+✓ Certificación del art. 48 reproducible y discriminada
+✓ Expediente jurídico con documentos versionados
+✓ Costas trazables a decisión judicial; cero costas automáticas
+✓ Integración con pagos SIN un segundo imputador
+✓ Integración con mora SIN un segundo calculador de interés
+✓ Snapshot histórico reproducible por hash
+✓ Auditoría completa: toda transición explica su porqué
+✓ 43 Golden Cases aprobados (PH-C35 diferido con AD-26)
+✓ 20 Invariantes verificados
+✓ 18 Prerrequisitos verificados o formalmente diferidos
+✓ Matriz legal completa, sin regla inventada
+✓ Cero redundancia arquitectónica con el motor de liquidación
+✓ SEC-03 intacto: cero agregación cross-tenant
+```
+
+---
+
+# 31. Plan de pruebas
+
+## 31.1 Niveles
+
+| Nivel | Qué prueba | Dónde | Sin BD |
+|---|---|---|---|
+| **Unitario puro** | `clasificarCartera`, `evaluarEscalamiento`, `calcularAntiguedad` | `packages/liquidation-engine/src/*.test.ts` | ✅ |
+| **Golden case** | Escenarios completos con datos concretos | `tests/cartera/ph-cNN.test.ts` | Parcial |
+| **Integración** | Job completo contra BD de prueba | `tests/cartera/job.test.ts` | ❌ |
+| **RLS** | Aislamiento por tenant y por rol | `tests/rls/cartera.test.ts` | ❌ |
+| **Invariantes** | Refuerzos de esquema (constraints, triggers) | `tests/invariantes/cartera.test.ts` | ❌ |
+| **Idempotencia** | Re-ejecución del job | `tests/cartera/idempotencia.test.ts` | ❌ |
+
+Sigue el precedente de `tests/liquidacion/gc001-cuenta-corriente.test.ts`, `tests/rls/cuenta-corriente.test.ts` y `tests/tenancy/calcular-intereses.test.ts`.
+
+## 31.2 Pruebas de ausencia
+
+`[ARQ]` Caso especial: algunos requisitos exigen probar que algo **no** ocurre.
+
+```text
+PH-C23  No se generan costas por antigüedad
+        → correr el job con un inmueble de 400 días de mora
+        → assert: count(costas_judiciales) == 0
+        → assert: no existe trigger/función que inserte costas sin caso
+
+I-C20   La UI no calcula lógica financiera
+        → lint/grep sobre apps/web: prohibido calcular saldos,
+          días de mora o clasificación en componentes Vue
+```
+
+Estas pruebas son las que impiden que el anti-patrón vuelva a entrar meses después.
+
+## 31.3 Datos de prueba
+
+Construir un tenant sintético `CAR-FIXTURE` con:
+
+```text
+· 10 inmuebles cubriendo los 8 tramos de clasificación
+· 1 inmueble al día con saldo a favor
+· 1 inmueble con acuerdo vigente
+· 1 inmueble con acuerdo incumplido
+· 1 inmueble en proceso judicial con costas
+· 1 inmueble con cambio de propietario a mitad de deuda
+· 1 inmueble con dos propietarios (solidaridad)
+· Cargos que cruzan cambio de política de clasificación
+· Cargos que cruzan cambio de tasa de referencia
+· Un pago retroactivo (para GAP-CAR-003)
+```
+
+---
+
+# 32. Plan de migración
+
+## 32.1 Orden de migraciones
+
+`[ARQ]` Siguiendo el workflow del proyecto: **migración → push → `db:types` → build de `shared` → stores/componentes**. Nunca al revés.
+
+```text
+F0  2026MMDD_cartera_fecha_vencimiento.sql
+F2  2026MMDD_tasas_referencia.sql
+    2026MMDD_politica_financiera_tasa_referencia.sql
+F3  2026MMDD_cartera_clasificacion_politica.sql
+    2026MMDD_cartera_posicion_snapshot.sql
+    2026MMDD_cartera_vistas_posicion.sql
+F4  2026MMDD_cobranza_estrategias.sql
+    2026MMDD_cobranza_acciones.sql
+F5  2026MMDD_cartera_promesas_acuerdos.sql
+F6  2026MMDD_cartera_escalamiento.sql
+    2026MMDD_cartera_gastos_cobranza.sql
+F7  2026MMDD_cartera_certificaciones.sql
+    2026MMDD_cartera_juridico.sql
+    2026MMDD_cartera_costas.sql
+F8  2026MMDD_cartera_eventos.sql
+F9  2026MMDD_cartera_vistas_bi.sql
+```
+
+## 32.2 Regla sobre datos existentes
+
+`[ARQ]` **Ningún dato financiero existente se recalcula.**
+
+```text
+· Los cargos de interés ya generados NO se recalculan al versionar la tasa.
+· Las liquidaciones cerradas NO se tocan (Docs 20 §69 RESULT IMMUTABILITY).
+· La primera corrida del job de cartera produce el snapshot inicial;
+  no reconstruye snapshots históricos que no existieron.
+· Si se requiere histórico, se genera como carga explícita y marcada
+  como reconstruida, nunca como si hubiera sido calculada en su día.
+```
+
+## 32.3 Rollback
+
+Cada migración de este bloque es **aditiva** (tablas nuevas, columnas nullable). El rollback es `DROP` de lo nuevo, sin pérdida de datos financieros existentes. La única migración con riesgo es `F0` (fecha de vencimiento); debe diseñarse con columna nullable + backfill verificable, nunca con `NOT NULL` directo sobre una tabla append-only con datos.
+
+---
+
+# 33. Instrucción final al agente implementador
+
+## 33.1 Rol
+
+Actúa como:
+
+> **Arquitecto Senior de Software + Analista Senior de Negocio de Propiedad Horizontal + Especialista en Sistemas Financieros + Auditor de Trazabilidad.**
+
+## 33.2 Prohibiciones absolutas
+
+```text
+✗ NO inventes reglas legales.
+✗ NO presentes decisiones de diseño como obligaciones legales.
+✗ NO dupliques definiciones existentes (cargos, pagos, imputación, interés).
+✗ NO escribas un segundo imputador de pagos.
+✗ NO escribas un segundo calculador de interés.
+✗ NO implementes lógica financiera dentro de la UI.
+✗ NO mezcles antigüedad, intereses, cobranza y costas.
+✗ NO hardcodees políticas que deben ser configurables.
+✗ NO elimines información histórica.
+✗ NO sobrescribas obligaciones ni tablas append-only.
+✗ NO generes costas judiciales por antigüedad.  ← el error clásico
+✗ NO escales la tasa de mora con la antigüedad.  ← ilegal
+✗ NO ignores prerrequisitos ni inventes valores por defecto.
+✗ NO uses now()/Date.now() implícito en lógica de cálculo.
+✗ NO agregues datos de más de un tenant en ninguna consulta.
+✗ NO crees tablas ni columnas en inglés.
+✗ NO ejecutes acciones de alto impacto sin aprobación humana.
+```
+
+## 33.3 Protocolo ante incertidumbre
+
+```text
+NO INVENTAR
+    ↓
+IDENTIFICAR LA INCERTIDUMBRE  (asignarle un id VER-CAR-NN o GAP-CAR-NN)
+    ↓
+IDENTIFICAR LA FUENTE QUE DEBE VERIFICARSE
+    ↓
+¿ES CRÍTICA?
+    SÍ → BLOQUEAR la funcionalidad. Estado BLOCKED. Escalar.
+    NO → Documentar, implementar el resto, dejar el hueco explícito.
+```
+
+## 33.4 Para cada regla nueva, declarar
+
+```text
+[FUNDAMENTO LEGAL]           ¿de qué norma sale, o de ninguna?
+[REGLA DE NEGOCIO DERIVADA]  ¿qué decide el negocio a partir de ahí?
+[DECISIÓN ARQUITECTÓNICA]    ¿qué decide AQUILA por diseño?
+[PRERREQUISITO]              ¿qué debe existir antes?
+[GOLDEN CASE]                ¿cómo se prueba con datos concretos?
+```
+
+## 33.5 Principio final
+
+El objetivo es construir el **Motor de Gestión de Cartera de AQUILA_SAAS**:
+
+- **Integrado** con el dominio financiero existente, sin duplicarlo.
+- **Jurídicamente trazable**, con cada regla financiera atada a su norma o declarada como decisión de negocio.
+- **Configurable** por copropiedad, sin desplegar código para cambiar una política.
+- **Auditable**, capaz de explicar por qué cada inmueble llegó a donde llegó.
+- **Reproducible**, capaz de reconstruir cualquier posición histórica.
+- **Preparado para automatización**, sin que la automatización tome decisiones que exigen criterio humano.
+
+La prueba definitiva del bloque es esta pregunta, formulada por un juez o por la asamblea:
+
+> **"¿Por qué le enviaron un requerimiento de cobro a este propietario el 14 de junio, y con base en qué?"**
+
+Si AQUILA no puede responderla con precisión, fecha, política, versión, monto y firma, el bloque no está terminado.
+
+---
+
+**FIN DEL DOCUMENTO — CAR-00 GUÍA OFICIAL**
+**Motor de Gestión de Cartera · AQUILA_SAAS**
