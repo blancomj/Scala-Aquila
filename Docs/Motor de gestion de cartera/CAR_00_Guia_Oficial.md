@@ -403,7 +403,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
 | **`GAP-CAR-005`** | No existe un módulo de notificaciones reutilizable ni infraestructura de tareas/colas. **Confirmado por investigación directa del código** (no solo ausencia documental): existe Brevo *ya configurado y en uso real* (`BREVO_API_KEY`/`BREVO_SENDER_EMAIL`/`BREVO_SENDER_NAME`, `supabase/functions/invite-user/index.ts`), pero acoplado a un único correo de invitación (HTML inline, sin tabla de plantillas ni abstracción de destinatario) — no hay `sendXEmail()` genérico, ni tabla `notificaciones`/`plantilla`/`cola`, ni SMS/WhatsApp, ni scheduler más allá de un único `cron.schedule` para purgar `audit_log`. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
-| ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
+| ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
 | ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
 | **`GAP-CAR-010`** | No existe vínculo `usuario ↔ inmueble`, y **`AD-26` lo prohíbe explícitamente** (propietario = dato de dominio, sin FK a `auth.users`). | ⤴ **Escalado fuera del bloque.** `PH-C35`/`REQ-CAR-025` quedan diferidos; **no bloquea F1-F9**. Ver §21.4. | — |
@@ -864,6 +864,8 @@ create type public.tipo_accion_cobranza_t as enum (
 
 ## 9.3 DDL de estrategias
 
+✅ **Implementado (F4, `20260822270000_cartera_cobranza_estrategias_acciones.sql`)** — con dos cambios sobre el sketch original de abajo, reconciliados contra el esquema real: `rol_responsable` → `rol_minimo` (informativo, no la barrera de seguridad — RLS la impone) y `plantilla_id uuid` → `plantilla_codigo text` sin FK (no existe todavía una tabla de plantillas única; referencia blanda por código, mismo criterio que `event_type` en `packages/shared/src/sms/registry.ts`). Guard nuevo: `guard_estrategia_cobranza_tramo_coherente()` — el `tramo_id` de una estrategia debe pertenecer a su propia `politica_id`, probado en `tests/rls/cartera-cobranza.test.ts`.
+
 ```sql
 create table public.estrategias_cobranza (
   id                       uuid primary key default gen_random_uuid(),
@@ -920,6 +922,8 @@ alter table public.estrategias_cobranza force row level security;
 `[ARQ]` **Nunca depender solo de `ultima_accion`.** Toda acción es un registro inmutable con su propio ciclo de vida y su evidencia.
 
 ## 10.2 DDL
+
+✅ **Implementado (F4, `20260822270000_cartera_cobranza_estrategias_acciones.sql`)** — con un cambio de fondo sobre el sketch original de abajo: **el destinatario ya no usa el enum `destinatario_t('propietario'|'arrendatario'|'ambos')`.** Ese enum asumía la tabla `propietarios`, renombrada dos veces desde que se escribió este sketch (`propietarios→personas→terceros`, `20260820100000`/`20260821100000`) y generalizada a un catálogo de rol flexible (`PERSONA_PREDIO` vía `lista_tipos`, tabla `inmueble_persona_rol`). Un enum fijo de 3 valores ya no representa ese modelo. Se usa en su lugar `destinatario_tercero_id uuid not null references terceros(id)` + `destinatario_rol_codigo text not null` (snapshot del código de rol al momento — REC-CAR-012, el rol pudo cambiar desde entonces). `plantilla_id`→`plantilla_codigo text` sin FK, mismo criterio que §9.3. Guard nuevo: `guard_accion_cobranza_contexto_inmutable()` congela exactamente las columnas listadas en §10.3 (más las de identidad: `tenant_id`, `inmueble_id`, `tipo_accion`, `fecha_programada`, `alcance`, `cargo_id`, `destinatario_tercero_id`, `destinatario_rol_codigo`, `creada_por`) — `estado`/`resultado`/campos de ejecución sí se actualizan, CAR §10.1. Probado en `tests/rls/cartera-cobranza.test.ts`.
 
 ```sql
 create type public.estado_accion_cobranza_t as enum (
@@ -2339,7 +2343,7 @@ Certificaciones por vencer
 | `PRQ-CAR-004` | Modelo de pagos (`pagos`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-005` | Política de imputación | `politicas_financieras` | ✅ **Verificado** (`AD-36`) | Sí | Determina la antigüedad resultante |
 | `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
-| `PRQ-CAR-007` | Historial de propiedad / responsabilidad | Dominio inmuebles | ✅ **Verificado** — `inmueble_propietario(desde, hasta, porcentaje)` | Sí | A quién se le cobra qué período |
+| `PRQ-CAR-007` | Historial de propiedad / responsabilidad | Dominio inmuebles | ✅ **Verificado** — `inmueble_persona_rol(vigente_desde, vigente_hasta, porcentaje)`, antes `inmueble_propietario` | Sí | A quién se le cobra qué período |
 | `PRQ-CAR-008` | Snapshot / reproducibilidad | Motor liquidación (patrón) | ✅ **Patrón disponible** | Sí | `I-C15` |
 | `PRQ-CAR-009` | Infraestructura de notificaciones | **No existe como módulo genérico** | ❌ **`GAP-CAR-005`** — *verificado por investigación de código (2026-08-16): Brevo ya está configurado y funcionando en `invite-user/index.ts` (`enviarEmailInvitacion()`), pero hardcodeado a un solo correo de invitación — no hay tabla de plantillas, ni abstracción de destinatario, ni WhatsApp/push. Los datos de contacto sí existen: `propietarios.email` (citext), `propietarios.telefono`, `tenant_tercero_rol.recibe_notificaciones`. **Corrección tras revisión propia adicional (el agente de investigación no lo detectó):** `packages/shared/src/sms/` ya existe — `registry.ts` define exactamente 4 eventos pensados para este motor (`cartera_recordatorio_pago`, `cartera_pago_vencido`, `cartera_pago_confirmado`, `cartera_acuerdo_pago_creado`, con sus campos y destinatario), más `render.ts`/`validate.ts`/`segments.ts`/`phone.ts` (plantilla `{campo}`, validación GSM-7/UCS-2, teléfono CO). Es utilería pura, ya probada (19 tests) — pero sin tabla `sms_templates`, sin Edge Function, sin UI que la consuma y sin proveedor SMS configurado (no hay `TWILIO_*` ni equivalente). No cambia la conclusión (no hay envío real), pero si se generaliza el envío para F4, esta pieza ya no se debe reconstruir.* | **Sí** para F4 | Falta generalizar el envío, no el destinatario ni el proveedor |
 | `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** — *verificado: `pg_cron` está instalado pero solo tiene un job (`purge-audit-log-24-meses`); ninguna función de cartera/liquidación está agendada, todas son invocación manual* | **Sí** para F4 | Worker de ejecución |
@@ -2938,7 +2942,13 @@ Alcance      Estrategias, acciones, ejecución
 Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen, Brevo ya
              configurado para un caso — falta generalizarlo)
              ~~GAP-CAR-009~~ ✅ resuelto (2026-08-17, rol administrador)
-Entregables  · estrategias_cobranza · acciones_cobranza
+Entregables  · estrategias_cobranza · acciones_cobranza ✅
+               (20260822270000_cartera_cobranza_estrategias_acciones.sql,
+               reconciliado contra terceros/inmueble_persona_rol reales
+               — ver §9.3/§10.2)
+             · cartera-cobranza-supabase.ts ✅ (obtenerEstrategias
+               CobranzaVigentes, obtenerHistorialAccionesCobranza,
+               registrarAccionCobranza — 5 tests, DB real)
              · evaluarAccionesAplicables() puro ✅ (cartera-cobranza.ts,
                12 tests — no dependía de ninguno de los dos gaps)
              · Reglas anti-duplicación ✅ (§10.4/I-C07, mismo módulo)

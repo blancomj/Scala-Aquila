@@ -91,6 +91,13 @@ export {
   type ResultadoEvaluacionAcciones,
 } from './cartera-cobranza.js'
 
+export {
+  obtenerEstrategiasCobranzaVigentes,
+  obtenerHistorialAccionesCobranza,
+  registrarAccionCobranza,
+  type DatosAccionCobranza,
+} from './cartera-cobranza-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

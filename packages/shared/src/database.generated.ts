@@ -43,6 +43,192 @@ export type Database = {
   }
   public: {
     Tables: {
+      acciones_cobranza: {
+        Row: {
+          alcance: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
+          aprobada_at: string | null
+          aprobada_por: string | null
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          cargo_id: string | null
+          clasificacion_codigo: string
+          contenido_hash: string | null
+          creada_por: Database["public"]["Enums"]["origen_accion_cobranza_t"]
+          created_at: string
+          destinatario_contacto: string | null
+          destinatario_rol_codigo: string
+          destinatario_tercero_id: string
+          deuda_total_al_momento: number
+          dias_mora_al_momento: number
+          ejecutada_por: string | null
+          estado: Database["public"]["Enums"]["estado_accion_cobranza_t"]
+          estrategia_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          id: string
+          inmueble_id: string
+          intento_numero: number
+          notas: string | null
+          plantilla_codigo: string | null
+          politica_clasificacion_id: string
+          politica_version: number
+          referencia_externa: string | null
+          resultado:
+            | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
+            | null
+          resultado_fecha: string | null
+          tenant_id: string
+          tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+        }
+        Insert: {
+          alcance?: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          cargo_id?: string | null
+          clasificacion_codigo: string
+          contenido_hash?: string | null
+          creada_por: Database["public"]["Enums"]["origen_accion_cobranza_t"]
+          created_at?: string
+          destinatario_contacto?: string | null
+          destinatario_rol_codigo: string
+          destinatario_tercero_id: string
+          deuda_total_al_momento: number
+          dias_mora_al_momento: number
+          ejecutada_por?: string | null
+          estado?: Database["public"]["Enums"]["estado_accion_cobranza_t"]
+          estrategia_id?: string | null
+          fecha_ejecucion?: string | null
+          fecha_programada: string
+          id?: string
+          inmueble_id: string
+          intento_numero?: number
+          notas?: string | null
+          plantilla_codigo?: string | null
+          politica_clasificacion_id: string
+          politica_version: number
+          referencia_externa?: string | null
+          resultado?:
+            | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
+            | null
+          resultado_fecha?: string | null
+          tenant_id: string
+          tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+        }
+        Update: {
+          alcance?: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          canal?: Database["public"]["Enums"]["canal_cobranza_t"]
+          cargo_id?: string | null
+          clasificacion_codigo?: string
+          contenido_hash?: string | null
+          creada_por?: Database["public"]["Enums"]["origen_accion_cobranza_t"]
+          created_at?: string
+          destinatario_contacto?: string | null
+          destinatario_rol_codigo?: string
+          destinatario_tercero_id?: string
+          deuda_total_al_momento?: number
+          dias_mora_al_momento?: number
+          ejecutada_por?: string | null
+          estado?: Database["public"]["Enums"]["estado_accion_cobranza_t"]
+          estrategia_id?: string | null
+          fecha_ejecucion?: string | null
+          fecha_programada?: string
+          id?: string
+          inmueble_id?: string
+          intento_numero?: number
+          notas?: string | null
+          plantilla_codigo?: string | null
+          politica_clasificacion_id?: string
+          politica_version?: number
+          referencia_externa?: string | null
+          resultado?:
+            | Database["public"]["Enums"]["resultado_accion_cobranza_t"]
+            | null
+          resultado_fecha?: string | null
+          tenant_id?: string
+          tipo_accion?: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acciones_cobranza_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_destinatario_tercero_id_fkey"
+            columns: ["destinatario_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_ejecutada_por_fkey"
+            columns: ["ejecutada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_estrategia_id_fkey"
+            columns: ["estrategia_id"]
+            isOneToOne: false
+            referencedRelation: "estrategias_cobranza"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_politica_clasificacion_id_fkey"
+            columns: ["politica_clasificacion_id"]
+            isOneToOne: false
+            referencedRelation: "politicas_clasificacion_cartera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -779,6 +965,98 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estrategias_cobranza: {
+        Row: {
+          activa: boolean
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          codigo: string
+          created_at: string
+          dias_desde_clasificacion: number
+          frecuencia_dias: number | null
+          id: string
+          max_intentos: number
+          monto_minimo_deuda: number | null
+          nombre: string
+          orden: number
+          plantilla_codigo: string | null
+          politica_id: string
+          requiere_aprobacion: boolean
+          rol_minimo: Database["public"]["Enums"]["tenant_role_t"]
+          tenant_id: string
+          tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+          tramo_id: string
+        }
+        Insert: {
+          activa?: boolean
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          codigo: string
+          created_at?: string
+          dias_desde_clasificacion?: number
+          frecuencia_dias?: number | null
+          id?: string
+          max_intentos?: number
+          monto_minimo_deuda?: number | null
+          nombre: string
+          orden: number
+          plantilla_codigo?: string | null
+          politica_id: string
+          requiere_aprobacion?: boolean
+          rol_minimo?: Database["public"]["Enums"]["tenant_role_t"]
+          tenant_id: string
+          tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+          tramo_id: string
+        }
+        Update: {
+          activa?: boolean
+          canal?: Database["public"]["Enums"]["canal_cobranza_t"]
+          codigo?: string
+          created_at?: string
+          dias_desde_clasificacion?: number
+          frecuencia_dias?: number | null
+          id?: string
+          max_intentos?: number
+          monto_minimo_deuda?: number | null
+          nombre?: string
+          orden?: number
+          plantilla_codigo?: string | null
+          politica_id?: string
+          requiere_aprobacion?: boolean
+          rol_minimo?: Database["public"]["Enums"]["tenant_role_t"]
+          tenant_id?: string
+          tipo_accion?: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+          tramo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estrategias_cobranza_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "politicas_clasificacion_cartera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estrategias_cobranza_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estrategias_cobranza_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estrategias_cobranza_tramo_id_fkey"
+            columns: ["tramo_id"]
+            isOneToOne: false
+            referencedRelation: "politica_clasificacion_tramos"
             referencedColumns: ["id"]
           },
         ]
@@ -1822,6 +2100,61 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plantillas_sms: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cuerpo: string
+          event_type: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cuerpo: string
+          event_type: string
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cuerpo?: string
+          event_type?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_sms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_sms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_sms_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3244,6 +3577,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_guardar_plantilla_sms: {
+        Args: { p_cuerpo: string; p_event_type: string; p_tenant_id: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          cuerpo: string
+          event_type: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "plantillas_sms"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
         Returns: undefined
@@ -3330,6 +3682,25 @@ export type Database = {
         }
       }
       fn_tipo_division_default: { Args: never; Returns: number }
+      fn_toggle_plantilla_sms: {
+        Args: { p_activo: boolean; p_event_type: string; p_tenant_id: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          cuerpo: string
+          event_type: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "plantillas_sms"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_unaccent_immutable: { Args: { p_texto: string }; Returns: string }
       has_role: {
         Args: {
@@ -3378,6 +3749,14 @@ export type Database = {
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
     }
     Enums: {
+      alcance_accion_cobranza_t: "inmueble" | "cargo"
+      canal_cobranza_t:
+        | "email"
+        | "sms"
+        | "whatsapp"
+        | "telefono"
+        | "fisico"
+        | "interno"
       cargo_categoria_t: "capital" | "interes" | "otro"
       cargo_origen_t: "liquidacion_linea" | "novedad" | "interes"
       concepto_estado_t: "borrador" | "en_revision" | "activo" | "archivado"
@@ -3389,6 +3768,15 @@ export type Database = {
         | "porcentaje"
         | "saldo"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
+      estado_accion_cobranza_t:
+        | "programada"
+        | "pendiente_aprobacion"
+        | "aprobada"
+        | "rechazada"
+        | "ejecutando"
+        | "ejecutada"
+        | "fallida"
+        | "cancelada"
       etapa_cobranza_t:
         | "preventiva"
         | "administrativa"
@@ -3430,14 +3818,40 @@ export type Database = {
         | "REFUND"
         | "CREDIT"
         | "DEBIT"
+      origen_accion_cobranza_t: "job" | "manual"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       residual_metodo_t: "mayor_resto"
-      tenant_role_t: "agent" | "auditor"
+      resultado_accion_cobranza_t:
+        | "sin_respuesta"
+        | "contacto_efectivo"
+        | "contacto_no_efectivo"
+        | "promesa_de_pago"
+        | "acuerdo_solicitado"
+        | "pago_recibido"
+        | "rechazo_deudor"
+        | "datos_incorrectos"
+        | "no_aplica"
+      tenant_role_t: "agent" | "auditor" | "administrador"
       tenant_status_t: "active" | "suspended" | "deleted"
       tercero_tipo_t: "natural" | "juridica"
+      tipo_accion_cobranza_t:
+        | "email"
+        | "sms"
+        | "whatsapp"
+        | "llamada"
+        | "carta"
+        | "requerimiento_formal"
+        | "aviso_prejuridico"
+        | "publicacion_morosos"
+        | "restriccion_servicios"
+        | "visita"
+        | "asignacion_abogado"
+        | "remision_juridica"
+        | "propuesta_acuerdo"
+        | "revision_manual"
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
@@ -3571,6 +3985,15 @@ export const Constants = {
   },
   public: {
     Enums: {
+      alcance_accion_cobranza_t: ["inmueble", "cargo"],
+      canal_cobranza_t: [
+        "email",
+        "sms",
+        "whatsapp",
+        "telefono",
+        "fisico",
+        "interno",
+      ],
       cargo_categoria_t: ["capital", "interes", "otro"],
       cargo_origen_t: ["liquidacion_linea", "novedad", "interes"],
       concepto_estado_t: ["borrador", "en_revision", "activo", "archivado"],
@@ -3583,6 +4006,16 @@ export const Constants = {
         "saldo",
       ],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
+      estado_accion_cobranza_t: [
+        "programada",
+        "pendiente_aprobacion",
+        "aprobada",
+        "rechazada",
+        "ejecutando",
+        "ejecutada",
+        "fallida",
+        "cancelada",
+      ],
       etapa_cobranza_t: [
         "preventiva",
         "administrativa",
@@ -3630,14 +4063,42 @@ export const Constants = {
         "CREDIT",
         "DEBIT",
       ],
+      origen_accion_cobranza_t: ["job", "manual"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       residual_metodo_t: ["mayor_resto"],
-      tenant_role_t: ["agent", "auditor"],
+      resultado_accion_cobranza_t: [
+        "sin_respuesta",
+        "contacto_efectivo",
+        "contacto_no_efectivo",
+        "promesa_de_pago",
+        "acuerdo_solicitado",
+        "pago_recibido",
+        "rechazo_deudor",
+        "datos_incorrectos",
+        "no_aplica",
+      ],
+      tenant_role_t: ["agent", "auditor", "administrador"],
       tenant_status_t: ["active", "suspended", "deleted"],
       tercero_tipo_t: ["natural", "juridica"],
+      tipo_accion_cobranza_t: [
+        "email",
+        "sms",
+        "whatsapp",
+        "llamada",
+        "carta",
+        "requerimiento_formal",
+        "aviso_prejuridico",
+        "publicacion_morosos",
+        "restriccion_servicios",
+        "visita",
+        "asignacion_abogado",
+        "remision_juridica",
+        "propuesta_acuerdo",
+        "revision_manual",
+      ],
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
