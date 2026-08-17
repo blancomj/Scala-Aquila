@@ -402,7 +402,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
-| ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17).** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — envío real, no un stub. **email/WhatsApp siguen sin resolver**: Brevo email ya existe pero acoplado a un único correo de invitación (`invite-user/index.ts`), sin generalizar; WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
+| ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17), verificado end-to-end.** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — desplegado, `BREVO_SMS_SENDER` configurado como secreto del proyecto, SMS real enviado y confirmado recibido en un teléfono real por el usuario. **email/WhatsApp siguen sin resolver**: Brevo email ya existe pero acoplado a un único correo de invitación (`invite-user/index.ts`), sin generalizar; WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
 | ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
@@ -2967,10 +2967,12 @@ Entregables  · estrategias_cobranza · acciones_cobranza ✅
                que una acción ya-en-mora no tiene sin ambigüedad — no
                se inventa ese origen). email/whatsapp NO soportados.
                Procesa una acción por invocación, sin orquestación de
-               lote todavía (CAR §18.1 sigue sin construirse). ⚠
-               Código listo, sin desplegar/probar contra Brevo real
-               todavía — un envío real cuesta dinero y llega a un
-               teléfono real, se dejó para confirmación explícita.
+               lote todavía (CAR §18.1 sigue sin construirse). ✅
+               Verificado end-to-end contra Brevo real (2026-08-17,
+               confirmación explícita del usuario) — desplegado,
+               BREVO_SMS_SENDER configurado como secreto del proyecto,
+               un SMS real recibido y confirmado en un teléfono real
+               (referencia_externa de Brevo persistida en la fila).
              · Aprobación maker-checker para el administrador ✅
                (20260822280000_cartera_cobranza_aprobacion.sql —
                propuesta_por/aprobada_por/aprobada_at + guard_accion_
