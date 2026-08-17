@@ -38,11 +38,14 @@ export {
   OrdenImputacionInvalidoError,
   EstrategiaImputacionInvalidaError,
   PoliticaMoraNoConfiguradaError,
+  PoliticaClasificacionInvalidaError,
+  TramoClasificacionNoEncontradoError,
 } from './errors.js'
 
 export {
   imputarPago,
   calcularInteresMora,
+  diasCalendario,
   type CategoriaCargo,
   type CargoAbierto,
   type EstrategiaImputacion,
@@ -51,6 +54,20 @@ export {
   type CargoInteresGenerado,
   type PoliticaMora,
 } from './cuenta-corriente.js'
+
+export {
+  calcularAntiguedad,
+  calcularPosicionCartera,
+  clasificarCartera,
+  validarPoliticaClasificacion,
+  type CargoConAntiguedad,
+  type PosicionCarteraCalculada,
+  type NivelRiesgo,
+  type EtapaCobranza,
+  type TramoClasificacion,
+  type PoliticaClasificacion,
+  type ResultadoClasificacion,
+} from './cartera.js'
 
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 

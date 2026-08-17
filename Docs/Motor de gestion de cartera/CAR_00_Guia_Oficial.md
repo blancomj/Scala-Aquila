@@ -2709,20 +2709,42 @@ PH-C35  RESIDENTE VE SOLO LO SUYO           ⤴ FUERA DE ALCANCE
 
 ```text
 Alcance      Resolver GAP-CAR-001 y los VER-CAR bloqueantes
-Entregables  · Guard: periodo no pasa a 'en_liquidacion' con
-               fecha_vencimiento NULL (extender guard_periodo_transicion)
-             · Backfill de periodos históricos sin fecha_vencimiento
-             · cargos.fecha_vencimiento nullable (override por cargo)
-             · fn_dias_mora(cargo_id, fecha_corte) con coalesce
-             · PeriodoSinFechaVencimientoError
-             · Conceptos jurídicos VER-CAR-01, VER-CAR-02
-             · Entregables pendientes: diccionario de datos (CAR-03),
+Entregables  · ✅ Guard: periodo no pasa a 'en_liquidacion' con
+               fecha_vencimiento NULL — migración
+               `20260822190000_cartera_guard_periodo_vencimiento.sql`,
+               extiende `guard_periodo_transicion()` (no la duplica)
+             · ✅ Módulo puro `packages/liquidation-engine/src/cartera.ts`:
+               `calcularAntiguedad`, `calcularPosicionCartera`,
+               `clasificarCartera`, `validarPoliticaClasificacion`
+               (IC-TRAMO-01..05) — reutiliza `CargoAbierto` y
+               `diasCalendario()` de `cuenta-corriente.ts` (REC-CAR-004)
+             · ✅ Errores tipados `PoliticaClasificacionInvalidaError`,
+               `TramoClasificacionNoEncontradoError` en `errors.ts`
+             · ✅ 26 tests puros en `cartera.test.ts` — cubren PH-C01..C06,
+               PH-C09 y las 5 invariantes de política (IC-TRAMO-01..05)
+             · ⧗ Backfill de periodos históricos sin fecha_vencimiento —
+               pendiente: requiere decidir con el usuario qué hacer con
+               periodos reales ya existentes, no se inventa un valor
+             · ⧗ `cargos.fecha_vencimiento` nullable (override por cargo,
+               Opción B de §4.4) — pendiente, no bloqueante para F1
+             · ⧗ Conceptos jurídicos VER-CAR-01, VER-CAR-02 — externos,
+               no resueltos en este documento
+             · ⧗ Entregables pendientes: diccionario de datos (CAR-03),
                plan de migración (CAR-05), plan de pruebas (CAR-06)
-Verificación fn_dias_mora devuelve el valor correcto para los 6 casos
-             de borde de §7.2, y falla ruidosamente si falta la fecha
-Salida       PRQ-CAR-002 = Verificado
+Verificación `calcularAntiguedad`/`clasificarCartera` devuelven el valor
+             correcto para los 6 casos de borde de §7.2, y
+             `TramoClasificacionNoEncontradoError` se lanza sin default
+             cuando la política no cubre los días — verificado con
+             vitest, tsc y eslint, los tres en verde
+Salida       PRQ-CAR-002 = Parcialmente verificado (guard + cálculo puro
+             listos; falta backfill y override por cargo)
 NOTA         PRQ-CAR-007 y PRQ-CAR-015 ya quedaron verificados; no
              requieren trabajo en F0.
+             Migración NO aplicada a ninguna base de datos local/remota
+             en esta sesión — solo el archivo SQL fue creado. Aplicarla
+             (supabase db push) queda pendiente y debe hacerse con
+             cuidado: el repo tiene ~20 migraciones sin aplicar de otro
+             trabajo en curso, ajenas a este bloque.
 ```
 
 ## F1 — Antigüedad

@@ -98,3 +98,34 @@ export class PoliticaMoraNoConfiguradaError extends Error {
     this.name = 'PoliticaMoraNoConfiguradaError'
   }
 }
+
+/**
+ * CAR §8.3 IC-TRAMO-01..05 — una política de clasificación de cartera con
+ * tramos que no cubren [0,∞) sin huecos/solapes, o con códigos duplicados,
+ * no puede activarse. Se lanza antes de permitir estado='vigente'.
+ */
+export class PoliticaClasificacionInvalidaError extends Error {
+  constructor(readonly errores: readonly string[]) {
+    super(`Política de clasificación de cartera inválida: ${errores.join('; ')} (CAR §8.3)`)
+    this.name = 'PoliticaClasificacionInvalidaError'
+  }
+}
+
+/**
+ * CAR §8.6 — ningún tramo de la política cubre los días de mora dados.
+ * Nunca hay un default implícito: una política incompleta debe fallar
+ * ruidosamente, no clasificar como "al día" en silencio.
+ */
+export class TramoClasificacionNoEncontradoError extends Error {
+  constructor(
+    readonly diasMora: number,
+    readonly politicaId: string,
+    readonly politicaVersion: number,
+  ) {
+    super(
+      `Ningún tramo de la política de clasificación ${politicaId} v${String(politicaVersion)} ` +
+        `cubre ${String(diasMora)} días de mora — la política está incompleta (CAR §8.3 IC-TRAMO-01)`,
+    )
+    this.name = 'TramoClasificacionNoEncontradoError'
+  }
+}

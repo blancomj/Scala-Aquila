@@ -201,8 +201,12 @@ function timestampUtc(fechaIso: string): number {
   return Date.UTC(anio, mes - 1, dia)
 }
 
-/** Días calendario reales entre dos fechas ISO (YYYY-MM-DD), UTC — sin husos horarios. */
-function diasCalendario(desde: string, hasta: string): number {
+/**
+ * Días calendario reales entre dos fechas ISO (YYYY-MM-DD), UTC — sin husos
+ * horarios. Exportada: cartera.ts la reutiliza para antigüedad (CAR §7.1),
+ * que es aritmética de calendario simple, distinta del day-count de mora.
+ */
+export function diasCalendario(desde: string, hasta: string): number {
   const msPorDia = 24 * 60 * 60 * 1000
   return Math.round((timestampUtc(hasta) - timestampUtc(desde)) / msPorDia)
 }
