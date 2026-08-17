@@ -79,6 +79,18 @@ export {
   registrarSnapshotPosicion,
 } from './cartera-supabase.js'
 
+export {
+  evaluarAccionesAplicables,
+  type TipoAccionCobranza,
+  type EstadoAccionCobranza,
+  type EstrategiaCobranza,
+  type AccionHistorica,
+  type AccionPropuesta,
+  type MotivoOmision,
+  type AccionOmitida,
+  type ResultadoEvaluacionAcciones,
+} from './cartera-cobranza.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

@@ -402,7 +402,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
 | **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
-| **`GAP-CAR-005`** | No existe infraestructura de notificaciones (email/SMS/WhatsApp) ni de tareas. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
+| **`GAP-CAR-005`** | No existe un módulo de notificaciones reutilizable ni infraestructura de tareas/colas. **Confirmado por investigación directa del código** (no solo ausencia documental): existe Brevo *ya configurado y en uso real* (`BREVO_API_KEY`/`BREVO_SENDER_EMAIL`/`BREVO_SENDER_NAME`, `supabase/functions/invite-user/index.ts`), pero acoplado a un único correo de invitación (HTML inline, sin tabla de plantillas ni abstracción de destinatario) — no hay `sendXEmail()` genérico, ni tabla `notificaciones`/`plantilla`/`cola`, ni SMS/WhatsApp, ni scheduler más allá de un único `cron.schedule` para purgar `audit_log`. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
 | **`GAP-CAR-009`** | **`tenant_role_t` solo tiene `('agent','auditor')`.** No existen los roles `administrador` (que firma la certificación del art. 48) ni `residente`, ni separación proponer/aprobar. | Bloquea la aprobación de acciones de alto impacto y la certificación legalmente correcta. Ver §21.2. | F4 |
@@ -1029,6 +1029,8 @@ Antes de crear una acción, verificar:
 ```
 
 Implementar como constraint parcial + verificación en la función, no solo en la función. La base de datos debe ser la última línea de defensa.
+
+✅ **Capa pura implementada (F4, `packages/liquidation-engine/src/cartera-cobranza.ts`)** — `evaluarAccionesAplicables()` resuelve las reglas 1-4 de arriba más el disparo por `dias_desde_clasificacion` (§9.3), sin Supabase. 12 tests unitarios (`cartera-cobranza.test.ts`). No depende de `GAP-CAR-005` ni `GAP-CAR-009` — recibe estrategias/historial ya resueltos y solo decide qué correspondería, sin ejecutar ni persistir nada. El constraint parcial en base de datos (la última línea de defensa mencionada arriba) queda pendiente para cuando exista la tabla `acciones_cobranza` real.
 
 ---
 
@@ -2346,8 +2348,8 @@ Certificaciones por vencer
 | `PRQ-CAR-006` | Modelo de saldo (`v_cargo_saldo`) | Motor cuenta corriente | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-007` | Historial de propiedad / responsabilidad | Dominio inmuebles | ✅ **Verificado** — `inmueble_propietario(desde, hasta, porcentaje)` | Sí | A quién se le cobra qué período |
 | `PRQ-CAR-008` | Snapshot / reproducibilidad | Motor liquidación (patrón) | ✅ **Patrón disponible** | Sí | `I-C15` |
-| `PRQ-CAR-009` | Infraestructura de notificaciones | **No existe** | ❌ **`GAP-CAR-005`** — *pero los datos de contacto sí existen: `propietarios.email` (citext), `propietarios.telefono`, `tenant_tercero_rol.recibe_notificaciones`* | **Sí** para F4 | Falta el envío, no el destinatario |
-| `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** | **Sí** para F4 | Worker de ejecución |
+| `PRQ-CAR-009` | Infraestructura de notificaciones | **No existe como módulo genérico** | ❌ **`GAP-CAR-005`** — *verificado por investigación de código (2026-08-16): Brevo ya está configurado y funcionando en `invite-user/index.ts` (`enviarEmailInvitacion()`), pero hardcodeado a un solo correo de invitación — no hay tabla de plantillas, ni abstracción de destinatario, ni WhatsApp/push. Los datos de contacto sí existen: `propietarios.email` (citext), `propietarios.telefono`, `tenant_tercero_rol.recibe_notificaciones`. **Corrección tras revisión propia adicional (el agente de investigación no lo detectó):** `packages/shared/src/sms/` ya existe — `registry.ts` define exactamente 4 eventos pensados para este motor (`cartera_recordatorio_pago`, `cartera_pago_vencido`, `cartera_pago_confirmado`, `cartera_acuerdo_pago_creado`, con sus campos y destinatario), más `render.ts`/`validate.ts`/`segments.ts`/`phone.ts` (plantilla `{campo}`, validación GSM-7/UCS-2, teléfono CO). Es utilería pura, ya probada (19 tests) — pero sin tabla `sms_templates`, sin Edge Function, sin UI que la consuma y sin proveedor SMS configurado (no hay `TWILIO_*` ni equivalente). No cambia la conclusión (no hay envío real), pero si se generaliza el envío para F4, esta pieza ya no se debe reconstruir.* | **Sí** para F4 | Falta generalizar el envío, no el destinatario ni el proveedor |
+| `PRQ-CAR-010` | Infraestructura de tareas/colas | **No existe** | ❌ **`GAP-CAR-005`** — *verificado: `pg_cron` está instalado pero solo tiene un job (`purge-audit-log-24-meses`); ninguna función de cartera/liquidación está agendada, todas son invocación manual* | **Sí** para F4 | Worker de ejecución |
 | `PRQ-CAR-011` | Registro de fuente/autoridad | `fundamento_normativo` | ⚠️ **Verificar cobertura** | Sí para costas | `I-C11` |
 | `PRQ-CAR-012` | Infraestructura de auditoría | `audit_log` | ✅ **Verificado** | Sí | — |
 | `PRQ-CAR-013` | Almacenamiento de documentos | Supabase Storage | ⚠️ **`GAP-CAR-007`** | **Sí** para F7 | Expediente jurídico |
@@ -2940,13 +2942,16 @@ Salida       Clasificación versionada, reproducible y explicable — un
 
 ```text
 Alcance      Estrategias, acciones, ejecución
-Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen)
+Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen, Brevo ya
+             configurado para un caso — falta generalizarlo)
              GAP-CAR-009 (rol administrador + separación proponer/aprobar)
 Entregables  · estrategias_cobranza · acciones_cobranza
-             · evaluarAccionesAplicables() puro
-             · Reglas anti-duplicación
-             · Worker de ejecución
-             · Bandeja de aprobación para el administrador
+             · evaluarAccionesAplicables() puro ✅ (cartera-cobranza.ts,
+               12 tests — no depende de GAP-CAR-005 ni GAP-CAR-009)
+             · Reglas anti-duplicación ✅ (§10.4/I-C07, mismo módulo)
+             · Worker de ejecución ⧗ bloqueado por GAP-CAR-005
+             · Bandeja de aprobación para el administrador ⧗ bloqueado por
+               GAP-CAR-009
 Golden Cases PH-C12, PH-C13, PH-C28, PH-C38, PH-C39, PH-C40
 Salida       Acciones auditables, no duplicadas, con aprobación donde toca
 ```
