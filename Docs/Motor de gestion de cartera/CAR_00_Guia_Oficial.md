@@ -3319,21 +3319,48 @@ Entregables  · fn_dashboard_cartera ✅ (20260823100000_cartera_dashboard_
                con snapshots sintéticos insertados directo [posiciones_
                cartera_snapshot es append-only, no hace falta correr F8
                completo para fijar los bordes exactos del cálculo].)
-             · Recovery Rate, Collection Effectiveness, Promise/Agreement
-               Fulfillment Rate, Legal Referral/Recovery Rate, Average
-               Days to Recovery, Cost to Collect — pendientes (necesitan
-               pagos en un período, acciones_cobranza.resultado,
-               promesas_pago/acuerdos_pago, casos_juridicos/costas_
-               judiciales respectivamente; distintas fuentes de datos que
-               Roll/Cure Rate, próxima(s) pieza(s) de F9).
+             · fn_indicadores_gestion ✅ (20260823110000_cartera_
+               indicadores_gestion_fn.sql — conteos/sumas crudos de un
+               período [fecha_desde, fecha_hasta] para Recovery Rate,
+               Collection Effectiveness, Promise/Agreement Fulfillment
+               Rate. Interpretaciones explícitas, documentadas en la
+               cabecera de la migración: "cargos vencidos" de Recovery
+               Rate = vencidos AL INICIO del período [misma cohorte que
+               el denominador]; "acuerdos terminados" excluye 'cancelado'
+               [una cancelación administrativa no mide calidad de diseño
+               del acuerdo] y usa fecha_fin para ambos desenlaces
+               [cumplido no tiene columna de fecha propia en el esquema].
+               La división en sí [con denominador-cero = indeterminado]
+               vive en TS, no en SQL — REC-CAR-004.)
+             · calcularIndicadoresGestion() ✅ (cartera-indicadores.ts,
+               extendido — 6 tests unitarios nuevos, 19 en total en el
+               archivo.)
+             · Edge Function `cartera-indicadores` extendida ✅ (mismo
+               payload fecha_desde/fecha_hasta de Roll/Cure Rate — los 7
+               indicadores de esta pieza salen de una sola llamada. Test
+               de integración extendido: lleva acciones_cobranza y
+               acuerdos_pago hasta un estado terminal usando el cliente
+               ADMIN directo, sin usuario autenticado — los tramos
+               programada→ejecutando→ejecutada y vigente→cumplido/
+               incumplido no exigen rol dentro del guard [confirmado
+               leyendo 20260822280000/20260822310000: el chequeo de
+               administrador se salta entero cuando auth.uid() es null].
+               3 tests de integración HTTP real, 7 indicadores
+               verificados contra la BD real en una sola corrida.)
+             · Legal Referral Rate, Legal Recovery Rate, Average Days to
+               Recovery, Cost to Collect — pendientes (necesitan
+               casos_juridicos/costas_judiciales, F7; distinta fuente de
+               datos, próxima pieza de F9).
              · §23.4 (transiciones críticas), §23.5 (panel de acciones) —
                pendientes.
 Golden Cases PH-C34 ✅ (verificado contra la BD real — un agent de otro
              tenant recibe 403, nunca ve datos agregados de un tenant que
              no es el suyo). PH-C35 diferido: ver §21.4 / AD-26.
-Salida       §23.1/§23.2 completos. De §23.3: Overdue Portfolio %/Roll
-             Rate/Cure Rate completos y reproducibles; el resto de los 11
-             indicadores y §23.5 quedan para cerrar F9.
+Salida       §23.1/§23.2 completos. De los 11 indicadores de §23.3: 7
+             completos y reproducibles [Overdue Portfolio %, Roll Rate,
+             Cure Rate, Recovery Rate, Collection Effectiveness, Promise/
+             Agreement Fulfillment Rate] — quedan 4 [los de fuente
+             jurídica] y §23.5 para cerrar F9.
 ```
 
 ## 28.1 Grafo de dependencias

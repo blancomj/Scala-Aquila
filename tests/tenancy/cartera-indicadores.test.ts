@@ -1,6 +1,7 @@
 /**
- * cartera-indicadores (Edge Function, HTTP real) — CAR F9 (parte 2),
- * §23.3: Overdue Portfolio %, Roll Rate, Cure Rate.
+ * cartera-indicadores (Edge Function, HTTP real) — CAR F9 (partes 2+3),
+ * §23.3: Overdue Portfolio %, Roll Rate, Cure Rate, Recovery Rate,
+ * Collection Effectiveness, Promise/Agreement Fulfillment Rate.
  *
  * Roll Rate/Cure Rate se prueban con snapshots SINTÉTICOS insertados
  * directamente (posiciones_cartera_snapshot es append-only, solo
@@ -9,6 +10,14 @@
  * fechas y así ejercitar los bordes del agregador puro contra la BD real.
  * Overdue Portfolio % SÍ usa un cargo real (se recalcula en vivo con
  * fn_dashboard_cartera, F9 parte 1, independiente de los snapshots).
+ *
+ * Recovery Rate/Collection Effectiveness/Promise·Agreement Fulfillment
+ * Rate llevan acciones_cobranza/acuerdos_pago hasta un estado terminal
+ * usando el cliente ADMIN directo — los tramos programada→ejecutando→
+ * ejecutada y vigente→cumplido/incumplido no exigen rol dentro del guard
+ * (auth.uid() null = service_role se salta ese chequeo, confirmado
+ * leyendo 20260822280000/20260822310000); solo pendiente_aprobacion→
+ * aprobada/vigente lo exige, y este archivo no ejercita esa transición.
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import {
@@ -36,18 +45,26 @@ interface RespuestaIndicadores {
   overduePortfolioPct: number | null
   cureRate: number | null
   rollRatePorTramo: { tramoCodigo: string; tramoSiguienteCodigo: string | null; rollRate: number | null }[]
+  recoveryRate: number | null
+  collectionEffectiveness: number | null
+  promiseFulfillmentRate: number | null
+  agreementFulfillmentRate: number | null
 }
 
-async function tipoApartamentoId(admin: Cliente): Promise<number> {
+async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
     .select('id')
-    .eq('tipo', 'TIPO_INMUEBLE')
-    .eq('codigo', 'apartamento')
+    .eq('tipo', tipo)
+    .eq('codigo', codigo)
     .is('tenant_id', null)
     .single<{ id: number }>()
-  if (error) throw new Error(`fixture tipo apartamento: ${error.message}`)
+  if (error) throw new Error(`fixture lista_tipos ${tipo}.${codigo}: ${error.message}`)
   return data.id
+}
+
+async function tipoApartamentoId(admin: Cliente): Promise<number> {
+  return listaTipoId(admin, 'TIPO_INMUEBLE', 'apartamento')
 }
 
 async function crearInmueble(admin: Cliente, tenantId: string, tipoId: number, codigo: string): Promise<string> {
@@ -183,17 +200,156 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
       .select('id')
       .single<{ id: string }>()
     if (errLinea) throw new Error(`fixture liquidacion_linea: ${errLinea.message}`)
-    const { error: errCargo } = await admin.from('cargos').insert({
-      tenant_id: tenant.id,
-      inmueble_id: inmuebleRealId,
-      periodo_id: periodo.id,
-      categoria: 'capital',
-      origen_tipo: 'liquidacion_linea',
-      liquidacion_linea_id: linea.id,
-      concepto_id: concepto.id,
-      monto_original: 100_000,
-    })
+    const { data: cargo, error: errCargo } = await admin
+      .from('cargos')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmuebleRealId,
+        periodo_id: periodo.id,
+        categoria: 'capital',
+        origen_tipo: 'liquidacion_linea',
+        liquidacion_linea_id: linea.id,
+        concepto_id: concepto.id,
+        monto_original: 100_000,
+      })
+      .select('id')
+      .single<{ id: string }>()
     if (errCargo) throw new Error(`fixture cargo: ${errCargo.message}`)
+
+    // Recovery Rate: pago aplicado DENTRO del período a un cargo vencido AL INICIO del período.
+    const { data: pago, error: errPago } = await admin
+      .from('pagos')
+      .insert({ tenant_id: tenant.id, inmueble_id: inmuebleRealId, monto: 40_000, fecha_pago: '2026-02-15' })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPago) throw new Error(`fixture pago: ${errPago.message}`)
+    const { error: errAplicacion } = await admin
+      .from('pago_aplicaciones')
+      .insert({ tenant_id: tenant.id, pago_id: pago.id, cargo_id: cargo.id, monto: 40_000 })
+    if (errAplicacion) throw new Error(`fixture pago_aplicacion: ${errAplicacion.message}`)
+
+    // Collection Effectiveness: 3 acciones ejecutadas dentro del período, 2 con resultado favorable.
+    const tipoIdentCedula = await listaTipoId(admin, 'TIPO_IDENTIFICACION', 'cedula')
+    const estadoActivo = await listaTipoId(admin, 'ESTADO_TERCERO', 'activo')
+    const { data: tercero, error: errTercero } = await admin
+      .from('terceros')
+      .insert({
+        tenant_id: tenant.id,
+        tipo_identificacion_id: tipoIdentCedula,
+        numero_documento: `CI-TER-${String(Date.now())}`,
+        tipo_persona: 'natural',
+        primer_nombre: 'Ana',
+        primer_apellido: 'Gómez',
+        estado_id: estadoActivo,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errTercero) throw new Error(`fixture tercero: ${errTercero.message}`)
+
+    const resultadosAcciones: ('pago_recibido' | 'promesa_de_pago' | 'contacto_efectivo')[] = [
+      'pago_recibido',
+      'promesa_de_pago',
+      'contacto_efectivo',
+    ]
+    for (const resultado of resultadosAcciones) {
+      const { data: accion, error: errAccion } = await admin
+        .from('acciones_cobranza')
+        .insert({
+          tenant_id: tenant.id,
+          inmueble_id: inmuebleRealId,
+          tipo_accion: 'llamada',
+          canal: 'telefono',
+          fecha_programada: '2026-02-05',
+          clasificacion_codigo: 'MORA_INICIAL',
+          politica_clasificacion_id: politicaId,
+          politica_version: 1,
+          dias_mora_al_momento: 30,
+          deuda_total_al_momento: 100_000,
+          alcance: 'inmueble',
+          destinatario_tercero_id: tercero.id,
+          destinatario_rol_codigo: 'copropietario',
+          intento_numero: 1,
+          creada_por: 'manual',
+          estado: 'programada',
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (errAccion) throw new Error(`fixture accion_cobranza: ${errAccion.message}`)
+
+      const { error: errEjecutando } = await admin
+        .from('acciones_cobranza')
+        .update({ estado: 'ejecutando' })
+        .eq('id', accion.id)
+      if (errEjecutando) throw new Error(`fixture accion_cobranza→ejecutando: ${errEjecutando.message}`)
+
+      const { error: errEjecutada } = await admin
+        .from('acciones_cobranza')
+        .update({ estado: 'ejecutada', resultado, fecha_ejecucion: '2026-02-10T12:00:00Z' })
+        .eq('id', accion.id)
+      if (errEjecutada) throw new Error(`fixture accion_cobranza→ejecutada: ${errEjecutada.message}`)
+    }
+
+    // Promise Fulfillment Rate: 3 promesas vencidas dentro del período, 2 cumplidas.
+    const desenlacesPromesas: ('cumplida' | 'incumplida')[] = ['cumplida', 'cumplida', 'incumplida']
+    for (const desenlace of desenlacesPromesas) {
+      const { data: promesa, error: errPromesa } = await admin
+        .from('promesas_pago')
+        .insert({
+          tenant_id: tenant.id,
+          inmueble_id: inmuebleRealId,
+          fecha_promesa: '2026-02-01',
+          monto_prometido: 50_000,
+          fecha_pago_prometida: '2026-02-20',
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (errPromesa) throw new Error(`fixture promesa: ${errPromesa.message}`)
+
+      const { error: errDesenlace } = await admin
+        .from('promesas_pago')
+        .update({ estado: desenlace })
+        .eq('id', promesa.id)
+      if (errDesenlace) throw new Error(`fixture promesa→${desenlace}: ${errDesenlace.message}`)
+    }
+
+    // Agreement Fulfillment Rate: 2 acuerdos terminados dentro del período (fecha_fin), 1 cumplido + 1 incumplido.
+    const desenlacesAcuerdos: ('cumplido' | 'incumplido')[] = ['cumplido', 'incumplido']
+    for (const desenlace of desenlacesAcuerdos) {
+      const inmuebleAcuerdoId = await crearInmueble(admin, tenant.id, tipoId, `CI-ACU-${desenlace}-${String(Date.now())}`)
+      const { data: acuerdo, error: errAcuerdo } = await admin
+        .from('acuerdos_pago')
+        .insert({
+          tenant_id: tenant.id,
+          inmueble_id: inmuebleAcuerdoId,
+          consecutivo: `ACU-${desenlace}-${String(Date.now())}`,
+          fecha_acuerdo: '2026-02-01',
+          fecha_inicio: '2026-02-01',
+          fecha_fin: '2026-02-25',
+          monto_total: 200_000,
+          monto_capital: 200_000,
+          monto_interes: 0,
+          monto_otros: 0,
+          numero_cuotas: 4,
+          cuota_inicial: 0,
+          condona_interes: false,
+          interes_durante_acuerdo: false,
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (errAcuerdo) throw new Error(`fixture acuerdo: ${errAcuerdo.message}`)
+
+      const { error: errPendiente } = await admin
+        .from('acuerdos_pago')
+        .update({ estado: 'pendiente_aprobacion' })
+        .eq('id', acuerdo.id)
+      if (errPendiente) throw new Error(`fixture acuerdo→pendiente_aprobacion: ${errPendiente.message}`)
+
+      const { error: errVigente } = await admin.from('acuerdos_pago').update({ estado: 'vigente' }).eq('id', acuerdo.id)
+      if (errVigente) throw new Error(`fixture acuerdo→vigente: ${errVigente.message}`)
+
+      const { error: errFinal } = await admin.from('acuerdos_pago').update({ estado: desenlace }).eq('id', acuerdo.id)
+      if (errFinal) throw new Error(`fixture acuerdo→${desenlace}: ${errFinal.message}`)
+    }
   }, 30_000)
 
   it('SNAPSHOT_NO_DISPONIBLE (422): sin snapshot para fecha_desde', async () => {
@@ -204,7 +360,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     expect(response?.status).toBe(422)
   }, 30_000)
 
-  it('Overdue Portfolio %, Cure Rate y Roll Rate se calculan correctamente contra la BD real', async () => {
+  it('los 7 indicadores de §23.3 se calculan correctamente contra la BD real', async () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaIndicadores>('cartera-indicadores', {
       body: { tenant_id: tenant.id, fecha_desde: FECHA_DESDE, fecha_hasta: FECHA_HASTA },
     })
@@ -229,5 +385,17 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     const inicial = data?.rollRatePorTramo.find((t) => t.tramoCodigo === 'MORA_INICIAL')
     expect(inicial?.tramoSiguienteCodigo).toBeNull() // último tramo de la política.
     expect(inicial?.rollRate).toBeNull()
+
+    // Recovery Rate: 40_000 recuperados / 150_000 vencidos al inicio (A+B) = 26.67%.
+    expect(data?.recoveryRate).toBeCloseTo(400 / 15, 6)
+
+    // Collection Effectiveness: 2 favorables (pago_recibido, promesa_de_pago) / 3 ejecutadas = 66.67%.
+    expect(data?.collectionEffectiveness).toBeCloseTo(200 / 3, 6)
+
+    // Promise Fulfillment Rate: 2 cumplidas / 3 vencidas = 66.67%.
+    expect(data?.promiseFulfillmentRate).toBeCloseTo(200 / 3, 6)
+
+    // Agreement Fulfillment Rate: 1 cumplido / 2 terminados = 50%.
+    expect(data?.agreementFulfillmentRate).toBeCloseTo(50, 6)
   }, 30_000)
 })

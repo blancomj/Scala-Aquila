@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { money } from '@aquila/financial-kernel'
 import {
   calcularCureRate,
+  calcularIndicadoresGestion,
   calcularOverduePortfolioPct,
   calcularRollRatePorTramo,
   type FilaSnapshotIndicador,
+  type RawIndicadoresGestion,
 } from './cartera-indicadores.js'
 
 function fila(inmuebleId: string, deudaVencida: number, clasificacionCodigo: string): FilaSnapshotIndicador {
@@ -98,5 +100,58 @@ describe('calcularRollRatePorTramo', () => {
     const resultado = calcularRollRatePorTramo([], [], tramos, 'COP')
     const temprana = resultado.find((t) => t.tramoCodigo === 'MORA_TEMPRANA')
     expect(temprana?.rollRate).toBeNull()
+  })
+})
+
+function rawVacio(over: Partial<RawIndicadoresGestion> = {}): RawIndicadoresGestion {
+  return {
+    montoRecuperadoPeriodo: money(0, 'COP'),
+    accionesEjecutadas: 0,
+    accionesEfectivas: 0,
+    promesasVencidas: 0,
+    promesasCumplidas: 0,
+    acuerdosTerminados: 0,
+    acuerdosCumplidos: 0,
+    ...over,
+  }
+}
+
+describe('calcularIndicadoresGestion', () => {
+  it('todo en cero: los 4 indicadores son indeterminados (null), ninguno 0%', () => {
+    const resultado = calcularIndicadoresGestion(rawVacio(), money(0, 'COP'))
+    expect(resultado.recoveryRate).toBeNull()
+    expect(resultado.collectionEffectiveness).toBeNull()
+    expect(resultado.promiseFulfillmentRate).toBeNull()
+    expect(resultado.agreementFulfillmentRate).toBeNull()
+  })
+
+  it('recoveryRate: divide lo recuperado en el período entre la cartera vencida al inicio', () => {
+    const raw = rawVacio({ montoRecuperadoPeriodo: money(250_000, 'COP') })
+    const resultado = calcularIndicadoresGestion(raw, money(1_000_000, 'COP'))
+    expect(resultado.recoveryRate).toBeCloseTo(25, 6)
+  })
+
+  it('collectionEffectiveness: acciones efectivas entre ejecutadas', () => {
+    const raw = rawVacio({ accionesEjecutadas: 20, accionesEfectivas: 5 })
+    const resultado = calcularIndicadoresGestion(raw, money(0, 'COP'))
+    expect(resultado.collectionEffectiveness).toBeCloseTo(25, 6)
+  })
+
+  it('promiseFulfillmentRate: cumplidas entre vencidas', () => {
+    const raw = rawVacio({ promesasVencidas: 10, promesasCumplidas: 7 })
+    const resultado = calcularIndicadoresGestion(raw, money(0, 'COP'))
+    expect(resultado.promiseFulfillmentRate).toBeCloseTo(70, 6)
+  })
+
+  it('agreementFulfillmentRate: cumplidos entre terminados', () => {
+    const raw = rawVacio({ acuerdosTerminados: 4, acuerdosCumplidos: 3 })
+    const resultado = calcularIndicadoresGestion(raw, money(0, 'COP'))
+    expect(resultado.agreementFulfillmentRate).toBeCloseTo(75, 6)
+  })
+
+  it('100% de recuperación: recoveryRate puede superar 100% si se recupera más de lo vencido al inicio (ej. pagos atrasados de periodos previos)', () => {
+    const raw = rawVacio({ montoRecuperadoPeriodo: money(150_000, 'COP') })
+    const resultado = calcularIndicadoresGestion(raw, money(100_000, 'COP'))
+    expect(resultado.recoveryRate).toBeCloseTo(150, 6)
   })
 })

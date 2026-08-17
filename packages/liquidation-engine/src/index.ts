@@ -156,14 +156,18 @@ export {
   calcularOverduePortfolioPct,
   calcularCureRate,
   calcularRollRatePorTramo,
+  calcularIndicadoresGestion,
   type FilaSnapshotIndicador,
   type TramoOrdenado,
   type RollRateTramo,
+  type RawIndicadoresGestion,
+  type IndicadoresGestion,
 } from './cartera-indicadores.js'
 
 export {
   obtenerSnapshotIndicador,
   obtenerTramosDePolitica,
+  obtenerRawIndicadoresGestion,
   type SnapshotIndicador,
 } from './cartera-indicadores-supabase.js'
 

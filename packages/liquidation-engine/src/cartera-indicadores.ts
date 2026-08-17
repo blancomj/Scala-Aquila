@@ -123,3 +123,55 @@ export function calcularRollRatePorTramo(
     }
   })
 }
+
+// ── Recovery Rate / Collection Effectiveness / Promise·Agreement Fulfillment Rate ──
+//
+// Fuente: fn_indicadores_gestion (20260823110000) — conteos/sumas crudos
+// de un período [fecha_desde, fecha_hasta]. La división con "denominador
+// cero = indeterminado" (mismo criterio que arriba) se hace aquí, no en
+// SQL (REC-CAR-004).
+
+export interface RawIndicadoresGestion {
+  /** Σ pago_aplicaciones.monto del período, sobre cargos vencidos al inicio del período. */
+  readonly montoRecuperadoPeriodo: Money
+  readonly accionesEjecutadas: number
+  readonly accionesEfectivas: number
+  readonly promesasVencidas: number
+  readonly promesasCumplidas: number
+  readonly acuerdosTerminados: number
+  readonly acuerdosCumplidos: number
+}
+
+export interface IndicadoresGestion {
+  readonly recoveryRate: number | null
+  readonly collectionEffectiveness: number | null
+  readonly promiseFulfillmentRate: number | null
+  readonly agreementFulfillmentRate: number | null
+}
+
+function pctEnteroONull(numerador: number, denominador: number): number | null {
+  if (denominador === 0) return null
+  return (numerador / denominador) * 100
+}
+
+/**
+ * `carteraVencidaInicioPeriodo` — Σ posiciones_cartera_snapshot.deuda_total
+ * a fecha_desde (el llamador ya lo tiene si también pidió Cure/Roll Rate:
+ * es la suma de FilaSnapshotIndicador.deudaVencida del mismo snapshot).
+ */
+export function calcularIndicadoresGestion(
+  raw: RawIndicadoresGestion,
+  carteraVencidaInicioPeriodo: Money,
+): IndicadoresGestion {
+  return {
+    recoveryRate: isZeroMoney(carteraVencidaInicioPeriodo)
+      ? null
+      : fos
+          .dividirDecimales(raw.montoRecuperadoPeriodo.amount, carteraVencidaInicioPeriodo.amount)
+          .times(100)
+          .toNumber(),
+    collectionEffectiveness: pctEnteroONull(raw.accionesEfectivas, raw.accionesEjecutadas),
+    promiseFulfillmentRate: pctEnteroONull(raw.promesasCumplidas, raw.promesasVencidas),
+    agreementFulfillmentRate: pctEnteroONull(raw.acuerdosCumplidos, raw.acuerdosTerminados),
+  }
+}

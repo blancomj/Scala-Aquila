@@ -11,7 +11,7 @@
  */
 import type { AquilaClient } from '@aquila/shared'
 import { money } from '@aquila/financial-kernel'
-import type { FilaSnapshotIndicador, TramoOrdenado } from './cartera-indicadores.js'
+import type { FilaSnapshotIndicador, RawIndicadoresGestion, TramoOrdenado } from './cartera-indicadores.js'
 
 export interface SnapshotIndicador {
   readonly filas: readonly FilaSnapshotIndicador[]
@@ -59,4 +59,34 @@ export async function obtenerTramosDePolitica(
     .order('dias_min', { ascending: true })
   if (error) throw new Error(`No se pudieron leer los tramos de la política ${opciones.politicaId}: ${error.message}`)
   return data.map((t) => ({ codigo: t.codigo }))
+}
+
+/**
+ * Conteos/sumas crudos de fn_indicadores_gestion (20260823110000) — un
+ * período [fecha_desde, fecha_hasta]. La función siempre devuelve
+ * exactamente una fila (agregados escalares, sin group by).
+ */
+export async function obtenerRawIndicadoresGestion(
+  cliente: AquilaClient,
+  opciones: { readonly tenantId: string; readonly fechaDesde: string; readonly fechaHasta: string; readonly moneda: string },
+): Promise<RawIndicadoresGestion> {
+  const { data, error } = await cliente.rpc('fn_indicadores_gestion', {
+    p_tenant_id: opciones.tenantId,
+    p_fecha_desde: opciones.fechaDesde,
+    p_fecha_hasta: opciones.fechaHasta,
+  })
+  if (error) throw new Error(`No se pudieron leer los indicadores de gestión: ${error.message}`)
+
+  const fila = data[0]
+  if (!fila) throw new Error('fn_indicadores_gestion no devolvió ninguna fila — se esperaba exactamente una.')
+
+  return {
+    montoRecuperadoPeriodo: money(fila.monto_recuperado_periodo, opciones.moneda),
+    accionesEjecutadas: fila.acciones_ejecutadas,
+    accionesEfectivas: fila.acciones_efectivas,
+    promesasVencidas: fila.promesas_vencidas,
+    promesasCumplidas: fila.promesas_cumplidas,
+    acuerdosTerminados: fila.acuerdos_terminados,
+    acuerdosCumplidos: fila.acuerdos_cumplidos,
+  }
 }

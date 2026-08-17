@@ -1,8 +1,10 @@
-// CAR F9 (parte 2) — Indicadores de cartera (§23.3): Overdue Portfolio %,
-// Roll Rate y Cure Rate. Compone lo ya construido: fn_dashboard_cartera
-// (F9 parte 1) para el portafolio ACTUAL, y posiciones_cartera_snapshot
-// (F3, ya congelado) + calcularCureRate/calcularRollRatePorTramo
-// (packages/liquidation-engine) para comparar dos fechas de corte.
+// CAR F9 (parte 2+3) — Indicadores de cartera (§23.3): Overdue Portfolio
+// %, Roll Rate, Cure Rate, Recovery Rate, Collection Effectiveness,
+// Promise/Agreement Fulfillment Rate. Compone lo ya construido:
+// fn_dashboard_cartera (F9 parte 1) para el portafolio ACTUAL,
+// posiciones_cartera_snapshot (F3, ya congelado) para comparar dos
+// fechas de corte, y fn_indicadores_gestion (20260823110000) para los
+// conteos/sumas crudos de gestión del período.
 //
 // REC-CAR-004: ningún cálculo se reimplementa — esta función solo carga
 // datos y llama a los agregadores puros.
@@ -12,7 +14,9 @@
 // fecha_hasta — sin snapshot no hay con qué comparar, y no se inventa un
 // 0%/100% en su ausencia (422 SNAPSHOT_NO_DISPONIBLE). Overdue Portfolio
 // % es distinto: se recalcula en vivo con fn_dashboard_cartera, así que
-// SIEMPRE está disponible, corrida el job o no.
+// SIEMPRE está disponible, corrida el job o no. Recovery Rate reutiliza
+// la MISMA cartera vencida al inicio del período que ya se sumó para
+// Cure Rate (Σ snapshotDesde.filas.deudaVencida) — no se vuelve a leer.
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 // dist/index.js (compilado), no src/index.ts — mismo motivo que
@@ -20,12 +24,20 @@ import { z } from 'zod'
 import {
   calcularCureRate,
   calcularDashboardCartera,
+  calcularIndicadoresGestion,
   calcularOverduePortfolioPct,
   calcularRollRatePorTramo,
   obtenerFilasDashboardCartera,
+  obtenerRawIndicadoresGestion,
   obtenerSnapshotIndicador,
   obtenerTramosDePolitica,
 } from '../../../packages/liquidation-engine/dist/index.js'
+import { money, sumar } from '@aquila/financial-kernel'
+
+// Money es un export type-only de financial-kernel — mismo problema de
+// resolución de tipos que RollRateTramoLocal (ver arriba). Se deriva
+// estructuralmente del propio sumar() en vez de nombrar el tipo.
+type MoneyReal = Parameters<typeof sumar>[0]
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
@@ -164,6 +176,19 @@ export default {
       tenant.moneda,
     ) as unknown as RollRateTramoLocal[]
 
+    // Cartera vencida al inicio del período (denominador de Recovery Rate) —
+    // misma cohorte que ya se sumó implícitamente para Cure Rate.
+    const carteraVencidaInicioPeriodo = (
+      snapshotDesde.filas as unknown as readonly { deudaVencida: MoneyReal }[]
+    ).reduce((acc, fila) => sumar(acc, fila.deudaVencida), money(0, tenant.moneda))
+    const rawGestion = await obtenerRawIndicadoresGestion(ctx.supabase, {
+      tenantId,
+      fechaDesde,
+      fechaHasta,
+      moneda: tenant.moneda,
+    })
+    const indicadoresGestion = calcularIndicadoresGestion(rawGestion, carteraVencidaInicioPeriodo)
+
     return jsonResponse(
       {
         fechaDesde,
@@ -177,6 +202,10 @@ export default {
           deudaQueRoloAlSiguiente: t.deudaQueRoloAlSiguiente.amount.toString(),
           rollRate: t.rollRate,
         })),
+        recoveryRate: indicadoresGestion.recoveryRate,
+        collectionEffectiveness: indicadoresGestion.collectionEffectiveness,
+        promiseFulfillmentRate: indicadoresGestion.promiseFulfillmentRate,
+        agreementFulfillmentRate: indicadoresGestion.agreementFulfillmentRate,
       },
       200,
       correlationId,

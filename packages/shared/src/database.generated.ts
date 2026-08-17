@@ -4673,6 +4673,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_indicadores_gestion: {
+        Args: {
+          p_fecha_desde: string
+          p_fecha_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          acciones_efectivas: number
+          acciones_ejecutadas: number
+          acuerdos_cumplidos: number
+          acuerdos_terminados: number
+          monto_recuperado_periodo: number
+          promesas_cumplidas: number
+          promesas_vencidas: number
+        }[]
+      }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
         Returns: undefined
