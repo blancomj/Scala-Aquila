@@ -405,7 +405,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | **`GAP-CAR-005`** | No existe un módulo de notificaciones reutilizable ni infraestructura de tareas/colas. **Confirmado por investigación directa del código** (no solo ausencia documental): existe Brevo *ya configurado y en uso real* (`BREVO_API_KEY`/`BREVO_SENDER_EMAIL`/`BREVO_SENDER_NAME`, `supabase/functions/invite-user/index.ts`), pero acoplado a un único correo de invitación (HTML inline, sin tabla de plantillas ni abstracción de destinatario) — no hay `sendXEmail()` genérico, ni tabla `notificaciones`/`plantilla`/`cola`, ni SMS/WhatsApp, ni scheduler más allá de un único `cron.schedule` para purgar `audit_log`. | Bloquea ejecución real de acciones. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_propietario` **sí** es temporal: tiene `desde date not null`, `hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | **`GAP-CAR-007`** | No hay almacenamiento de documentos (`storage`) verificado para el expediente jurídico. | Bloquea F7. | F7 |
-| **`GAP-CAR-009`** | **`tenant_role_t` solo tiene `('agent','auditor')`.** No existen los roles `administrador` (que firma la certificación del art. 48) ni `residente`, ni separación proponer/aprobar. | Bloquea la aprobación de acciones de alto impacto y la certificación legalmente correcta. Ver §21.2. | F4 |
+| ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
 | **`GAP-CAR-010`** | No existe vínculo `usuario ↔ inmueble`, y **`AD-26` lo prohíbe explícitamente** (propietario = dato de dominio, sin FK a `auth.users`). | ⤴ **Escalado fuera del bloque.** `PH-C35`/`REQ-CAR-025` quedan diferidos; **no bloquea F1-F9**. Ver §21.4. | — |
 
 ### `GAP-CAR-001` — resolución (verificada contra el esquema)
@@ -2067,15 +2067,17 @@ alter table … force row level security;
 
 Sin excepción, salvo `tasas_referencia` (§13.3), que es global y debe documentarse como excepción explícita con su justificación.
 
-## 21.2 Modelo de roles real — advertencia
+## 21.2 Modelo de roles real
 
-`[GAP]` **`GAP-CAR-009`** — **Los roles que este bloque necesita no existen todavía.** El modelo actual es:
+✅ **`GAP-CAR-009` resuelto parcialmente (Opción A) — migraciones `20260822250000`/`20260822260000`.** El modelo actual es:
 
 ```sql
 -- 20260813190000_extensions_and_enums.sql
-create type public.tenant_role_t as enum ('agent', 'auditor');
+--   + 20260822250000_rol_administrador_enum.sql
+create type public.tenant_role_t as enum ('agent', 'auditor', 'administrador');
 
 -- helpers disponibles (20260813190200_helper_functions.sql)
+--   + 20260822260000_rol_administrador_permisos.sql (has_role, guard_last_agent)
 public.current_tenant_id()
 public.is_member(p_tenant uuid)
 public.has_role(p_tenant uuid, p_roles public.tenant_role_t[])
@@ -2083,41 +2085,32 @@ public.shares_tenant_with(p_user uuid)
 public.is_platform_admin()
 ```
 
-Es decir: **solo hay dos roles de tenant (`agent`, `auditor`) más un administrador de plataforma.** No existen `owner`, `admin` ni `resident`.
+**Decisión tomada (2026-08-17): Opción A** de las tres evaluadas — extender `tenant_role_t` en vez de una capa de permisos separada (Opción B) o un campo de "cargo" (Opción C). Razón: el proyecto ya tiene un único eje de rol (`tenant_role_t`) consumido por 88 sitios vía `has_role()`; una capa paralela habría sido un segundo mecanismo de permisos sin precedente en el repo.
 
-Esto tiene tres consecuencias que **deben resolverse antes de F4**:
+**Cómo se resolvió sin reescribir las 88 policies existentes:** todas pasan por `has_role()`, así que se amplió esa única función en vez de cada policy — `administrador` satisface cualquier chequeo `array['agent', ...]` (administrador ⊇ agent), y además puede satisfacer chequeos que pidan `'administrador'` explícitamente (los de aprobación de F4, que un `agent` simple NO debe poder satisfacer). `guard_last_agent()` (SEC-07) se amplió en el mismo commit: protegía solo `role = 'agent'` directo (sin pasar por `has_role()`); ahora protege "≥1 `agent` o `administrador` activo", para que una copropiedad nunca quede con un administrador desprotegido y cero agents. Probado en `tests/rls/rol-administrador.test.ts` (4 tests, DB real): herencia de permisos, no-herencia accidental de `auditor`, y el guard ampliado en ambos sentidos.
 
-```text
-1. La certificación del art. 48 exige la figura del ADMINISTRADOR
-   como persona identificada y responsable. Hoy `agent` es un rol
-   genérico. [LEGAL] — no es un detalle cosmético: el título ejecutivo
-   lo expide el administrador, no "un usuario con permisos".
-
-2. La aprobación de acciones de alto impacto (requerimiento formal,
-   remisión jurídica, condonación) exige separación de funciones
-   entre quien PROPONE y quien APRUEBA. Con un solo rol operativo
-   no hay separación posible.
-
-3. El acceso del residente a su propia cartera no tiene hoy ningún
-   mecanismo: no existe el rol, ni el vínculo usuario↔inmueble.
-```
-
-Opciones (decisión pendiente, no la toma este documento):
+Esto resuelve las consecuencias (1) y (2) de la versión anterior de esta sección:
 
 ```text
-Opción A: extender tenant_role_t con 'administrador' y 'residente'.
-          Simple, pero toca un enum usado en todo el sistema.
-Opción B: capa de permisos granular separada del rol
-          (tabla de permisos por membresía).
-          Más flexible, más trabajo.
-Opción C: mantener tenant_role_t y añadir un campo de "cargo"
-          en la membresía, usado solo para responsabilidad legal.
-          Mínimo cambio; resuelve (1) pero no (2) ni (3).
+1. RESUELTO — ya existe la figura del ADMINISTRADOR como rol de tenant
+   identificable, distinto de `agent`. [LEGAL] — el título ejecutivo del
+   art. 48 ahora puede emitirse a nombre de un `administrador` real.
+
+2. RESUELTO a nivel de rol — ya es posible distinguir "puede proponer"
+   (agent o administrador) de "puede aprobar" (solo administrador,
+   vía has_role(tenant, ['administrador']) sin incluir 'agent' en el
+   array). La separación de funciones en las tablas de acciones/
+   aprobación de F4 todavía no está construida — esto solo desbloquea
+   que se pueda construir correctamente.
+
+3. PENDIENTE — sin cambios. El acceso del residente a su propia cartera
+   sigue sin mecanismo (no existe rol `residente` ni el vínculo
+   usuario↔inmueble, diferido por GAP-CAR-010/AD-26, fuera de F1-F9).
 ```
 
 ## 21.3 Matriz de permisos objetivo
 
-`[NEGOCIO]` Matriz **objetivo**, expresada en los roles que resultarán de `GAP-CAR-009`. Hasta que ese gap se resuelva, todo lo marcado `admin` se implementa como `agent` + verificación adicional explícita, y lo marcado `residente` queda **fuera de alcance**.
+`[NEGOCIO]` Matriz **objetivo**. `administrador` ya existe como rol real (§21.2) — lo marcado `administrador` se implementa con `has_role(tenant, ['administrador'])` (no satisfecho por un `agent` simple). `residente` sigue sin rol propio (`GAP-CAR-010`) y queda **fuera de alcance**.
 
 | Objeto | `administrador` | `agent` | `auditor` | `residente` |
 |---|---|---|---|---|
@@ -2356,7 +2349,7 @@ Certificaciones por vencer
 | `PRQ-CAR-014` | Modelo de aprobación / decisión | `novedades` (`AD-33`) | ✅ **Patrón disponible** | Sí | Aprobación de acciones y acuerdos |
 | `PRQ-CAR-015` | Terceros (abogados) | `tenant_tercero_rol` | ✅ **Verificado** — `terceros` + `tenant_tercero_rol(rol_id, vigente_desde, vigente_hasta, recibe_notificaciones)` | Sí para F7 | Asignación de abogado |
 | `PRQ-CAR-016` | Conceptos jurídicos `VER-CAR-01..06` | **Externo — jurídico** | ❌ **Abierto** | **Sí, varios** | §3.5 |
-| `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ❌ **`GAP-CAR-009`** | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
+| `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ✅ **Verificado** — rol resuelto (`~~GAP-CAR-009~~`); la separación proponer/aprobar en tablas concretas queda para cuando F4 construya `acciones_cobranza` | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
 | `PRQ-CAR-018` | Vínculo usuario ↔ inmueble | **Arquitectura (`AD-26`)** | ⤴ **Diferido** — `GAP-CAR-010` | No para F1-F9 | Solo para acceso del residente |
 
 ## 24.2 Regla de bloqueo
@@ -2377,14 +2370,14 @@ Se escala el bloqueo al dueño del prerrequisito.
 1. GAP-CAR-001 (fecha de vencimiento no nula)  ← desbloquea TODO el bloque
 2. VER-CAR-01  (conversión de tasa IBC→mensual)← desbloquea el cálculo de mora
 3. VER-CAR-02  (anatocismo)                    ← confirma el diseño actual
-4. GAP-CAR-009 (rol administrador + aprobación)← desbloquea las fases 4 y 7
-5. GAP-CAR-005 (envío de notificaciones)       ← desbloquea la fase 4
-6. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
-7. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
+4. GAP-CAR-005 (envío de notificaciones)       ← desbloquea la fase 4
+5. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
+6. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
 
-RESUELTOS POR VERIFICACIÓN (no requieren trabajo):
+RESUELTOS (no requieren más trabajo):
   ✅ GAP-CAR-006  inmueble_propietario ya es temporal con porcentaje
   ✅ PRQ-CAR-015  terceros + tenant_tercero_rol ya existen
+  ✅ GAP-CAR-009  rol administrador (2026-08-17, 20260822250000/260000)
 
 ESCALADO FUERA DEL BLOQUE (no bloquea F1-F9):
   ⤴ GAP-CAR-010  requiere revisar AD-26 (propietario ≠ usuario)
@@ -2944,14 +2937,15 @@ Salida       Clasificación versionada, reproducible y explicable — un
 Alcance      Estrategias, acciones, ejecución
 Prerreq.     GAP-CAR-005 (envío; los datos de contacto ya existen, Brevo ya
              configurado para un caso — falta generalizarlo)
-             GAP-CAR-009 (rol administrador + separación proponer/aprobar)
+             ~~GAP-CAR-009~~ ✅ resuelto (2026-08-17, rol administrador)
 Entregables  · estrategias_cobranza · acciones_cobranza
              · evaluarAccionesAplicables() puro ✅ (cartera-cobranza.ts,
-               12 tests — no depende de GAP-CAR-005 ni GAP-CAR-009)
+               12 tests — no dependía de ninguno de los dos gaps)
              · Reglas anti-duplicación ✅ (§10.4/I-C07, mismo módulo)
              · Worker de ejecución ⧗ bloqueado por GAP-CAR-005
-             · Bandeja de aprobación para el administrador ⧗ bloqueado por
-               GAP-CAR-009
+             · Bandeja de aprobación para el administrador — ya no
+               bloqueada por rol (GAP-CAR-009 resuelto); falta construir
+               las tablas/policies de aprobación en sí
 Golden Cases PH-C12, PH-C13, PH-C28, PH-C38, PH-C39, PH-C40
 Salida       Acciones auditables, no duplicadas, con aprobación donde toca
 ```
@@ -2984,8 +2978,8 @@ Salida       Ninguna transición fuera de la matriz es posible
 
 ```text
 Alcance      Certificación, expediente, proceso, costas
-Prerreq.     GAP-CAR-007 (storage) · GAP-CAR-009 (rol administrador,
-             indispensable: firma la certificación del art. 48)
+Prerreq.     GAP-CAR-007 (storage) · ~~GAP-CAR-009~~ ✅ resuelto — ya existe
+             el rol administrador que firma la certificación del art. 48
              PRQ-CAR-015 ya verificado (terceros + tenant_tercero_rol)
 Entregables  · certificaciones_deuda + fn_certificar_deuda (art. 48)
              · casos_juridicos · caso_juridico_actuaciones · caso_juridico_documentos
