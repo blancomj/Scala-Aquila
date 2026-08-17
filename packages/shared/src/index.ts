@@ -18,3 +18,15 @@ export {
   validateSmsTemplateBody,
   SmsValidationError,
 } from './sms.js'
+export {
+  EMAIL_FIELD_REGISTRY,
+  EMAIL_ACTIVE_EVENT_TYPES,
+  EMAIL_EVENT_LABELS,
+  type EmailFieldDef,
+  renderEmailTemplate,
+  extraerCamposPlantillaEmail,
+  extraerCamposSinPrefijo,
+  validateEmailTemplateBody,
+  filtrarOverridesValidos,
+  EmailValidationError,
+} from './email.js'

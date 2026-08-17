@@ -916,6 +916,70 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          brevo_template_id: number | null
+          created_at: string
+          event_type: string
+          html_content: string
+          id: string
+          is_synced: boolean
+          last_synced_at: string | null
+          subject: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          brevo_template_id?: number | null
+          created_at?: string
+          event_type: string
+          html_content: string
+          id?: string
+          is_synced?: boolean
+          last_synced_at?: string | null
+          subject: string
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          brevo_template_id?: number | null
+          created_at?: string
+          event_type?: string
+          html_content?: string
+          id?: string
+          is_synced?: boolean
+          last_synced_at?: string | null
+          subject?: string
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estados_cuenta_generados: {
         Row: {
           created_at: string
@@ -3586,6 +3650,33 @@ export type Database = {
           p_vigente_desde: string
         }
         Returns: undefined
+      }
+      fn_guardar_plantilla_email: {
+        Args: {
+          p_event_type: string
+          p_html_content: string
+          p_subject: string
+          p_tenant_id: string
+        }
+        Returns: {
+          brevo_template_id: number | null
+          created_at: string
+          event_type: string
+          html_content: string
+          id: string
+          is_synced: boolean
+          last_synced_at: string | null
+          subject: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_templates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_guardar_plantilla_sms: {
         Args: { p_cuerpo: string; p_event_type: string; p_tenant_id: string }
