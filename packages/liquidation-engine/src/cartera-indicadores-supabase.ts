@@ -11,7 +11,12 @@
  */
 import type { AquilaClient } from '@aquila/shared'
 import { money } from '@aquila/financial-kernel'
-import type { FilaSnapshotIndicador, RawIndicadoresGestion, TramoOrdenado } from './cartera-indicadores.js'
+import type {
+  FilaSnapshotIndicador,
+  RawIndicadoresGestion,
+  RawIndicadoresLegales,
+  TramoOrdenado,
+} from './cartera-indicadores.js'
 
 export interface SnapshotIndicador {
   readonly filas: readonly FilaSnapshotIndicador[]
@@ -88,5 +93,35 @@ export async function obtenerRawIndicadoresGestion(
     promesasCumplidas: fila.promesas_cumplidas,
     acuerdosTerminados: fila.acuerdos_terminados,
     acuerdosCumplidos: fila.acuerdos_cumplidos,
+  }
+}
+
+/**
+ * Conteos/sumas crudos de fn_indicadores_legales (20260823120000) — un
+ * período [fecha_desde, fecha_hasta]. La función siempre devuelve
+ * exactamente una fila (agregados escalares, sin group by).
+ */
+export async function obtenerRawIndicadoresLegales(
+  cliente: AquilaClient,
+  opciones: { readonly tenantId: string; readonly fechaDesde: string; readonly fechaHasta: string; readonly moneda: string },
+): Promise<RawIndicadoresLegales> {
+  const { data, error } = await cliente.rpc('fn_indicadores_legales', {
+    p_tenant_id: opciones.tenantId,
+    p_fecha_desde: opciones.fechaDesde,
+    p_fecha_hasta: opciones.fechaHasta,
+  })
+  if (error) throw new Error(`No se pudieron leer los indicadores legales: ${error.message}`)
+
+  const fila = data[0]
+  if (!fila) throw new Error('fn_indicadores_legales no devolvió ninguna fila — se esperaba exactamente una.')
+
+  return {
+    inmueblesRemitidos: fila.inmuebles_remitidos,
+    inmueblesTramoJuridico: fila.inmuebles_tramo_juridico,
+    montoRecuperadoCasos: money(fila.monto_recuperado_casos, opciones.moneda),
+    montoPretensionCasos: money(fila.monto_pretension_casos, opciones.moneda),
+    sumaDiasRecuperacion: fila.suma_dias_recuperacion,
+    cantidadCargosSaldados: fila.cantidad_cargos_saldados,
+    costasMonto: money(fila.costas_monto, opciones.moneda),
   }
 }

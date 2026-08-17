@@ -1,7 +1,9 @@
 /**
- * cartera-indicadores (Edge Function, HTTP real) — CAR F9 (partes 2+3),
- * §23.3: Overdue Portfolio %, Roll Rate, Cure Rate, Recovery Rate,
- * Collection Effectiveness, Promise/Agreement Fulfillment Rate.
+ * cartera-indicadores (Edge Function, HTTP real) — CAR F9 (partes 2+3+4),
+ * §23.3: los 11 indicadores completos — Overdue Portfolio %, Roll Rate,
+ * Cure Rate, Recovery Rate, Collection Effectiveness, Promise/Agreement
+ * Fulfillment Rate, Legal Referral Rate, Legal Recovery Rate, Average
+ * Days to Recovery, Cost to Collect.
  *
  * Roll Rate/Cure Rate se prueban con snapshots SINTÉTICOS insertados
  * directamente (posiciones_cartera_snapshot es append-only, solo
@@ -18,6 +20,17 @@
  * (auth.uid() null = service_role se salta ese chequeo, confirmado
  * leyendo 20260822280000/20260822310000); solo pendiente_aprobacion→
  * aprobada/vigente lo exige, y este archivo no ejercita esa transición.
+ *
+ * Legal Referral/Recovery Rate SÍ exigen un cliente autenticado con rol
+ * administrador real — certificaciones_deuda y casos_juridicos rechazan
+ * auth.uid() null explícitamente (a diferencia de acciones_cobranza/
+ * acuerdos_pago), así que aquí no hay atajo con el cliente admin para el
+ * INSERT inicial (sí para el resto de fixtures, vía admin). "Inmuebles
+ * que alcanzaron el tramo jurídico" se aproxima con posiciones_cartera_
+ * snapshot.etapa_cobranza en un rango de fechas (cartera_etapas no es un
+ * log de eventos) — ver cabecera de fn_indicadores_legales
+ * (20260823120000). Cost to Collect es parcial (solo costas_judiciales,
+ * sin costo de acciones_cobranza — no trackeado, decisión explícita).
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import {
@@ -49,6 +62,10 @@ interface RespuestaIndicadores {
   collectionEffectiveness: number | null
   promiseFulfillmentRate: number | null
   agreementFulfillmentRate: number | null
+  legalReferralRate: number | null
+  legalRecoveryRate: number | null
+  averageDaysToRecovery: number | null
+  costToCollect: number | null
 }
 
 async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promise<number> {
@@ -87,6 +104,8 @@ async function insertarSnapshot(
     clasificacionCodigo: string
     diasMoraMaximo: number
     politicaId: string
+    /** Override — por defecto se deriva de diasMoraMaximo (preventiva/administrativa). Legal Referral Rate necesita 'juridica'/'judicial' explícito. */
+    etapaCobranza?: 'preventiva' | 'administrativa' | 'prejuridica' | 'juridica' | 'judicial'
   },
 ): Promise<void> {
   const { error } = await admin.from('posiciones_cartera_snapshot').insert({
@@ -100,7 +119,7 @@ async function insertarSnapshot(
     dias_mora_maximo: opciones.diasMoraMaximo,
     clasificacion_codigo: opciones.clasificacionCodigo,
     nivel_riesgo: opciones.diasMoraMaximo === 0 ? 'ninguno' : 'bajo',
-    etapa_cobranza: opciones.diasMoraMaximo === 0 ? 'preventiva' : 'administrativa',
+    etapa_cobranza: opciones.etapaCobranza ?? (opciones.diasMoraMaximo === 0 ? 'preventiva' : 'administrativa'),
     politica_clasificacion_id: opciones.politicaId,
     politica_version: 1,
     posicion_hash: `test-fixture-indicadores-${opciones.inmuebleId}-${opciones.fechaCorte}`,
@@ -108,11 +127,108 @@ async function insertarSnapshot(
   if (error) throw new Error(`fixture snapshot ${opciones.inmuebleId}/${opciones.fechaCorte}: ${error.message}`)
 }
 
+async function crearPoliticaFinancieraVigente(admin: Cliente, tenantId: string): Promise<string> {
+  const { data, error } = await admin
+    .from('politicas_financieras')
+    .insert({
+      tenant_id: tenantId,
+      version: 1,
+      estado: 'vigente',
+      vigente_desde: '2026-01-01',
+      redondeo_modo: 'half_up',
+      redondeo_escala: 0,
+      residual_metodo: 'mayor_resto',
+      coeficientes_suma_esperada: 1,
+      policy_hash: `test-fixture-indicadores-financiera-${tenantId}`,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture politica_financiera: ${error.message}`)
+  return data.id
+}
+
+/** Cargo llevado a saldo 0 con un único pago — fixture de Average Days to Recovery. */
+async function crearCargoSaldado(
+  admin: Cliente,
+  opciones: { tenantId: string; inmuebleId: string; fechaVencimiento: string; montoOriginal: number; fechaPago: string },
+): Promise<void> {
+  const { data: periodo, error: errPeriodo } = await admin
+    .from('periodos')
+    .insert({ tenant_id: opciones.tenantId, anio: 2026, mes: 2, estado: 'abierto', fecha_vencimiento: opciones.fechaVencimiento })
+    .select('id')
+    .single<{ id: string }>()
+  if (errPeriodo) throw new Error(`fixture periodo (cargo saldado): ${errPeriodo.message}`)
+  const { data: concepto, error: errConcepto } = await admin
+    .from('conceptos')
+    .insert({
+      tenant_id: opciones.tenantId,
+      codigo: `CI-ADR-${String(Date.now())}`,
+      nombre: 'Cuota ADR',
+      tipo_base: 'coeficiente',
+      modo_calculo: 'distribucion',
+      prioridad: 100,
+      estado: 'activo',
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errConcepto) throw new Error(`fixture concepto (cargo saldado): ${errConcepto.message}`)
+  const { data: liquidacion, error: errLiquidacion } = await admin
+    .from('liquidaciones')
+    .insert({
+      tenant_id: opciones.tenantId,
+      periodo_id: periodo.id,
+      result_hash: `test-fixture-indicadores-adr-liq-${String(Date.now())}`,
+      tenant_total: opciones.montoOriginal,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errLiquidacion) throw new Error(`fixture liquidacion (cargo saldado): ${errLiquidacion.message}`)
+  const { data: linea, error: errLinea } = await admin
+    .from('liquidacion_lineas')
+    .insert({
+      tenant_id: opciones.tenantId,
+      liquidacion_id: liquidacion.id,
+      inmueble_id: opciones.inmuebleId,
+      concepto_id: concepto.id,
+      monto: opciones.montoOriginal,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errLinea) throw new Error(`fixture liquidacion_linea (cargo saldado): ${errLinea.message}`)
+  const { data: cargo, error: errCargo } = await admin
+    .from('cargos')
+    .insert({
+      tenant_id: opciones.tenantId,
+      inmueble_id: opciones.inmuebleId,
+      periodo_id: periodo.id,
+      categoria: 'capital',
+      origen_tipo: 'liquidacion_linea',
+      liquidacion_linea_id: linea.id,
+      concepto_id: concepto.id,
+      monto_original: opciones.montoOriginal,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errCargo) throw new Error(`fixture cargo (cargo saldado): ${errCargo.message}`)
+  const { data: pago, error: errPago } = await admin
+    .from('pagos')
+    .insert({ tenant_id: opciones.tenantId, inmueble_id: opciones.inmuebleId, monto: opciones.montoOriginal, fecha_pago: opciones.fechaPago })
+    .select('id')
+    .single<{ id: string }>()
+  if (errPago) throw new Error(`fixture pago (cargo saldado): ${errPago.message}`)
+  const { error: errAplicacion } = await admin
+    .from('pago_aplicaciones')
+    .insert({ tenant_id: opciones.tenantId, pago_id: pago.id, cargo_id: cargo.id, monto: opciones.montoOriginal })
+  if (errAplicacion) throw new Error(`fixture pago_aplicacion (cargo saldado): ${errAplicacion.message}`)
+}
+
 d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
   const admin = clienteAdmin(env!)
   let agente: UsuarioPrueba
+  let administrador: UsuarioPrueba
   let tenant: TenantPrueba
   let clienteAgent: Cliente
+  let clienteAdministrador: Cliente
   let politicaId: string
   let inmuebleRealId: string
 
@@ -122,13 +238,17 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
   afterAll(async () => {
     await eliminarTenant(admin, tenant.id)
     await eliminarUsuario(admin, agente.id)
+    await eliminarUsuario(admin, administrador.id)
   })
 
   it('setup', async () => {
     agente = await crearUsuario(admin, 'ci-agent')
+    administrador = await crearUsuario(admin, 'ci-admin')
     tenant = await crearTenant(admin, 'ci', agente.id)
     await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     clienteAgent = await clienteComo(env!, agente)
+    clienteAdministrador = await clienteComo(env!, administrador)
 
     const { data: politica, error: errPolitica } = await admin
       .from('politicas_clasificacion_cartera')
@@ -350,6 +470,104 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
       const { error: errFinal } = await admin.from('acuerdos_pago').update({ estado: desenlace }).eq('id', acuerdo.id)
       if (errFinal) throw new Error(`fixture acuerdo→${desenlace}: ${errFinal.message}`)
     }
+
+    // Legal Referral Rate: D y E "alcanzan el tramo jurídico" (snapshot con
+    // etapa_cobranza juridica/judicial dentro del período) — solo D se
+    // remite realmente a jurídico → 1/2 = 50%.
+    const inmuebleDId = await crearInmueble(admin, tenant.id, tipoId, `CI-D-${String(Date.now())}`)
+    const inmuebleEId = await crearInmueble(admin, tenant.id, tipoId, `CI-E-${String(Date.now())}`)
+    await insertarSnapshot(admin, {
+      tenantId: tenant.id,
+      inmuebleId: inmuebleDId,
+      fechaCorte: '2026-02-10',
+      deudaTotal: 400_000,
+      clasificacionCodigo: 'MORA_INICIAL',
+      diasMoraMaximo: 90,
+      politicaId,
+      etapaCobranza: 'juridica',
+    })
+    await insertarSnapshot(admin, {
+      tenantId: tenant.id,
+      inmuebleId: inmuebleEId,
+      fechaCorte: '2026-02-10',
+      deudaTotal: 500_000,
+      clasificacionCodigo: 'MORA_INICIAL',
+      diasMoraMaximo: 95,
+      politicaId,
+      etapaCobranza: 'judicial',
+    })
+
+    // Legal Recovery Rate: certificación vigente + caso jurídico de D,
+    // remitido dentro del período, con monto_recuperado parcial.
+    const politicaFinancieraId = await crearPoliticaFinancieraVigente(admin, tenant.id)
+    const { data: certificacion, error: errCert } = await clienteAdministrador
+      .from('certificaciones_deuda')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmuebleDId,
+        consecutivo: `CI-CERT-${String(Date.now())}`,
+        fecha_expedicion: '2026-02-11',
+        fecha_corte: '2026-02-01',
+        monto_expensas_ordinarias: 400_000,
+        monto_expensas_extraordinarias: 0,
+        monto_intereses_mora: 0,
+        monto_sanciones: 0,
+        monto_otros: 0,
+        monto_total: 400_000,
+        detalle_cargos: [{ cargoId: 'fixture', categoria: 'capital', saldoPendiente: '400000' }],
+        politica_financiera_id: politicaFinancieraId,
+        politica_version: 1,
+        cargo_firmante: 'Administrador de prueba',
+        certificacion_hash: `test-fixture-indicadores-cert-${String(Date.now())}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errCert) throw new Error(`fixture certificacion: ${errCert.message}`)
+
+    const { data: caso, error: errCaso } = await clienteAdministrador
+      .from('casos_juridicos')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmuebleDId,
+        consecutivo: `CI-CASO-${String(Date.now())}`,
+        certificacion_id: certificacion.id,
+        fecha_remision: '2026-02-12',
+        monto_pretension: 400_000,
+        fecha_pretension: '2026-02-12',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errCaso) throw new Error(`fixture caso_juridico: ${errCaso.message}`)
+
+    const { error: errRecuperado } = await clienteAgent
+      .from('casos_juridicos')
+      .update({ monto_recuperado: 100_000 })
+      .eq('id', caso.id)
+    if (errRecuperado) throw new Error(`fixture caso_juridico monto_recuperado: ${errRecuperado.message}`)
+
+    // Cost to Collect: costa judicial del mismo caso, dentro del período.
+    const { error: errCosta } = await clienteAgent.from('costas_judiciales').insert({
+      tenant_id: tenant.id,
+      caso_id: caso.id,
+      tipo_costa: 'gasto_proceso',
+      monto: 50_000,
+      documento_fuente: 'Auto que liquida costas — Juzgado 1 Civil Municipal',
+      fecha_decision: '2026-02-15',
+      autoridad: 'Juzgado 1 Civil Municipal',
+    })
+    if (errCosta) throw new Error(`fixture costa_judicial: ${errCosta.message}`)
+
+    // Average Days to Recovery: cargo saldado con un único pago dentro del
+    // período — vencimiento 2026-02-05, pago 2026-02-20 → 15 días. No
+    // vencido al inicio del período (2026-02-05 no es < FECHA_DESDE), así
+    // que no altera montoRecuperadoPeriodo (Recovery Rate/Cost to Collect).
+    await crearCargoSaldado(admin, {
+      tenantId: tenant.id,
+      inmuebleId: inmuebleRealId,
+      fechaVencimiento: '2026-02-05',
+      montoOriginal: 30_000,
+      fechaPago: '2026-02-20',
+    })
   }, 30_000)
 
   it('SNAPSHOT_NO_DISPONIBLE (422): sin snapshot para fecha_desde', async () => {
@@ -360,7 +578,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     expect(response?.status).toBe(422)
   }, 30_000)
 
-  it('los 7 indicadores de §23.3 se calculan correctamente contra la BD real', async () => {
+  it('los 11 indicadores de §23.3 se calculan correctamente contra la BD real', async () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaIndicadores>('cartera-indicadores', {
       body: { tenant_id: tenant.id, fecha_desde: FECHA_DESDE, fecha_hasta: FECHA_HASTA },
     })
@@ -397,5 +615,17 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
 
     // Agreement Fulfillment Rate: 1 cumplido / 2 terminados = 50%.
     expect(data?.agreementFulfillmentRate).toBeCloseTo(50, 6)
+
+    // Legal Referral Rate: D remitido / (D, E alcanzaron el tramo jurídico) = 1/2 = 50%.
+    expect(data?.legalReferralRate).toBeCloseTo(50, 6)
+
+    // Legal Recovery Rate: 100_000 recuperados / 400_000 pretendidos (caso de D) = 25%.
+    expect(data?.legalRecoveryRate).toBeCloseTo(25, 6)
+
+    // Average Days to Recovery: cargo saldado, vencimiento 2026-02-05, pago 2026-02-20 → 15 días.
+    expect(data?.averageDaysToRecovery).toBeCloseTo(15, 6)
+
+    // Cost to Collect: 50_000 costas / 40_000 recuperados en el período = 1.25 (destruye valor).
+    expect(data?.costToCollect).toBeCloseTo(1.25, 6)
   }, 30_000)
 })

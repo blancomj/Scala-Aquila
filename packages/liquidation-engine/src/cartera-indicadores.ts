@@ -175,3 +175,58 @@ export function calcularIndicadoresGestion(
     agreementFulfillmentRate: pctEnteroONull(raw.acuerdosCumplidos, raw.acuerdosTerminados),
   }
 }
+
+// ── Legal Referral Rate / Legal Recovery Rate / Average Days to Recovery / Cost to Collect ──
+//
+// Fuente: fn_indicadores_legales (20260823120000) — interpretaciones de
+// cada fórmula documentadas en la cabecera de esa migración (la guía
+// §23.3 da la fórmula pero no el detalle de numerador/denominador).
+// Cost to Collect es PARCIAL: no incluye costo de acciones_cobranza
+// (no existe columna de costo en esa tabla ni en estrategias_cobranza)
+// — decisión explícita del usuario, no un descuido.
+
+export interface RawIndicadoresLegales {
+  readonly inmueblesRemitidos: number
+  readonly inmueblesTramoJuridico: number
+  readonly montoRecuperadoCasos: Money
+  readonly montoPretensionCasos: Money
+  /** Σ días entre fecha_vencimiento y el último pago que saldó el cargo, sobre cargos saldados en el período. */
+  readonly sumaDiasRecuperacion: number
+  readonly cantidadCargosSaldados: number
+  /** Σ costas_judiciales.monto del período — no incluye costo de acciones_cobranza (no trackeado). */
+  readonly costasMonto: Money
+}
+
+export interface IndicadoresLegales {
+  readonly legalReferralRate: number | null
+  readonly legalRecoveryRate: number | null
+  /** En días, no porcentaje — promedio simple, sin *100. */
+  readonly averageDaysToRecovery: number | null
+  /** Ratio, no porcentaje (CAR §23.3: "si > 1, la gestión destruye valor"). Versión parcial — ver cabecera del módulo. */
+  readonly costToCollect: number | null
+}
+
+/**
+ * `montoRecuperadoPeriodo` — el mismo Σ pago_aplicaciones.monto del
+ * período ya calculado por fn_indicadores_gestion (RawIndicadoresGestion),
+ * reutilizado como denominador de Cost to Collect (REC-CAR-004: no se
+ * vuelve a leer ni recalcular).
+ */
+export function calcularIndicadoresLegales(
+  raw: RawIndicadoresLegales,
+  montoRecuperadoPeriodo: Money,
+): IndicadoresLegales {
+  return {
+    legalReferralRate: pctEnteroONull(raw.inmueblesRemitidos, raw.inmueblesTramoJuridico),
+    legalRecoveryRate: isZeroMoney(raw.montoPretensionCasos)
+      ? null
+      : fos
+          .dividirDecimales(raw.montoRecuperadoCasos.amount, raw.montoPretensionCasos.amount)
+          .times(100)
+          .toNumber(),
+    averageDaysToRecovery: raw.cantidadCargosSaldados === 0 ? null : raw.sumaDiasRecuperacion / raw.cantidadCargosSaldados,
+    costToCollect: isZeroMoney(montoRecuperadoPeriodo)
+      ? null
+      : fos.dividirDecimales(raw.costasMonto.amount, montoRecuperadoPeriodo.amount).toNumber(),
+  }
+}

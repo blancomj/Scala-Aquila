@@ -3,10 +3,12 @@ import { money } from '@aquila/financial-kernel'
 import {
   calcularCureRate,
   calcularIndicadoresGestion,
+  calcularIndicadoresLegales,
   calcularOverduePortfolioPct,
   calcularRollRatePorTramo,
   type FilaSnapshotIndicador,
   type RawIndicadoresGestion,
+  type RawIndicadoresLegales,
 } from './cartera-indicadores.js'
 
 function fila(inmuebleId: string, deudaVencida: number, clasificacionCodigo: string): FilaSnapshotIndicador {
@@ -153,5 +155,61 @@ describe('calcularIndicadoresGestion', () => {
     const raw = rawVacio({ montoRecuperadoPeriodo: money(150_000, 'COP') })
     const resultado = calcularIndicadoresGestion(raw, money(100_000, 'COP'))
     expect(resultado.recoveryRate).toBeCloseTo(150, 6)
+  })
+})
+
+function rawLegalVacio(over: Partial<RawIndicadoresLegales> = {}): RawIndicadoresLegales {
+  return {
+    inmueblesRemitidos: 0,
+    inmueblesTramoJuridico: 0,
+    montoRecuperadoCasos: money(0, 'COP'),
+    montoPretensionCasos: money(0, 'COP'),
+    sumaDiasRecuperacion: 0,
+    cantidadCargosSaldados: 0,
+    costasMonto: money(0, 'COP'),
+    ...over,
+  }
+}
+
+describe('calcularIndicadoresLegales', () => {
+  it('todo en cero: los 4 indicadores son indeterminados (null), ninguno 0%', () => {
+    const resultado = calcularIndicadoresLegales(rawLegalVacio(), money(0, 'COP'))
+    expect(resultado.legalReferralRate).toBeNull()
+    expect(resultado.legalRecoveryRate).toBeNull()
+    expect(resultado.averageDaysToRecovery).toBeNull()
+    expect(resultado.costToCollect).toBeNull()
+  })
+
+  it('legalReferralRate: inmuebles remitidos entre los que alcanzaron el tramo jurídico', () => {
+    const raw = rawLegalVacio({ inmueblesRemitidos: 3, inmueblesTramoJuridico: 12 })
+    const resultado = calcularIndicadoresLegales(raw, money(0, 'COP'))
+    expect(resultado.legalReferralRate).toBeCloseTo(25, 6)
+  })
+
+  it('legalRecoveryRate: recuperado entre pretendido, sobre la cohorte de casos remitidos en el período', () => {
+    const raw = rawLegalVacio({
+      montoRecuperadoCasos: money(300_000, 'COP'),
+      montoPretensionCasos: money(1_200_000, 'COP'),
+    })
+    const resultado = calcularIndicadoresLegales(raw, money(0, 'COP'))
+    expect(resultado.legalRecoveryRate).toBeCloseTo(25, 6)
+  })
+
+  it('averageDaysToRecovery: promedio simple en días, sin multiplicar por 100', () => {
+    const raw = rawLegalVacio({ sumaDiasRecuperacion: 90, cantidadCargosSaldados: 3 })
+    const resultado = calcularIndicadoresLegales(raw, money(0, 'COP'))
+    expect(resultado.averageDaysToRecovery).toBeCloseTo(30, 6)
+  })
+
+  it('costToCollect: costas judiciales entre lo recuperado en el período (ratio, no porcentaje)', () => {
+    const raw = rawLegalVacio({ costasMonto: money(50_000, 'COP') })
+    const resultado = calcularIndicadoresLegales(raw, money(200_000, 'COP'))
+    expect(resultado.costToCollect).toBeCloseTo(0.25, 6)
+  })
+
+  it('costToCollect > 1: la gestión destruye valor (costas superan lo recuperado)', () => {
+    const raw = rawLegalVacio({ costasMonto: money(300_000, 'COP') })
+    const resultado = calcularIndicadoresLegales(raw, money(200_000, 'COP'))
+    expect(resultado.costToCollect).toBeCloseTo(1.5, 6)
   })
 })

@@ -1,10 +1,13 @@
-// CAR F9 (parte 2+3) — Indicadores de cartera (§23.3): Overdue Portfolio
-// %, Roll Rate, Cure Rate, Recovery Rate, Collection Effectiveness,
-// Promise/Agreement Fulfillment Rate. Compone lo ya construido:
-// fn_dashboard_cartera (F9 parte 1) para el portafolio ACTUAL,
-// posiciones_cartera_snapshot (F3, ya congelado) para comparar dos
-// fechas de corte, y fn_indicadores_gestion (20260823110000) para los
-// conteos/sumas crudos de gestión del período.
+// CAR F9 (parte 2+3+4) — Indicadores de cartera (§23.3): Overdue
+// Portfolio %, Roll Rate, Cure Rate, Recovery Rate, Collection
+// Effectiveness, Promise/Agreement Fulfillment Rate, Legal Referral
+// Rate, Legal Recovery Rate, Average Days to Recovery, Cost to Collect.
+// Compone lo ya construido: fn_dashboard_cartera (F9 parte 1) para el
+// portafolio ACTUAL, posiciones_cartera_snapshot (F3, ya congelado)
+// para comparar dos fechas de corte, fn_indicadores_gestion
+// (20260823110000) para los conteos/sumas crudos de gestión del
+// período, y fn_indicadores_legales (20260823120000) para los de fuente
+// jurídica.
 //
 // REC-CAR-004: ningún cálculo se reimplementa — esta función solo carga
 // datos y llama a los agregadores puros.
@@ -17,6 +20,12 @@
 // SIEMPRE está disponible, corrida el job o no. Recovery Rate reutiliza
 // la MISMA cartera vencida al inicio del período que ya se sumó para
 // Cure Rate (Σ snapshotDesde.filas.deudaVencida) — no se vuelve a leer.
+// Cost to Collect reutiliza montoRecuperadoPeriodo de
+// fn_indicadores_gestion como denominador — tampoco se vuelve a leer.
+// Legal Referral Rate NO exige snapshot en fechas exactas (a diferencia
+// de Roll/Cure Rate): usa un RANGO de fechas_corte, así que si el job no
+// corrió ningún día del período simplemente el indicador da null (no
+// 422) — ver cabecera de fn_indicadores_legales.
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 // dist/index.js (compilado), no src/index.ts — mismo motivo que
@@ -25,10 +34,12 @@ import {
   calcularCureRate,
   calcularDashboardCartera,
   calcularIndicadoresGestion,
+  calcularIndicadoresLegales,
   calcularOverduePortfolioPct,
   calcularRollRatePorTramo,
   obtenerFilasDashboardCartera,
   obtenerRawIndicadoresGestion,
+  obtenerRawIndicadoresLegales,
   obtenerSnapshotIndicador,
   obtenerTramosDePolitica,
 } from '../../../packages/liquidation-engine/dist/index.js'
@@ -189,6 +200,14 @@ export default {
     })
     const indicadoresGestion = calcularIndicadoresGestion(rawGestion, carteraVencidaInicioPeriodo)
 
+    const rawLegales = await obtenerRawIndicadoresLegales(ctx.supabase, {
+      tenantId,
+      fechaDesde,
+      fechaHasta,
+      moneda: tenant.moneda,
+    })
+    const indicadoresLegales = calcularIndicadoresLegales(rawLegales, rawGestion.montoRecuperadoPeriodo)
+
     return jsonResponse(
       {
         fechaDesde,
@@ -206,6 +225,11 @@ export default {
         collectionEffectiveness: indicadoresGestion.collectionEffectiveness,
         promiseFulfillmentRate: indicadoresGestion.promiseFulfillmentRate,
         agreementFulfillmentRate: indicadoresGestion.agreementFulfillmentRate,
+        legalReferralRate: indicadoresLegales.legalReferralRate,
+        legalRecoveryRate: indicadoresLegales.legalRecoveryRate,
+        averageDaysToRecovery: indicadoresLegales.averageDaysToRecovery,
+        // Parcial: no incluye costo de acciones_cobranza (no trackeado, ver cabecera de fn_indicadores_legales).
+        costToCollect: indicadoresLegales.costToCollect,
       },
       200,
       correlationId,

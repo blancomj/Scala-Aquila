@@ -4689,6 +4689,22 @@ export type Database = {
           promesas_vencidas: number
         }[]
       }
+      fn_indicadores_legales: {
+        Args: {
+          p_fecha_desde: string
+          p_fecha_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cantidad_cargos_saldados: number
+          costas_monto: number
+          inmuebles_remitidos: number
+          inmuebles_tramo_juridico: number
+          monto_pretension_casos: number
+          monto_recuperado_casos: number
+          suma_dias_recuperacion: number
+        }[]
+      }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
         Returns: undefined

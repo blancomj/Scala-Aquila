@@ -3347,20 +3347,59 @@ Entregables  · fn_dashboard_cartera ✅ (20260823100000_cartera_dashboard_
                administrador se salta entero cuando auth.uid() es null].
                3 tests de integración HTTP real, 7 indicadores
                verificados contra la BD real en una sola corrida.)
-             · Legal Referral Rate, Legal Recovery Rate, Average Days to
-               Recovery, Cost to Collect — pendientes (necesitan
-               casos_juridicos/costas_judiciales, F7; distinta fuente de
-               datos, próxima pieza de F9).
+             · fn_indicadores_legales ✅ (20260823120000_cartera_
+               indicadores_legales_fn.sql — conteos/sumas crudos para
+               Legal Referral Rate, Legal Recovery Rate, Average Days to
+               Recovery, Cost to Collect. Interpretaciones explícitas,
+               documentadas en la cabecera de la migración porque la
+               guía da la fórmula pero no el detalle: "inmuebles que
+               alcanzaron el tramo jurídico" [denominador de Legal
+               Referral Rate] se aproxima con posiciones_cartera_
+               snapshot.etapa_cobranza en ['juridica','judicial'] dentro
+               de un RANGO de fecha_corte — cartera_etapas [F6] no es un
+               log de eventos, solo guarda la etapa actual y una
+               anterior, no permite reconstruir "quién alcanzó jurídico
+               en este período"; Legal Recovery Rate usa la cohorte de
+               casos_juridicos con fecha_remision en el período [misma
+               cohorte que el numerador de Legal Referral Rate];
+               Average Days to Recovery no es exclusivo de jurídico
+               [cargos saldados en general, cualquier fuente]; Cost to
+               Collect es PARCIAL — solo Σ costas_judiciales.monto,
+               SIN costo de acciones_cobranza [decisión explícita del
+               usuario, 2026-08-17: acciones_cobranza/estrategias_
+               cobranza no tienen ninguna columna de costo, no se
+               inventa un modelo de costos nuevo en esta pieza].)
+             · calcularIndicadoresLegales() ✅ (cartera-indicadores.ts,
+               extendido — 6 tests unitarios nuevos, 25 en total en el
+               archivo. averageDaysToRecovery es un promedio simple en
+               días [sin ×100]; costToCollect es un ratio, no porcentaje
+               ["si > 1, la gestión destruye valor"].)
+             · Edge Function `cartera-indicadores` extendida de nuevo ✅
+               (los 11 indicadores de §23.3 salen de una sola llamada.
+               Cost to Collect reutiliza montoRecuperadoPeriodo de
+               fn_indicadores_gestion como denominador — no se relee
+               [REC-CAR-004]. A diferencia de Roll/Cure Rate, Legal
+               Referral Rate NO devuelve 422 si falta el snapshot del
+               período — usa un rango, no dos fechas exactas, así que
+               simplemente da null. certificaciones_deuda/casos_
+               juridicos rechazan auth.uid() null explícitamente [a
+               diferencia de acciones_cobranza/acuerdos_pago] — el test
+               de integración necesitó un usuario administrador real
+               autenticado para esos dos INSERT, no solo el cliente
+               admin. 3 tests de integración HTTP real, 11 indicadores
+               verificados contra la BD real en una sola corrida.)
              · §23.4 (transiciones críticas), §23.5 (panel de acciones) —
-               pendientes.
+               pendientes; cierran F9.
 Golden Cases PH-C34 ✅ (verificado contra la BD real — un agent de otro
              tenant recibe 403, nunca ve datos agregados de un tenant que
              no es el suyo). PH-C35 diferido: ver §21.4 / AD-26.
-Salida       §23.1/§23.2 completos. De los 11 indicadores de §23.3: 7
+Salida       §23.1/§23.2 completos. Los 11 indicadores de §23.3
              completos y reproducibles [Overdue Portfolio %, Roll Rate,
              Cure Rate, Recovery Rate, Collection Effectiveness, Promise/
-             Agreement Fulfillment Rate] — quedan 4 [los de fuente
-             jurídica] y §23.5 para cerrar F9.
+             Agreement Fulfillment Rate, Legal Referral Rate, Legal
+             Recovery Rate, Average Days to Recovery, Cost to Collect —
+             este último parcial, sin costo de acciones_cobranza]. Queda
+             §23.5 [panel de acciones/colas] para cerrar F9.
 ```
 
 ## 28.1 Grafo de dependencias

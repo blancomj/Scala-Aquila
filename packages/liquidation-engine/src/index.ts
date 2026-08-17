@@ -157,17 +157,21 @@ export {
   calcularCureRate,
   calcularRollRatePorTramo,
   calcularIndicadoresGestion,
+  calcularIndicadoresLegales,
   type FilaSnapshotIndicador,
   type TramoOrdenado,
   type RollRateTramo,
   type RawIndicadoresGestion,
   type IndicadoresGestion,
+  type RawIndicadoresLegales,
+  type IndicadoresLegales,
 } from './cartera-indicadores.js'
 
 export {
   obtenerSnapshotIndicador,
   obtenerTramosDePolitica,
   obtenerRawIndicadoresGestion,
+  obtenerRawIndicadoresLegales,
   type SnapshotIndicador,
 } from './cartera-indicadores-supabase.js'
 
