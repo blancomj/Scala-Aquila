@@ -98,6 +98,15 @@ export {
   type DatosAccionCobranza,
 } from './cartera-cobranza-supabase.js'
 
+export {
+  evaluarEscalamiento,
+  TRANSICIONES_ETAPA_COBRANZA,
+  type TransicionEtapaCobranza,
+  type ResumenAccion,
+  type ContextoEscalamiento,
+  type DecisionEscalamiento,
+} from './cartera-escalamiento.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

@@ -3027,12 +3027,66 @@ Salida       Acuerdos que no tocan el ledger original (I-C08 verificado:
 
 ```text
 Alcance      Máquina de estados de etapa
-Entregables  · evaluarEscalamiento() puro
-             · Matriz de transiciones §11.3 como tabla configurable
-             · politicas_gastos_cobranza (bloqueado por VER-CAR-03)
-             · Flujo de aprobación de escalamiento
-Golden Cases PH-C19, PH-C20
-Salida       Ninguna transición fuera de la matriz es posible
+Entregables  · evaluarEscalamiento() puro ✅
+               (packages/liquidation-engine/src/cartera-escalamiento.ts —
+               15 tests unitarios cubriendo PH-C19/PH-C20, tope de la
+               máquina en judicial, des-escalamiento total por saldo=0
+               desde cualquier etapa CAR §11.2, congelamiento por acuerdo
+               vigente, y "un escalón a la vez" cuando la clasificación
+               salta varios tramos.)
+             · Matriz de transiciones §11.3 como tabla configurable ✅
+               — TRANSICIONES_ETAPA_COBRANZA (TS) espejada exactamente
+               por cartera_etapa_transicion_valida()/cartera_etapa_
+               requiere_aprobacion() (SQL, VALUES-based) — misma matriz
+               en dos lugares, comentada para mantenerse en sync, mismo
+               criterio "primera línea (pura) + última línea (BD)" que
+               evaluarAccionesAplicables()/guard_accion_cobranza_
+               transicion (F4).
+             · politicas_gastos_cobranza — sigue bloqueado por VER-CAR-03,
+               no implementado (no se inventan valores por defecto).
+             · Flujo de aprobación de escalamiento ✅
+               (20260822330000_cartera_escalamiento.sql — tabla
+               cartera_etapas: UNA fila "actual" por inmueble, no un log,
+               distinta de posiciones_cartera_snapshot.etapa_cobranza
+               [la sugerida, recalculable]. Maker-checker vía
+               etapa_propuesta/propuesto_por/aprobado_por, mismo criterio
+               que acciones_cobranza/acuerdos_pago: rol administrador
+               explícito + bloqueo de autoaprobación para las transiciones
+               que la matriz marca "Sí"; INSERT solo puede nacer en
+               preventiva [mismo bug class de "INSERT bypassa el guard de
+               UPDATE" que F4/F5, corregido desde el principio esta vez];
+               columnas estampadas por el servidor nunca confían el valor
+               del cliente en ningún camino; CARTERA_ETAPA_CONGELADA
+               bloquea cualquier cambio mientras hay un acuerdo_pago
+               vigente para el inmueble; CARTERA_ETAPA_CONTEXTO_INMUTABLE
+               bloquea reasignar la fila a otro inmueble/tenant. 11 tests
+               RLS.)
+             · Deuda con F7: juridica→judicial no exige "demanda radicada"
+               todavía (casos_juridicos no existe, GAP-CAR-007) — el
+               rol-gate (administrador + no autoaprobación) sí se aplica
+               a juridica/judicial→preventiva, pero el "requiere cierre
+               del caso" del CAR §11.3 no se valida en base de datos
+               hasta que exista esa tabla. evaluarEscalamiento() ya
+               modela tieneCertificacionVigente para PH-C20 (siempre
+               false hasta F7 — sin certificaciones_deuda nadie puede
+               proveer true todavía, así que prejuridica→juridica queda
+               'bloqueado' en la práctica hasta entonces).
+             · "Agotadas las acciones administrativas" (CAR §11.3,
+               administrativa→prejuridica) — interpretación explícita, no
+               literal de la spec: al menos una estrategia CON HISTORIAL
+               y TODAS agotadas (reutiliza la semántica de
+               ESTRATEGIA_AGOTADA de cartera-cobranza.ts, CAR §10.4); una
+               etapa sin ninguna acción configurada/ejecutada NO cuenta
+               como agotada.
+Golden Cases PH-C19, PH-C20 — cubiertos como tests unitarios de
+             evaluarEscalamiento() y como test RLS del guard de
+             aprobación (cartera-etapas.test.ts). No hay todavía un
+             llamador real que invoque evaluarEscalamiento() y aplique su
+             decisión automáticamente (eso es el job diario, F8) — el
+             flujo hoy se ejerce a mano vía cartera_etapas, igual que F4/
+             F5 antes de que exista el job diario.
+Salida       Ninguna transición fuera de la matriz es posible ✅ —
+             verificado tanto en la función pura como en el guard de BD.
 ```
 
 ## F7 — Jurídico

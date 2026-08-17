@@ -613,6 +613,107 @@ export type Database = {
           },
         ]
       }
+      cartera_etapas: {
+        Row: {
+          aprobado_at: string | null
+          aprobado_por: string | null
+          created_at: string
+          etapa: Database["public"]["Enums"]["etapa_cobranza_t"]
+          etapa_anterior: Database["public"]["Enums"]["etapa_cobranza_t"] | null
+          etapa_propuesta:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          id: string
+          inmueble_id: string
+          motivo_propuesta: string | null
+          propuesto_at: string | null
+          propuesto_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["etapa_cobranza_t"]
+          etapa_anterior?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          etapa_propuesta?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          id?: string
+          inmueble_id: string
+          motivo_propuesta?: string | null
+          propuesto_at?: string | null
+          propuesto_por?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["etapa_cobranza_t"]
+          etapa_anterior?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          etapa_propuesta?:
+            | Database["public"]["Enums"]["etapa_cobranza_t"]
+            | null
+          id?: string
+          inmueble_id?: string
+          motivo_propuesta?: string | null
+          propuesto_at?: string | null
+          propuesto_por?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_etapas_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_etapas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_etapas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_etapas_propuesto_por_fkey"
+            columns: ["propuesto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_etapas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_etapas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coeficiente_sets: {
         Row: {
           created_at: string
@@ -3867,6 +3968,20 @@ export type Database = {
           out_role: Database["public"]["Enums"]["tenant_role_t"]
           out_tenant_id: string
         }[]
+      }
+      cartera_etapa_requiere_aprobacion: {
+        Args: {
+          p_desde: Database["public"]["Enums"]["etapa_cobranza_t"]
+          p_hacia: Database["public"]["Enums"]["etapa_cobranza_t"]
+        }
+        Returns: boolean
+      }
+      cartera_etapa_transicion_valida: {
+        Args: {
+          p_desde: Database["public"]["Enums"]["etapa_cobranza_t"]
+          p_hacia: Database["public"]["Enums"]["etapa_cobranza_t"]
+        }
+        Returns: boolean
       }
       check_rate_limit: {
         Args: { p_bucket: string; p_max_hits: number; p_window: string }
