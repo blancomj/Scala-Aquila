@@ -2740,22 +2740,39 @@ Salida       PRQ-CAR-002 = Parcialmente verificado (guard + cálculo puro
              listos; falta backfill y override por cargo)
 NOTA         PRQ-CAR-007 y PRQ-CAR-015 ya quedaron verificados; no
              requieren trabajo en F0.
-             Migración NO aplicada a ninguna base de datos local/remota
-             en esta sesión — solo el archivo SQL fue creado. Aplicarla
-             (supabase db push) queda pendiente y debe hacerse con
-             cuidado: el repo tiene ~20 migraciones sin aplicar de otro
-             trabajo en curso, ajenas a este bloque.
+             ✅ Migración aplicada al proyecto remoto (hwjmlyzzvpmhadldavbq)
+             el 2026-08-16 vía `pnpm db:push`, verificada primero con
+             `--dry-run` — el dry-run confirmó que solo las 2 migraciones
+             de cartera estaban pendientes (las ~20 de otro trabajo en
+             curso ya estaban aplicadas de antes). `pnpm db:types` +
+             rebuild de `@aquila/shared` corridos después, siguiendo el
+             flujo migración→push→db:types→build shared.
 ```
 
 ## F1 — Antigüedad
 
 ```text
 Alcance      Cálculo de antigüedad por cargo y agregación por inmueble
-Entregables  · packages/liquidation-engine/src/cartera.ts (calcularAntiguedad, agregarPosicion)
-             · v_cargo_antiguedad · fn_posicion_cartera
-             · Tests unitarios puros
-Golden Cases PH-C01..PH-C06, PH-C09
-Salida       Antigüedad reproducible y verificada contra datos reales
+Entregables  · ✅ packages/liquidation-engine/src/cartera.ts:
+               calcularAntiguedad, calcularPosicionCartera
+             · ✅ politicas_clasificacion_cartera + politica_clasificacion_tramos
+               (migración `20260822200000_cartera_politica_clasificacion.sql`,
+               aplicada) — clasifiCartera/validarPoliticaClasificacion con
+               guard SQL espejo de IC-TRAMO-01..05, dos capas de refuerzo
+             · ✅ cartera-supabase.ts: obtenerPoliticaClasificacionVigente
+               (reutiliza obtenerCargosAbiertos de cuenta-corriente-supabase.ts
+               — REC-CAR-004, no se duplica la lectura de cargos)
+             · ✅ Tests unitarios puros — 26 tests en cartera.test.ts
+             · ⧗ v_cargo_antiguedad / fn_posicion_cartera como vista/función
+               SQL — pendiente; hoy la agregación vive solo en TS
+               (calcularPosicionCartera), no como vista Postgres
+             · ⧗ Edge Function `cartera-recalcular` / `cartera-posicion`
+               (§22.3) — orquestación aún no escrita
+Golden Cases PH-C01..PH-C06, PH-C09 — cubiertos en cartera.test.ts
+Salida       Antigüedad y clasificación reproducibles y verificadas con
+             tests puros. Falta la vista/función SQL de solo-lectura y la
+             Edge Function que las expone a la UI/BI — no bloqueante, es
+             la siguiente rebanada natural de F1/F9.
 ```
 
 ## F2 — Mora versionada (extiende lo existente)

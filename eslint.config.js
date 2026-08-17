@@ -159,6 +159,7 @@ export default tseslint.config(
       'packages/liquidation-engine/src/persistencia-supabase.ts',
       'packages/liquidation-engine/src/cuenta-corriente-supabase.ts',
       'packages/liquidation-engine/src/prueba-formula-supabase.ts',
+      'packages/liquidation-engine/src/cartera-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

@@ -1826,6 +1826,143 @@ export type Database = {
           },
         ]
       }
+      politica_clasificacion_tramos: {
+        Row: {
+          codigo: string
+          created_at: string
+          dias_max: number | null
+          dias_min: number
+          etapa_cobranza: Database["public"]["Enums"]["etapa_cobranza_t"]
+          id: string
+          nivel_riesgo: Database["public"]["Enums"]["nivel_riesgo_t"]
+          nombre: string
+          orden: number
+          politica_id: string
+          prioridad: number
+          tenant_id: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          dias_max?: number | null
+          dias_min: number
+          etapa_cobranza: Database["public"]["Enums"]["etapa_cobranza_t"]
+          id?: string
+          nivel_riesgo: Database["public"]["Enums"]["nivel_riesgo_t"]
+          nombre: string
+          orden: number
+          politica_id: string
+          prioridad: number
+          tenant_id: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          dias_max?: number | null
+          dias_min?: number
+          etapa_cobranza?: Database["public"]["Enums"]["etapa_cobranza_t"]
+          id?: string
+          nivel_riesgo?: Database["public"]["Enums"]["nivel_riesgo_t"]
+          nombre?: string
+          orden?: number
+          politica_id?: string
+          prioridad?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politica_clasificacion_tramos_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "politicas_clasificacion_cartera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "politica_clasificacion_tramos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "politica_clasificacion_tramos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      politicas_clasificacion_cartera: {
+        Row: {
+          acta_referencia: string | null
+          aprobada_por: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          nombre: string
+          policy_hash: string
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          acta_referencia?: string | null
+          aprobada_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          nombre: string
+          policy_hash: string
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          acta_referencia?: string | null
+          aprobada_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          nombre?: string
+          policy_hash?: string
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "politicas_clasificacion_cartera_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "politicas_clasificacion_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "politicas_clasificacion_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       politicas_financieras: {
         Row: {
           coeficientes_suma_esperada: number
@@ -3063,6 +3200,12 @@ export type Database = {
         | "porcentaje"
         | "saldo"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
+      etapa_cobranza_t:
+        | "preventiva"
+        | "administrativa"
+        | "prejuridica"
+        | "juridica"
+        | "judicial"
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_movimiento_tipo_t: "aporte" | "uso"
       fondo_tipo_t: "imprevistos" | "otro"
@@ -3089,6 +3232,7 @@ export type Database = {
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
       liquidacion_estado_t: "completada" | "fallida"
       member_status_t: "active" | "revoked"
+      nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
       novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
       novedad_tipo_t:
         | "CHARGE"
@@ -3249,6 +3393,13 @@ export const Constants = {
         "saldo",
       ],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
+      etapa_cobranza_t: [
+        "preventiva",
+        "administrativa",
+        "prejuridica",
+        "juridica",
+        "judicial",
+      ],
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_movimiento_tipo_t: ["aporte", "uso"],
       fondo_tipo_t: ["imprevistos", "otro"],
@@ -3279,6 +3430,7 @@ export const Constants = {
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
       liquidacion_estado_t: ["completada", "fallida"],
       member_status_t: ["active", "revoked"],
+      nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
       novedad_estado_t: ["pendiente", "aprobada", "rechazada"],
       novedad_tipo_t: [
         "CHARGE",

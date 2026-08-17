@@ -69,6 +69,8 @@ export {
   type ResultadoClasificacion,
 } from './cartera.js'
 
+export { obtenerPoliticaClasificacionVigente } from './cartera-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {
