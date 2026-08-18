@@ -157,6 +157,7 @@ export default {
           deudaVencida: i.deudaVencida.amount.toString(),
           diasMoraMaximo: i.diasMoraMaximo,
         })),
+        diasPromedioMora: dashboard.diasPromedioMora,
       },
       200,
       correlationId,

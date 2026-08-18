@@ -11,22 +11,23 @@
 // cartera-evolucion (serie mensual sobre posiciones_cartera_snapshot,
 // F3/F8 — un mes sin snapshot se dibuja como hueco, nunca 0 inventado),
 // cartera-recaudo (reutiliza fn_indicadores_gestion directo, sin el gate
-// de snapshot de cartera-indicadores) y cartera-alertas (obligaciones
+// de snapshot de cartera-indicadores), cartera-alertas (obligaciones
 // >90d a nivel de cargo, promesas por vencer en 3 días, cuotas de
 // acuerdo vencidas — "Casos próximos a remisión jurídica" se deriva de
-// dashboard.porEtapa[prejuridica], no pide otra vez la base de datos).
-// Las piezas sin backend hoy (efectividad de cobranza, actividad
-// reciente, cobertura de provisión, días promedio de mora, deltas "vs.
-// mes anterior") se marcan "Próximamente" — ver
-// CarteraProximamentePlaceholder.vue.
+// dashboard.porEtapa[prejuridica], no pide otra vez la base de datos) y
+// cartera-actividad-reciente (feed de alta de pago/promesa/acuerdo/caso
+// jurídico, fn_actividad_reciente_cartera 20260823170000). La única
+// pieza sin backend hoy (cobertura de provisión — sin concepto de
+// provisión contable en el esquema, decisión explícita del usuario) se
+// marca "Próximamente" inline.
 //
 // Imports explícitos — el auto-import de Nuxt no recogió estos
 // componentes en el dev server de esta sesión tras crearlos/renombrarlos
 // (CarteraEvolucionChart: EvolucionCarteraChart.vue → EvolucionChart.vue;
 // CarteraBarrasEtapa: componente nuevo); el resto de la carpeta sí se
-// auto-importa con normalidad (CarteraDonutAntiguedad,
-// CarteraProximamentePlaceholder). Se pueden quitar una vez confirmado
-// que un reinicio limpio del dev server los resuelve solo.
+// auto-importa con normalidad (CarteraDonutAntiguedad). Se pueden quitar
+// una vez confirmado que un reinicio limpio del dev server los resuelve
+// solo.
 import CarteraEvolucionChart from '~/components/cartera/EvolucionChart.vue'
 import CarteraBarrasEtapa from '~/components/cartera/BarrasEtapa.vue'
 
@@ -65,6 +66,7 @@ async function cargar(): Promise<void> {
       carteraStore.cargarEvolucion(tenantId, fechaCorte.value),
       carteraStore.cargarAlertas(tenantId, fechaCorte.value),
       carteraStore.cargarRecaudo(tenantId, fechaDesdeRecaudo(fechaCorte.value), fechaCorte.value),
+      carteraStore.cargarActividadReciente(tenantId),
     ])
   } catch (e) {
     errorCarga.value = e instanceof Error ? e.message : 'No se pudo cargar el dashboard de cartera.'
@@ -88,6 +90,13 @@ function formatoMoneda(valor: string | number): string {
 
 function formatoPct(valor: number): string {
   return `${valor.toFixed(1)}%`
+}
+
+// null = indeterminado (denominador cero, ej. sin acciones ejecutadas en
+// el período) — nunca se muestra como "0%", eso implicaría "cero
+// efectividad" cuando en realidad no hubo base para medir.
+function formatoPctONull(valor: number | null | undefined): string {
+  return valor === null || valor === undefined ? '—' : formatoPct(valor)
 }
 
 const tarjetas = computed(() => carteraStore.dashboard?.tarjetas ?? null)
@@ -141,6 +150,12 @@ const indicadoresClave = computed(() => [
   { label: 'Inmuebles en mora', valor: String(inmueblesEnMora.value) },
 ])
 
+// null = indeterminado (sin inmuebles en mora) — nunca "0 días".
+const diasPromedioMora = computed(() => {
+  const dias = carteraStore.dashboard?.diasPromedioMora
+  return dias === null || dias === undefined ? '—' : `${dias.toFixed(0)} días`
+})
+
 // CAR §11 — las 5 etapas REALES de cartera_etapas/F6, en el orden de la
 // máquina de estados (no alfabético). Colores como gradiente de
 // severidad (azul = sano, rojo oscuro = ya en vía judicial).
@@ -176,6 +191,24 @@ const casosProximosRemision = computed(() => {
   const prejuridica = (carteraStore.dashboard?.porEtapa ?? []).find((e) => e.etapa === 'prejuridica')
   return { cantidad: prejuridica?.cantidadInmuebles ?? 0, monto: Number(prejuridica?.monto ?? 0) }
 })
+
+// CAR §23.5 (frontend) — un ícono/etiqueta por tipo de evento de gestión
+// registrado (fn_actividad_reciente_cartera, 20260823170000).
+const ETIQUETAS_EVENTO: Record<string, { label: string; icono: string; color: string }> = {
+  pago: { label: 'Pago registrado', icono: 'i-lucide-circle-dollar-sign', color: 'text-green-600 dark:text-green-400' },
+  promesa: { label: 'Promesa de pago', icono: 'i-lucide-handshake', color: 'text-amber-600 dark:text-amber-400' },
+  acuerdo: { label: 'Acuerdo de pago', icono: 'i-lucide-file-signature', color: 'text-blue-600 dark:text-blue-400' },
+  caso_juridico: { label: 'Caso jurídico', icono: 'i-lucide-gavel', color: 'text-purple-600 dark:text-purple-400' },
+}
+
+const actividadReciente = computed(() =>
+  carteraStore.actividadReciente.map((e) => ({
+    ...e,
+    label: ETIQUETAS_EVENTO[e.tipo]?.label ?? e.tipo,
+    icono: ETIQUETAS_EVENTO[e.tipo]?.icono ?? 'i-lucide-activity',
+    color: ETIQUETAS_EVENTO[e.tipo]?.color ?? 'text-gray-500',
+  })),
+)
 
 const alertas = computed(() => {
   const a = carteraStore.alertas
@@ -295,13 +328,16 @@ const alertas = computed(() => {
               <span class="text-gray-500">{{ ind.label }}</span>
               <span class="font-semibold">{{ ind.valor }}</span>
             </li>
-            <li class="flex items-center justify-between text-gray-400">
-              <span>Efectividad de cobranza (mes)</span>
-              <span class="text-xs italic">Próximamente</span>
+            <li class="flex items-center justify-between">
+              <span class="text-gray-500">Efectividad de cobranza (mes)</span>
+              <span v-if="carteraStore.recaudo" class="font-semibold">
+                {{ formatoPctONull(carteraStore.recaudo.collectionEffectiveness) }}
+              </span>
+              <span v-else class="text-xs italic text-gray-400">Cargando…</span>
             </li>
-            <li class="flex items-center justify-between text-gray-400">
-              <span>Días promedio de mora</span>
-              <span class="text-xs italic">Próximamente</span>
+            <li class="flex items-center justify-between">
+              <span class="text-gray-500">Días promedio de mora</span>
+              <span class="font-semibold">{{ diasPromedioMora }}</span>
             </li>
             <li class="flex items-center justify-between text-gray-400">
               <span>Cobertura de provisión</span>
@@ -347,7 +383,22 @@ const alertas = computed(() => {
             </li>
           </ul>
         </div>
-        <CarteraProximamentePlaceholder titulo="Actividad reciente en cartera" />
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+          <h2 class="mb-4 text-sm font-semibold">Actividad reciente en cartera</h2>
+          <p v-if="actividadReciente.length === 0" class="text-sm text-gray-400">Sin actividad reciente registrada.</p>
+          <ul v-else class="space-y-3">
+            <li v-for="(a, i) in actividadReciente" :key="`${a.tipo}-${a.inmuebleId}-${a.fecha}-${i}`" class="flex items-center gap-3 text-sm">
+              <UIcon :name="a.icono" :class="['h-5 w-5 shrink-0', a.color]" />
+              <span class="flex-1 text-gray-600 dark:text-gray-300">
+                {{ a.label }} · {{ a.codigo }}
+              </span>
+              <span class="text-right">
+                <span class="font-semibold">{{ formatoMoneda(a.monto) }}</span>
+                <span class="ml-2 text-xs text-gray-400">{{ a.fecha }}</span>
+              </span>
+            </li>
+          </ul>
+        </div>
       </div>
     </template>
   </div>

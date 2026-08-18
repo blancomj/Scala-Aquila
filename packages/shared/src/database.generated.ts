@@ -4578,6 +4578,16 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_actividad_reciente_cartera: {
+        Args: { p_limite?: number; p_tenant_id: string }
+        Returns: {
+          codigo: string
+          fecha: string
+          inmueble_id: string
+          monto: number
+          tipo: string
+        }[]
+      }
       fn_alertas_cartera: {
         Args: { p_fecha_referencia: string; p_tenant_id: string }
         Returns: {

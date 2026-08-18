@@ -138,6 +138,33 @@ describe('calcularDashboardCartera', () => {
     expect(sumaPct).toBeCloseTo(100, 6)
   })
 
+  describe('diasPromedioMora', () => {
+    it('portafolio vacío: null (indeterminado, no cero)', () => {
+      const resultado = calcularDashboardCartera([], 'COP')
+      expect(resultado.diasPromedioMora).toBeNull()
+    })
+
+    it('todos al día (deuda vencida = 0): null, aunque diasMoraMaximo no sea 0', () => {
+      const resultado = calcularDashboardCartera(
+        [fila({ inmuebleId: 'i1', deudaVencida: money(0, 'COP'), diasMoraMaximo: 5 })],
+        'COP',
+      )
+      expect(resultado.diasPromedioMora).toBeNull()
+    })
+
+    it('promedio simple sobre inmuebles con deuda vencida > 0, ignora los al día', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({ inmuebleId: 'i1', deudaVencida: money(100, 'COP'), diasMoraMaximo: 30 }),
+          fila({ inmuebleId: 'i2', deudaVencida: money(200, 'COP'), diasMoraMaximo: 90 }),
+          fila({ inmuebleId: 'i3', deudaVencida: money(0, 'COP'), diasMoraMaximo: 0 }),
+        ],
+        'COP',
+      )
+      expect(resultado.diasPromedioMora).toBe(60)
+    })
+  })
+
   describe('porEtapa', () => {
     it('portafolio vacío: las 5 etapas reales presentes, todo en cero', () => {
       const resultado = calcularDashboardCartera([], 'COP')

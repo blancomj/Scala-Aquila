@@ -39,11 +39,27 @@ const gruposVisibles = computed(() =>
 function activo(to: string): boolean {
   return route.path === to || route.path.startsWith(`${to}/`)
 }
+
+// Sidebar oscuro fijo (no sigue el tema claro/oscuro de la app, a
+// propósito — mismo criterio que el diseño de referencia: el sidebar es
+// una franja de marca, no contenido). Un color de ícono por grupo, para
+// escanear visualmente la sección sin leer la etiqueta — el ítem activo
+// siempre pasa a blanco sobre el pill sólido, sin importar su color de
+// grupo (la coloración es solo para el estado inactivo).
+const COLOR_ICONO_GRUPO: Record<string, string> = {
+  Cartera: 'text-blue-400',
+  'Cuenta corriente': 'text-emerald-400',
+  Presupuesto: 'text-violet-400',
+  Configuración: 'text-slate-400',
+  Administración: 'text-amber-400',
+}
+const COLOR_ICONO_TOP = 'text-cyan-400'
+const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
 </script>
 
 <template>
   <aside
-    class="shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex flex-col transition-[width] duration-150"
+    class="shrink-0 bg-slate-900 flex flex-col transition-[width] duration-150"
     :class="colapsado ? 'w-14' : 'w-56'"
   >
     <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-4">
@@ -55,8 +71,8 @@ function activo(to: string): boolean {
           class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
           :class="
             activo(item.to)
-              ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 font-medium'
-              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
+              ? 'bg-indigo-600 text-white font-medium'
+              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
           "
           :title="colapsado ? item.label : undefined"
         >
@@ -68,6 +84,7 @@ function activo(to: string): boolean {
             stroke-linecap="round"
             stroke-linejoin="round"
             class="w-4 h-4 shrink-0"
+            :class="activo(item.to) ? 'text-white' : COLOR_ICONO_TOP"
           >
             <path :d="item.icono" />
           </svg>
@@ -82,7 +99,7 @@ function activo(to: string): boolean {
           class="w-full flex items-center justify-between px-2 mb-1 group"
           @click="toggleGrupo(grupo.titulo)"
         >
-          <span class="text-[10.5px] uppercase tracking-wide text-gray-400 font-mono">
+          <span class="text-[10.5px] uppercase tracking-wide text-slate-500 font-mono">
             {{ grupo.titulo }}
           </span>
           <svg
@@ -92,7 +109,7 @@ function activo(to: string): boolean {
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-transform"
+            class="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-transform"
             :class="gruposCerrados.includes(grupo.titulo) ? '-rotate-90' : ''"
           >
             <path d="M6 9l6 6 6-6" />
@@ -109,8 +126,8 @@ function activo(to: string): boolean {
             class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
             :class="
               activo(item.to)
-                ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 font-medium'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
+                ? 'bg-indigo-600 text-white font-medium'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
             "
             :title="colapsado ? item.label : undefined"
           >
@@ -122,6 +139,7 @@ function activo(to: string): boolean {
               stroke-linecap="round"
               stroke-linejoin="round"
               class="w-4 h-4 shrink-0"
+              :class="activo(item.to) ? 'text-white' : (COLOR_ICONO_GRUPO[grupo.titulo] ?? 'text-slate-400')"
             >
               <path :d="item.icono" />
             </svg>
@@ -130,14 +148,14 @@ function activo(to: string): boolean {
         </div>
       </div>
 
-      <div v-if="authStore.isPlatformAdmin" class="pt-2 border-t border-gray-200 dark:border-gray-800">
+      <div v-if="authStore.isPlatformAdmin" class="pt-2 border-t border-slate-800">
         <NuxtLink
           :to="NAV_PLATAFORMA.to"
           class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
           :class="
             activo(NAV_PLATAFORMA.to)
-              ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 font-medium'
-              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
+              ? 'bg-indigo-600 text-white font-medium'
+              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
           "
           :title="colapsado ? NAV_PLATAFORMA.label : undefined"
         >
@@ -149,6 +167,7 @@ function activo(to: string): boolean {
             stroke-linecap="round"
             stroke-linejoin="round"
             class="w-4 h-4 shrink-0"
+            :class="activo(NAV_PLATAFORMA.to) ? 'text-white' : COLOR_ICONO_PLATAFORMA"
           >
             <path :d="NAV_PLATAFORMA.icono" />
           </svg>
@@ -159,7 +178,7 @@ function activo(to: string): boolean {
 
     <button
       type="button"
-      class="flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border-t border-gray-200 dark:border-gray-800 py-2"
+      class="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 border-t border-slate-800 py-2"
       :title="colapsado ? 'Expandir' : 'Colapsar'"
       @click="colapsado = !colapsado"
     >

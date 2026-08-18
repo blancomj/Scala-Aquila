@@ -149,7 +149,13 @@ export interface IndicadoresGestion {
   readonly agreementFulfillmentRate: number | null
 }
 
-function pctEnteroONull(numerador: number, denominador: number): number | null {
+/**
+ * Porcentaje entero con "denominador cero = indeterminado (null)" —
+ * genérico, reutilizado fuera de este módulo (ej. Efectividad de
+ * cobranza en cartera-recaudo, mismo cálculo que collectionEffectiveness
+ * aquí, sin duplicar la fórmula — REC-CAR-004).
+ */
+export function pctEnteroONull(numerador: number, denominador: number): number | null {
   if (denominador === 0) return null
   return (numerador / denominador) * 100
 }

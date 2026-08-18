@@ -89,6 +89,13 @@ export interface DashboardCartera {
   readonly tarjetas: TarjetasCartera
   readonly antiguedad: readonly TramoAntiguedad[]
   readonly porEtapa: readonly EtapaCarteraResumen[]
+  /**
+   * Promedio simple de diasMoraMaximo sobre inmuebles con deuda vencida >
+   * 0 (mismo filtro que calcularTopInmueblesCartera — uno al día no
+   * compite). null si ningún inmueble está en mora (indeterminado, no
+   * "cero días").
+   */
+  readonly diasPromedioMora: number | null
 }
 
 /** Orden fijo de presentación — el mismo orden de la máquina de estados (CAR §11.1), no alfabético. */
@@ -172,6 +179,12 @@ export function calcularDashboardCartera(
 
   const carteraCorriente = fos.restar(carteraTotal, carteraVencida)
 
+  const filasEnMora = filas.filter((f) => !isZeroMoney(f.deudaVencida))
+  const diasPromedioMora =
+    filasEnMora.length === 0
+      ? null
+      : filasEnMora.reduce((acc, f) => acc + f.diasMoraMaximo, 0) / filasEnMora.length
+
   const antiguedad: TramoAntiguedad[] = TRAMOS_ANTIGUEDAD.map((t) => {
     const acumulado = porTramo.get(t.codigo) ?? { cantidad: 0, monto: money(0, moneda) }
     const pctDelTotal = isZeroMoney(carteraVencida)
@@ -214,6 +227,7 @@ export function calcularDashboardCartera(
     },
     antiguedad,
     porEtapa,
+    diasPromedioMora,
   }
 }
 

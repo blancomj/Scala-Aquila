@@ -10,11 +10,10 @@
  * Recaudo del mes reutiliza fn_indicadores_gestion directo (sin ese
  * gate), no cartera-indicadores completa.
  *
- * Piezas sin backend hoy (efectividad de cobranza, actividad reciente,
- * cobertura de provisión, días promedio de mora, deltas "vs. mes
- * anterior") quedan documentadas como pendientes en la página —
- * decisión del usuario (2026-08-17): "próximamente" visible, no
- * inventar ni ocultar silenciosamente.
+ * Piezas sin backend hoy (cobertura de provisión, deltas "vs. mes
+ * anterior") quedan documentadas como pendientes en la página. Cobertura
+ * de provisión queda "próximamente" definitivo (no existe concepto de
+ * provisión contable en el esquema — decisión explícita del usuario).
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -61,6 +60,7 @@ export interface DashboardCarteraDTO {
   antiguedad: TramoAntiguedadDTO[]
   porEtapa: EtapaCarteraDTO[]
   topInmuebles: InmuebleTopDTO[]
+  diasPromedioMora: number | null
 }
 
 export interface PuntoEvolucionDTO {
@@ -77,6 +77,7 @@ export interface RecaudoDTO {
   fechaDesde: string
   fechaHasta: string
   montoRecaudado: string
+  collectionEffectiveness: number | null
 }
 
 export interface AlertasDTO {
@@ -89,11 +90,22 @@ export interface AlertasDTO {
   cuotasAcuerdoVencidasMonto: string
 }
 
+export type TipoEventoActividadDTO = 'pago' | 'promesa' | 'acuerdo' | 'caso_juridico'
+
+export interface EventoActividadDTO {
+  tipo: TipoEventoActividadDTO
+  fecha: string
+  inmuebleId: string
+  codigo: string
+  monto: string
+}
+
 export const useCarteraStore = defineStore('cartera', () => {
   const dashboard = shallowRef<DashboardCarteraDTO | null>(null)
   const evolucion = shallowRef<PuntoEvolucionDTO[]>([])
   const recaudo = shallowRef<RecaudoDTO | null>(null)
   const alertas = shallowRef<AlertasDTO | null>(null)
+  const actividadReciente = shallowRef<EventoActividadDTO[]>([])
   const loading = ref(false)
 
   async function cargarDashboard(
@@ -159,11 +171,24 @@ export const useCarteraStore = defineStore('cartera', () => {
     return data
   }
 
+  async function cargarActividadReciente(tenantId: string, limite = 15): Promise<EventoActividadDTO[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<{ eventos: EventoActividadDTO[] }>(
+      'cartera-actividad-reciente',
+      { body: { tenant_id: tenantId, limite } },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('cartera-actividad-reciente no devolvió datos.')
+    actividadReciente.value = data.eventos
+    return data.eventos
+  }
+
   function limpiar(): void {
     dashboard.value = null
     evolucion.value = []
     recaudo.value = null
     alertas.value = null
+    actividadReciente.value = []
   }
 
   return {
@@ -171,11 +196,13 @@ export const useCarteraStore = defineStore('cartera', () => {
     evolucion,
     recaudo,
     alertas,
+    actividadReciente,
     loading,
     cargarDashboard,
     cargarEvolucion,
     cargarRecaudo,
     cargarAlertas,
+    cargarActividadReciente,
     limpiar,
   }
 })

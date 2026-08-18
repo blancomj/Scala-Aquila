@@ -161,6 +161,7 @@ export {
   calcularRollRatePorTramo,
   calcularIndicadoresGestion,
   calcularIndicadoresLegales,
+  pctEnteroONull,
   type FilaSnapshotIndicador,
   type TramoOrdenado,
   type RollRateTramo,
@@ -186,6 +187,12 @@ export {
 } from './cartera-evolucion-supabase.js'
 
 export { obtenerRawAlertasCartera, type RawAlertasCartera } from './cartera-alertas-supabase.js'
+
+export {
+  obtenerActividadRecienteCartera,
+  type EventoActividadCartera,
+  type TipoEventoActividadCartera,
+} from './cartera-actividad-reciente-supabase.js'
 
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
