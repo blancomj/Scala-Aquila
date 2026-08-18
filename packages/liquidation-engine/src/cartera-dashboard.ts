@@ -70,10 +70,28 @@ export interface TramoAntiguedad {
   readonly pctDelTotal: number
 }
 
+/**
+ * Distribución de cartera vencida por etapa GOBERNADA de cobranza (CAR
+ * §11, cartera_etapas/F6) — las 5 etapas REALES de la máquina de
+ * estados, no un catálogo aparte. "monto" es deuda VENCIDA (mismo
+ * criterio que los tramos de antigüedad); pctDelTotal es relativo a
+ * carteraVencida, así que los 5 valores suman exactamente 100%.
+ */
+export interface EtapaCarteraResumen {
+  readonly etapa: EtapaCobranza
+  readonly cantidadInmuebles: number
+  readonly monto: Money
+  readonly pctDelTotal: number
+}
+
 export interface DashboardCartera {
   readonly tarjetas: TarjetasCartera
   readonly antiguedad: readonly TramoAntiguedad[]
+  readonly porEtapa: readonly EtapaCarteraResumen[]
 }
+
+/** Orden fijo de presentación — el mismo orden de la máquina de estados (CAR §11.1), no alfabético. */
+const ETAPAS_ORDEN: readonly EtapaCobranza[] = ['preventiva', 'administrativa', 'prejuridica', 'juridica', 'judicial']
 
 interface DefinicionTramo {
   readonly codigo: CodigoTramoAntiguedad
@@ -117,6 +135,9 @@ export function calcularDashboardCartera(
   const porTramo = new Map<CodigoTramoAntiguedad, { cantidad: number; monto: Money }>(
     TRAMOS_ANTIGUEDAD.map((t) => [t.codigo, { cantidad: 0, monto: money(0, moneda) }]),
   )
+  const porEtapaMap = new Map<EtapaCobranza, { cantidad: number; monto: Money }>(
+    ETAPAS_ORDEN.map((e) => [e, { cantidad: 0, monto: money(0, moneda) }]),
+  )
 
   for (const fila of filas) {
     carteraTotal = fos.sumar(carteraTotal, fila.deudaTotal)
@@ -138,6 +159,14 @@ export function calcularDashboardCartera(
         monto: fos.sumar(acumulado.monto, fila.deudaVencida),
       })
     }
+
+    const acumuladoEtapa = porEtapaMap.get(fila.etapaCobranza)
+    if (acumuladoEtapa) {
+      porEtapaMap.set(fila.etapaCobranza, {
+        cantidad: acumuladoEtapa.cantidad + 1,
+        monto: fos.sumar(acumuladoEtapa.monto, fila.deudaVencida),
+      })
+    }
   }
 
   const carteraCorriente = fos.restar(carteraTotal, carteraVencida)
@@ -157,6 +186,19 @@ export function calcularDashboardCartera(
     }
   })
 
+  const porEtapa: EtapaCarteraResumen[] = ETAPAS_ORDEN.map((etapa) => {
+    const acumulado = porEtapaMap.get(etapa) ?? { cantidad: 0, monto: money(0, moneda) }
+    const pctDelTotal = isZeroMoney(carteraVencida)
+      ? 0
+      : fos.dividirDecimales(acumulado.monto.amount, carteraVencida.amount).times(100).toNumber()
+    return {
+      etapa,
+      cantidadInmuebles: acumulado.cantidad,
+      monto: acumulado.monto,
+      pctDelTotal,
+    }
+  })
+
   return {
     tarjetas: {
       carteraTotal,
@@ -170,5 +212,6 @@ export function calcularDashboardCartera(
       saldosAFavor,
     },
     antiguedad,
+    porEtapa,
   }
 }

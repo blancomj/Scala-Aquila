@@ -4654,6 +4654,14 @@ export type Database = {
           saldo_credito: number
         }[]
       }
+      fn_evolucion_cartera_vencida: {
+        Args: { p_fecha_hasta: string; p_meses?: number; p_tenant_id: string }
+        Returns: {
+          deuda_vencida: number
+          fecha_snapshot: string
+          mes: string
+        }[]
+      }
       fn_guardar_plantilla_email: {
         Args: {
           p_event_type: string

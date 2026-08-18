@@ -136,4 +136,62 @@ describe('calcularDashboardCartera', () => {
     const sumaPct = resultado.antiguedad.reduce((acc, t) => acc + t.pctDelTotal, 0)
     expect(sumaPct).toBeCloseTo(100, 6)
   })
+
+  describe('porEtapa', () => {
+    it('portafolio vacío: las 5 etapas reales presentes, todo en cero', () => {
+      const resultado = calcularDashboardCartera([], 'COP')
+      expect(resultado.porEtapa.map((e) => e.etapa)).toEqual([
+        'preventiva',
+        'administrativa',
+        'prejuridica',
+        'juridica',
+        'judicial',
+      ])
+      for (const etapa of resultado.porEtapa) {
+        expect(etapa.cantidadInmuebles).toBe(0)
+        expect(etapa.monto).toEqual(money(0, 'COP'))
+        expect(etapa.pctDelTotal).toBe(0)
+      }
+    })
+
+    it('juridica y judicial quedan SEPARADAS aquí, a diferencia de la tarjeta carteraJuridica que las suma', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({ inmuebleId: 'ij1', deudaVencida: money(2_000, 'COP'), deudaTotal: money(2_000, 'COP'), etapaCobranza: 'juridica' }),
+          fila({ inmuebleId: 'ij2', deudaVencida: money(3_000, 'COP'), deudaTotal: money(3_000, 'COP'), etapaCobranza: 'judicial' }),
+        ],
+        'COP',
+      )
+      const juridica = resultado.porEtapa.find((e) => e.etapa === 'juridica')
+      const judicial = resultado.porEtapa.find((e) => e.etapa === 'judicial')
+      expect(juridica?.monto).toEqual(money(2_000, 'COP'))
+      expect(judicial?.monto).toEqual(money(3_000, 'COP'))
+      expect(resultado.tarjetas.carteraJuridica).toEqual(money(5_000, 'COP'))
+    })
+
+    it('cada inmueble cuenta en exactamente una etapa (la que trae etapaCobranza)', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({ inmuebleId: 'i1', deudaVencida: money(100, 'COP'), deudaTotal: money(100, 'COP'), etapaCobranza: 'preventiva' }),
+          fila({ inmuebleId: 'i2', deudaVencida: money(200, 'COP'), deudaTotal: money(200, 'COP'), etapaCobranza: 'administrativa' }),
+          fila({ inmuebleId: 'i3', deudaVencida: money(300, 'COP'), deudaTotal: money(300, 'COP'), etapaCobranza: 'prejuridica' }),
+        ],
+        'COP',
+      )
+      const totalInmuebles = resultado.porEtapa.reduce((acc, e) => acc + e.cantidadInmuebles, 0)
+      expect(totalInmuebles).toBe(3)
+    })
+
+    it('pctDelTotal de las 5 etapas suma 100% cuando hay cartera vencida', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({ inmuebleId: 'i1', deudaVencida: money(400, 'COP'), deudaTotal: money(400, 'COP'), etapaCobranza: 'administrativa' }),
+          fila({ inmuebleId: 'i2', deudaVencida: money(600, 'COP'), deudaTotal: money(600, 'COP'), etapaCobranza: 'judicial' }),
+        ],
+        'COP',
+      )
+      const sumaPct = resultado.porEtapa.reduce((acc, e) => acc + e.pctDelTotal, 0)
+      expect(sumaPct).toBeCloseTo(100, 6)
+    })
+  })
 })

@@ -177,6 +177,11 @@ export {
 
 export { obtenerPanelAccionesCartera, type PanelAccionesCartera } from './cartera-panel-acciones-supabase.js'
 
+export {
+  obtenerEvolucionCarteraVencida,
+  type PuntoEvolucionCarteraVencida,
+} from './cartera-evolucion-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

@@ -1,8 +1,12 @@
 // CAR F9 — Dashboard e indicadores (§23.1/§23.2). Compone fn_dashboard_
 // cartera (20260823100000) + calcularDashboardCartera() (packages/
-// liquidation-engine) para exponer las 9 tarjetas principales y la
-// distribución por antigüedad (8 tramos fijos) a una fecha de corte
-// explícita (AD-32 — nunca Date.now() implícito).
+// liquidation-engine) para exponer las 9 tarjetas principales, la
+// distribución por antigüedad (8 tramos fijos) y la distribución por
+// etapa de cobranza (5 etapas reales de cartera_etapas/F6 — pieza del
+// frontend, 2026-08-17) a una fecha de corte explícita (AD-32 — nunca
+// Date.now() implícito). porEtapa no exigió una migración nueva: cada
+// fila de fn_dashboard_cartera ya trae etapa_cobranza, solo hacía falta
+// agruparla en TS (REC-CAR-004).
 //
 // REC-CAR-004: la agregación por inmueble vive en fn_dashboard_cartera
 // (SQL) y el armado de tarjetas/antigüedad en calcularDashboardCartera()
@@ -114,6 +118,12 @@ export default {
           cantidadInmuebles: t.cantidadInmuebles,
           monto: t.monto.amount.toString(),
           pctDelTotal: t.pctDelTotal,
+        })),
+        porEtapa: dashboard.porEtapa.map((e) => ({
+          etapa: e.etapa,
+          cantidadInmuebles: e.cantidadInmuebles,
+          monto: e.monto.amount.toString(),
+          pctDelTotal: e.pctDelTotal,
         })),
       },
       200,

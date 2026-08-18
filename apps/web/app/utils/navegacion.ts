@@ -43,6 +43,7 @@ export const NAV_ICONOS = {
     'M9 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5M16 8a3 3 0 1 1 0 6M17.5 14.5c2.3.4 3.9 1.8 4.5 4.5',
   auditoria: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM21 21l-4.3-4.3',
   plataforma: 'M4 6h16M4 6v11a2 2 0 0 0 2 2h4M4 6l2.5-3h11L20 6M20 6v6M15 21l3-3-3-3M13 18h7',
+  carteraDashboard: 'M4 19V9M10 19V5M16 19v-7M4 19h16',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -61,6 +62,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
   {
     titulo: 'Cartera',
     items: [
+      {
+        label: 'Dashboard de Cartera',
+        to: '/cartera',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
       { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
       { label: 'Terceros', to: '/terceros', permiso: 'data:read', icono: NAV_ICONOS.terceros },
     ],
