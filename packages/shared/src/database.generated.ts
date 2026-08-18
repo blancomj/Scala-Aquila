@@ -4498,6 +4498,33 @@ export type Database = {
           out_tenant_id: string
         }[]
       }
+      admin_actualizar_perfil_miembro: {
+        Args: {
+          p_actor_id: string
+          p_full_name: string
+          p_membership_id: string
+          p_phone: string
+          p_status: Database["public"]["Enums"]["user_status_t"]
+        }
+        Returns: {
+          active_tenant_id: string | null
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          is_platform_admin: boolean
+          phone: string | null
+          status: Database["public"]["Enums"]["user_status_t"]
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cartera_etapa_requiere_aprobacion: {
         Args: {
           p_desde: Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -4717,6 +4744,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_panel_acciones_cartera: {
+        Args: { p_fecha_referencia: string; p_tenant_id: string }
+        Returns: {
+          acciones_fallidas: number
+          acciones_pendientes_aprobacion: number
+          acciones_programadas_hoy: number
+          casos_juridicos_sin_actuacion_30d: number
+          certificaciones_por_vencer: number
+          cuotas_acuerdo_vencen_semana: number
+          llamadas_pendientes: number
+          promesas_vencen_hoy: number
+        }[]
+      }
       fn_posicion_cartera: {
         Args: {
           p_fecha_corte: string
@@ -4851,6 +4891,33 @@ export type Database = {
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       purge_audit_log_antiguo: { Args: never; Returns: undefined }
+      resend_invitation: {
+        Args: {
+          p_expires_at: string
+          p_invitation_id: string
+          p_token_hash: string
+        }
+        Returns: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["tenant_role_t"]
+          status: Database["public"]["Enums"]["invite_status_t"]
+          tenant_id: string
+          token_hash: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invitations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       revoke_invitation: {
         Args: { p_invitation_id: string }
         Returns: undefined

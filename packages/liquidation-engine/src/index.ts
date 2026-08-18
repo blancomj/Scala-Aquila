@@ -175,6 +175,8 @@ export {
   type SnapshotIndicador,
 } from './cartera-indicadores-supabase.js'
 
+export { obtenerPanelAccionesCartera, type PanelAccionesCartera } from './cartera-panel-acciones-supabase.js'
+
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 
 export {

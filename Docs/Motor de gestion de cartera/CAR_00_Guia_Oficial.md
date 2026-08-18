@@ -3388,18 +3388,61 @@ Entregables  · fn_dashboard_cartera ✅ (20260823100000_cartera_dashboard_
                autenticado para esos dos INSERT, no solo el cliente
                admin. 3 tests de integración HTTP real, 11 indicadores
                verificados contra la BD real en una sola corrida.)
-             · §23.4 (transiciones críticas), §23.5 (panel de acciones) —
-               pendientes; cierran F9.
+             · §23.4 (transiciones críticas a vigilar) — sin entregable
+               propio: es guía de LECTURA de Roll Rate por tramo [ya
+               construido, F9 parte 2], no un cálculo nuevo. No se
+               inventa un endpoint para algo que ya se responde con
+               `rollRatePorTramo`.
+             · fn_panel_acciones_cartera ✅ (20260823140000_cartera_
+               panel_acciones_fn.sql — 8 conteos de las colas de trabajo
+               de §23.5. Decisión de alcance del usuario [2026-08-17]:
+               solo conteos [badges de dashboard], no las filas de
+               detalle de cada cola — el frontend consulta las tablas
+               directamente [RLS ya lo permite] cuando el usuario entra
+               a una cola. p_fecha_referencia explícito [nunca now()/
+               current_date embebido], mismo criterio de testabilidad
+               que fecha_desde/fecha_hasta en el resto de F9.
+               Interpretaciones documentadas en la cabecera de la
+               migración porque la guía nombra las 8 colas pero no
+               precisa el filtro exacto: "llamadas pendientes" =
+               tipo_accion='llamada' y estado en [programada,
+               ejecutando] [excluye pendiente_aprobacion, ya contada en
+               su propia cola]; "cuotas que vencen esta semana" = 7 días
+               desde fecha_referencia [inclusive], estado en [pendiente,
+               parcial]; "casos sin actuación en 30 días" excluye
+               estados terminales y usa fecha_remision cuando nunca hubo
+               actuación registrada; "certificaciones por vencer" es un
+               GAP real resuelto con decisión de negocio explícita del
+               usuario [2026-08-17]: certificaciones_deuda no tiene
+               ninguna columna de vigencia/vencimiento ni la guía
+               documenta una política — se usa antigüedad de fecha_corte
+               ≥ 30 días sobre certificaciones vigentes.)
+             · Edge Function `cartera-panel-acciones` ✅ (nueva, no
+               extiende `cartera-indicadores` — payload distinto
+               [fecha_referencia, no fecha_desde/fecha_hasta], concepto
+               distinto [colas de trabajo, no indicadores de período].
+               obtenerPanelAccionesCartera() no tiene un paso de cálculo
+               puro separado [cartera-panel-acciones-supabase.ts] — los
+               8 conteos de la función SQL SON la respuesta final, sin
+               ratio ni política de denominador-cero que aplicar encima
+               [REC-CAR-004: no se inventa una abstracción sin lógica
+               que envolver]. 2 tests de integración HTTP real: cada
+               cola lleva al menos una fila que cuenta y una que no
+               [control negativo de estado/fecha/vigencia], 8 conteos
+               verificados contra la BD real.)
 Golden Cases PH-C34 ✅ (verificado contra la BD real — un agent de otro
              tenant recibe 403, nunca ve datos agregados de un tenant que
              no es el suyo). PH-C35 diferido: ver §21.4 / AD-26.
-Salida       §23.1/§23.2 completos. Los 11 indicadores de §23.3
-             completos y reproducibles [Overdue Portfolio %, Roll Rate,
-             Cure Rate, Recovery Rate, Collection Effectiveness, Promise/
-             Agreement Fulfillment Rate, Legal Referral Rate, Legal
-             Recovery Rate, Average Days to Recovery, Cost to Collect —
-             este último parcial, sin costo de acciones_cobranza]. Queda
-             §23.5 [panel de acciones/colas] para cerrar F9.
+Salida       F9 completo. §23.1/§23.2 completos. Los 11 indicadores de
+             §23.3 completos y reproducibles [Overdue Portfolio %, Roll
+             Rate, Cure Rate, Recovery Rate, Collection Effectiveness,
+             Promise/Agreement Fulfillment Rate, Legal Referral Rate,
+             Legal Recovery Rate, Average Days to Recovery, Cost to
+             Collect — este último parcial, sin costo de
+             acciones_cobranza]. §23.4 cubierto por lectura de Roll Rate
+             [sin entregable propio]. §23.5 completo [8 conteos del
+             panel de acciones]. F9 — y con él, F1-F9 completo — cierra
+             aquí.
 ```
 
 ## 28.1 Grafo de dependencias

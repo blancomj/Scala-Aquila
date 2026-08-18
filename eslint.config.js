@@ -165,6 +165,7 @@ export default tseslint.config(
       'packages/liquidation-engine/src/cartera-job-supabase.ts',
       'packages/liquidation-engine/src/cartera-dashboard-supabase.ts',
       'packages/liquidation-engine/src/cartera-indicadores-supabase.ts',
+      'packages/liquidation-engine/src/cartera-panel-acciones-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',
