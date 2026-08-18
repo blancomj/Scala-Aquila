@@ -241,6 +241,13 @@ const alertas = computed(() => {
       icono: 'i-lucide-gavel',
       color: 'text-purple-600 dark:text-purple-400',
     },
+    {
+      label: 'Cargos sin fecha de vencimiento',
+      cantidad: a?.obligacionesSinVencimientoCantidad ?? 0,
+      monto: Number(a?.obligacionesSinVencimientoMonto ?? 0),
+      icono: 'i-lucide-calendar-x',
+      color: 'text-slate-600 dark:text-slate-400',
+    },
   ]
 })
 </script>

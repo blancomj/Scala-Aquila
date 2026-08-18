@@ -23,6 +23,8 @@ export interface TarjetasCarteraDTO {
   carteraTotal: string
   carteraVencida: string
   carteraCorriente: string
+  /** GAP-CAR-001: cargos sin fecha de vencimiento determinable — nunca fundidos en carteraCorriente. */
+  carteraSinVencimiento: string
   interesesCausados: string
   carteraMayor90: string
   carteraMayor180: string
@@ -88,6 +90,9 @@ export interface AlertasDTO {
   promesasPorVencerMonto: string
   cuotasAcuerdoVencidasCantidad: number
   cuotasAcuerdoVencidasMonto: string
+  /** GAP-CAR-001: cargos sin fecha de vencimiento determinable (ni propia ni de su periodo). */
+  obligacionesSinVencimientoCantidad: number
+  obligacionesSinVencimientoMonto: string
 }
 
 export type TipoEventoActividadDTO = 'pago' | 'promesa' | 'acuerdo' | 'caso_juridico'

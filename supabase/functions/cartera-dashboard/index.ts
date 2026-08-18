@@ -130,6 +130,7 @@ export default {
           carteraTotal: dashboard.tarjetas.carteraTotal.amount.toString(),
           carteraVencida: dashboard.tarjetas.carteraVencida.amount.toString(),
           carteraCorriente: dashboard.tarjetas.carteraCorriente.amount.toString(),
+          carteraSinVencimiento: dashboard.tarjetas.carteraSinVencimiento.amount.toString(),
           interesesCausados: dashboard.tarjetas.interesesCausados.amount.toString(),
           carteraMayor90: dashboard.tarjetas.carteraMayor90.amount.toString(),
           carteraMayor180: dashboard.tarjetas.carteraMayor180.amount.toString(),

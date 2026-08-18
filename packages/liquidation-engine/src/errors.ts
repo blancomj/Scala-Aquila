@@ -158,3 +158,23 @@ export class TramoClasificacionNoEncontradoError extends Error {
     this.name = 'TramoClasificacionNoEncontradoError'
   }
 }
+
+/**
+ * GAP-CAR-001 (CAR §4.4) — ni el cargo ni su periodo tienen fecha de
+ * vencimiento. Nunca se infiere un vencimiento por defecto: un vencimiento
+ * inventado produce una mora inventada, que produce un interés inventado
+ * cobrado a una persona real.
+ */
+export class PeriodoSinFechaVencimientoError extends Error {
+  constructor(
+    readonly cargoId: string,
+    readonly periodoId: string,
+  ) {
+    super(
+      `El cargo ${cargoId} no tiene fecha de vencimiento determinable: ni cargos.fecha_vencimiento ` +
+        `(override) ni periodos.fecha_vencimiento del periodo ${periodoId} están configurados ` +
+        `(CAR §4.4 GAP-CAR-001)`,
+    )
+    this.name = 'PeriodoSinFechaVencimientoError'
+  }
+}

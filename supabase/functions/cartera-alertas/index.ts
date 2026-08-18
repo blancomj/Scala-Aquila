@@ -1,13 +1,14 @@
 // Dashboard de Cartera (frontend, 2026-08-17) — "Alertas y pendientes".
-// Compone fn_alertas_cartera (20260823160000): obligaciones >90 días a
-// nivel de CARGO, promesas por vencer en 3 días, cuotas de acuerdo
-// vencidas. El cuarto ítem del diseño de referencia ("Casos próximos a
-// remisión jurídica") NO vive aquí — se deriva en el frontend de
-// dashboard.porEtapa[prejuridica] (Edge Function cartera-dashboard), ya
-// cargado para "Cartera por etapa de cobranza"; no se vuelve a
-// consultar la base de datos (REC-CAR-004). El quinto ítem
-// ("Notificaciones pendientes de envío") queda fuera de alcance por
-// completo — no es dominio de cartera, decisión del usuario.
+// Compone fn_alertas_cartera (20260823160000, extendida en 20260823180000):
+// obligaciones >90 días a nivel de CARGO, promesas por vencer en 3 días,
+// cuotas de acuerdo vencidas, y obligaciones sin fecha de vencimiento
+// determinable (GAP-CAR-001 — antes invisible, ni "vencida" ni
+// "corriente"). "Casos próximos a remisión jurídica" NO vive aquí — se
+// deriva en el frontend de dashboard.porEtapa[prejuridica] (Edge Function
+// cartera-dashboard), ya cargado para "Cartera por etapa de cobranza"; no
+// se vuelve a consultar la base de datos (REC-CAR-004). "Notificaciones
+// pendientes de envío" queda fuera de alcance por completo — no es
+// dominio de cartera, decisión del usuario.
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 // dist/index.js (compilado), no src/index.ts — mismo motivo que el
@@ -98,6 +99,8 @@ export default {
         promesasPorVencerMonto: raw.promesasPorVencerMonto.amount.toString(),
         cuotasAcuerdoVencidasCantidad: raw.cuotasAcuerdoVencidasCantidad,
         cuotasAcuerdoVencidasMonto: raw.cuotasAcuerdoVencidasMonto.amount.toString(),
+        obligacionesSinVencimientoCantidad: raw.obligacionesSinVencimientoCantidad,
+        obligacionesSinVencimientoMonto: raw.obligacionesSinVencimientoMonto.amount.toString(),
       },
       200,
       correlationId,

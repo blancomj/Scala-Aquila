@@ -28,6 +28,7 @@ export async function obtenerFilasDashboardCartera(
       codigo: fila.codigo,
       deudaTotal: money(fila.deuda_total, opciones.moneda),
       deudaVencida: money(fila.deuda_vencida, opciones.moneda),
+      deudaSinVencimiento: money(fila.deuda_sin_vencimiento, opciones.moneda),
       interesCausado: money(fila.interes_causado, opciones.moneda),
       saldoCredito: money(fila.saldo_credito, opciones.moneda),
       diasMoraMaximo: fila.dias_mora_maximo,

@@ -5,6 +5,7 @@
  */
 import type { AquilaClient } from '@aquila/shared'
 import { money, type Money } from '@aquila/financial-kernel'
+import { PeriodoSinFechaVencimientoError } from './errors.js'
 import { clavePeriodo } from './snapshot.js'
 import type {
   CargoAbierto,
@@ -29,7 +30,7 @@ export async function obtenerCargosAbiertos(
 
   const { data: filas, error } = await cliente
     .from('v_cargo_saldo')
-    .select('id, periodo_id, categoria, concepto_id, novedad_id, monto_pendiente')
+    .select('id, periodo_id, categoria, concepto_id, novedad_id, monto_pendiente, fecha_vencimiento')
     .eq('tenant_id', tenantId)
     .eq('inmueble_id', inmuebleId)
     .neq('monto_pendiente', 0)
@@ -83,18 +84,19 @@ export async function obtenerCargosAbiertos(
     if (!periodo) {
       throw new Error(`El cargo ${f.id} referencia un periodo inexistente (${f.periodo_id})`)
     }
-    if (periodo.fecha_vencimiento === null) {
-      throw new Error(
-        `El periodo ${periodo.id} no tiene fecha_vencimiento configurada — requerida ` +
-          `para el ledger de cuenta corriente`,
-      )
+    // GAP-CAR-001: cargos.fecha_vencimiento es un override opcional del
+    // vencimiento del periodo (cuotas con calendario propio) — la fecha
+    // efectiva es la del cargo si existe, si no la del periodo.
+    const fechaVencimientoEfectiva = f.fecha_vencimiento ?? periodo.fecha_vencimiento
+    if (fechaVencimientoEfectiva === null) {
+      throw new PeriodoSinFechaVencimientoError(f.id, periodo.id)
     }
     return {
       id: f.id,
       periodoClave: clavePeriodo({ id: periodo.id, anio: periodo.anio, mes: periodo.mes }),
       categoria: f.categoria as CategoriaCargo,
       conceptoPrioridad: f.concepto_id ? (conceptoPrioridadPorId.get(f.concepto_id) ?? null) : null,
-      fechaVencimiento: periodo.fecha_vencimiento,
+      fechaVencimiento: fechaVencimientoEfectiva,
       montoPendiente: money(f.monto_pendiente, moneda),
       novedadTipo: f.novedad_id
         ? ((tipoPorNovedadId.get(f.novedad_id) ?? null) as CargoAbierto['novedadTipo'])

@@ -503,6 +503,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id: string | null
           created_at: string
+          fecha_vencimiento: string | null
           id: string
           inmueble_id: string
           liquidacion_linea_id: string | null
@@ -517,6 +518,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
+          fecha_vencimiento?: string | null
           id?: string
           inmueble_id: string
           liquidacion_linea_id?: string | null
@@ -531,6 +533,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
+          fecha_vencimiento?: string | null
           id?: string
           inmueble_id?: string
           liquidacion_linea_id?: string | null
@@ -4201,6 +4204,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id: string | null
           created_at: string | null
+          fecha_vencimiento: string | null
           id: string | null
           inmueble_id: string | null
           liquidacion_linea_id: string | null
@@ -4216,6 +4220,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id?: string | null
           created_at?: string | null
+          fecha_vencimiento?: string | null
           id?: string | null
           inmueble_id?: string | null
           liquidacion_linea_id?: string | null
@@ -4231,6 +4236,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["cargo_categoria_t"] | null
           concepto_id?: string | null
           created_at?: string | null
+          fecha_vencimiento?: string | null
           id?: string | null
           inmueble_id?: string | null
           liquidacion_linea_id?: string | null
@@ -4595,6 +4601,8 @@ export type Database = {
           cuotas_acuerdo_vencidas_monto: number
           obligaciones_mayor_90_cantidad: number
           obligaciones_mayor_90_monto: number
+          obligaciones_sin_vencimiento_cantidad: number
+          obligaciones_sin_vencimiento_monto: number
           promesas_por_vencer_cantidad: number
           promesas_por_vencer_monto: number
         }[]
@@ -4667,6 +4675,7 @@ export type Database = {
         Returns: {
           codigo: string
           deuda_corriente: number
+          deuda_sin_vencimiento: number
           deuda_total: number
           deuda_vencida: number
           dias_mora_maximo: number

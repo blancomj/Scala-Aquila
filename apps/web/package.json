@@ -30,13 +30,16 @@
     "@nuxtjs/supabase": "^2.0.10",
     "@pinia/nuxt": "^1.0.2",
     "@supabase/supabase-js": "^2.112.3",
+    "apexcharts": "^6.9.0",
     "codemirror": "^6.0.2",
     "nuxt": "^4.5.2",
     "pinia": "^4.0.3",
     "vue": "^3.5.41",
-    "vue-router": "^5.2.0"
+    "vue-router": "^5.2.0",
+    "vue3-apexcharts": "^1.11.1"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.123",
     "@nuxt/eslint": "^1.17.0",
     "typescript": "^5.7.2",
     "vue-tsc": "^3.3.9"

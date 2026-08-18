@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { money } from '@aquila/financial-kernel'
+import * as fos from '@aquila/financial-kernel'
 import { calcularDashboardCartera, calcularTopInmueblesCartera, type FilaDashboardCartera } from './cartera-dashboard.js'
 
 function fila(over: Partial<FilaDashboardCartera> & { inmuebleId: string }): FilaDashboardCartera {
@@ -7,6 +8,7 @@ function fila(over: Partial<FilaDashboardCartera> & { inmuebleId: string }): Fil
     codigo: over.inmuebleId,
     deudaTotal: money(0, 'COP'),
     deudaVencida: money(0, 'COP'),
+    deudaSinVencimiento: money(0, 'COP'),
     interesCausado: money(0, 'COP'),
     saldoCredito: money(0, 'COP'),
     diasMoraMaximo: 0,
@@ -136,6 +138,52 @@ describe('calcularDashboardCartera', () => {
     )
     const sumaPct = resultado.antiguedad.reduce((acc, t) => acc + t.pctDelTotal, 0)
     expect(sumaPct).toBeCloseTo(100, 6)
+  })
+
+  describe('GAP-CAR-001: carteraSinVencimiento', () => {
+    it('un cargo con vencimiento indeterminado NO cae en carteraCorriente ni en carteraVencida', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({
+            inmuebleId: 'i1',
+            deudaTotal: money(500_000, 'COP'),
+            deudaVencida: money(0, 'COP'),
+            deudaSinVencimiento: money(500_000, 'COP'),
+          }),
+        ],
+        'COP',
+      )
+      expect(resultado.tarjetas.carteraSinVencimiento).toEqual(money(500_000, 'COP'))
+      expect(resultado.tarjetas.carteraCorriente).toEqual(money(0, 'COP'))
+      expect(resultado.tarjetas.carteraVencida).toEqual(money(0, 'COP'))
+    })
+
+    it('carteraTotal siempre reconcilia como vencida + corriente + sinVencimiento', () => {
+      const resultado = calcularDashboardCartera(
+        [
+          fila({
+            inmuebleId: 'i1',
+            deudaTotal: money(1_000, 'COP'),
+            deudaVencida: money(300, 'COP'),
+            deudaSinVencimiento: money(200, 'COP'),
+          }),
+          fila({
+            inmuebleId: 'i2',
+            deudaTotal: money(2_000, 'COP'),
+            deudaVencida: money(0, 'COP'),
+            deudaSinVencimiento: money(0, 'COP'),
+          }),
+        ],
+        'COP',
+      )
+      const { carteraTotal, carteraVencida, carteraCorriente, carteraSinVencimiento } = resultado.tarjetas
+      expect(fos.sumar(fos.sumar(carteraVencida, carteraCorriente), carteraSinVencimiento)).toEqual(carteraTotal)
+    })
+
+    it('portafolio vacío: carteraSinVencimiento en cero', () => {
+      const resultado = calcularDashboardCartera([], 'COP')
+      expect(resultado.tarjetas.carteraSinVencimiento).toEqual(money(0, 'COP'))
+    })
   })
 
   describe('diasPromedioMora', () => {

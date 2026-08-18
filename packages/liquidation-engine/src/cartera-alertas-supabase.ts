@@ -3,14 +3,15 @@
  * — mismo nivel de autorización que cartera-dashboard-supabase.ts
  * (D-14, vigilado por eslint.config.js).
  *
- * fn_alertas_cartera (20260823160000) ya devuelve los 3 conteos+montos
- * finales — no hay ratio ni política de denominador-cero que aplicar
- * (mismo criterio que cartera-panel-acciones-supabase.ts), así que no
- * existe un paso de cálculo puro separado. El cuarto ítem del diseño de
- * referencia ("Casos próximos a remisión jurídica") NO vive aquí — se
- * deriva en el frontend de dashboard.porEtapa[prejuridica], ya cargado
- * para "Cartera por etapa de cobranza"; no se vuelve a consultar la
- * base de datos.
+ * fn_alertas_cartera (20260823160000, extendida en 20260823180000) ya
+ * devuelve los conteos+montos finales — no hay ratio ni política de
+ * denominador-cero que aplicar (mismo criterio que
+ * cartera-panel-acciones-supabase.ts), así que no existe un paso de
+ * cálculo puro separado. "Casos próximos a remisión jurídica" NO vive
+ * aquí — se deriva en el frontend de dashboard.porEtapa[prejuridica], ya
+ * cargado para "Cartera por etapa de cobranza"; no se vuelve a consultar
+ * la base de datos. "Obligaciones sin fecha de vencimiento" (GAP-CAR-001,
+ * 20260823180000) sí vive aquí — antes invisible, ni vencida ni corriente.
  */
 import type { AquilaClient } from '@aquila/shared'
 import { money, type Money } from '@aquila/financial-kernel'
@@ -22,6 +23,9 @@ export interface RawAlertasCartera {
   readonly promesasPorVencerMonto: Money
   readonly cuotasAcuerdoVencidasCantidad: number
   readonly cuotasAcuerdoVencidasMonto: Money
+  /** GAP-CAR-001 [20260823180000]: cargos sin fecha de vencimiento determinable. */
+  readonly obligacionesSinVencimientoCantidad: number
+  readonly obligacionesSinVencimientoMonto: Money
 }
 
 export async function obtenerRawAlertasCartera(
@@ -44,5 +48,7 @@ export async function obtenerRawAlertasCartera(
     promesasPorVencerMonto: money(fila.promesas_por_vencer_monto, opciones.moneda),
     cuotasAcuerdoVencidasCantidad: fila.cuotas_acuerdo_vencidas_cantidad,
     cuotasAcuerdoVencidasMonto: money(fila.cuotas_acuerdo_vencidas_monto, opciones.moneda),
+    obligacionesSinVencimientoCantidad: fila.obligaciones_sin_vencimiento_cantidad,
+    obligacionesSinVencimientoMonto: money(fila.obligaciones_sin_vencimiento_monto, opciones.moneda),
   }
 }

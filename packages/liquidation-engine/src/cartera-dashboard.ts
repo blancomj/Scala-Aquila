@@ -20,6 +20,12 @@
  * balance corriente (esa es CARTERA_CORRIENTE en las tarjetas, un número
  * aparte). pctDelTotal se calcula sobre carteraVencida (no carteraTotal)
  * para que la suma de los 8 tramos sea exactamente 100%.
+ *
+ * GAP-CAR-001 (2026-08-18): un cargo sin fecha de vencimiento efectiva
+ * (ni propia ni de su periodo) es indeterminado, no "al día" — se separa
+ * en carteraSinVencimiento/deudaSinVencimiento en vez de fundirse
+ * silenciosamente en carteraCorriente (carteraTotal = carteraVencida +
+ * carteraCorriente + carteraSinVencimiento, siempre reconciliable).
  */
 import { isZeroMoney, money, type Money } from '@aquila/financial-kernel'
 import * as fos from '@aquila/financial-kernel'
@@ -28,10 +34,17 @@ import type { EtapaCobranza } from './cartera.js'
 export interface FilaDashboardCartera {
   readonly inmuebleId: string
   readonly codigo: string
-  /** Todos los cargos abiertos (vencidos + corrientes). */
+  /** Todos los cargos abiertos (vencidos + corrientes + sin_vencimiento). */
   readonly deudaTotal: Money
-  /** Solo cargos con fecha_vencimiento < fecha_corte. */
+  /** Solo cargos con fecha_vencimiento efectiva < fecha_corte. */
   readonly deudaVencida: Money
+  /**
+   * GAP-CAR-001: cargos cuya fecha de vencimiento efectiva (cargo o su
+   * periodo) es NULL — antigüedad indeterminada, nunca se cuenta como "al
+   * día" (deudaCorriente) ni como vencida. fn_dashboard_cartera la separa
+   * a propósito para no subestimar deudaVencida en silencio.
+   */
+  readonly deudaSinVencimiento: Money
   readonly interesCausado: Money
   readonly saldoCredito: Money
   /** días de mora del cargo vencido con saldo más antiguo (REC-CAR-010); 0 si no hay ninguno. */
@@ -43,6 +56,8 @@ export interface TarjetasCartera {
   readonly carteraTotal: Money
   readonly carteraVencida: Money
   readonly carteraCorriente: Money
+  /** GAP-CAR-001: suma de deudaSinVencimiento — visible aparte, nunca fundida en carteraCorriente. */
+  readonly carteraSinVencimiento: Money
   readonly interesesCausados: Money
   readonly carteraMayor90: Money
   readonly carteraMayor180: Money
@@ -133,6 +148,7 @@ export function calcularDashboardCartera(
 ): DashboardCartera {
   let carteraTotal = money(0, moneda)
   let carteraVencida = money(0, moneda)
+  let carteraSinVencimiento = money(0, moneda)
   let interesesCausados = money(0, moneda)
   let carteraMayor90 = money(0, moneda)
   let carteraMayor180 = money(0, moneda)
@@ -150,6 +166,7 @@ export function calcularDashboardCartera(
   for (const fila of filas) {
     carteraTotal = fos.sumar(carteraTotal, fila.deudaTotal)
     carteraVencida = fos.sumar(carteraVencida, fila.deudaVencida)
+    carteraSinVencimiento = fos.sumar(carteraSinVencimiento, fila.deudaSinVencimiento)
     interesesCausados = fos.sumar(interesesCausados, fila.interesCausado)
     saldosAFavor = fos.sumar(saldosAFavor, fila.saldoCredito)
     if (fila.diasMoraMaximo > 90) carteraMayor90 = fos.sumar(carteraMayor90, fila.deudaVencida)
@@ -177,7 +194,11 @@ export function calcularDashboardCartera(
     }
   }
 
-  const carteraCorriente = fos.restar(carteraTotal, carteraVencida)
+  // GAP-CAR-001: carteraTotal incluye los 3 buckets (vencida + corriente +
+  // sin_vencimiento) — restar solo carteraVencida absorbería lo
+  // indeterminado dentro de "corriente" otra vez, el mismo bug que se
+  // corrigió en fn_dashboard_cartera.
+  const carteraCorriente = fos.restar(fos.restar(carteraTotal, carteraVencida), carteraSinVencimiento)
 
   const filasEnMora = filas.filter((f) => !isZeroMoney(f.deudaVencida))
   const diasPromedioMora =
@@ -218,6 +239,7 @@ export function calcularDashboardCartera(
       carteraTotal,
       carteraVencida,
       carteraCorriente,
+      carteraSinVencimiento,
       interesesCausados,
       carteraMayor90,
       carteraMayor180,
