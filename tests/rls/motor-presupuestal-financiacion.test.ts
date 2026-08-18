@@ -32,15 +32,29 @@ if (!env) {
   )
 }
 
-async function categoriaAdministracionId(admin: Cliente): Promise<number> {
-  const { data, error } = await admin
-    .from('lista_tipos')
+/** presupuesto_cuenta (E8) es un catálogo por tenant, no una fila de
+ * plataforma como el categoria_id plano de antes — idempotente porque
+ * `codigo` es único por tenant. */
+async function cuentaAdministracionId(admin: Cliente, tenantId: string): Promise<string> {
+  const { data: existente } = await admin
+    .from('presupuesto_cuenta')
     .select('id')
-    .eq('tipo', 'CATEGORIA_RUBRO_PRESUPUESTAL')
+    .eq('tenant_id', tenantId)
     .eq('codigo', 'administracion')
-    .is('tenant_id', null)
-    .single<{ id: number }>()
-  if (error) throw new Error(`fixture categoria administracion: ${error.message}`)
+    .maybeSingle<{ id: string }>()
+  if (existente) return existente.id
+
+  const { data, error } = await admin
+    .from('presupuesto_cuenta')
+    .insert({
+      tenant_id: tenantId,
+      naturaleza: 'egreso',
+      codigo: 'administracion',
+      nombre: 'Administración',
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture cuenta administracion: ${error.message}`)
   return data.id
 }
 
@@ -50,7 +64,7 @@ async function crearPresupuestoReconciliado(
   anio: number,
   montoTotal: number,
 ): Promise<{ presupuestoId: string; rubroId: string }> {
-  const categoriaId = await categoriaAdministracionId(admin)
+  const cuentaId = await cuentaAdministracionId(admin, tenantId)
 
   const { data: presupuesto, error: errPresupuesto } = await admin
     .from('presupuestos')
@@ -66,7 +80,7 @@ async function crearPresupuestoReconciliado(
       presupuesto_id: presupuesto.id,
       codigo: 'ADMIN-001',
       nombre: 'Administración',
-      categoria_id: categoriaId,
+      cuenta_id: cuentaId,
       monto_anual: montoTotal,
     })
     .select('id')

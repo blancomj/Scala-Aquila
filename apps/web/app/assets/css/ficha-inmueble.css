@@ -723,6 +723,13 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px 20px;
 }
+/* Sin esto, un <select> con una opción larga (ej. el breadcrumb de cuenta en
+   PresupuestoRubroDrawer.vue) infla el min-content del grid item y la
+   columna se sale del viewport — el track ya no reparte 1fr/1fr real.
+   Mismo fix que .field-row-2 > .field, para el caso grid en vez de flex. */
+.ficha-inmueble .form-grid > .field {
+  min-width: 0;
+}
 .ficha-inmueble .field {
   display: flex;
   flex-direction: column;

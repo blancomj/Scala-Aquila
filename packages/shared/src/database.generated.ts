@@ -3433,11 +3433,173 @@ export type Database = {
           },
         ]
       }
+      presupuesto_cuenta: {
+        Row: {
+          activa: boolean
+          codigo: string
+          concepto_id: string | null
+          created_at: string
+          es_hoja: boolean
+          id: string
+          naturaleza: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel: number
+          nombre: string
+          orden: number
+          parent_id: string | null
+          ruta: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          codigo: string
+          concepto_id?: string | null
+          created_at?: string
+          es_hoja?: boolean
+          id?: string
+          naturaleza: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel: number
+          nombre: string
+          orden?: number
+          parent_id?: string | null
+          ruta: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          codigo?: string
+          concepto_id?: string | null
+          created_at?: string
+          es_hoja?: boolean
+          id?: string
+          naturaleza?: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel?: number
+          nombre?: string
+          orden?: number
+          parent_id?: string | null
+          ruta?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuesto_cuenta_concepto_id_fkey"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_cuenta_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presupuesto_ejecucion: {
+        Row: {
+          ajusta_movimiento_id: string | null
+          created_at: string
+          cuenta_id: string
+          descripcion: string | null
+          id: string
+          monto: number
+          periodo_id: string
+          referencia: string | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          ajusta_movimiento_id?: string | null
+          created_at?: string
+          cuenta_id: string
+          descripcion?: string | null
+          id?: string
+          monto: number
+          periodo_id: string
+          referencia?: string | null
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          ajusta_movimiento_id?: string | null
+          created_at?: string
+          cuenta_id?: string
+          descripcion?: string | null
+          id?: string
+          monto?: number
+          periodo_id?: string
+          referencia?: string | null
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuesto_ejecucion_ajusta_movimiento_id_fkey"
+            columns: ["ajusta_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_ejecucion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuesto_rubros: {
         Row: {
-          categoria_id: number
           codigo: string
           created_at: string
+          cuenta_id: string
           fundamento_normativo_id: number | null
           id: string
           monto_anual: number
@@ -3447,9 +3609,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          categoria_id: number
           codigo: string
           created_at?: string
+          cuenta_id: string
           fundamento_normativo_id?: number | null
           id?: string
           monto_anual: number
@@ -3459,9 +3621,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          categoria_id?: number
           codigo?: string
           created_at?: string
+          cuenta_id?: string
           fundamento_normativo_id?: number | null
           id?: string
           monto_anual?: number
@@ -3472,10 +3634,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "presupuesto_rubros_categoria_id_fkey"
-            columns: ["categoria_id"]
+            foreignKeyName: "presupuesto_rubros_cuenta_id_fkey"
+            columns: ["cuenta_id"]
             isOneToOne: false
-            referencedRelation: "lista_tipos"
+            referencedRelation: "presupuesto_cuenta"
             referencedColumns: ["id"]
           },
           {
@@ -4929,6 +5091,21 @@ export type Database = {
       }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      presupuesto_cuenta_ejecucion: {
+        Args: { p_presupuesto_id: string }
+        Returns: {
+          cuenta_id: string
+          ejecutado: number
+          presupuestado: number
+        }[]
+      }
+      presupuesto_cuenta_totales: {
+        Args: { p_presupuesto_id: string }
+        Returns: {
+          cuenta_id: string
+          monto_acumulado: number
+        }[]
+      }
       purge_audit_log_antiguo: { Args: never; Returns: undefined }
       resend_invitation: {
         Args: {
@@ -5073,6 +5250,7 @@ export type Database = {
       origen_evento_t: "job" | "usuario" | "sistema" | "integracion"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
+      presupuesto_cuenta_naturaleza_t: "ingreso" | "egreso"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       residual_metodo_t: "mayor_resto"
@@ -5398,6 +5576,7 @@ export const Constants = {
       origen_evento_t: ["job", "usuario", "sistema", "integracion"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
+      presupuesto_cuenta_naturaleza_t: ["ingreso", "egreso"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       residual_metodo_t: ["mayor_resto"],
