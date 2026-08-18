@@ -74,6 +74,19 @@ export const useInvitationsStore = defineStore('invitations', () => {
     await cargarPendientes(tenantId)
   }
 
+  async function reenviar(invitationId: string, tenantId: string): Promise<InvitarRespuesta> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorReenviar } = await cliente.functions.invoke<InvitarRespuesta>(
+      'resend-invitation',
+      { body: { invitation_id: invitationId } },
+    )
+    if (errorReenviar) throw await extraerErrorFuncion(errorReenviar)
+    if (!data) throw new Error('resend-invitation no devolvió datos.')
+
+    await cargarPendientes(tenantId)
+    return data
+  }
+
   async function aceptar(token: string): Promise<AceptarRespuesta> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorAceptar } = await cliente.functions.invoke<AceptarRespuesta>(
@@ -89,5 +102,5 @@ export const useInvitationsStore = defineStore('invitations', () => {
     pendientes.value = []
   }
 
-  return { pendientes, loading, cargarPendientes, invitar, revocar, aceptar, limpiar }
+  return { pendientes, loading, cargarPendientes, invitar, revocar, reenviar, aceptar, limpiar }
 })

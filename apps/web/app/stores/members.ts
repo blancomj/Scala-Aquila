@@ -15,7 +15,16 @@ import type { TenantRole } from '~/types/permissions'
 
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
-type Miembro = MembershipRow & { profile: Pick<ProfileRow, 'email' | 'full_name'> | null }
+type Miembro = MembershipRow & {
+  profile: Pick<ProfileRow, 'email' | 'full_name' | 'phone' | 'status'> | null
+}
+
+interface ActualizarPerfilRespuesta {
+  id: string
+  full_name: string | null
+  phone: string | null
+  status: ProfileRow['status']
+}
 
 export const useMembersStore = defineStore('members', () => {
   const miembros = shallowRef<Miembro[]>([])
@@ -29,7 +38,7 @@ export const useMembersStore = defineStore('members', () => {
         .from('memberships')
         // memberships tiene dos FK a profiles (user_id, invited_by) —
         // PostgREST necesita el hint de columna para no ser ambiguo.
-        .select('*, profile:profiles!user_id(email, full_name)')
+        .select('*, profile:profiles!user_id(email, full_name, phone, status)')
         .eq('tenant_id', tenantId)
         .eq('status', 'active')
         .order('created_at', { ascending: true })
@@ -62,9 +71,38 @@ export const useMembersStore = defineStore('members', () => {
     await cargarMiembros(tenantId)
   }
 
+  // A diferencia de cambiarRol/revocar, esto SÍ pasa por Edge Function
+  // (update-member-profile): profiles.status está bloqueado por el trigger
+  // guard_privileged_columns (SEC-06) para cualquier UPDATE que lleve JWT de
+  // usuario, sea RLS directo o RPC — solo una llamada con service_role lo
+  // puede tocar. Ver comentario completo en la Edge Function.
+  async function actualizarPerfil(
+    membershipId: string,
+    datos: { fullName: string; phone: string; status: ProfileRow['status'] },
+    tenantId: string,
+  ): Promise<ActualizarPerfilRespuesta> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente.functions.invoke<ActualizarPerfilRespuesta>(
+      'update-member-profile',
+      {
+        body: {
+          membership_id: membershipId,
+          full_name: datos.fullName,
+          phone: datos.phone,
+          status: datos.status,
+        },
+      },
+    )
+    if (error) throw await extraerErrorFuncion(error)
+    if (!data) throw new Error('update-member-profile no devolvió datos.')
+
+    await cargarMiembros(tenantId)
+    return data
+  }
+
   function limpiar(): void {
     miembros.value = []
   }
 
-  return { miembros, loading, cargarMiembros, cambiarRol, revocar, limpiar }
+  return { miembros, loading, cargarMiembros, cambiarRol, revocar, actualizarPerfil, limpiar }
 })

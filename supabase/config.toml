@@ -41,6 +41,18 @@ verify_jwt = true
 import_map = "./functions/revoke-invitation/deno.json"
 entrypoint = "./functions/revoke-invitation/index.ts"
 
+[functions.update-member-profile]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-member-profile/deno.json"
+entrypoint = "./functions/update-member-profile/index.ts"
+
+[functions.resend-invitation]
+enabled = true
+verify_jwt = true
+import_map = "./functions/resend-invitation/deno.json"
+entrypoint = "./functions/resend-invitation/index.ts"
+
 [functions.presupuesto-financiacion]
 enabled = true
 verify_jwt = true
