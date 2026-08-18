@@ -143,11 +143,14 @@ export {
 
 export {
   calcularDashboardCartera,
+  calcularTopInmueblesCartera,
   type FilaDashboardCartera,
   type TarjetasCartera,
   type CodigoTramoAntiguedad,
   type TramoAntiguedad,
+  type EtapaCarteraResumen,
   type DashboardCartera,
+  type InmuebleCarteraResumen,
 } from './cartera-dashboard.js'
 
 export { obtenerFilasDashboardCartera } from './cartera-dashboard-supabase.js'
@@ -181,6 +184,8 @@ export {
   obtenerEvolucionCarteraVencida,
   type PuntoEvolucionCarteraVencida,
 } from './cartera-evolucion-supabase.js'
+
+export { obtenerRawAlertasCartera, type RawAlertasCartera } from './cartera-alertas-supabase.js'
 
 export { probarFormula, type ResultadoPrueba } from './prueba-formula.js'
 

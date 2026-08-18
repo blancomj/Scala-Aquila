@@ -1,16 +1,19 @@
 // CAR F9 — Dashboard e indicadores (§23.1/§23.2). Compone fn_dashboard_
-// cartera (20260823100000) + calcularDashboardCartera() (packages/
-// liquidation-engine) para exponer las 9 tarjetas principales, la
-// distribución por antigüedad (8 tramos fijos) y la distribución por
-// etapa de cobranza (5 etapas reales de cartera_etapas/F6 — pieza del
-// frontend, 2026-08-17) a una fecha de corte explícita (AD-32 — nunca
-// Date.now() implícito). porEtapa no exigió una migración nueva: cada
-// fila de fn_dashboard_cartera ya trae etapa_cobranza, solo hacía falta
-// agruparla en TS (REC-CAR-004).
+// cartera (20260823100000/20260823160000) + calcularDashboardCartera()
+// (packages/liquidation-engine) para exponer las 9 tarjetas principales,
+// la distribución por antigüedad (8 tramos fijos), la distribución por
+// etapa de cobranza (5 etapas reales de cartera_etapas/F6) y el Top N
+// por inmueble (pieza del frontend, 2026-08-17) a una fecha de corte
+// explícita (AD-32 — nunca Date.now() implícito). Ninguna de las 3
+// piezas nuevas del frontend exigió una función SQL nueva aparte de
+// agregar `codigo` a fn_dashboard_cartera: todas se calculan en TS sobre
+// las MISMAS filas que ya trae la función (REC-CAR-004, no se vuelve a
+// consultar la base de datos por cada pieza).
 //
 // REC-CAR-004: la agregación por inmueble vive en fn_dashboard_cartera
-// (SQL) y el armado de tarjetas/antigüedad en calcularDashboardCartera()
-// (TS puro) — esta función solo las compone, no reimplementa ninguna.
+// (SQL) y el armado de tarjetas/antigüedad/etapa/top-N en
+// calcularDashboardCartera()/calcularTopInmueblesCartera() (TS puro) —
+// esta función solo las compone, no reimplementa ninguna.
 //
 // Rol mínimo: cualquier miembro del tenant (is_member) — mismo criterio
 // que cartera-posicion: es una lectura, no una decisión de negocio, no
@@ -19,17 +22,36 @@ import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 // dist/index.js (compilado), no src/index.ts — mismo motivo que
 // cartera-posicion/index.ts.
-import { calcularDashboardCartera, obtenerFilasDashboardCartera } from '../../../packages/liquidation-engine/dist/index.js'
+import {
+  calcularDashboardCartera,
+  calcularTopInmueblesCartera,
+  obtenerFilasDashboardCartera,
+} from '../../../packages/liquidation-engine/dist/index.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 
 const RATE_LIMIT_MAX_HITS = 60
 const RATE_LIMIT_VENTANA = '1 hour'
+const TOP_N_DEFAULT = 10
+const TOP_N_MAX = 50
+
+// Espejo local — dist/index.js pierde los exports type-only al compilar
+// (mismo patrón que RollRateTramoLocal en cartera-indicadores/index.ts).
+interface MoneyLocal {
+  readonly amount: { toString(): string }
+}
+interface InmuebleCarteraResumenLocal {
+  readonly inmuebleId: string
+  readonly codigo: string
+  readonly deudaVencida: MoneyLocal
+  readonly diasMoraMaximo: number
+}
 
 const payloadSchema = z.object({
   tenant_id: z.string().uuid(),
   fecha_corte: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha_corte debe ser YYYY-MM-DD.'),
+  top_n: z.number().int().min(1).max(TOP_N_MAX).optional().default(TOP_N_DEFAULT),
 })
 
 export default {
@@ -59,7 +81,7 @@ export default {
         correlationId,
       )
     }
-    const { tenant_id: tenantId, fecha_corte: fechaCorte } = parseo.data
+    const { tenant_id: tenantId, fecha_corte: fechaCorte, top_n: topN } = parseo.data
 
     const bloqueo = await enforceRateLimit(
       ctx.supabase,
@@ -96,6 +118,10 @@ export default {
       moneda: tenant.moneda,
     })
     const dashboard = calcularDashboardCartera(filas, tenant.moneda)
+    // Cast justificado: mismo problema de resolución de tipos que motiva
+    // MoneyLocal/RollRateTramoLocal arriba — el valor en tiempo de
+    // ejecución es el real.
+    const topInmuebles = calcularTopInmueblesCartera(filas, topN) as unknown as InmuebleCarteraResumenLocal[]
 
     return jsonResponse(
       {
@@ -124,6 +150,12 @@ export default {
           cantidadInmuebles: e.cantidadInmuebles,
           monto: e.monto.amount.toString(),
           pctDelTotal: e.pctDelTotal,
+        })),
+        topInmuebles: topInmuebles.map((i) => ({
+          inmuebleId: i.inmuebleId,
+          codigo: i.codigo,
+          deudaVencida: i.deudaVencida.amount.toString(),
+          diasMoraMaximo: i.diasMoraMaximo,
         })),
       },
       200,

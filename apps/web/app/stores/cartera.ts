@@ -1,18 +1,20 @@
 /**
- * Dashboard de Cartera (CAR F9 §23.1/§23.2) — tarjetas principales y
- * distribución por antigüedad, a una fecha de corte explícita.
+ * Dashboard de Cartera (CAR F9 §23.1/§23.2) — tarjetas principales,
+ * distribución por antigüedad/etapa, Top N por inmueble, evolución
+ * histórica, recaudo del mes y alertas.
  *
- * Solo `cartera-dashboard` por ahora: es la única Edge Function de F9 que
- * no depende de que exista un snapshot congelado (JOB_CARTERA_DIARIA) —
- * `cartera-indicadores` exige snapshot en fecha_desde Y fecha_hasta o
- * responde 422 (Roll/Cure Rate), lo que la hace frágil para un rango tipo
- * "mes actual" en un dashboard que siempre debe cargar. Los indicadores
- * de período (Recaudo del mes, Efectividad de cobranza) y el resto de
- * piezas sin backend hoy (etapa de cobranza completa, Top 10 por
- * inmueble, evolución histórica, alertas, actividad reciente, cobertura
- * de provisión) quedan documentadas como pendientes en la página —
- * decisión del usuario (2026-08-17): "próximamente" visible, no inventar
- * ni ocultar silenciosamente.
+ * cartera-dashboard/cartera-evolucion/cartera-recaudo/cartera-alertas
+ * son deliberadamente independientes de cartera-indicadores — esa exige
+ * snapshot en fecha_desde Y fecha_hasta o responde 422 (Roll/Cure Rate),
+ * lo que la hace frágil para un dashboard que siempre debe cargar.
+ * Recaudo del mes reutiliza fn_indicadores_gestion directo (sin ese
+ * gate), no cartera-indicadores completa.
+ *
+ * Piezas sin backend hoy (efectividad de cobranza, actividad reciente,
+ * cobertura de provisión, días promedio de mora, deltas "vs. mes
+ * anterior") quedan documentadas como pendientes en la página —
+ * decisión del usuario (2026-08-17): "próximamente" visible, no
+ * inventar ni ocultar silenciosamente.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -46,11 +48,19 @@ export interface EtapaCarteraDTO {
   pctDelTotal: number
 }
 
+export interface InmuebleTopDTO {
+  inmuebleId: string
+  codigo: string
+  deudaVencida: string
+  diasMoraMaximo: number
+}
+
 export interface DashboardCarteraDTO {
   fechaCorte: string
   tarjetas: TarjetasCarteraDTO
   antiguedad: TramoAntiguedadDTO[]
   porEtapa: EtapaCarteraDTO[]
+  topInmuebles: InmuebleTopDTO[]
 }
 
 export interface PuntoEvolucionDTO {
@@ -63,18 +73,40 @@ export interface EvolucionCarteraDTO {
   puntos: PuntoEvolucionDTO[]
 }
 
+export interface RecaudoDTO {
+  fechaDesde: string
+  fechaHasta: string
+  montoRecaudado: string
+}
+
+export interface AlertasDTO {
+  fechaReferencia: string
+  obligacionesMayor90Cantidad: number
+  obligacionesMayor90Monto: string
+  promesasPorVencerCantidad: number
+  promesasPorVencerMonto: string
+  cuotasAcuerdoVencidasCantidad: number
+  cuotasAcuerdoVencidasMonto: string
+}
+
 export const useCarteraStore = defineStore('cartera', () => {
   const dashboard = shallowRef<DashboardCarteraDTO | null>(null)
   const evolucion = shallowRef<PuntoEvolucionDTO[]>([])
+  const recaudo = shallowRef<RecaudoDTO | null>(null)
+  const alertas = shallowRef<AlertasDTO | null>(null)
   const loading = ref(false)
 
-  async function cargarDashboard(tenantId: string, fechaCorte: string): Promise<DashboardCarteraDTO> {
+  async function cargarDashboard(
+    tenantId: string,
+    fechaCorte: string,
+    topN = 10,
+  ): Promise<DashboardCarteraDTO> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
       const { data, error: errorFuncion } = await cliente.functions.invoke<DashboardCarteraDTO>(
         'cartera-dashboard',
-        { body: { tenant_id: tenantId, fecha_corte: fechaCorte } },
+        { body: { tenant_id: tenantId, fecha_corte: fechaCorte, top_n: topN } },
       )
       if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
       if (!data) throw new Error('cartera-dashboard no devolvió datos.')
@@ -101,17 +133,49 @@ export const useCarteraStore = defineStore('cartera', () => {
     return data.puntos
   }
 
+  async function cargarRecaudo(
+    tenantId: string,
+    fechaDesde: string,
+    fechaHasta: string,
+  ): Promise<RecaudoDTO> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<RecaudoDTO>('cartera-recaudo', {
+      body: { tenant_id: tenantId, fecha_desde: fechaDesde, fecha_hasta: fechaHasta },
+    })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('cartera-recaudo no devolvió datos.')
+    recaudo.value = data
+    return data
+  }
+
+  async function cargarAlertas(tenantId: string, fechaReferencia: string): Promise<AlertasDTO> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<AlertasDTO>('cartera-alertas', {
+      body: { tenant_id: tenantId, fecha_referencia: fechaReferencia },
+    })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('cartera-alertas no devolvió datos.')
+    alertas.value = data
+    return data
+  }
+
   function limpiar(): void {
     dashboard.value = null
     evolucion.value = []
+    recaudo.value = null
+    alertas.value = null
   }
 
   return {
     dashboard,
     evolucion,
+    recaudo,
+    alertas,
     loading,
     cargarDashboard,
     cargarEvolucion,
+    cargarRecaudo,
+    cargarAlertas,
     limpiar,
   }
 })

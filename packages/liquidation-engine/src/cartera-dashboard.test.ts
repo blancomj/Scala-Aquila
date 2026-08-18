@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { money } from '@aquila/financial-kernel'
-import { calcularDashboardCartera, type FilaDashboardCartera } from './cartera-dashboard.js'
+import { calcularDashboardCartera, calcularTopInmueblesCartera, type FilaDashboardCartera } from './cartera-dashboard.js'
 
 function fila(over: Partial<FilaDashboardCartera> & { inmuebleId: string }): FilaDashboardCartera {
   return {
+    codigo: over.inmuebleId,
     deudaTotal: money(0, 'COP'),
     deudaVencida: money(0, 'COP'),
     interesCausado: money(0, 'COP'),
@@ -193,5 +194,42 @@ describe('calcularDashboardCartera', () => {
       const sumaPct = resultado.porEtapa.reduce((acc, e) => acc + e.pctDelTotal, 0)
       expect(sumaPct).toBeCloseTo(100, 6)
     })
+  })
+})
+
+describe('calcularTopInmueblesCartera', () => {
+  it('portafolio vacío: lista vacía', () => {
+    expect(calcularTopInmueblesCartera([], 10)).toEqual([])
+  })
+
+  it('ordena de mayor a menor deuda vencida', () => {
+    const filas = [
+      fila({ inmuebleId: 'i1', codigo: 'A-101', deudaVencida: money(300, 'COP') }),
+      fila({ inmuebleId: 'i2', codigo: 'B-202', deudaVencida: money(900, 'COP') }),
+      fila({ inmuebleId: 'i3', codigo: 'C-303', deudaVencida: money(600, 'COP') }),
+    ]
+    const resultado = calcularTopInmueblesCartera(filas, 10)
+    expect(resultado.map((r) => r.codigo)).toEqual(['B-202', 'C-303', 'A-101'])
+  })
+
+  it('respeta el límite', () => {
+    const filas = [
+      fila({ inmuebleId: 'i1', codigo: 'A', deudaVencida: money(100, 'COP') }),
+      fila({ inmuebleId: 'i2', codigo: 'B', deudaVencida: money(200, 'COP') }),
+      fila({ inmuebleId: 'i3', codigo: 'C', deudaVencida: money(300, 'COP') }),
+    ]
+    const resultado = calcularTopInmueblesCartera(filas, 2)
+    expect(resultado).toHaveLength(2)
+    expect(resultado.map((r) => r.codigo)).toEqual(['C', 'B'])
+  })
+
+  it('un inmueble al día (deuda vencida = 0) no compite en el ranking', () => {
+    const filas = [
+      fila({ inmuebleId: 'i1', codigo: 'A', deudaVencida: money(0, 'COP') }),
+      fila({ inmuebleId: 'i2', codigo: 'B', deudaVencida: money(500, 'COP') }),
+    ]
+    const resultado = calcularTopInmueblesCartera(filas, 10)
+    expect(resultado).toHaveLength(1)
+    expect(resultado[0]?.codigo).toBe('B')
   })
 })

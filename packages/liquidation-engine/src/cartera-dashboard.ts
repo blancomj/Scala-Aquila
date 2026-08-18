@@ -27,6 +27,7 @@ import type { EtapaCobranza } from './cartera.js'
 
 export interface FilaDashboardCartera {
   readonly inmuebleId: string
+  readonly codigo: string
   /** Todos los cargos abiertos (vencidos + corrientes). */
   readonly deudaTotal: Money
   /** Solo cargos con fecha_vencimiento < fecha_corte. */
@@ -214,4 +215,33 @@ export function calcularDashboardCartera(
     antiguedad,
     porEtapa,
   }
+}
+
+export interface InmuebleCarteraResumen {
+  readonly inmuebleId: string
+  readonly codigo: string
+  readonly deudaVencida: Money
+  readonly diasMoraMaximo: number
+}
+
+/**
+ * "Top N por inmueble" (dashboard frontend, 2026-08-17) — ordena las
+ * MISMAS filas que ya usa calcularDashboardCartera(), no vuelve a
+ * consultar la base de datos (REC-CAR-004). Solo inmuebles con deuda
+ * vencida > 0 entran al ranking (uno al día no compite por definición).
+ */
+export function calcularTopInmueblesCartera(
+  filas: readonly FilaDashboardCartera[],
+  limite: number,
+): readonly InmuebleCarteraResumen[] {
+  return filas
+    .filter((f) => !isZeroMoney(f.deudaVencida))
+    .sort((a, b) => fos.restar(b.deudaVencida, a.deudaVencida).amount.comparedTo(0))
+    .slice(0, Math.max(limite, 0))
+    .map((f) => ({
+      inmuebleId: f.inmuebleId,
+      codigo: f.codigo,
+      deudaVencida: f.deudaVencida,
+      diasMoraMaximo: f.diasMoraMaximo,
+    }))
 }

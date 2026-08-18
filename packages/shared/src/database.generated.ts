@@ -4578,6 +4578,17 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_alertas_cartera: {
+        Args: { p_fecha_referencia: string; p_tenant_id: string }
+        Returns: {
+          cuotas_acuerdo_vencidas_cantidad: number
+          cuotas_acuerdo_vencidas_monto: number
+          obligaciones_mayor_90_cantidad: number
+          obligaciones_mayor_90_monto: number
+          promesas_por_vencer_cantidad: number
+          promesas_por_vencer_monto: number
+        }[]
+      }
       fn_aprobar_novedad: {
         Args: { p_actor_id: string; p_novedad_id: string }
         Returns: {
@@ -4644,6 +4655,7 @@ export type Database = {
       fn_dashboard_cartera: {
         Args: { p_fecha_corte: string; p_tenant_id: string }
         Returns: {
+          codigo: string
           deuda_corriente: number
           deuda_total: number
           deuda_vencida: number

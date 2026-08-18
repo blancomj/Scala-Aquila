@@ -25,6 +25,7 @@ export async function obtenerFilasDashboardCartera(
   return data.map(
     (fila): FilaDashboardCartera => ({
       inmuebleId: fila.inmueble_id,
+      codigo: fila.codigo,
       deudaTotal: money(fila.deuda_total, opciones.moneda),
       deudaVencida: money(fila.deuda_vencida, opciones.moneda),
       interesCausado: money(fila.interes_causado, opciones.moneda),

@@ -6,11 +6,16 @@
 //
 // Todo lo que se ve con datos reales sale de cartera-dashboard (fecha de
 // corte única, sin depender de que exista un snapshot congelado —
-// incluye porEtapa, 5 etapas reales de cartera_etapas/F6) y de cartera-
-// evolucion (serie mensual sobre posiciones_cartera_snapshot, F3/F8 — un
-// mes sin snapshot se dibuja como hueco en la línea, nunca como 0
-// inventado). Las piezas sin backend hoy (recaudo del mes, efectividad
-// de cobranza, Top 10 por inmueble, alertas y pendientes, actividad
+// incluye porEtapa [5 etapas reales de cartera_etapas/F6] y topInmuebles
+// [ranking calculado en TS sobre las mismas filas, sin consulta extra]),
+// cartera-evolucion (serie mensual sobre posiciones_cartera_snapshot,
+// F3/F8 — un mes sin snapshot se dibuja como hueco, nunca 0 inventado),
+// cartera-recaudo (reutiliza fn_indicadores_gestion directo, sin el gate
+// de snapshot de cartera-indicadores) y cartera-alertas (obligaciones
+// >90d a nivel de cargo, promesas por vencer en 3 días, cuotas de
+// acuerdo vencidas — "Casos próximos a remisión jurídica" se deriva de
+// dashboard.porEtapa[prejuridica], no pide otra vez la base de datos).
+// Las piezas sin backend hoy (efectividad de cobranza, actividad
 // reciente, cobertura de provisión, días promedio de mora, deltas "vs.
 // mes anterior") se marcan "Próximamente" — ver
 // CarteraProximamentePlaceholder.vue.
@@ -37,6 +42,19 @@ function hoyISO(): string {
 const fechaCorte = ref(hoyISO())
 const errorCarga = ref<string | null>(null)
 
+/**
+ * fecha_desde para "recaudo del mes" — primer día del mes de fechaCorte,
+ * salvo que fechaCorte YA sea el día 1 (cartera-recaudo exige fecha_desde
+ * estrictamente anterior a fecha_hasta): en ese caso se usa el primer
+ * día del mes anterior, para no romper con un rango de 0 días.
+ */
+function fechaDesdeRecaudo(fechaCorteISO: string): string {
+  const corte = new Date(`${fechaCorteISO}T00:00:00Z`)
+  const primerDiaMesActual = new Date(Date.UTC(corte.getUTCFullYear(), corte.getUTCMonth(), 1))
+  const base = primerDiaMesActual.getTime() === corte.getTime() ? new Date(Date.UTC(corte.getUTCFullYear(), corte.getUTCMonth() - 1, 1)) : primerDiaMesActual
+  return base.toISOString().slice(0, 10)
+}
+
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
@@ -45,6 +63,8 @@ async function cargar(): Promise<void> {
     await Promise.all([
       carteraStore.cargarDashboard(tenantId, fechaCorte.value),
       carteraStore.cargarEvolucion(tenantId, fechaCorte.value),
+      carteraStore.cargarAlertas(tenantId, fechaCorte.value),
+      carteraStore.cargarRecaudo(tenantId, fechaDesdeRecaudo(fechaCorte.value), fechaCorte.value),
     ])
   } catch (e) {
     errorCarga.value = e instanceof Error ? e.message : 'No se pudo cargar el dashboard de cartera.'
@@ -141,6 +161,55 @@ const barrasEtapa = computed(() =>
     pct: e.pctDelTotal,
   })),
 )
+
+const topInmuebles = computed(() => carteraStore.dashboard?.topInmuebles ?? [])
+const columnasTop = [
+  { clave: 'codigo', etiqueta: 'Inmueble' },
+  { clave: 'deudaVencida', etiqueta: 'Cartera vencida', alinear: 'derecha' as const },
+  { clave: 'diasMoraMaximo', etiqueta: 'Días de mora', alinear: 'derecha' as const },
+]
+
+// "Casos próximos a remisión jurídica" — se deriva de dashboard.porEtapa
+// (prejuridica), ya cargado para "Cartera por etapa de cobranza"; no
+// pide otra vez la base de datos (REC-CAR-004).
+const casosProximosRemision = computed(() => {
+  const prejuridica = (carteraStore.dashboard?.porEtapa ?? []).find((e) => e.etapa === 'prejuridica')
+  return { cantidad: prejuridica?.cantidadInmuebles ?? 0, monto: Number(prejuridica?.monto ?? 0) }
+})
+
+const alertas = computed(() => {
+  const a = carteraStore.alertas
+  return [
+    {
+      label: 'Obligaciones > 90 días',
+      cantidad: a?.obligacionesMayor90Cantidad ?? 0,
+      monto: Number(a?.obligacionesMayor90Monto ?? 0),
+      icono: 'i-lucide-circle-alert',
+      color: 'text-red-600 dark:text-red-400',
+    },
+    {
+      label: 'Promesas por vencer en 3 días',
+      cantidad: a?.promesasPorVencerCantidad ?? 0,
+      monto: Number(a?.promesasPorVencerMonto ?? 0),
+      icono: 'i-lucide-clock',
+      color: 'text-amber-600 dark:text-amber-400',
+    },
+    {
+      label: 'Cuotas de acuerdo vencidas',
+      cantidad: a?.cuotasAcuerdoVencidasCantidad ?? 0,
+      monto: Number(a?.cuotasAcuerdoVencidasMonto ?? 0),
+      icono: 'i-lucide-file-warning',
+      color: 'text-orange-600 dark:text-orange-400',
+    },
+    {
+      label: 'Casos próximos a remisión jurídica',
+      cantidad: casosProximosRemision.value.cantidad,
+      monto: casosProximosRemision.value.monto,
+      icono: 'i-lucide-gavel',
+      color: 'text-purple-600 dark:text-purple-400',
+    },
+  ]
+})
 </script>
 
 <template>
@@ -195,9 +264,15 @@ const barrasEtapa = computed(() =>
         <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
           <div>
             <p class="text-sm text-gray-500">Recaudo del mes</p>
-            <p class="text-lg font-medium text-gray-400">Próximamente</p>
+            <template v-if="carteraStore.recaudo">
+              <p class="text-2xl font-semibold">{{ formatoMoneda(carteraStore.recaudo.montoRecaudado) }}</p>
+              <p class="mt-1 text-xs text-gray-400">
+                Desde {{ carteraStore.recaudo.fechaDesde }}
+              </p>
+            </template>
+            <p v-else class="text-lg font-medium text-gray-400">Cargando…</p>
           </div>
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400">
             <UIcon name="i-lucide-circle-dollar-sign" class="h-5 w-5" />
           </span>
         </div>
@@ -244,7 +319,13 @@ const barrasEtapa = computed(() =>
 
       <!-- Top 10 + evolución -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CarteraProximamentePlaceholder titulo="Cartera por inmueble (Top 10)" />
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+          <h2 class="mb-4 text-sm font-semibold">Cartera por inmueble (Top 10)</h2>
+          <UiTabla :columnas="columnasTop" :filas="topInmuebles" :clave-fila="(f) => f.inmuebleId" vacio="Sin inmuebles con cartera vencida.">
+            <template #celda-deudaVencida="{ fila }">{{ formatoMoneda(fila.deudaVencida) }}</template>
+            <template #celda-diasMoraMaximo="{ fila }">{{ fila.diasMoraMaximo }}</template>
+          </UiTabla>
+        </div>
         <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
           <h2 class="mb-4 text-sm font-semibold">Evolución de cartera vencida (6 meses)</h2>
           <CarteraEvolucionChart :puntos="carteraStore.evolucion" :formato-moneda="formatoMoneda" />
@@ -253,7 +334,19 @@ const barrasEtapa = computed(() =>
 
       <!-- Alertas + actividad -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CarteraProximamentePlaceholder titulo="Alertas y pendientes" />
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+          <h2 class="mb-4 text-sm font-semibold">Alertas y pendientes</h2>
+          <ul class="space-y-3">
+            <li v-for="a in alertas" :key="a.label" class="flex items-center gap-3 text-sm">
+              <UIcon :name="a.icono" :class="['h-5 w-5 shrink-0', a.color]" />
+              <span class="flex-1 text-gray-600 dark:text-gray-300">{{ a.label }}</span>
+              <span class="text-right">
+                <span class="font-semibold">{{ a.cantidad }}</span>
+                <span class="ml-2 text-xs text-gray-400">{{ formatoMoneda(a.monto) }}</span>
+              </span>
+            </li>
+          </ul>
+        </div>
         <CarteraProximamentePlaceholder titulo="Actividad reciente en cartera" />
       </div>
     </template>
