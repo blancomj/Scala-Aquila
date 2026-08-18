@@ -477,11 +477,11 @@ membership).
 
 ## D-22 — E6 (dashboard/auditoría/plataforma): alcance de métricas y guarda SELF_MODIFY
 
-|            |                                             |
-| ---------- | ------------------------------------------- |
-| **Fase**   | F6 (E6)                                     |
-| **Estado** | Aceptada                                    |
-| **Decide** | Agente (ejecución de plan)                  |
+|            |                            |
+| ---------- | -------------------------- |
+| **Fase**   | F6 (E6)                    |
+| **Estado** | Aceptada                   |
+| **Decide** | Agente (ejecución de plan) |
 
 **Métricas del dashboard limitadas a tenancy/auditoría.** No existe todavía capa de
 dominio (presupuesto, cartera, motor de liquidación en producción para tenants reales),
@@ -500,7 +500,7 @@ sin que otro lo apruebe, incluso en tenants con varios agents activos.
 Consecuencia sobre un test preexistente: el control positivo de
 `tests/rls/last-agent-guard.test.ts` ("permite degradar un agent si queda otro
 activo") hacía que el propio usuario degradara su propia membresía — válido antes de
-SELF_MODIFY, bloqueado después. Corregido para que sea el *segundo* agent quien
+SELF_MODIFY, bloqueado después. Corregido para que sea el _segundo_ agent quien
 degrade al primero, que es el escenario real que ese test pretendía cubrir.
 
 **Test dedicado:** `tests/rls/self-modify-guard.test.ts` — 3 casos, todos con un tenant
@@ -571,3 +571,130 @@ estrategias de orden, piso-cero cuando el descuento excede el capital, y que un
 `tests/tenancy/calcular-intereses.test.ts` — caso end-to-end nuevo contra la Edge
 Function desplegada (tenant/política/inmueble/capital/`DISCOUNT` reales), confirma
 `700` = `(100.000 − 30.000) × (0,03/30) × 10 días`, exacto.
+
+---
+
+## D-24 — Todo enum nuevo exige `COMMENT ON TYPE` que lo justifique, o usa `lista_tipos`
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | Cartera (cobranza/jurídico)                 |
+| **Estado** | Aceptada                                    |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+**Contexto.** `20260814160000_tipos_lista_tipos.sql` ya estableció el criterio: un
+`CREATE TYPE ... AS ENUM` de Postgres es correcto para vocabulario cerrado que
+**gatilla lógica** (máquina de estados, invariante, CHECK que depende del valor);
+`lista_tipos` (tabla de catálogo genérico, ampliable por tenant sin migración) es
+correcto para vocabulario puramente descriptivo. Esa migración migró 3 enums a
+`lista_tipos` y dejó los otros 9 como enums, con la razón documentada inline.
+
+Auditando el esquema actual (47 enums), el módulo de cobranza/jurídico agregó 14
+enums nuevos sin ese comentario junto a la definición del tipo. Al investigar caso
+por caso (código real: `packages/liquidation-engine/src/cartera-cobranza.ts`,
+`supabase/functions/ejecutar-accion-cobranza/index.ts`, no solo las migraciones), se
+confirmó que la mayoría sí gatilla lógica real (`estado_acuerdo_t`,
+`estado_cuota_acuerdo_t`, `etapa_cobranza_t`, `estado_certificacion_t`,
+`alcance_accion_cobranza_t`, `estado_accion_cobranza_t`, `canal_cobranza_t` — este
+último decide en tiempo de ejecución si el worker de envío procesa la acción) — el
+criterio se siguió cumpliendo en la práctica, pero **sin quedar registrado**, lo que
+hace imposible distinguir a simple vista un enum "inevitable" de uno que simplemente
+nadie se detuvo a evaluar contra `lista_tipos`.
+
+**Decisión.** No se migran retroactivamente los enums existentes (costo/beneficio no
+lo justifica: exigiría reescribir `cartera-cobranza-supabase.ts`/`cartera-supabase.ts`
+y varios tests RLS por un problema que hoy es solo de documentación, no de
+arquitectura). En su lugar, se formaliza y automatiza la regla hacia adelante:
+
+**Principio de preferencia (por defecto, no opcional):** ante cualquier vocabulario
+cerrado nuevo, **siempre se prefiere `lista_tipos` sobre un enum de Postgres**,
+salvo que el diseño de lo que se está implementando exija el enum — es decir, que
+el valor gatille lógica real (máquina de estados, invariante, CHECK, una rama de
+código que decida algo según el valor). La carga de la prueba es del enum, no de
+`lista_tipos`: si al escribir la migración no se puede señalar la lógica concreta
+que depende del valor, es `lista_tipos`, sin excepción por comodidad o porque el
+documento de diseño lo haya dado como bloque `CREATE TYPE` de ejemplo.
+
+1. Todo `CREATE TYPE ... AS ENUM` nuevo debe venir acompañado, en la misma
+   migración, de `COMMENT ON TYPE public.<nombre> IS '...'` explicando por qué es
+   inevitable como enum nativo (qué lógica/transición/invariante gatilla) — o, si el
+   vocabulario es descriptivo y ampliable, debe usar una familia de `lista_tipos` en
+   vez de un enum nuevo.
+2. `tests/governance/enum-lista-tipos-coverage.test.ts` (test-guardia, mismo patrón
+   que `error-codes-coverage.test.ts`) hace cumplir el punto 1: escanea
+   `supabase/migrations/*.sql`, y falla si aparece un enum nuevo sin su
+   `COMMENT ON TYPE`. Los 47 enums existentes al 2026-08-17 quedan en una lista
+   `ENUMS_LEGADO` congelada dentro del test — exenta, no se amplía nunca; un enum
+   nuevo se justifica con el comentario, no agregando su nombre a esa lista.
+
+**Consecuencia.** La próxima vez que alguien (agente o humano) cree un enum, el test
+falla hasta que declare explícitamente por qué no es una entrada de `lista_tipos` —
+la decisión queda en la propia base de datos (`COMMENT ON TYPE` es consultable desde
+`psql`/el dashboard, no solo desde el código fuente), no solo en la cabeza de quien
+lo escribió.
+
+---
+
+## D-25 — Separación de proyecto Supabase de desarrollo y producción
+
+|            |                         |
+| ---------- | ----------------------- |
+| **Fase**   | Previo a hardening (F7) |
+| **Estado** | Aceptada                |
+| **Decide** | Usuario                 |
+
+**Contexto.** Desde D-08, todo el desarrollo, los tests de CI (`verify`/`coverage`/
+`e2e`) y el único entorno posible corrían contra un solo proyecto Supabase remoto
+(`hwjmlyzzvpmhadldavbq`, sa-east-1). D-08 ya dejaba anotado que antes de F7
+(hardening) hacía falta reevaluar el entorno. Esta decisión resuelve la mitad de
+esa revisión — la separación entre datos de prueba y datos reales de una
+copropiedad —, **no** la reproducibilidad local sin Docker, que sigue pendiente y
+es un problema distinto.
+
+**Decisión.**
+
+1. El usuario crea un segundo proyecto Supabase, misma región sa-east-1 (residencia
+   de datos, PLAN §11.3 / Ley 1581), dedicado a producción. El proyecto
+   `hwjmlyzzvpmhadldavbq` existente pasa a ser exclusivamente el de desarrollo.
+2. Las credenciales de producción viven en `.env.production` (raíz del repo,
+   ignorado por git, plantilla versionada en `.env.production.example`) — mismas
+   claves que `.env`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_ACCESS_TOKEN` (este
+   último es de la cuenta, no del proyecto — se reutiliza el mismo valor).
+3. **Promoción de migraciones: manual, nunca automática.** `scripts/db-push.mjs`
+   acepta un flag `--prod` que carga `.env.production` en vez de `.env` y pide
+   confirmación explícita por stdin (mostrando solo el host de la cadena de
+   conexión, nunca la contraseña) antes de aplicar cambios. Expuesto como
+   `pnpm db:push:prod` / `pnpm db:push:prod:dry`. `pnpm db:push` sin flags sigue
+   apuntando a desarrollo, sin cambios.
+4. **CI no cambia.** `verify`/`coverage`/`e2e` siguen corriendo solo contra
+   desarrollo, con los mismos GitHub Secrets de hoy. Producción nunca es tocada
+   por un test automático.
+5. **Edge Functions a producción:** sin script nuevo — igual que D-19 estableció
+   para desarrollo, el deploy es manual (`supabase functions deploy <nombre>
+--project-ref <ref-prod>`). El flag `--project-ref` sobreescribe el proyecto de
+   destino sin alterar el `link` activo a desarrollo, así que no hace falta
+   relinkear ida y vuelta.
+6. **`pnpm db:types` no cambia** — los tipos siempre se generan desde el esquema de
+   desarrollo (ahí se autoría y prueba primero); una vez promovido a producción el
+   esquema coincide.
+
+**Fuera de alcance (explícito).** No se toca `apps/web/nuxt.config.ts` ni
+`apps/web/.env*`: AD-10 fija Hostinger como destino de despliegue de la app, pero
+ese despliegue todavía no existe, así que no hay un runtime de producción de la
+app que necesite estas credenciales hoy. Cuando exista, lo natural es que
+Hostinger inyecte las variables de entorno directamente, no un `.env.production`
+shippeado junto al build.
+
+**Corrección 2026-08-19 — "promoción manual" significa autorización en el momento,
+no en el plan.** Un agente ejecutó `db:push:prod` (y el deploy de Edge Functions a
+producción) como parte de un plan ya aprobado, sin volver a pedir autorización en
+el turno puntual en que corrió el comando — respondió él mismo la confirmación
+"si" del script en vez de que la tipeara el usuario. El usuario corrigió: la base
+de datos de producción se actualiza **únicamente** cuando el usuario lo determina
+en ese momento, nunca por un plan aprobado con antelación ni por ningún modo de
+trabajo autónomo. `scripts/db-push.mjs` ya documenta esto en su cabecera. Regla
+para cualquier sesión futura (agente o humano): antes de correr `db:push:prod` o
+`supabase functions deploy ... --project-ref <ref-prod>`, preguntar en el chat y
+esperar una respuesta explícita del usuario en ese turno — un paso de "deploy a
+producción" en un plan ya aprobado NO es esa autorización.
