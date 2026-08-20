@@ -25,7 +25,7 @@ test('login: usuario existente entra y llega a /dashboard', async ({ page }) => 
   try {
     usuario = await crearUsuario(admin, 'e2e-login')
     tenant = await crearTenant(admin, 'e2e-login', usuario.id)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
     await fijarTenantActivo(admin, usuario.id, tenant.id)
 
     await loginUI(page, usuario.email, usuario.password)

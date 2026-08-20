@@ -21,9 +21,15 @@ const payloadSchema = z
     inmueble_id: z.string().uuid(),
     concepto_id: z.string().uuid().optional(),
     tipo: z.enum(['CHARGE', 'DISCOUNT', 'ADJUSTMENT', 'REFUND', 'CREDIT', 'DEBIT']),
+    tipo_novedad_id: z.number().int().positive().optional(),
+    presupuesto_cuenta_id: z.string().uuid().optional(),
     monto: z.number().finite(),
     descripcion: z.string().trim().min(1),
     fecha_efectiva: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha_efectiva debe ser YYYY-MM-DD.'),
+    // Conceptos avanzados Fase 4 — mutuamente excluyentes (novedades_permanente_prorrateable_exclusivos).
+    permanente: z.boolean().optional(),
+    prorrateable: z.boolean().optional(),
+    cuotas_totales: z.number().int().positive().optional(),
   })
   .refine(
     (payload) =>
@@ -36,6 +42,26 @@ const payloadSchema = z
       !TIPOS_NEGATIVOS.includes(payload.tipo as (typeof TIPOS_NEGATIVOS)[number]) ||
       payload.monto < 0,
     { message: 'DISCOUNT/CREDIT/REFUND requieren monto negativo (AD-30).', path: ['monto'] },
+  )
+  .refine((payload) => !(payload.permanente && payload.prorrateable), {
+    message: 'permanente y prorrateable son mutuamente excluyentes.',
+    path: ['permanente'],
+  })
+  .refine((payload) => !payload.prorrateable || (payload.cuotas_totales ?? 0) > 1, {
+    message: 'prorrateable exige cuotas_totales > 1.',
+    path: ['cuotas_totales'],
+  })
+  .refine((payload) => payload.prorrateable || payload.cuotas_totales === undefined, {
+    message: 'cuotas_totales solo aplica cuando prorrateable=true.',
+    path: ['cuotas_totales'],
+  })
+  .refine(
+    (payload) => !(payload.permanente || payload.prorrateable) || payload.concepto_id !== undefined,
+    {
+      message:
+        'Una novedad permanente o prorrateable exige concepto_id (el concepto Novedad del tenant).',
+      path: ['concepto_id'],
+    },
   )
 
 export default {
@@ -117,7 +143,7 @@ export default {
 
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: inmueble.tenant_id,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorRol) {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
@@ -139,9 +165,14 @@ export default {
         inmueble_id: datos.inmueble_id,
         concepto_id: datos.concepto_id ?? null,
         tipo: datos.tipo,
+        tipo_novedad_id: datos.tipo_novedad_id ?? null,
+        presupuesto_cuenta_id: datos.presupuesto_cuenta_id ?? null,
         monto: datos.monto,
         descripcion: datos.descripcion,
         fecha_efectiva: datos.fecha_efectiva,
+        permanente: datos.permanente ?? false,
+        prorrateable: datos.prorrateable ?? false,
+        cuotas_totales: datos.cuotas_totales ?? null,
         created_by: actorId,
       })
       .select()

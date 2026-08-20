@@ -14,13 +14,13 @@ import {
 } from './permissions'
 
 describe('hasPermission', () => {
-  it('agent tiene tenant:delete, auditor no', () => {
-    expect(hasPermission('agent', 'tenant:delete')).toBe(true)
+  it('auxiliar tiene tenant:delete, auditor no', () => {
+    expect(hasPermission('auxiliar', 'tenant:delete')).toBe(true)
     expect(hasPermission('auditor', 'tenant:delete')).toBe(false)
   })
 
   it('ambos roles tienen dashboard:view', () => {
-    expect(hasPermission('agent', 'dashboard:view')).toBe(true)
+    expect(hasPermission('auxiliar', 'dashboard:view')).toBe(true)
     expect(hasPermission('auditor', 'dashboard:view')).toBe(true)
   })
 })
@@ -35,7 +35,7 @@ describe('hasAnyPermission', () => {
   })
 
   it('false con lista vacía', () => {
-    expect(hasAnyPermission('agent', [])).toBe(false)
+    expect(hasAnyPermission('auxiliar', [])).toBe(false)
   })
 })
 
@@ -47,9 +47,9 @@ describe('hasPlatformPermission', () => {
 })
 
 describe('matrices exportadas', () => {
-  it('todo permiso de ROLE_PERMISSIONS.agent es reconocido por hasPermission', () => {
-    for (const permiso of ROLE_PERMISSIONS.agent) {
-      expect(hasPermission('agent', permiso)).toBe(true)
+  it('todo permiso de ROLE_PERMISSIONS.auxiliar es reconocido por hasPermission', () => {
+    for (const permiso of ROLE_PERMISSIONS.auxiliar) {
+      expect(hasPermission('auxiliar', permiso)).toBe(true)
     }
   })
 

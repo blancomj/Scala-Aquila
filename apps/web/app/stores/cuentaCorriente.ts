@@ -20,6 +20,8 @@ type CargoSaldoRow = Database['public']['Views']['v_cargo_saldo']['Row']
 type PagoRow = Database['public']['Tables']['pagos']['Row']
 type NovedadRow = Database['public']['Tables']['novedades']['Row']
 type NovedadTipo = Database['public']['Enums']['novedad_tipo_t']
+type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
+type NovedadCuotaRow = Database['public']['Tables']['novedad_cuotas']['Row']
 type JsonColumnaEstadoCuenta = Database['public']['Tables']['estados_cuenta_generados']['Row']['datos']
 
 interface ResultadoPago {
@@ -65,6 +67,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
   const cargosAbiertos = shallowRef<CargoSaldoRow[]>([])
   const pagos = shallowRef<PagoRow[]>([])
   const novedades = shallowRef<NovedadRow[]>([])
+  const tiposNovedad = shallowRef<ListaTipoRow[]>([])
+  const novedadCuotas = shallowRef<NovedadCuotaRow[]>([])
   const loading = ref(false)
 
   async function cargarInmuebles(tenantId: string): Promise<InmuebleRow[]> {
@@ -123,6 +127,36 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     return novedades.value
   }
 
+  /** Fase 4 conceptos avanzados — todas las cuotas de todas las novedades
+   * prorrateables del tenant, para calcular "cuota N de M" en el listado
+   * sin una consulta por fila. */
+  async function cargarNovedadCuotas(tenantId: string): Promise<NovedadCuotaRow[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorCuotas } = await cliente
+      .from('novedad_cuotas')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('numero_cuota')
+    if (errorCuotas) throw errorCuotas
+    novedadCuotas.value = data ?? []
+    return novedadCuotas.value
+  }
+
+  /** Catálogo TIPO_NOVEDAD (sanción, reparaciones, servicios...) — Fase 3
+   * conceptos avanzados. Mismo patrón que cargarTiposDivision (copropiedad.ts). */
+  async function cargarTiposNovedad(tenantId: string): Promise<ListaTipoRow[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorTipos } = await cliente
+      .from('lista_tipos')
+      .select('*')
+      .eq('tipo', 'TIPO_NOVEDAD')
+      .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
+      .order('orden')
+    if (errorTipos) throw errorTipos
+    tiposNovedad.value = data ?? []
+    return tiposNovedad.value
+  }
+
   async function registrarPago(params: {
     inmuebleId: string
     tenantId: string
@@ -172,9 +206,15 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     tenantId: string
     inmuebleId: string
     tipo: NovedadTipo
+    tipoNovedadId?: number | null
+    presupuestoCuentaId?: string | null
+    conceptoId?: string | null
     monto: number
     descripcion: string
     fechaEfectiva: string
+    permanente?: boolean
+    prorrateable?: boolean
+    cuotasTotales?: number | null
   }): Promise<NovedadRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorFuncion } = await cliente.functions.invoke<NovedadRow>(
@@ -183,17 +223,35 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
         body: {
           inmueble_id: params.inmuebleId,
           tipo: params.tipo,
+          tipo_novedad_id: params.tipoNovedadId ?? undefined,
+          presupuesto_cuenta_id: params.presupuestoCuentaId ?? undefined,
+          concepto_id: params.conceptoId ?? undefined,
           monto: params.monto,
           descripcion: params.descripcion,
           fecha_efectiva: params.fechaEfectiva,
+          permanente: params.permanente || undefined,
+          prorrateable: params.prorrateable || undefined,
+          cuotas_totales: params.cuotasTotales ?? undefined,
         },
       },
     )
     if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
     if (!data) throw new Error('crear-novedad no devolvió datos.')
 
-    await cargarNovedades(params.tenantId)
+    await Promise.all([cargarNovedades(params.tenantId), cargarNovedadCuotas(params.tenantId)])
     return data
+  }
+
+  /** Fase 4 conceptos avanzados — apaga una novedad permanente (deja de
+   * generar cargos futuros, no toca los ya generados). */
+  async function inhabilitarNovedad(novedadId: string, tenantId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error: errorFuncion } = await cliente.functions.invoke('inhabilitar-novedad', {
+      body: { novedad_id: novedadId },
+    })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+
+    await cargarNovedades(tenantId)
   }
 
   async function aprobarNovedad(novedadId: string, tenantId: string): Promise<void> {
@@ -203,7 +261,11 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     })
     if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
 
-    await Promise.all([cargarNovedades(tenantId), cargarCargosAbiertos(tenantId)])
+    await Promise.all([
+      cargarNovedades(tenantId),
+      cargarCargosAbiertos(tenantId),
+      cargarNovedadCuotas(tenantId),
+    ])
   }
 
   async function rechazarNovedad(
@@ -315,6 +377,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     cargosAbiertos.value = []
     pagos.value = []
     novedades.value = []
+    tiposNovedad.value = []
+    novedadCuotas.value = []
   }
 
   return {
@@ -322,16 +386,21 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     cargosAbiertos,
     pagos,
     novedades,
+    tiposNovedad,
+    novedadCuotas,
     loading,
     cargarInmuebles,
     cargarCargosAbiertos,
     cargarPagos,
     cargarNovedades,
+    cargarTiposNovedad,
+    cargarNovedadCuotas,
     registrarPago,
     calcularIntereses,
     crearNovedad,
     aprobarNovedad,
     rechazarNovedad,
+    inhabilitarNovedad,
     generarEstadoCuenta,
     limpiar,
   }

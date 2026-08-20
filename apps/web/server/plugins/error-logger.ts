@@ -11,7 +11,11 @@ export default defineNitroPlugin((nitroApp) => {
 
   nitroApp.hooks.hook('beforeResponse', (event) => {
     const correlationId = event.context.correlationId
-    if (typeof correlationId === 'string') {
+    // beforeResponse no garantiza que los headers todavía no se hayan enviado (ej. redirects,
+    // respuestas ya terminadas) — sin este guard, setHeader lanza "Cannot set headers after
+    // they are sent to the client", que el hook `error` de abajo vuelve a loguear como si fuera
+    // un error real de la request.
+    if (typeof correlationId === 'string' && !event.node.res.headersSent) {
       event.node.res.setHeader('X-Correlation-Id', correlationId)
     }
   })

@@ -15,8 +15,17 @@ import type { TenantRole } from '~/types/permissions'
 
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
+export interface RolFuncional {
+  id: number
+  codigo: string
+  nombre: string
+}
+export interface RolFuncionalConModulos extends RolFuncional {
+  modulos: string[]
+}
 type Miembro = MembershipRow & {
   profile: Pick<ProfileRow, 'email' | 'full_name' | 'phone' | 'status'> | null
+  roles_funcionales: { rol_funcional: RolFuncional | null }[]
 }
 
 interface ActualizarPerfilRespuesta {
@@ -28,6 +37,8 @@ interface ActualizarPerfilRespuesta {
 
 export const useMembersStore = defineStore('members', () => {
   const miembros = shallowRef<Miembro[]>([])
+  const rolesFuncionalesCatalogo = shallowRef<RolFuncional[]>([])
+  const rolesFuncionalesConModulos = shallowRef<RolFuncionalConModulos[]>([])
   const loading = ref(false)
 
   async function cargarMiembros(tenantId: string): Promise<Miembro[]> {
@@ -38,16 +49,87 @@ export const useMembersStore = defineStore('members', () => {
         .from('memberships')
         // memberships tiene dos FK a profiles (user_id, invited_by) —
         // PostgREST necesita el hint de columna para no ser ambiguo.
-        .select('*, profile:profiles!user_id(email, full_name, phone, status)')
+        .select(
+          '*, profile:profiles!user_id(email, full_name, phone, status), ' +
+            'roles_funcionales:membership_roles_funcionales(rol_funcional:lista_tipos(id, codigo, nombre))',
+        )
         .eq('tenant_id', tenantId)
         .eq('status', 'active')
         .order('created_at', { ascending: true })
       if (errorMiembros) throw errorMiembros
-      miembros.value = (data ?? []) as Miembro[]
+      miembros.value = (data ?? []) as unknown as Miembro[]
       return miembros.value
     } finally {
       loading.value = false
     }
+  }
+
+  // Catálogo ROL_FUNCIONAL (20260830120000) — sembrado por plataforma,
+  // no cambia por tenant, se carga una sola vez.
+  async function cargarCatalogoRolesFuncionales(): Promise<RolFuncional[]> {
+    if (rolesFuncionalesCatalogo.value.length > 0) return rolesFuncionalesCatalogo.value
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('lista_tipos')
+      .select('id, codigo, nombre')
+      .eq('tipo', 'ROL_FUNCIONAL')
+      .is('tenant_id', null)
+      .order('orden')
+    if (error) throw error
+    rolesFuncionalesCatalogo.value = data ?? []
+    return rolesFuncionalesCatalogo.value
+  }
+
+  // Espejo del catálogo, con los módulos que cubre cada rol funcional
+  // embebidos — usado por la página de Seguridad (solo lectura), separado
+  // de rolesFuncionalesCatalogo (el drawer no necesita los módulos).
+  async function cargarCatalogoRolesFuncionalesConModulos(): Promise<RolFuncionalConModulos[]> {
+    if (rolesFuncionalesConModulos.value.length > 0) return rolesFuncionalesConModulos.value
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('lista_tipos')
+      .select('id, codigo, nombre, rol_funcional_modulo(modulo)')
+      .eq('tipo', 'ROL_FUNCIONAL')
+      .is('tenant_id', null)
+      .order('orden')
+    if (error) throw error
+    rolesFuncionalesConModulos.value = (
+      (data ?? []) as unknown as (RolFuncional & { rol_funcional_modulo: { modulo: string }[] })[]
+    ).map((fila) => ({
+      id: fila.id,
+      codigo: fila.codigo,
+      nombre: fila.nombre,
+      modulos: fila.rol_funcional_modulo.map((m) => m.modulo),
+    }))
+    return rolesFuncionalesConModulos.value
+  }
+
+  async function asignarRolFuncional(
+    membershipId: string,
+    rolFuncionalId: number,
+    tenantId: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente
+      .from('membership_roles_funcionales')
+      .insert({ membership_id: membershipId, rol_funcional_id: rolFuncionalId })
+    if (error) throw error
+    await cargarMiembros(tenantId)
+  }
+
+  async function revocarRolFuncional(
+    membershipId: string,
+    rolFuncionalId: number,
+    tenantId: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente
+      .from('membership_roles_funcionales')
+      .delete()
+      .eq('membership_id', membershipId)
+      .eq('rol_funcional_id', rolFuncionalId)
+    if (error) throw error
+    await cargarMiembros(tenantId)
   }
 
   async function cambiarRol(
@@ -104,5 +186,19 @@ export const useMembersStore = defineStore('members', () => {
     miembros.value = []
   }
 
-  return { miembros, loading, cargarMiembros, cambiarRol, revocar, actualizarPerfil, limpiar }
+  return {
+    miembros,
+    rolesFuncionalesCatalogo,
+    rolesFuncionalesConModulos,
+    loading,
+    cargarMiembros,
+    cargarCatalogoRolesFuncionales,
+    cargarCatalogoRolesFuncionalesConModulos,
+    asignarRolFuncional,
+    revocarRolFuncional,
+    cambiarRol,
+    revocar,
+    actualizarPerfil,
+    limpiar,
+  }
 })

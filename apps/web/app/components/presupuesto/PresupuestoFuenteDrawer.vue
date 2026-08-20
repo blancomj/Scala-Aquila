@@ -39,10 +39,7 @@ async function guardar(): Promise<void> {
     })
     emit('creado')
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error
-        ? excepcion.message
-        : 'No se pudo registrar la fuente de financiación.'
+    error.value = mensajeError(excepcion, 'No se pudo registrar la fuente de financiación.')
   } finally {
     guardando.value = false
   }

@@ -137,8 +137,13 @@ async function crearCargoVencido(
       tenant_id: tenantId,
       codigo: `CR-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
       nombre: 'Cuota',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -209,7 +214,7 @@ d('cartera-recalcular (Edge Function, CAR §18)', () => {
     administrador = await crearUsuario(admin, 'cr-admin')
     tenant = await crearTenant(admin, 'cr', administrador.id)
     tenantSinPolitica = await crearTenant(admin, 'cr-sin-pol', administrador.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     await crearMembership(admin, tenantSinPolitica.id, administrador.id, 'administrador')
     clienteAgent = await clienteComo(env!, agente)

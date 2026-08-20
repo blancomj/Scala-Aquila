@@ -58,8 +58,7 @@ async function crear(): Promise<void> {
     fondoImprevistosBase.value = ''
     vigenteDesde.value = ''
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo crear la política financiera.'
+    error.value = mensajeError(excepcion, 'No se pudo crear la política financiera.')
   } finally {
     cargando.value = false
   }
@@ -74,7 +73,7 @@ async function activar(id: string): Promise<void> {
   try {
     await politicaStore.activarPolitica(id, tenantId)
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo activar la política.'
+    error.value = mensajeError(excepcion, 'No se pudo activar la política.')
   } finally {
     activandoId.value = null
   }

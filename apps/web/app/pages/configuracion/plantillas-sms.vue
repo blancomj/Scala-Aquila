@@ -103,7 +103,7 @@ async function guardar(): Promise<void> {
   try {
     await plantillasStore.guardar(tenantId, eventoSeleccionado.value, cuerpoEditado.value)
   } catch (excepcion) {
-    errorGuardar.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar.'
+    errorGuardar.value = mensajeError(excepcion, 'No se pudo guardar.')
   } finally {
     guardando.value = false
   }
@@ -121,8 +121,7 @@ async function cambiarInterruptor(activo: boolean): Promise<void> {
   try {
     await plantillasStore.toggle(tenantId, eventoSeleccionado.value, activo)
   } catch (excepcion) {
-    errorInterruptor.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo cambiar el interruptor.'
+    errorInterruptor.value = mensajeError(excepcion, 'No se pudo cambiar el interruptor.')
   } finally {
     cambiandoInterruptor.value = false
   }
@@ -148,7 +147,7 @@ async function probarEnvio(): Promise<void> {
       telefonoPrueba.value,
     )
   } catch (excepcion) {
-    errorPrueba.value = excepcion instanceof Error ? excepcion.message : 'No se pudo enviar la prueba.'
+    errorPrueba.value = mensajeError(excepcion, 'No se pudo enviar la prueba.')
   } finally {
     probando.value = false
   }

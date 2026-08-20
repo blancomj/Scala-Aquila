@@ -11,7 +11,7 @@
 // cliente"). Por eso `guardarLiquidacion` se llama con `ctx.supabaseAdmin`
 // (service_role, bypassa RLS) — el único otro uso de service_role en el
 // proyecto es accept-invitation/index.ts. Como RLS no protege este INSERT,
-// la función verifica el rol 'agent' explícitamente vía `has_role()` antes
+// la función verifica el rol 'auxiliar' explícitamente vía `has_role()` antes
 // de escribir nada.
 //
 // Decisión explícita (confirmada con el usuario): esta función NO transiciona
@@ -34,6 +34,7 @@ import {
   DependenciaCiclicaError,
   DependenciaDesconocidaError,
   EvaluacionConceptoFallidaError,
+  generarCargosNovedadesPeriodo,
   guardarLiquidacion,
   liquidar,
   ReconciliacionLiquidacionFallidaError,
@@ -137,7 +138,7 @@ export default {
     // políticas RLS del resto del esquema.
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: periodo.tenant_id,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorRol) {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
@@ -237,6 +238,39 @@ export default {
         message: mensaje,
       })
       return errorResponse(500, 'INTERNAL_ERROR', mensaje, undefined, correlationId)
+    }
+
+    // Conceptos avanzados Fase 4 — paso aparte de guardarLiquidacion(), no
+    // parte de liquidar(): las novedades permanentes/prorrateables no son
+    // conceptos que el motor evalúe (temporal.ts las excluye siempre), son
+    // cargos que se generan directamente contra el ledger. La liquidación
+    // ya quedó guardada (AD-31, append-only) — un fallo aquí no la revierte;
+    // fn_generar_cargos_novedades_periodo() es idempotente, así que basta
+    // con reintentar liquidar-periodo (PERIODO_YA_LIQUIDADO de la idempotencia
+    // de arriba no bloquea esto porque ya lo pasamos) o esperar a la
+    // siguiente corrida sobre este mismo periodo.
+    try {
+      await generarCargosNovedadesPeriodo(ctx.supabaseAdmin, periodo.tenant_id, periodoId)
+    } catch (excepcion) {
+      const mensaje =
+        excepcion instanceof Error ? excepcion.message : 'No se pudieron generar los cargos.'
+      logEvent({
+        level: 'error',
+        action: 'liquidar_periodo.novedades_fallido',
+        correlationId,
+        actorId,
+        tenantId: periodo.tenant_id,
+        meta: { periodoId, liquidacionId },
+        message: mensaje,
+      })
+      return errorResponse(
+        500,
+        'INTERNAL_ERROR',
+        `La liquidación ${liquidacionId} se guardó correctamente, pero no se pudieron generar los ` +
+          `cargos de novedades permanentes/prorrateables: ${mensaje}`,
+        { liquidacion_id: liquidacionId },
+        correlationId,
+      )
     }
 
     logEvent({

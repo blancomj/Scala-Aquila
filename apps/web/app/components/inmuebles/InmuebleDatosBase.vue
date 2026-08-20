@@ -20,6 +20,7 @@ type TipoInmuebleRow = Database['public']['Tables']['lista_tipos']['Row']
 const tiposInmueble = shallowRef<TipoInmuebleRow[]>([])
 const estadosLegales = shallowRef<TipoInmuebleRow[]>([])
 const habitabilidades = shallowRef<TipoInmuebleRow[]>([])
+const usosPredio = shallowRef<TipoInmuebleRow[]>([])
 const tiposIdentificacion = shallowRef<TipoInmuebleRow[]>([])
 
 function nombreTipoIdentificacion(id: number | null): string {
@@ -37,6 +38,10 @@ const opcionesEstadoLegal = computed(() => [
   { valor: null, etiqueta: '— Sin novedad —' },
   ...estadosLegales.value.map((e) => ({ valor: e.id, etiqueta: e.nombre })),
 ])
+const opcionesUsoPredio = computed(() => [
+  { valor: null, etiqueta: '— Sin especificar —' },
+  ...usosPredio.value.map((u) => ({ valor: u.id, etiqueta: u.nombre })),
+])
 
 // ── formulario "Datos generales" (creación y edición) ──────────────────
 const editando = ref(false)
@@ -49,6 +54,7 @@ const areaComun = ref<number | null>(null)
 const estadoLegalId = ref<number | null>(null)
 const estadoLegalObservaciones = ref('')
 const habitabilidadId = ref<number | null>(null)
+const usoPredioId = ref<number | null>(null)
 
 const errorEdicion = ref<string | null>(null)
 const guardandoEdicion = ref(false)
@@ -65,6 +71,7 @@ function precargarFormulario(): void {
   estadoLegalId.value = inm.estado_legal_id
   estadoLegalObservaciones.value = inm.estado_legal_observaciones ?? ''
   habitabilidadId.value = inm.habitabilidad_id
+  usoPredioId.value = inm.uso_predio_id
 }
 
 function alternarEdicion(): void {
@@ -84,8 +91,7 @@ async function guardarEdicion(): Promise<void> {
   try {
     await guardar()
   } catch (excepcion) {
-    errorEdicion.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudieron guardar los cambios.'
+    errorEdicion.value = mensajeError(excepcion, 'No se pudieron guardar los cambios.')
   } finally {
     guardandoEdicion.value = false
   }
@@ -157,6 +163,7 @@ async function guardar(): Promise<string> {
       estadoLegalId: estadoLegalId.value,
       estadoLegalObservaciones: estadoLegalObservaciones.value.trim() || undefined,
       habitabilidadId: habitabilidadId.value,
+      usoPredioId: usoPredioId.value,
     })
     for (const persona of personasEnEspera.value) {
       await tercerosStore.asociarTerceroInmueble({ tenantId, inmuebleId: nuevo.id, ...persona })
@@ -176,6 +183,7 @@ async function guardar(): Promise<string> {
     estadoLegalId: estadoLegalId.value,
     estadoLegalObservaciones: estadoLegalObservaciones.value.trim() || undefined,
     habitabilidadId: habitabilidadId.value,
+    usoPredioId: usoPredioId.value,
   })
   editando.value = false
   return props.inmuebleId
@@ -187,13 +195,19 @@ defineExpose({ guardar, alternarEdicion })
 watchEffect(async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
-  ;[tiposInmueble.value, estadosLegales.value, habitabilidades.value, tiposIdentificacion.value] =
-    await Promise.all([
-      cargarListaTipos(tenantId, 'TIPO_INMUEBLE'),
-      cargarListaTipos(tenantId, 'ESTADO_LEGAL_PREDIO'),
-      cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO'),
-      cargarListaTipos(tenantId, 'TIPO_IDENTIFICACION'),
-    ])
+  ;[
+    tiposInmueble.value,
+    estadosLegales.value,
+    habitabilidades.value,
+    usosPredio.value,
+    tiposIdentificacion.value,
+  ] = await Promise.all([
+    cargarListaTipos(tenantId, 'TIPO_INMUEBLE'),
+    cargarListaTipos(tenantId, 'ESTADO_LEGAL_PREDIO'),
+    cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO'),
+    cargarListaTipos(tenantId, 'USO_PREDIO'),
+    cargarListaTipos(tenantId, 'TIPO_IDENTIFICACION'),
+  ])
   await tercerosStore.cargarRolesPersonaPredio(tenantId)
 
   if (props.inmuebleId) {
@@ -267,6 +281,15 @@ watchEffect(async () => {
           <label for="f-estado-legal-obs">Observaciones</label>
           <input id="f-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
         </div>
+        <div class="field">
+          <label for="f-uso-predio">Uso del predio</label>
+          <UiSelectorBuscable
+            id="f-uso-predio"
+            v-model="usoPredioId"
+            variante="ficha"
+            :opciones="opcionesUsoPredio"
+          />
+        </div>
       </div>
     </div>
 
@@ -297,6 +320,10 @@ watchEffect(async () => {
           <div class="ledger-row">
             <dt>Estado legal</dt>
             <dd>{{ estadosLegales.find((e) => e.id === inmueblesStore.inmuebleActivo?.estado_legal_id)?.nombre ?? 'Sin novedad' }}</dd>
+          </div>
+          <div class="ledger-row">
+            <dt>Uso del predio</dt>
+            <dd>{{ usosPredio.find((u) => u.id === inmueblesStore.inmuebleActivo?.uso_predio_id)?.nombre ?? '—' }}</dd>
           </div>
         </dl>
       </div>
@@ -386,6 +413,15 @@ watchEffect(async () => {
         <div v-if="estadoLegalId !== null" class="field span-2">
           <label for="fe-estado-legal-obs">Observaciones</label>
           <input id="fe-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
+        </div>
+        <div class="field">
+          <label for="fe-uso-predio">Uso del predio</label>
+          <UiSelectorBuscable
+            id="fe-uso-predio"
+            v-model="usoPredioId"
+            variante="ficha"
+            :opciones="opcionesUsoPredio"
+          />
         </div>
       </div>
       <p v-if="errorEdicion" class="note" style="color: var(--ladrillo-text)">{{ errorEdicion }}</p>

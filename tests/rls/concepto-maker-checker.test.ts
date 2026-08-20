@@ -39,8 +39,8 @@ d('conceptos: maker-checker (en_revision, self-approval, inmutabilidad)', () => 
     agenteA = await crearUsuario(admin, 'mc-agent-a')
     agenteB = await crearUsuario(admin, 'mc-agent-b')
     tenantA = await crearTenant(admin, 'mc-a', agenteA.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
-    await crearMembership(admin, tenantA.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
+    await crearMembership(admin, tenantA.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAgentB = await clienteComo(env!, agenteB)
@@ -59,8 +59,13 @@ d('conceptos: maker-checker (en_revision, self-approval, inmutabilidad)', () => 
         tenant_id: tenantA.id,
         codigo: `MC-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
         nombre: 'Concepto de prueba',
-        tipo_base: 'coeficiente',
         modo_calculo: 'distribucion',
+        modo_valor: 'formulado',
+        tipo_recurrencia: 'recurrente',
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        fecha_inicio_anio: 2000,
+        fecha_inicio_mes: 1,
         formula_ael: 'REGLA X\nRETORNAR 1',
         prioridad: 100,
       })

@@ -43,6 +43,41 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
   return data.id
 }
 
+/** Fase 3 conceptos avanzados — id de un valor real del catálogo TIPO_NOVEDAD
+ * (ya sembrado en 20260814180000, huérfano hasta ahora). */
+async function tipoNovedadId(admin: Cliente, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_NOVEDAD')
+    .eq('codigo', codigo)
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture tipo novedad ${codigo}: ${error.message}`)
+  return data.id
+}
+
+/** Fase 3 conceptos avanzados — mismo patrón de fixture que
+ * tests/rls/presupuesto-ejecucion.test.ts::crearCuenta. */
+async function crearCuentaPresupuestal(
+  admin: Cliente,
+  params: { tenantId: string; naturaleza: 'ingreso' | 'egreso'; codigo: string; parentId?: string },
+): Promise<{ id: string }> {
+  const { data, error } = await admin
+    .from('presupuesto_cuenta')
+    .insert({
+      tenant_id: params.tenantId,
+      naturaleza: params.naturaleza,
+      codigo: params.codigo,
+      nombre: params.codigo,
+      parent_id: params.parentId ?? null,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture cuenta ${params.codigo}: ${error.message}`)
+  return data
+}
+
 d('crear-novedad / aprobar-novedad / rechazar-novedad (Edge Functions)', () => {
   const admin = clienteAdmin(env!)
   let agente: UsuarioPrueba
@@ -62,7 +97,7 @@ d('crear-novedad / aprobar-novedad / rechazar-novedad (Edge Functions)', () => {
     agente = await crearUsuario(admin, 'nov-http-agent')
     auditor = await crearUsuario(admin, 'nov-http-auditor')
     tenant = await crearTenant(admin, 'nov-http', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)
@@ -215,5 +250,114 @@ d('crear-novedad / aprobar-novedad / rechazar-novedad (Edge Functions)', () => {
       .eq('novedad_id', creada!.id)
     expect(error).toBeNull()
     expect(cargos).toHaveLength(0)
+  }, 30_000)
+
+  // ── Fase 3 conceptos avanzados — tipo_novedad_id / presupuesto_cuenta_id ─
+  it('flujo feliz: crear con tipo_novedad_id + presupuesto_cuenta_id — ambos quedan guardados', async () => {
+    const idTipoNovedad = await tipoNovedadId(admin, 'sancion')
+    const cuenta = await crearCuentaPresupuestal(admin, {
+      tenantId: tenant.id,
+      naturaleza: 'ingreso',
+      codigo: `CI-SANCIONES-${String(Date.now())}`,
+    })
+
+    const { data: creada, response } = await clienteAgent.functions.invoke<RespuestaNovedad>(
+      'crear-novedad',
+      {
+        body: {
+          inmueble_id: inmuebleId,
+          tipo: 'CHARGE',
+          tipo_novedad_id: idTipoNovedad,
+          presupuesto_cuenta_id: cuenta.id,
+          monto: 30_000,
+          descripcion: 'Sanción por ruido',
+          fecha_efectiva: '2027-01-15',
+        },
+      },
+    )
+    expect(response?.status).toBe(200)
+
+    const { data: fila, error } = await admin
+      .from('novedades')
+      .select('tipo_novedad_id, presupuesto_cuenta_id')
+      .eq('id', creada!.id)
+      .single()
+    expect(error).toBeNull()
+    expect(fila?.tipo_novedad_id).toBe(idTipoNovedad)
+    expect(fila?.presupuesto_cuenta_id).toBe(cuenta.id)
+  }, 30_000)
+
+  it('TIPO_NOVEDAD_INVALIDO (500): tipo_novedad_id de un catálogo distinto a TIPO_NOVEDAD', async () => {
+    const idOtroCatalogo = await tipoApartamentoId(admin) // TIPO_INMUEBLE, no TIPO_NOVEDAD
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaNovedad>(
+      'crear-novedad',
+      {
+        body: {
+          inmueble_id: inmuebleId,
+          tipo: 'CHARGE',
+          tipo_novedad_id: idOtroCatalogo,
+          monto: 1000,
+          descripcion: 'x',
+          fecha_efectiva: '2027-01-15',
+        },
+      },
+    )
+    expect(data).toBeNull()
+    expect(response?.status).toBe(500)
+  }, 30_000)
+
+  it('CUENTA_NATURALEZA_INVALIDA (500): presupuesto_cuenta_id de egreso — una novedad es un cobro', async () => {
+    const cuentaEgreso = await crearCuentaPresupuestal(admin, {
+      tenantId: tenant.id,
+      naturaleza: 'egreso',
+      codigo: `CE-GASTOS-${String(Date.now())}`,
+    })
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaNovedad>(
+      'crear-novedad',
+      {
+        body: {
+          inmueble_id: inmuebleId,
+          tipo: 'CHARGE',
+          presupuesto_cuenta_id: cuentaEgreso.id,
+          monto: 1000,
+          descripcion: 'x',
+          fecha_efectiva: '2027-01-15',
+        },
+      },
+    )
+    expect(data).toBeNull()
+    expect(response?.status).toBe(500)
+  }, 30_000)
+
+  it('CUENTA_NO_ES_HOJA (500): presupuesto_cuenta_id de una cuenta que agrupa subcuentas', async () => {
+    const cuentaPadre = await crearCuentaPresupuestal(admin, {
+      tenantId: tenant.id,
+      naturaleza: 'ingreso',
+      codigo: `CI-PADRE-${String(Date.now())}`,
+    })
+    await crearCuentaPresupuestal(admin, {
+      tenantId: tenant.id,
+      naturaleza: 'ingreso',
+      codigo: `CI-HIJA-${String(Date.now())}`,
+      parentId: cuentaPadre.id,
+    })
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaNovedad>(
+      'crear-novedad',
+      {
+        body: {
+          inmueble_id: inmuebleId,
+          tipo: 'CHARGE',
+          presupuesto_cuenta_id: cuentaPadre.id,
+          monto: 1000,
+          descripcion: 'x',
+          fecha_efectiva: '2027-01-15',
+        },
+      },
+    )
+    expect(data).toBeNull()
+    expect(response?.status).toBe(500)
   }, 30_000)
 })

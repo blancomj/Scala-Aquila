@@ -50,6 +50,35 @@ d('DataSnapshot real desde Supabase (seed de GC-001)', () => {
     expect(presupuestoAnual.valor.amount.toString()).toBe('120000000')
   })
 
+  it('UNIT.* por inmueble: COEFICIENTE/AREA_PRIVADA reales, AREA_COMUN ausente (no diligenciada)', async () => {
+    const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
+    if (!tenant) throw new Error('falta el tenant gc-001')
+
+    const snapshot = await construirSnapshotDesdeSupabase(admin, {
+      tenantId: tenant.id,
+      anio: 2026,
+      mes: 1,
+    })
+
+    const inm101 = snapshot.inmuebles.find((i) => i.codigo === 'INM-101')
+    if (!inm101) throw new Error('falta INM-101 en el snapshot')
+
+    const unit = snapshot.unidades[inm101.id]
+    if (!unit) throw new Error('INM-101 no tiene entrada en snapshot.unidades')
+
+    if (unit.COEFICIENTE?.tipo !== 'NUMBER') throw new Error('se esperaba NUMBER')
+    expect(unit.COEFICIENTE.valor.toString()).toBe(inm101.coeficiente)
+
+    if (unit.AREA_PRIVADA?.tipo !== 'NUMBER') throw new Error('se esperaba NUMBER')
+    expect(unit.AREA_PRIVADA.valor.toString()).toBe('75.5')
+
+    // 20260814100400_seed_gc001.sql solo inserta area_privada — area_comun
+    // queda sin diligenciar (null), y por eso no aparece en el catálogo de
+    // ESE inmueble (17 §37 SNAPSHOT INCOMPLETE: falla si una fórmula la usa,
+    // no inventa 0).
+    expect(unit.AREA_COMUN).toBeUndefined()
+  })
+
   it('OTROS_INGRESOS_ANUAL viene de fuente_financiacion; liquidar() reproduce el golden case (GAP-19)', async () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     if (!tenant) throw new Error('falta el tenant gc-001')

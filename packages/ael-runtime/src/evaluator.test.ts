@@ -57,6 +57,36 @@ describe('evaluar — DEFINIR / Identificador', () => {
   })
 })
 
+describe('evaluar — traza ("Detalle del cálculo")', () => {
+  it('un paso por DEFINIR y uno final por RETORNAR, en orden de ejecución', () => {
+    const r = evaluarFuente('REGLA X\nDEFINIR a = 2\nDEFINIR b = a * 3\nRETORNAR b')
+    expect(r.traza.map((p) => ({ nombre: p.nombre, expresionTexto: p.expresionTexto }))).toEqual([
+      { nombre: 'a', expresionTexto: '2' },
+      { nombre: 'b', expresionTexto: 'a * 3' },
+      { nombre: null, expresionTexto: 'b' },
+    ])
+    if (r.traza[1]?.valor.tipo !== 'NUMBER') throw new Error()
+    expect(r.traza[1].valor.valor.toString()).toBe('6')
+  })
+
+  it('una DEFINIR dentro de SI/ENTONCES también queda en la traza (mismo alcance plano)', () => {
+    const r = evaluarFuente(
+      'REGLA X\nSI VERDADERO ENTONCES\nDEFINIR a = 5\nFIN\nRETORNAR a',
+    )
+    expect(r.traza.map((p) => p.nombre)).toEqual(['a', null])
+  })
+
+  it('un error de evaluación conserva la traza hasta el último paso completado', () => {
+    const r = evaluarFuente(
+      'REGLA X\nDEFINIR a = 1\nRETORNAR PARAMETER.NO_RESUELTO',
+      { PARAMETER: { NO_RESUELTO: 'NUMBER' } },
+    )
+    expect(r.resultado).toBeNull()
+    expect(r.diagnosticos.length).toBeGreaterThan(0)
+    expect(r.traza.map((p) => p.nombre)).toEqual(['a'])
+  })
+})
+
 describe('evaluar — Contracts', () => {
   it('resuelve PARAMETER.X a través del contexto', () => {
     const r = evaluarFuente(

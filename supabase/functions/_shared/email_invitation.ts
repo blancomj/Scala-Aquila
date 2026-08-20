@@ -19,7 +19,7 @@ export async function enviarEmailInvitacion(params: {
   }
 
   const enlace = `${appUrl}/invite?token=${params.token}`
-  const rolTexto = params.role === 'agent' ? 'administrador' : 'auditor'
+  const rolTexto = params.role === 'auxiliar' ? 'Auxiliar' : 'Auditor'
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',

@@ -45,9 +45,9 @@ d('concepto_versiones: aislamiento, auto-versión y append-only', () => {
     agenteB = await crearUsuario(admin, 'cv-agent-b')
     tenantA = await crearTenant(admin, 'cv-a', agenteA.id)
     tenantB = await crearTenant(admin, 'cv-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)
@@ -59,8 +59,13 @@ d('concepto_versiones: aislamiento, auto-versión y append-only', () => {
         tenant_id: tenantA.id,
         codigo: `CV-${String(Date.now())}`,
         nombre: 'Cuota de prueba',
-        tipo_base: 'coeficiente',
         modo_calculo: 'distribucion',
+        modo_valor: 'formulado',
+        tipo_recurrencia: 'recurrente',
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        fecha_inicio_anio: 2000,
+        fecha_inicio_mes: 1,
         prioridad: 100,
       })
       .select('id')
@@ -84,8 +89,9 @@ d('concepto_versiones: aislamiento, auto-versión y append-only', () => {
       tenant_id: tenantA.id,
       concepto_id: conceptoAId,
       nombre: 'Cuota de prueba',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
       formula_ael: 'REGLA X\nRETORNAR 1',
       prioridad: 100,
       estado_concepto: 'borrador',

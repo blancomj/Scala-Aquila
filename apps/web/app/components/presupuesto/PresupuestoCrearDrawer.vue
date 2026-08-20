@@ -32,8 +32,7 @@ async function guardar(): Promise<void> {
     })
     emit('creado', creado.id)
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo crear el presupuesto.'
+    error.value = mensajeError(excepcion, 'No se pudo crear el presupuesto.')
   } finally {
     guardando.value = false
   }

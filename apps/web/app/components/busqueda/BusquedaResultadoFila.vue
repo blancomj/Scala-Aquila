@@ -34,7 +34,7 @@ const CONFIG: Record<ResultadoBusqueda['categoria'], ConfigCategoria> = {
   inmueble: {
     icono: 'M4 3h16v18H4zM8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2',
     primaria: (r) => ({ label: 'Ver ficha', to: `/inmuebles/${r.entidadId}` }),
-    secundaria: () => ({ label: 'Ver cartera', to: '/cuenta-corriente' }),
+    secundaria: () => ({ label: 'Ver cartera', to: '/estado-cuenta' }),
   },
   documento: {
     icono: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8ZM14 3v5h5',

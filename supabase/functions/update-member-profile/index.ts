@@ -93,7 +93,7 @@ export default {
 
     const { data: autorizado, error: errorHasRole } = await ctx.supabase.rpc('has_role', {
       p_tenant: membership.tenant_id,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorHasRole || !autorizado) {
       logEvent({

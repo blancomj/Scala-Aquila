@@ -60,8 +60,7 @@ async function previsualizar(): Promise<void> {
   try {
     previsualizacion.value = await presupuestoStore.previsualizarDistribucion(presupuestoId)
   } catch (excepcion) {
-    errorPrevisualizacion.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo previsualizar la distribución.'
+    errorPrevisualizacion.value = mensajeError(excepcion, 'No se pudo previsualizar la distribución.')
   } finally {
     previsualizando.value = false
   }

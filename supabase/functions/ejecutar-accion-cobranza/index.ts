@@ -100,7 +100,7 @@ export default {
 
     const { data: tieneRol, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: tenantId,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorRol) {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)

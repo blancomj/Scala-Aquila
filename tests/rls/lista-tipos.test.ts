@@ -48,9 +48,9 @@ d('lista_tipos: aislamiento y protección de filas de plataforma', () => {
     otroUsuario = await crearUsuario(admin, 'lt-otro')
     tenant = await crearTenant(admin, 'lt', agenteUsuario.id)
     otroTenant = await crearTenant(admin, 'lt-otro', otroUsuario.id)
-    await crearMembership(admin, tenant.id, agenteUsuario.id, 'agent')
+    await crearMembership(admin, tenant.id, agenteUsuario.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditorUsuario.id, 'auditor')
-    await crearMembership(admin, otroTenant.id, otroUsuario.id, 'agent')
+    await crearMembership(admin, otroTenant.id, otroUsuario.id, 'auxiliar')
 
     clienteAgent = await clienteComo(env!, agenteUsuario)
     clienteAuditor = await clienteComo(env!, auditorUsuario)

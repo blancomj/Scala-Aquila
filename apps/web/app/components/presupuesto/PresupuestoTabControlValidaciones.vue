@@ -135,8 +135,6 @@ const todoOk = computed(() =>
 
 <template>
   <div>
-    <h2 class="text-lg font-semibold mb-2">Control y validaciones</h2>
-
     <p v-if="!presupuestoSeleccionado" class="text-sm text-gray-500">
       Selecciona un presupuesto para ver su estado de reconciliación.
     </p>

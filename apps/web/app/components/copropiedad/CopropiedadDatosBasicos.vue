@@ -69,7 +69,7 @@ async function subirLogo(): Promise<void> {
     archivoLogo.value = null
     logoVersion.value += 1
   } catch (excepcion) {
-    errorLogo.value = excepcion instanceof Error ? excepcion.message : 'No se pudo subir el logo.'
+    errorLogo.value = mensajeError(excepcion, 'No se pudo subir el logo.')
   } finally {
     subiendoLogo.value = false
   }
@@ -114,7 +114,7 @@ async function guardar(): Promise<void> {
       contacto_email: contactoEmail.value.trim() || null,
     })
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar.'
+    error.value = mensajeError(excepcion, 'No se pudo guardar.')
   } finally {
     guardando.value = false
   }

@@ -169,8 +169,13 @@ async function armarCopropiedad(
     tenant_id: tenantId,
     codigo: 'CUOTA_ADMIN',
     nombre: 'Cuota de administración',
-    tipo_base: 'coeficiente',
     modo_calculo: 'distribucion',
+    modo_valor: 'formulado',
+    tipo_recurrencia: 'recurrente',
+    periodicidad: 'mensual',
+    alcance: 'todos',
+    fecha_inicio_anio: 2000,
+    fecha_inicio_mes: 1,
     formula_ael:
       'REGLA CUOTA_BASICA\n' +
       'DEFINIR presupuesto_anual = PARAMETER.PRESUPUESTO_ANUAL\n' +
@@ -210,9 +215,9 @@ d('liquidar-periodo (Edge Function)', () => {
     agenteOtro = await crearUsuario(admin, 'lp-agent-otro')
     tenant = await crearTenant(admin, 'lp', agente.id)
     tenantOtro = await crearTenant(admin, 'lp-otro', agenteOtro.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
-    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'agent')
+    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)
     clienteAgentOtro = await clienteComo(env!, agenteOtro)

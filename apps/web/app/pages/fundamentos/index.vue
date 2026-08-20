@@ -41,8 +41,7 @@ async function crear(): Promise<void> {
     descripcion.value = ''
     referencia.value = ''
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo crear el fundamento normativo.'
+    error.value = mensajeError(excepcion, 'No se pudo crear el fundamento normativo.')
   } finally {
     cargando.value = false
   }

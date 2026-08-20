@@ -64,7 +64,7 @@ d('cartera_etapas (CAR §11)', () => {
     administrador = await crearUsuario(admin, 'etapa-admin1')
     administradorDos = await crearUsuario(admin, 'etapa-admin2')
     tenant = await crearTenant(admin, 'etapa', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     await crearMembership(admin, tenant.id, administradorDos.id, 'administrador')
   })

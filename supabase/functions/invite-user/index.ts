@@ -22,7 +22,7 @@ const RATE_LIMIT_VENTANA = '1 hour'
 const payloadSchema = z.object({
   tenant_id: z.string().uuid(),
   email: z.string().trim().toLowerCase().email('Correo inválido.'),
-  role: z.enum(['agent', 'auditor']),
+  role: z.enum(['auxiliar', 'auditor']),
 })
 
 export default {

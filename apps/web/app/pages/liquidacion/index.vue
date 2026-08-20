@@ -68,8 +68,7 @@ async function crearPeriodo(): Promise<void> {
     nuevoMes.value = null
     nuevaFechaVencimiento.value = ''
   } catch (excepcion) {
-    errorPeriodo.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo crear el periodo.'
+    errorPeriodo.value = mensajeError(excepcion, 'No se pudo crear el periodo.')
   } finally {
     creandoPeriodo.value = false
   }
@@ -90,7 +89,7 @@ async function liquidar(periodoId: string): Promise<void> {
       resultHash: resultado.result_hash,
     }
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo liquidar el periodo.'
+    error.value = mensajeError(excepcion, 'No se pudo liquidar el periodo.')
   } finally {
     liquidandoId.value = null
   }

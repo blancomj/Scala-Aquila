@@ -33,7 +33,7 @@ test.describe('invitación completa', () => {
     const admin = clienteAdmin(env!)
     const agente = await crearUsuario(admin, 'e2e-inv-agent')
     const tenant = await crearTenant(admin, 'e2e-inv', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await fijarTenantActivo(admin, agente.id, tenant.id)
 
     try {
@@ -59,7 +59,7 @@ test.describe('invitación completa', () => {
     const admin = clienteAdmin(env!)
     const agente = await crearUsuario(admin, 'e2e-inv-b-agent')
     const tenant = await crearTenant(admin, 'e2e-inv-b', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await fijarTenantActivo(admin, agente.id, tenant.id)
 
     const emailInvitado = `e2e-invitado-${RUN_ID}@example.test`

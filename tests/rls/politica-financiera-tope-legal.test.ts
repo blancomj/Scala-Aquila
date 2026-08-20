@@ -84,7 +84,7 @@ d('guard_politica_financiera_tope_legal (CAR §3.4, PH-C36/PH-C37)', () => {
     usuarios.push(usuario)
     const tenant = await crearTenant(admin, etiqueta, usuario.id)
     tenants.push(tenant)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
     return tenant
   }
 

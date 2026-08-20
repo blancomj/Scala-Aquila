@@ -5,14 +5,16 @@
  */
 import { analizar, parsear } from '@aquila/ael-language'
 import { dinero, evaluar, type TypedValue } from '@aquila/ael-runtime'
-import { allocate, type Money, type RoundingPolicy } from '@aquila/financial-kernel'
+import { allocate, money, type Money, type RoundingPolicy } from '@aquila/financial-kernel'
+import { inmuebleCumpleCondiciones } from './alcance.js'
 import { crearContexto, catalogoDesde } from './context.js'
 import {
+  ConceptoFijoSinValorError,
   ConceptoNoAnalizaLimpioError,
   EvaluacionConceptoFallidaError,
   ReconciliacionLiquidacionFallidaError,
 } from './errors.js'
-import { clavePeriodo, type DataSnapshot, type SnapshotConcepto } from './snapshot.js'
+import { clavePeriodo, type DataSnapshot, type SnapshotConcepto, type SnapshotInmueble } from './snapshot.js'
 
 export interface LineaLiquidacion {
   readonly inmuebleId: string
@@ -64,25 +66,72 @@ function evaluarConcepto(
   return resultado
 }
 
+/** modo_valor='fijo': el monto es un dato directo, sin parsear/analizar/evaluar
+ * ninguna fórmula (no tiene una que evaluar — formulaAel es ''). */
+function valorFijoComoTypedValue(concepto: SnapshotConcepto, snapshot: DataSnapshot): TypedValue {
+  if (concepto.valorFijo === null) {
+    throw new ConceptoFijoSinValorError(concepto.codigo)
+  }
+  return { tipo: 'MONEY', valor: money(concepto.valorFijo, snapshot.moneda) }
+}
+
+function valorDeConcepto(
+  concepto: SnapshotConcepto,
+  snapshot: DataSnapshot,
+  resultadosPrevios: ReadonlyMap<string, TypedValue>,
+  inmuebleId: string | null,
+): TypedValue {
+  return concepto.modoValor === 'fijo'
+    ? valorFijoComoTypedValue(concepto, snapshot)
+    : evaluarConcepto(concepto, snapshot, resultadosPrevios, inmuebleId)
+}
+
+/** Fase 5 (alcance.ts): alcance='todos' preserva el comportamiento anterior
+ * a esta fase exactamente (todo snapshot.inmuebles, sin filtrar). Con
+ * 'calculado', solo pasan los que cumplen alcanceCondiciones — decisión del
+ * usuario (2026-08-20): en distribución, el reparto se recalcula SOLO
+ * sobre ese subconjunto, no sobre el edificio completo. */
+function inmueblesQueAplican(
+  concepto: SnapshotConcepto,
+  snapshot: DataSnapshot,
+): readonly SnapshotInmueble[] {
+  const { alcanceCondiciones } = concepto
+  if (concepto.alcance === 'todos' || alcanceCondiciones === null) {
+    return snapshot.inmuebles
+  }
+  const contexto = { mesActual: snapshot.periodo.mes, anioActual: snapshot.periodo.anio }
+  return snapshot.inmuebles.filter((inmueble) =>
+    inmuebleCumpleCondiciones(
+      alcanceCondiciones,
+      inmueble.atributos,
+      contexto,
+      inmueble.coeficiente,
+    ),
+  )
+}
+
 function ejecutarDirecto(
   concepto: SnapshotConcepto,
   snapshot: DataSnapshot,
   resultadosPrevios: ReadonlyMap<string, TypedValue>,
 ): ResultadoConcepto {
-  const lineas = snapshot.inmuebles.map((inmueble): LineaLiquidacion => {
-    const valor = evaluarConcepto(concepto, snapshot, resultadosPrevios, inmueble.id)
+  const lineas = inmueblesQueAplican(concepto, snapshot).map((inmueble): LineaLiquidacion => {
+    const valor = valorDeConcepto(concepto, snapshot, resultadosPrevios, inmueble.id)
     return { inmuebleId: inmueble.id, conceptoCodigo: concepto.codigo, monto: dinero(valor).valor }
   })
   return { conceptoCodigo: concepto.codigo, valorAgregado: null, cuotaPeriodo: null, lineas }
 }
 
-/** PLAN §6.5: Paso 1 (anual → 12 periodos) + Paso 2 (cuota del periodo → inmuebles). */
+/** PLAN §6.5: Paso 1 (anual → 12 periodos) + Paso 2 (cuota del periodo → inmuebles).
+ * Un concepto fijo en modo distribución sigue repartiendo su único valor (el
+ * monto fijo, mismo valor sin importar el inmueble) por el mismo camino que uno
+ * formulado — el modo de valor no cambia cómo se reparte, solo de dónde sale. */
 function ejecutarDistribucion(
   concepto: SnapshotConcepto,
   snapshot: DataSnapshot,
   resultadosPrevios: ReadonlyMap<string, TypedValue>,
 ): ResultadoConcepto {
-  const valorAgregado = evaluarConcepto(concepto, snapshot, resultadosPrevios, null)
+  const valorAgregado = valorDeConcepto(concepto, snapshot, resultadosPrevios, null)
   const totalAnual = dinero(valorAgregado).valor
   const policy = politicaDesde(snapshot)
 
@@ -103,15 +152,24 @@ function ejecutarDistribucion(
   }
   const cuotaPeriodo = entradaPeriodo.allocatedAmount
 
+  // alcance='calculado' con cero inmuebles que cumplan: 0 líneas, no error —
+  // mismo criterio que ejecutarDirecto sobre un snapshot sin inmuebles.
+  // allocate() exige targets.length > 0 (EmptyTargetsError), así que este
+  // caso se salta el paso2 en vez de llamarlo.
+  const inmueblesAplican = inmueblesQueAplican(concepto, snapshot)
+  if (inmueblesAplican.length === 0) {
+    return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas: [] }
+  }
+
   const paso2 = allocate({
     basisType: 'coefficient',
     sourceAmount: cuotaPeriodo,
-    targets: snapshot.inmuebles.map((i) => ({ id: i.codigo, basis: i.coeficiente })),
+    targets: inmueblesAplican.map((i) => ({ id: i.codigo, basis: i.coeficiente })),
     policy,
   })
 
   const lineas = paso2.entries.map((entrada): LineaLiquidacion => {
-    const inmueble = snapshot.inmuebles.find((i) => i.codigo === entrada.targetId)
+    const inmueble = inmueblesAplican.find((i) => i.codigo === entrada.targetId)
     if (!inmueble) {
       throw new ReconciliacionLiquidacionFallidaError(
         'R1',

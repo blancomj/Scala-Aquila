@@ -164,8 +164,13 @@ async function crearCargoSaldado(
       tenant_id: opciones.tenantId,
       codigo: `CI-ADR-${String(Date.now())}`,
       nombre: 'Cuota ADR',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -245,7 +250,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     agente = await crearUsuario(admin, 'ci-agent')
     administrador = await crearUsuario(admin, 'ci-admin')
     tenant = await crearTenant(admin, 'ci', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     clienteAgent = await clienteComo(env!, agente)
     clienteAdministrador = await clienteComo(env!, administrador)
@@ -304,7 +309,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     if (errPeriodo) throw new Error(`fixture periodo: ${errPeriodo.message}`)
     const { data: concepto, error: errConcepto } = await admin
       .from('conceptos')
-      .insert({ tenant_id: tenant.id, codigo: `CI-CONC-${String(Date.now())}`, nombre: 'Cuota', tipo_base: 'coeficiente', modo_calculo: 'distribucion', prioridad: 100, estado: 'activo' })
+      .insert({ tenant_id: tenant.id, codigo: `CI-CONC-${String(Date.now())}`, nombre: 'Cuota', modo_calculo: 'distribucion', modo_valor: 'formulado', tipo_recurrencia: 'recurrente', periodicidad: 'mensual', alcance: 'todos', fecha_inicio_anio: 2000, fecha_inicio_mes: 1, prioridad: 100, estado: 'activo' })
       .select('id')
       .single<{ id: string }>()
     if (errConcepto) throw new Error(`fixture concepto: ${errConcepto.message}`)

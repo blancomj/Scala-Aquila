@@ -110,9 +110,9 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     agenteB = await crearUsuario(admin, 'mpf-agent-b')
     tenantA = await crearTenant(admin, 'mpf-a', agenteA.id)
     tenantB = await crearTenant(admin, 'mpf-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)

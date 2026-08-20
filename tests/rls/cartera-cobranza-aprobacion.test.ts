@@ -59,7 +59,7 @@ d('acciones_cobranza — aprobación (CAR §9.4/§21.3, maker-checker sin Edge F
     administrador = await crearUsuario(admin, 'cob-apr-admin1')
     administradorDos = await crearUsuario(admin, 'cob-apr-admin2')
     tenant = await crearTenant(admin, 'cob-aprobacion', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     await crearMembership(admin, tenant.id, administradorDos.id, 'administrador')
 

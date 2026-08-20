@@ -33,6 +33,7 @@ interface RespuestaPrueba {
   resultado: string | boolean | null
   tipo: string | null
   diagnosticos: { codigo: string; mensaje: string; linea: number; columna: number }[]
+  traza: { nombre: string | null; expresionTexto: string; valor: string | boolean | null; tipo: string }[]
 }
 
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
@@ -67,7 +68,7 @@ d('probar-formula (Edge Function)', () => {
     agente = await crearUsuario(admin, 'pf-agent')
     auditor = await crearUsuario(admin, 'pf-auditor')
     tenant = await crearTenant(admin, 'pf', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)
@@ -159,6 +160,15 @@ d('probar-formula (Edge Function)', () => {
     expect(data?.tipo).toBe('MONEY')
     expect(data?.resultado).toBe('12000000')
     expect(data?.diagnosticos).toEqual([])
+
+    expect(data?.traza).toEqual([
+      {
+        nombre: null,
+        expresionTexto: 'UNIT.COEFICIENTE * PARAMETER.PRESUPUESTO_ANUAL',
+        valor: '12000000',
+        tipo: 'MONEY',
+      },
+    ])
   }, 30_000)
 
   it('fórmula con error de sintaxis — 200 con valido:false, no es un error HTTP', async () => {

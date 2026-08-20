@@ -23,7 +23,7 @@
  * ejercitado; ampliar si un caso real lo requiere (AD-23).
  */
 import { crearDiagnostico, type Diagnostico } from '@aquila/ael-core'
-import type { Expresion, Instruccion, Regla } from '@aquila/ael-language'
+import { imprimirExpresion, type Expresion, type Instruccion, type Regla } from '@aquila/ael-language'
 import {
   compararDecimales,
   crearDecimal,
@@ -44,9 +44,25 @@ import { InvarianteEvaluadorError } from './errors.js'
 import { FUNCIONES } from './functions.js'
 import { booleano, dinero, numero, type TypedValue } from './typed-value.js'
 
+/**
+ * Un paso de la traza de ejecución — una DEFINIR (nombre no nulo) o el
+ * RETORNAR final (nombre null) — Docs/10 (Rule Workspace): "Detalle del
+ * cálculo" es una lectura directa de esta traza, no una re-derivación
+ * aparte por fuera del evaluador (evita que la explicación mostrada al
+ * usuario pueda divergir del resultado real).
+ */
+export interface PasoTraza {
+  readonly nombre: string | null
+  readonly expresionTexto: string
+  readonly valor: TypedValue
+}
+
 export interface ResultadoEvaluador {
   readonly resultado: TypedValue | null
   readonly diagnosticos: readonly Diagnostico[]
+  /** En orden de ejecución. Se conserva incluso si la evaluación termina en
+   * error, hasta el último paso completado — útil para ubicar dónde falló. */
+  readonly traza: readonly PasoTraza[]
 }
 
 export function evaluar(
@@ -54,10 +70,11 @@ export function evaluar(
   contexto: ExecutionContext,
   origen = '<fuente>',
 ): ResultadoEvaluador {
+  const traza: PasoTraza[] = []
   try {
     const entorno = new Map<string, TypedValue>()
-    const resultado = evaluarInstrucciones(regla.cuerpo, entorno, contexto)
-    return { resultado, diagnosticos: [] }
+    const resultado = evaluarInstrucciones(regla.cuerpo, entorno, contexto, traza)
+    return { resultado, diagnosticos: [], traza }
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : String(e)
     return {
@@ -71,6 +88,7 @@ export function evaluar(
           origen,
         }),
       ],
+      traza,
     }
   }
 }
@@ -80,21 +98,28 @@ function evaluarInstrucciones(
   instrucciones: readonly Instruccion[],
   entorno: Map<string, TypedValue>,
   contexto: ExecutionContext,
+  traza: PasoTraza[],
 ): TypedValue | null {
   for (const inst of instrucciones) {
     switch (inst.tipo) {
-      case 'Declaracion':
-        entorno.set(inst.nombre, evaluarExpresion(inst.expresion, entorno, contexto))
+      case 'Declaracion': {
+        const valor = evaluarExpresion(inst.expresion, entorno, contexto)
+        entorno.set(inst.nombre, valor)
+        traza.push({ nombre: inst.nombre, expresionTexto: imprimirExpresion(inst.expresion), valor })
         break
+      }
 
-      case 'Retorno':
-        return evaluarExpresion(inst.expresion, entorno, contexto)
+      case 'Retorno': {
+        const valor = evaluarExpresion(inst.expresion, entorno, contexto)
+        traza.push({ nombre: null, expresionTexto: imprimirExpresion(inst.expresion), valor })
+        return valor
+      }
 
       case 'Condicional': {
         const condicion = booleano(evaluarExpresion(inst.condicion, entorno, contexto))
         const rama = condicion.valor ? inst.entonces : inst.sino
         if (rama !== null) {
-          const resultado = evaluarInstrucciones(rama, entorno, contexto)
+          const resultado = evaluarInstrucciones(rama, entorno, contexto, traza)
           if (resultado !== null) return resultado
         }
         break

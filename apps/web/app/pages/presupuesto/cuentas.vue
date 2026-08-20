@@ -3,9 +3,9 @@
 // árbol: crear, editar (nombre/código/orden/estado/padre) y
 // activar/desactivar. Mismo patrón que conceptos/dependencias.vue
 // (página anidada, enlazada desde la página padre) y el patrón
-// tabla-solo-lectura + acciones por fila de conceptos/index.vue — no se
-// inventa un patrón de edición inline nuevo (no existe ninguno en el
-// resto del proyecto).
+// tabla-solo-lectura + acciones por fila de
+// PresupuestoTabConceptos.vue — no se inventa un patrón de edición
+// inline nuevo (no existe ninguno en el resto del proyecto).
 //
 // Reparentar (mover "Editar" → cambiar "Cuenta padre") es seguro desde
 // 20260823210000: el guard rechaza de antemano cualquier movida que
@@ -68,8 +68,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
       activa: !cuenta.activa,
     })
   } catch (excepcion) {
-    errorActiva.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo cambiar el estado.'
+    errorActiva.value = mensajeError(excepcion, 'No se pudo cambiar el estado.')
   } finally {
     cambiandoActivaId.value = null
   }
@@ -116,7 +115,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
     >
       <template #celda-nombre="{ fila }">
         <span :style="{ paddingLeft: `${(fila.nivel - 1) * 16}px` }" :class="{ 'font-medium': fila.nivel === 1 }">
-          {{ fila.nombre }}
+          <template v-if="fila.nivel > 1">— </template>{{ fila.nombre }}
         </span>
       </template>
       <template #celda-codigo="{ fila }"><span class="font-mono text-xs">{{ fila.codigo }}</span></template>
@@ -133,17 +132,30 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
         </span>
       </template>
       <template #celda-acciones="{ fila }">
-        <div class="flex gap-2">
-          <UButton size="xs" variant="soft" @click="abrirEdicion(fila)">Editar</UButton>
-          <UButton size="xs" variant="soft" @click="abrirNueva(fila.id)">+ Subcuenta</UButton>
+        <div class="flex justify-end gap-2">
+          <UButton
+            size="xs"
+            variant="soft"
+            icon="i-lucide-pencil"
+            aria-label="Editar"
+            @click="abrirEdicion(fila)"
+          />
+          <UButton
+            size="xs"
+            variant="soft"
+            icon="i-lucide-plus"
+            aria-label="Agregar subcuenta"
+            @click="abrirNueva(fila.id)"
+          />
           <UButton
             size="xs"
             variant="ghost"
+            :color="fila.activa ? 'error' : 'primary'"
+            :icon="fila.activa ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+            :aria-label="fila.activa ? 'Desactivar' : 'Activar'"
             :loading="cambiandoActivaId === fila.id"
             @click="alternarActiva(fila)"
-          >
-            {{ fila.activa ? 'Desactivar' : 'Activar' }}
-          </UButton>
+          />
         </div>
       </template>
     </UiTabla>

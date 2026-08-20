@@ -184,8 +184,8 @@ d('presupuesto-previsualizar (Edge Function)', () => {
     agenteOtro = await crearUsuario(admin, 'pp-agent-otro')
     tenant = await crearTenant(admin, 'pp', agente.id)
     tenantOtro = await crearTenant(admin, 'pp-otro', agenteOtro.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
-    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
+    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
     clienteAgentOtro = await clienteComo(env!, agenteOtro)
 

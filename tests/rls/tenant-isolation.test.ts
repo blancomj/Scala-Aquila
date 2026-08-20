@@ -42,8 +42,8 @@ d('Aislamiento entre tenants (SEC-03) y rol anon (SEC-04)', () => {
     userB = await crearUsuario(admin, 'user-b')
     tenantA = await crearTenant(admin, 'a', userA.id)
     tenantB = await crearTenant(admin, 'b', userB.id)
-    await crearMembership(admin, tenantA.id, userA.id, 'agent')
-    await crearMembership(admin, tenantB.id, userB.id, 'agent')
+    await crearMembership(admin, tenantA.id, userA.id, 'auxiliar')
+    await crearMembership(admin, tenantB.id, userB.id, 'auxiliar')
     clienteA = await clienteComo(env!, userA)
   }, 30_000)
 

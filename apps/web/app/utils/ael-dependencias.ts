@@ -26,8 +26,18 @@ export function conceptoARowSnapshot(conceptos: readonly ConceptoRow[]): Snapsho
     id: c.id,
     codigo: c.codigo,
     modoCalculo: c.modo_calculo,
+    modoValor: c.modo_valor,
     formulaAel: c.formula_ael ?? '',
+    valorFijo: c.valor_fijo !== null ? String(c.valor_fijo) : null,
     prioridad: c.prioridad,
+    tipoRecurrencia: c.tipo_recurrencia,
+    fechaInicioAnio: c.fecha_inicio_anio,
+    fechaInicioMes: c.fecha_inicio_mes,
+    fechaFinAnio: c.fecha_fin_anio,
+    fechaFinMes: c.fecha_fin_mes,
+    periodicidad: c.periodicidad,
+    alcance: c.alcance,
+    alcanceCondiciones: c.alcance_condiciones as unknown as SnapshotConcepto['alcanceCondiciones'],
   }))
 }
 

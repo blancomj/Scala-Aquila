@@ -159,6 +159,34 @@ export class TramoClasificacionNoEncontradoError extends Error {
   }
 }
 
+/** Conceptos avanzados Fase 1 — un concepto modo_valor='fijo' sin valor_fijo
+ * viola el CHECK de la base de datos; solo alcanzable si el snapshot se
+ * construyó a mano (test) sin respetar el contrato. */
+export class ConceptoFijoSinValorError extends Error {
+  constructor(readonly conceptoCodigo: string) {
+    super(
+      `El concepto "${conceptoCodigo}" es modo_valor='fijo' pero no tiene valorFijo — snapshot inconsistente.`,
+    )
+    this.name = 'ConceptoFijoSinValorError'
+  }
+}
+
+/** Conceptos avanzados Fase 2 — un concepto recurrente/unico/por_periodo sin
+ * las fechas que su tipo exige viola el CHECK de la base de datos; solo
+ * alcanzable si el snapshot se construyó a mano (test) sin respetar el
+ * contrato de conceptoAplicaEnPeriodo() (temporal.ts). */
+export class ConceptoRecurrenciaSinFechaError extends Error {
+  constructor(
+    readonly conceptoCodigo: string,
+    readonly tipoRecurrencia: string,
+  ) {
+    super(
+      `El concepto "${conceptoCodigo}" es tipo_recurrencia='${tipoRecurrencia}' pero le faltan las fechas que ese tipo exige — snapshot inconsistente.`,
+    )
+    this.name = 'ConceptoRecurrenciaSinFechaError'
+  }
+}
+
 /**
  * GAP-CAR-001 (CAR §4.4) — ni el cargo ni su periodo tienen fecha de
  * vencimiento. Nunca se infiere un vencimiento por defecto: un vencimiento

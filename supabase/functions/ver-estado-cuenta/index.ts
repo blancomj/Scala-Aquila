@@ -6,7 +6,7 @@
 // que un link de restablecer contraseña.
 //
 // Devuelve JSON (los datos del ledger, no HTML) — el HTML se renderiza en
-// apps/web/app/pages/estado-cuenta/[id].vue, servido por nuestro propio
+// apps/web/app/pages/comprobante-cuenta/[id].vue, servido por nuestro propio
 // Nuxt. No puede servirse desde aquí ni desde Storage: confirmado
 // empíricamente que el gateway de Supabase Edge Functions fuerza
 // `Content-Type: text/plain` + `Content-Security-Policy: sandbox` en
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     return errorResponse(
       404,
       'ESTADO_CUENTA_NO_ENCONTRADO',
-      'Este estado de cuenta no existe.',
+      'Este comprobante de cuenta no existe.',
       undefined,
       correlationId,
     )

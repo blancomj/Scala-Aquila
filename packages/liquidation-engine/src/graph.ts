@@ -56,6 +56,13 @@ export function construirGrafo(conceptos: readonly SnapshotConcepto[]): readonly
   const codigosConocidos = new Set(conceptos.map((c) => c.codigo))
 
   return conceptos.map((concepto) => {
+    // Un concepto fijo no tiene fórmula que parsear (formulaAel es '') — no
+    // puede depender de otro concepto, así que se salta el análisis en vez
+    // de dejar que parsear('') decida en silencio que no hay dependencias.
+    if (concepto.modoValor === 'fijo') {
+      return { concepto, dependencias: [] }
+    }
+
     const { regla } = parsear(concepto.formulaAel, concepto.codigo)
     const dependencias = regla ? [...new Set(referenciasEnInstrucciones(regla.cuerpo))] : []
 

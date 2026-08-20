@@ -11,6 +11,18 @@ import { describe, expect, it } from 'vitest'
 import { liquidar } from './liquidar.js'
 import type { DataSnapshot } from './snapshot.js'
 
+/** Fase 5 (alcance.ts) — irrelevante para GC-001 (alcance='todos'), pero
+ * cada SnapshotInmueble debe declarar atributos. */
+const ATRIBUTOS_VACIOS = {
+  estadoLegal: null,
+  habitabilidad: null,
+  areaPrivada: null,
+  tipoPropietario: null,
+  tipoInquilino: null,
+  usoPredio: null,
+  saldoActual: null,
+} as const
+
 const CUOTA_BASICA_AEL = [
   'REGLA CUOTA_BASICA',
   'DEFINIR presupuesto_anual = PARAMETER.PRESUPUESTO_ANUAL',
@@ -31,20 +43,30 @@ function snapshotGC001(mes: number): DataSnapshot {
     periodo: periodosDelAnio[mes - 1]!,
     periodosDelAnio,
     inmuebles: [
-      { id: 'inm-101', codigo: 'INM-101', coeficiente: '0.1500000000' },
-      { id: 'inm-102', codigo: 'INM-102', coeficiente: '0.1500000000' },
-      { id: 'inm-201', codigo: 'INM-201', coeficiente: '0.1650000000' },
-      { id: 'inm-202', codigo: 'INM-202', coeficiente: '0.1650000000' },
-      { id: 'inm-301', codigo: 'INM-301', coeficiente: '0.1850000000' },
-      { id: 'inm-302', codigo: 'INM-302', coeficiente: '0.1850000000' },
+      { id: 'inm-101', codigo: 'INM-101', coeficiente: '0.1500000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-102', codigo: 'INM-102', coeficiente: '0.1500000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-201', codigo: 'INM-201', coeficiente: '0.1650000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-202', codigo: 'INM-202', coeficiente: '0.1650000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-301', codigo: 'INM-301', coeficiente: '0.1850000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-302', codigo: 'INM-302', coeficiente: '0.1850000000', atributos: ATRIBUTOS_VACIOS },
     ],
     conceptos: [
       {
         id: 'concepto-cuota-admin',
         codigo: 'CUOTA_ADMIN',
         modoCalculo: 'distribucion',
+        modoValor: 'formulado',
         formulaAel: CUOTA_BASICA_AEL,
+        valorFijo: null,
         prioridad: 100,
+        tipoRecurrencia: 'recurrente',
+        fechaInicioAnio: 2000,
+        fechaInicioMes: 1,
+        fechaFinAnio: null,
+        fechaFinMes: null,
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        alcanceCondiciones: null,
       },
     ],
     presupuestoVigente: { id: 'presupuesto-2026', anio: 2026, montoTotal: '120000000' },

@@ -45,9 +45,9 @@ d('concepto_test_cases: aislamiento y CRUD', () => {
     agenteB = await crearUsuario(admin, 'tc-agent-b')
     tenantA = await crearTenant(admin, 'tc-a', agenteA.id)
     tenantB = await crearTenant(admin, 'tc-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)
@@ -59,8 +59,13 @@ d('concepto_test_cases: aislamiento y CRUD', () => {
         tenant_id: tenantA.id,
         codigo: `TC-${String(Date.now())}`,
         nombre: 'Concepto de prueba',
-        tipo_base: 'coeficiente',
         modo_calculo: 'distribucion',
+        modo_valor: 'formulado',
+        tipo_recurrencia: 'recurrente',
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        fecha_inicio_anio: 2000,
+        fecha_inicio_mes: 1,
         prioridad: 100,
       })
       .select('id')

@@ -14,7 +14,7 @@
  * `TenantRole`.
  */
 
-export type TenantRole = 'agent' | 'auditor' | 'administrador'
+export type TenantRole = 'auxiliar' | 'auditor' | 'administrador'
 
 export type Permission =
   | 'dashboard:view'
@@ -35,7 +35,7 @@ export type PlatformPermission =
 
 // §7.3 — matriz de permisos de copropiedad.
 export const ROLE_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
-  agent: [
+  auxiliar: [
     'dashboard:view',
     'users:read',
     'users:manage',
@@ -50,8 +50,8 @@ export const ROLE_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
     'tenant:delete',
   ],
   auditor: ['dashboard:view', 'users:read', 'data:read', 'audit:view', 'metrics:view'],
-  // administrador hereda todo lo de agent vía has_role() (SQL, 20260822260000)
-  // — administrador ⊇ agent para cualquier chequeo escrito como 'agent'. La
+  // administrador hereda todo lo de auxiliar vía has_role() (SQL, 20260822260000)
+  // — administrador ⊇ auxiliar para cualquier chequeo escrito como 'auxiliar'. La
   // única capacidad EXTRA de administrador (aprobar acciones de cobranza de
   // alto impacto, CAR §9.4/§21.3) no está modelada como Permission todavía:
   // vive en un trigger de base de datos (guard_accion_cobranza_transicion),

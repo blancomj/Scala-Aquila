@@ -3,12 +3,14 @@
  * autocompletado y hover del editor de fórmulas. Una sola fuente en vez de
  * duplicar el objeto aproximado que antes vivía solo en ael-validate.ts.
  *
- * UNIT queda vacío a propósito (D-13): `snapshot.unidades` nunca se puebla
- * en liquidar-periodo real. Fase 1 (packages/liquidation-engine/src/
- * prueba-formula-supabase.ts) cablea UNIT.AREA_PRIVADA/AREA_COMUN/
- * COEFICIENTE, pero solo para el panel "Probar fórmula" — no se ofrecen
- * aquí para no autocompletar/validar algo que fallaría al liquidar de
- * verdad.
+ * UNIT ya no está vacío: `packages/liquidation-engine/src/snapshot-supabase.ts`
+ * puebla AREA_PRIVADA/AREA_COMUN/COEFICIENTE por inmueble en el snapshot
+ * real de liquidar-periodo (antes solo se cableaban para el panel "Probar
+ * fórmula", D-13 revertida). Un inmueble puntual sin área diligenciada
+ * simplemente no tiene esa clave — la fórmula que la use para ESE inmueble
+ * falla explícito al liquidar (17 §37 SNAPSHOT INCOMPLETE), no aquí: este
+ * catálogo solo valida que el CAMPO exista en el dominio, no que todos los
+ * inmuebles lo tengan diligenciado.
  */
 import type { CatalogoContratos } from '@aquila/ael-language'
 import type { Tipo } from '@aquila/ael-core'
@@ -48,8 +50,20 @@ export const PARAMETER_CATALOGO: Readonly<Record<string, DocContrato>> = {
   },
 }
 
-/** Vacío a propósito — ver docstring del módulo. */
-export const UNIT_CATALOGO: Readonly<Record<string, DocContrato>> = {}
+export const UNIT_CATALOGO: Readonly<Record<string, DocContrato>> = {
+  AREA_PRIVADA: {
+    tipo: 'NUMBER',
+    descripcion: 'Área privada del inmueble (m²) — inmuebles.area_privada. Puede faltar por inmueble.',
+  },
+  AREA_COMUN: {
+    tipo: 'NUMBER',
+    descripcion: 'Área común asignada al inmueble (m²) — inmuebles.area_comun. Puede faltar por inmueble.',
+  },
+  COEFICIENTE: {
+    tipo: 'NUMBER',
+    descripcion: 'Coeficiente de copropiedad vigente del inmueble (set activo del tenant).',
+  },
+}
 
 export const FUNCIONES_CATALOGO: Readonly<Record<string, DocFuncion>> = {
   MIN: { firma: 'MIN(a, b)', descripcion: 'El menor de dos números.' },

@@ -49,7 +49,7 @@ const ordenPorCodigo = computed(() => {
           5.
         </p>
       </div>
-      <NuxtLink to="/conceptos" class="text-sm text-primary hover:underline">
+      <NuxtLink to="/presupuesto" class="text-sm text-primary hover:underline">
         ← Volver a conceptos
       </NuxtLink>
     </div>

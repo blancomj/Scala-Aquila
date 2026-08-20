@@ -71,8 +71,13 @@ async function armarCargoCapital(
       tenant_id: tenantId,
       codigo: 'CUOTA_ADMIN',
       nombre: 'Cuota de administración',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -143,9 +148,9 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
     agenteB = await crearUsuario(admin, 'cc-agent-b')
     tenantA = await crearTenant(admin, 'cc-a', agenteA.id)
     tenantB = await crearTenant(admin, 'cc-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)

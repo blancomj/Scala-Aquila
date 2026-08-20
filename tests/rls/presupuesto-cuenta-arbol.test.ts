@@ -109,9 +109,9 @@ d('presupuesto_cuenta — árbol de cuentas presupuestales (E8)', () => {
     agenteB = await crearUsuario(admin, 'pca-agent-b')
     tenantA = await crearTenant(admin, 'pca-a', agenteA.id)
     tenantB = await crearTenant(admin, 'pca-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)

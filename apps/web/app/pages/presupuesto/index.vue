@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Rediseño de Presupuesto — orquestador delgado de 7 pestañas (ver mockup
+// Rediseño de Presupuesto — orquestador delgado de pestañas (ver mockup
 // discutido + PLAN aprobado). Mismo patrón estructural que
 // components/inmuebles/InmuebleFicha.vue (TABS + tabActiva + nav de
 // botones + v-if/v-else-if por pestaña, cada una delegada a su propio
@@ -7,6 +7,12 @@
 // coeficientes/usuarios) ya usaba antes de este cambio, no el sistema
 // legacy .ficha-inmueble/.tabs de InmuebleFicha (ese es otro subsistema
 // de diseño, usado solo por fichas/drawers — ver UiDrawer.vue).
+// "Periodos y vigencia" y "Control y validaciones" pasaron a páginas
+// propias del sidebar (ver utils/navegacion.ts). "Conceptos" pasó del
+// sidebar a la pestaña "Conceptos" (PresupuestoTabConceptos.vue): solo
+// catálogo (lista + editar/archivar/nuevo) — el editor de fórmulas AEL
+// completo vive en /conceptos/nuevo y /conceptos/[id] (ver
+// components/conceptos/ConceptosEditor.vue).
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
@@ -14,12 +20,6 @@ const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 
 const presupuestoSeleccionadoId = ref<string | null>(null)
-const opcionesPresupuesto = computed(() =>
-  presupuestoStore.presupuestos.map((p) => ({
-    valor: p.id,
-    etiqueta: `${p.anio} — v${p.version} (${p.estado})`,
-  })),
-)
 
 await useAsyncData('presupuestos', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -32,51 +32,43 @@ await useAsyncData('presupuestos', async () => {
   return presupuestos
 })
 
-watch(
-  () => presupuestoStore.presupuestos,
-  (lista) => {
-    if (!presupuestoSeleccionadoId.value && lista.length > 0) {
-      presupuestoSeleccionadoId.value = lista[0]!.id
-    }
-  },
-  { immediate: true },
-)
-
 // ── pestañas ─────────────────────────────────────────────────────────
-type Tab =
-  | 'presupuestos'
-  | 'componentes'
-  | 'ejecucion'
-  | 'bases'
-  | 'distribucion'
-  | 'aplicacion'
-  | 'periodos'
-  | 'control'
+// "Periodos y vigencia" y "Control y validaciones" pasaron a ser páginas
+// propias del sidebar (/presupuesto/periodos, /presupuesto/control) — ya
+// no son pestañas de este orquestador (ver utils/navegacion.ts).
+type Tab = 'presupuestos' | 'componentes' | 'ejecucion' | 'conceptos' | 'distribucion' | 'aplicacion'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
   { id: 'presupuestos', etiqueta: 'Presupuestos' },
   { id: 'componentes', etiqueta: 'Componentes presupuestales' },
   { id: 'ejecucion', etiqueta: 'Ejecución presupuestal' },
-  { id: 'bases', etiqueta: 'Bases de liquidación' },
+  { id: 'conceptos', etiqueta: 'Conceptos' },
   { id: 'distribucion', etiqueta: 'Distribución por unidad' },
   { id: 'aplicacion', etiqueta: 'Aplicación de bases' },
-  { id: 'periodos', etiqueta: 'Periodos y vigencia' },
-  { id: 'control', etiqueta: 'Control y validaciones' },
 ]
 const tabActiva = ref<Tab>('presupuestos')
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex items-start justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold mb-2">Presupuesto</h1>
         <p class="text-sm text-gray-500">
           Presupuestos, rubros, fuentes de financiación y su reparto entre unidades.
         </p>
       </div>
-      <NuxtLink to="/presupuesto/cuentas" class="text-sm text-primary hover:underline">
-        Catálogo de cuentas →
-      </NuxtLink>
+      <div class="flex items-end gap-4">
+        <PresupuestoSelector
+          v-if="presupuestoStore.presupuestos.length > 0"
+          v-model="presupuestoSeleccionadoId"
+        />
+        <NuxtLink
+          to="/presupuesto/cuentas"
+          class="text-sm text-primary hover:underline whitespace-nowrap pb-1.5"
+        >
+          Catálogo de cuentas →
+        </NuxtLink>
+      </div>
     </div>
 
     <p v-if="presupuestoStore.presupuestos.length === 0" class="text-gray-500 text-sm">
@@ -84,10 +76,6 @@ const tabActiva = ref<Tab>('presupuestos')
     </p>
 
     <template v-else>
-      <UFormField label="Presupuesto" name="presupuesto">
-        <UiSelectorBuscable v-model="presupuestoSeleccionadoId" :opciones="opcionesPresupuesto" />
-      </UFormField>
-
       <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
         <button
           v-for="tab in TABS"
@@ -118,18 +106,10 @@ const tabActiva = ref<Tab>('presupuestos')
           v-else-if="tabActiva === 'ejecucion'"
           :presupuesto-id="presupuestoSeleccionadoId"
         />
-        <PresupuestoTabBasesLiquidacion v-else-if="tabActiva === 'bases'" />
+        <PresupuestoTabConceptos v-else-if="tabActiva === 'conceptos'" />
         <CoeficientesPanel v-else-if="tabActiva === 'distribucion'" />
         <PresupuestoTabAplicacionBases
           v-else-if="tabActiva === 'aplicacion'"
-          :presupuesto-id="presupuestoSeleccionadoId"
-        />
-        <PresupuestoTabPeriodosVigencia
-          v-else-if="tabActiva === 'periodos'"
-          :presupuesto-id="presupuestoSeleccionadoId"
-        />
-        <PresupuestoTabControlValidaciones
-          v-else-if="tabActiva === 'control'"
           :presupuesto-id="presupuestoSeleccionadoId"
         />
       </div>

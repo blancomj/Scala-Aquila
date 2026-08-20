@@ -32,6 +32,9 @@ describe('probarFormula', () => {
     expect(r.diagnosticos).toEqual([])
     if (r.resultado?.tipo !== 'MONEY') throw new Error()
     expect(r.resultado.valor.amount.toString()).toBe('500')
+
+    expect(r.traza).toHaveLength(1)
+    expect(r.traza[0]).toMatchObject({ nombre: null, expresionTexto: 'PARAMETER.TARIFA' })
   })
 
   it('fórmula válida con UNIT — devuelve NUMBER', () => {

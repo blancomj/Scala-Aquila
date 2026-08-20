@@ -68,7 +68,7 @@ watch(
         cuentaStore.cargarPagos(tenantId, id),
       ])
     } catch (excepcion) {
-      error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo cargar la cuenta.'
+      error.value = mensajeError(excepcion, 'No se pudo cargar la cuenta.')
     }
   },
   { immediate: true },
@@ -105,10 +105,9 @@ async function generarEstadoCuenta(): Promise<void> {
       tenantNombre: tenantStore.activeTenant?.name ?? '',
       tenantNit: tenantStore.activeTenant?.nit ?? null,
     })
-    window.open(`/estado-cuenta/${id}`, '_blank')
+    window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
-    errorPdf.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo generar el estado de cuenta.'
+    errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante de cuenta.')
   } finally {
     generandoPdf.value = false
   }
@@ -118,9 +117,9 @@ async function generarEstadoCuenta(): Promise<void> {
 <template>
   <div class="space-y-8">
     <div>
-      <h1 class="text-xl font-semibold mb-2">Cuenta corriente</h1>
+      <h1 class="text-xl font-semibold mb-2">Estado de cuenta</h1>
       <p class="text-sm text-gray-500">
-        Estado de cuenta por inmueble — cargos pendientes e historial de pagos del ledger
+        Cargos pendientes e historial de pagos del ledger por inmueble
         (`cargos`/`pagos`/`pago_aplicaciones`).
       </p>
     </div>
@@ -135,7 +134,7 @@ async function generarEstadoCuenta(): Promise<void> {
           <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" />
         </UFormField>
         <UButton variant="soft" :loading="generandoPdf" @click="generarEstadoCuenta">
-          Generar estado de cuenta
+          Generar comprobante de cuenta
         </UButton>
       </div>
 

@@ -57,9 +57,9 @@ d('novedades: aislamiento, escritura y guard de transición', () => {
     agenteB = await crearUsuario(admin, 'nov-agent-b')
     tenantA = await crearTenant(admin, 'nov-a', agenteA.id)
     tenantB = await crearTenant(admin, 'nov-b', agenteB.id)
-    await crearMembership(admin, tenantA.id, agenteA.id, 'agent')
+    await crearMembership(admin, tenantA.id, agenteA.id, 'auxiliar')
     await crearMembership(admin, tenantA.id, auditorA.id, 'auditor')
-    await crearMembership(admin, tenantB.id, agenteB.id, 'agent')
+    await crearMembership(admin, tenantB.id, agenteB.id, 'auxiliar')
 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)

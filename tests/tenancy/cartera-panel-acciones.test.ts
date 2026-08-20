@@ -108,7 +108,7 @@ d('cartera-panel-acciones (Edge Function, CAR §23.5)', () => {
     agente = await crearUsuario(admin, 'cpa-agent')
     administrador = await crearUsuario(admin, 'cpa-admin')
     tenant = await crearTenant(admin, 'cpa', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     clienteAgent = await clienteComo(env!, agente)
     clienteAdministrador = await clienteComo(env!, administrador)

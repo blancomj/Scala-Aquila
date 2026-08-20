@@ -97,8 +97,7 @@ async function revocarInvitacion(invitationId: string): Promise<void> {
   try {
     await invitationsStore.revocar(invitationId, tenantId)
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo revocar la invitación.'
+    error.value = mensajeError(excepcion, 'No se pudo revocar la invitación.')
   }
 }
 
@@ -110,7 +109,7 @@ async function reenviarInvitacion(invitationId: string): Promise<void> {
   try {
     await invitationsStore.reenviar(invitationId, tenantId)
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo reenviar la invitación.'
+    error.value = mensajeError(excepcion, 'No se pudo reenviar la invitación.')
   } finally {
     reenviandoId.value = null
   }
@@ -123,7 +122,7 @@ async function revocarMiembro(membershipId: string): Promise<void> {
   try {
     await membersStore.revocar(membershipId, tenantId)
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo revocar.'
+    error.value = mensajeError(excepcion, 'No se pudo revocar.')
   }
 }
 </script>

@@ -38,7 +38,7 @@ d('purge_audit_log_antiguo(): purga solo lo viejo, nadie más puede borrar', () 
   beforeAll(async () => {
     usuario = await crearUsuario(admin, 'purga')
     tenant = await crearTenant(admin, 'purga', usuario.id)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
 
     const hace25Meses = new Date()
     hace25Meses.setMonth(hace25Meses.getMonth() - 25)

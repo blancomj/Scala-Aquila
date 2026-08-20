@@ -50,8 +50,8 @@ d('promesas_pago (CAR §12.1-12.2)', () => {
     agente = await crearUsuario(admin, 'promesa-agent')
     otroAgente = await crearUsuario(admin, 'promesa-agent2')
     tenant = await crearTenant(admin, 'promesa', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
-    await crearMembership(admin, tenant.id, otroAgente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
+    await crearMembership(admin, tenant.id, otroAgente.id, 'auxiliar')
 
     const tipoInmuebleId = await listaTipoId(admin, 'TIPO_INMUEBLE', 'apartamento')
     const { data: inmueble, error: errInmueble } = await admin

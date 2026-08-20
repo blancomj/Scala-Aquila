@@ -82,8 +82,7 @@ async function registrarPago(): Promise<void> {
     monto.value = null
     referencia.value = ''
   } catch (excepcion) {
-    errorPago.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo registrar el pago.'
+    errorPago.value = mensajeError(excepcion, 'No se pudo registrar el pago.')
   } finally {
     registrando.value = false
   }
@@ -114,8 +113,7 @@ async function calcularIntereses(): Promise<void> {
       await cuentaStore.cargarCargosAbiertos(tenantId, inmuebleSeleccionadoId.value)
     }
   } catch (excepcion) {
-    errorIntereses.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo calcular el interés de mora.'
+    errorIntereses.value = mensajeError(excepcion, 'No se pudo calcular el interés de mora.')
   } finally {
     calculando.value = false
   }

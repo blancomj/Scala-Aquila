@@ -77,7 +77,7 @@ async function guardarInmueble(): Promise<void> {
     const nuevoId = await datosBaseRef.value.guardar()
     await navigateTo(`/inmuebles/${nuevoId}`)
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar el inmueble.'
+    error.value = mensajeError(excepcion, 'No se pudo guardar el inmueble.')
   } finally {
     guardando.value = false
   }

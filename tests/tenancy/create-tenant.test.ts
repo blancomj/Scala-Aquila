@@ -55,7 +55,7 @@ d('create-tenant (Edge Function)', () => {
     }
   })
 
-  it('flujo feliz: crea tenant + membership agent, responde 200', async () => {
+  it('flujo feliz: crea tenant + membership administrador, responde 200', async () => {
     const cliente = await usuarioDePrueba('ct-feliz')
 
     // No se desestructura `error`: @supabase/functions-js lo tipa como `any`
@@ -70,7 +70,9 @@ d('create-tenant (Edge Function)', () => {
 
     expect(response?.status).toBe(200)
     expect(data?.tenant.slug).toBe(`t-${RUN_ID}-ct-feliz`)
-    expect(data?.membership.role).toBe('agent')
+    // create_tenant() (20260830100000): quien crea el tenant recibe
+    // 'administrador' automáticamente, no 'auxiliar'.
+    expect(data?.membership.role).toBe('administrador')
 
     tenantsCreados.push(data!.tenant.id)
   }, 30_000)

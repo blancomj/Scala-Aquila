@@ -58,7 +58,7 @@ d('E5 — invitaciones (RPC)', () => {
     agentUser = await crearUsuario(admin, 'inv-agent')
     auditorUser = await crearUsuario(admin, 'inv-auditor')
     tenant = await crearTenant(admin, 'inv', agentUser.id)
-    await crearMembership(admin, tenant.id, agentUser.id, 'agent')
+    await crearMembership(admin, tenant.id, agentUser.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditorUser.id, 'auditor')
     clienteAgent = await clienteComo(env!, agentUser)
     clienteAuditor = await clienteComo(env!, auditorUser)
@@ -105,7 +105,7 @@ d('E5 — invitaciones (RPC)', () => {
     const { error } = await clienteAgent.rpc('invite_user', {
       p_tenant_id: tenant.id,
       p_email: auditorUser.email,
-      p_role: 'agent',
+      p_role: 'auxiliar',
       p_token_hash: hash,
       p_expires_at: expiresAt,
     })

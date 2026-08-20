@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Visor público del estado de cuenta — PLAN_DATOS_REALES.md §3.3. Sin
+// Visor público del comprobante de cuenta — PLAN_DATOS_REALES.md §3.3. Sin
 // sesión (AD-26: el propietario/residente no tiene auth.users) — por eso
 // `publico: true` (auth.global.ts lo exime) y layout 'blank' (sin
 // selector de tenant ni "Cerrar sesión", que no aplican a un visitante
@@ -23,7 +23,7 @@ const {
     { body: { id } },
   )
   if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
-  if (!data) throw new Error('No se encontró el estado de cuenta.')
+  if (!data) throw new Error('No se encontró el comprobante de cuenta.')
   return data
 })
 
@@ -52,13 +52,13 @@ function imprimir(): void {
       </template>
       <template v-else-if="errorCarga || !datos">
         <p class="mensaje">
-          {{ errorCarga instanceof Error ? errorCarga.message : 'No se pudo cargar el estado de cuenta.' }}
+          {{ errorCarga instanceof Error ? errorCarga.message : 'No se pudo cargar el comprobante de cuenta.' }}
         </p>
       </template>
       <template v-else>
         <h1>{{ datos.tenant_nombre }}</h1>
         <p class="sub">
-          NIT {{ datos.tenant_nit ?? '—' }} · Estado de cuenta — Inmueble
+          NIT {{ datos.tenant_nit ?? '—' }} · Comprobante de cuenta — Inmueble
           {{ datos.inmueble_codigo }} · Generado el {{ formatoFecha(datos.generado_en) }}
         </p>
 

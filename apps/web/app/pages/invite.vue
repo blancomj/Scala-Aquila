@@ -23,8 +23,7 @@ async function aceptar(): Promise<void> {
     await authStore.cargarPerfil({ forzar: true })
     await navigateTo('/dashboard')
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo aceptar la invitación.'
+    error.value = mensajeError(excepcion, 'No se pudo aceptar la invitación.')
   } finally {
     procesando.value = false
   }

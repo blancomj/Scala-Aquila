@@ -114,8 +114,13 @@ async function crearCargoCapital(
       tenant_id: tenantId,
       codigo: `CONCEPTO-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
       nombre: 'Cuota',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -212,7 +217,7 @@ d('registrar-pago (Edge Function)', () => {
     agente = await crearUsuario(admin, 'rp-agent')
     auditor = await crearUsuario(admin, 'rp-auditor')
     tenant = await crearTenant(admin, 'rp', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)
@@ -352,7 +357,7 @@ d('registrar-pago — estrategia periodo_actual (AD-36)', () => {
   it('prioriza el periodo del pago sobre la deuda más vieja', async () => {
     agente = await crearUsuario(admin, 'rp-pa-agent')
     tenant = await crearTenant(admin, 'rp-pa', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
 
     inmuebleId = await armarTenant(admin, tenant.id, 'periodo_actual')

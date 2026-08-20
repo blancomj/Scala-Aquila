@@ -12,12 +12,17 @@
  */
 import type { TypedValue } from '@aquila/ael-runtime'
 import type { ModoRedondeo } from '@aquila/financial-kernel'
+import type { AtributosInmueble, CondicionAlcance } from './alcance.js'
 
 export interface SnapshotInmueble {
   readonly id: string
   readonly codigo: string
   /** Coeficiente vigente de este inmueble en el set activo del tenant (16 §82: valor real, no se asume 1.0). */
   readonly coeficiente: string
+  /** Fase 5 (alcance.ts): atributos que un concepto alcance='calculado' puede
+   * condicionar. Siempre presente — un campo individual ausente es null
+   * dentro de AtributosInmueble, no el objeto completo. */
+  readonly atributos: AtributosInmueble
 }
 
 export interface SnapshotPeriodo {
@@ -30,8 +35,30 @@ export interface SnapshotConcepto {
   readonly id: string
   readonly codigo: string
   readonly modoCalculo: 'directo' | 'distribucion'
+  /** fijo: valorFijo es el monto, formulaAel es '' y no se parsea/analiza/evalúa.
+   * formulado: formulaAel es la fórmula real, valorFijo es null (comportamiento anterior a esta fase). */
+  readonly modoValor: 'fijo' | 'formulado'
   readonly formulaAel: string
+  readonly valorFijo: string | null
   readonly prioridad: number
+  /** recurrente: aplica desde fechaInicio en adelante. unico: solo en fechaInicio exacta.
+   * por_periodo: entre fechaInicio y fechaFin (inclusive). novedad: nunca aplica por este filtro
+   * — construirSnapshotDesdeSupabase() lo excluye siempre del snapshot (temporal.ts, Fase 4). */
+  readonly tipoRecurrencia: 'recurrente' | 'unico' | 'por_periodo' | 'novedad'
+  readonly fechaInicioAnio: number | null
+  readonly fechaInicioMes: number | null
+  readonly fechaFinAnio: number | null
+  readonly fechaFinMes: number | null
+  /** Solo aplica (no null) cuando tipoRecurrencia==='recurrente' — cada cuántos
+   * periodos vuelve a aplicar desde fechaInicio (mensual: todos, comportamiento
+   * pre-existente). null para los demás tipos. */
+  readonly periodicidad: 'mensual' | 'bimensual' | 'trimestral' | 'semestral' | 'anual' | null
+  /** todos: aplica a todos los inmuebles (comportamiento anterior a esta fase).
+   * calculado: solo a los que cumplen alcanceCondiciones — ejecutarDirecto/
+   * ejecutarDistribucion filtran snapshot.inmuebles antes de calcular/repartir. */
+  readonly alcance: 'todos' | 'calculado'
+  /** Solo aplica (no null) cuando alcance==='calculado'. null para 'todos'. */
+  readonly alcanceCondiciones: CondicionAlcance | null
 }
 
 export interface SnapshotPresupuesto {
@@ -63,7 +90,10 @@ export interface DataSnapshot {
    * infiere nada por sí mismo (17 §25 NO LIVE LOOKUP).
    */
   readonly parametros: Readonly<Record<string, TypedValue>>
-  /** UNIT.<clave> por inmueble — vacío en v0 (D-13). */
+  /** UNIT.<clave> por inmueble — AREA_PRIVADA/AREA_COMUN/COEFICIENTE, ver snapshot-supabase.ts.
+   * Un campo ausente para un inmueble puntual (p.ej. área sin diligenciar) es válido: una
+   * fórmula que lo referencie para ESE inmueble falla con ContractoNoResueltoError en vez de
+   * inventar un valor (17 §37 SNAPSHOT INCOMPLETE). */
   readonly unidades: Readonly<Record<string, Readonly<Record<string, TypedValue>>>>
 }
 

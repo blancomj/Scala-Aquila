@@ -100,7 +100,7 @@ export async function crearMembership(
   admin: Cliente,
   tenantId: string,
   userId: string,
-  role: 'agent' | 'auditor' | 'administrador',
+  role: 'auxiliar' | 'auditor' | 'administrador',
 ): Promise<string> {
   const { data, error } = await admin
     .from('memberships')

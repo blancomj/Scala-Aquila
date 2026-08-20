@@ -268,7 +268,21 @@ function irAPosicion(linea: number, columna: number): void {
   vista.focus()
 }
 
-defineExpose({ irAPosicion })
+/** Inserta texto en la posición del cursor (reemplaza la selección si hay
+ * una) — usado por el panel "Variables disponibles" al hacer clic en un
+ * campo/función. */
+function insertarTexto(texto: string): void {
+  if (!vista) return
+  const { from, to } = vista.state.selection.main
+  vista.dispatch({
+    changes: { from, to, insert: texto },
+    selection: { anchor: from + texto.length },
+    scrollIntoView: true,
+  })
+  vista.focus()
+}
+
+defineExpose({ irAPosicion, insertarTexto })
 </script>
 
 <template>

@@ -106,7 +106,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
     agente = await crearUsuario(admin, 'pf-agent')
     auditor = await crearUsuario(admin, 'pf-auditor')
     tenant = await crearTenant(admin, 'pf', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)

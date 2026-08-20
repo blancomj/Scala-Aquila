@@ -30,8 +30,8 @@ d('SELF_MODIFY: nadie puede modificar su propia membresía', () => {
     const uno = await crearUsuario(admin, 'self-rol-uno')
     const dos = await crearUsuario(admin, 'self-rol-dos')
     const tenant = await crearTenant(admin, 'self-rol', uno.id)
-    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'agent')
-    await crearMembership(admin, tenant.id, dos.id, 'agent')
+    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'auxiliar')
+    await crearMembership(admin, tenant.id, dos.id, 'auxiliar')
 
     const clienteUno = await clienteComo(env!, uno)
     const { error } = await clienteUno
@@ -47,7 +47,7 @@ d('SELF_MODIFY: nadie puede modificar su propia membresía', () => {
       .select('role')
       .eq('id', membresiaUno)
       .single()
-    expect(verificacion?.role).toBe('agent')
+    expect(verificacion?.role).toBe('auxiliar')
 
     await eliminarTenant(admin, tenant.id)
     await eliminarUsuario(admin, uno.id)
@@ -58,8 +58,8 @@ d('SELF_MODIFY: nadie puede modificar su propia membresía', () => {
     const uno = await crearUsuario(admin, 'self-revoke-uno')
     const dos = await crearUsuario(admin, 'self-revoke-dos')
     const tenant = await crearTenant(admin, 'self-revoke', uno.id)
-    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'agent')
-    await crearMembership(admin, tenant.id, dos.id, 'agent')
+    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'auxiliar')
+    await crearMembership(admin, tenant.id, dos.id, 'auxiliar')
 
     const clienteUno = await clienteComo(env!, uno)
     const { error } = await clienteUno
@@ -86,8 +86,8 @@ d('SELF_MODIFY: nadie puede modificar su propia membresía', () => {
     const uno = await crearUsuario(admin, 'self-otro-uno')
     const dos = await crearUsuario(admin, 'self-otro-dos')
     const tenant = await crearTenant(admin, 'self-otro', uno.id)
-    await crearMembership(admin, tenant.id, uno.id, 'agent')
-    const membresiaDos = await crearMembership(admin, tenant.id, dos.id, 'agent')
+    await crearMembership(admin, tenant.id, uno.id, 'auxiliar')
+    const membresiaDos = await crearMembership(admin, tenant.id, dos.id, 'auxiliar')
 
     const clienteUno = await clienteComo(env!, uno)
     const { error } = await clienteUno

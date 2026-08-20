@@ -64,7 +64,7 @@ async function subir(): Promise<void> {
     tipoSeleccionado.value = null
     fechaVencimiento.value = ''
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo subir el documento.'
+    error.value = mensajeError(excepcion, 'No se pudo subir el documento.')
   }
 }
 

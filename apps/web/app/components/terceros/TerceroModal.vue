@@ -204,7 +204,7 @@ async function guardar(): Promise<void> {
     }
     emit('guardado')
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar el tercero.'
+    error.value = mensajeError(excepcion, 'No se pudo guardar el tercero.')
   } finally {
     guardando.value = false
   }

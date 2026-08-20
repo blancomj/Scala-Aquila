@@ -90,7 +90,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     administrador = await crearUsuario(admin, 'jur-admin1')
     administradorDos = await crearUsuario(admin, 'jur-admin2')
     tenant = await crearTenant(admin, 'jur', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, administrador.id, 'administrador')
     await crearMembership(admin, tenant.id, administradorDos.id, 'administrador')
     inmuebleId = await crearInmueble(admin, tenant.id, 'JUR')

@@ -39,7 +39,7 @@ d('Plantillas SMS (RPC)', () => {
     agentUser = await crearUsuario(admin, 'sms-agent')
     auditorUser = await crearUsuario(admin, 'sms-auditor')
     tenant = await crearTenant(admin, 'sms', agentUser.id)
-    await crearMembership(admin, tenant.id, agentUser.id, 'agent')
+    await crearMembership(admin, tenant.id, agentUser.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditorUser.id, 'auditor')
     clienteAgent = await clienteComo(env!, agentUser)
     clienteAuditor = await clienteComo(env!, auditorUser)

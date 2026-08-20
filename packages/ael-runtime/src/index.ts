@@ -1,4 +1,4 @@
-export { evaluar, type ResultadoEvaluador } from './evaluator.js'
+export { evaluar, type ResultadoEvaluador, type PasoTraza } from './evaluator.js'
 export { FUNCIONES } from './functions.js'
 export type { ExecutionContext } from './context.js'
 export { ContractoNoResueltoError, InvarianteEvaluadorError } from './errors.js'

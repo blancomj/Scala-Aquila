@@ -106,8 +106,13 @@ async function crearCargo(
       tenant_id: tenantId,
       codigo: `CD-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
       nombre: 'Cuota',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -160,8 +165,8 @@ d('cartera-dashboard (Edge Function, CAR §23.1/§23.2)', () => {
     agenteOtro = await crearUsuario(admin, 'cd-agent-otro')
     tenant = await crearTenant(admin, 'cd', agente.id)
     tenantOtro = await crearTenant(admin, 'cd-otro', agenteOtro.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
-    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
+    await crearMembership(admin, tenantOtro.id, agenteOtro.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
     clienteAgentOtro = await clienteComo(env!, agenteOtro)
 

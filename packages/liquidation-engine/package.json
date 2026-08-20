@@ -22,6 +22,10 @@
       "types": "./dist/snapshot.d.ts",
       "default": "./dist/snapshot.js"
     },
+    "./alcance": {
+      "types": "./dist/alcance.d.ts",
+      "default": "./dist/alcance.js"
+    },
     "./prueba-formula": {
       "types": "./dist/prueba-formula.d.ts",
       "default": "./dist/prueba-formula.js"

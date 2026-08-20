@@ -2,7 +2,7 @@
 // Tab Cartera — saldo, cargos pendientes, pagos recientes
 // (PROMPT_FICHA_INMUEBLE.md §1.1 I5). Reutiliza cuentaCorriente.ts tal
 // cual, sin lógica nueva — solo lectura filtrada por inmueble + el
-// formulario de registrar pago que ya existía en cuenta-corriente/pagos.vue.
+// formulario de registrar pago que ya existía en estado-cuenta/pagos.vue.
 const props = defineProps<{ inmuebleId: string }>()
 
 const tenantStore = useTenantStore()
@@ -53,7 +53,7 @@ async function registrarPago(): Promise<void> {
     monto.value = null
     referencia.value = ''
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo registrar el pago.'
+    error.value = mensajeError(excepcion, 'No se pudo registrar el pago.')
   } finally {
     registrando.value = false
   }

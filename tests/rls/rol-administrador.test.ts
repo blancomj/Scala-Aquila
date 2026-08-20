@@ -1,6 +1,6 @@
 /**
  * GAP-CAR-009 — Docs/Motor de gestion de cartera/CAR_00_Guia_Oficial.md §21/§24
- * 'administrador' (tenant_role_t) hereda los permisos de 'agent' vía
+ * 'administrador' (tenant_role_t) hereda los permisos de 'auxiliar' vía
  * has_role() (20260822260000), y guard_last_agent() (SEC-07) protege a
  * la copropiedad si el único activo es un administrador sin agent.
  */
@@ -34,7 +34,7 @@ d('GAP-CAR-009: administrador hereda permisos de agent', () => {
 
     const { data, error } = await cliente.rpc('has_role', {
       p_tenant: tenant.id,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
 
     expect(error).toBeNull()
@@ -84,7 +84,7 @@ d('GAP-CAR-009: administrador hereda permisos de agent', () => {
     const agente = await crearUsuario(admin, 'agent-junto')
     const administrador = await crearUsuario(admin, 'admin-junto')
     const tenant = await crearTenant(admin, 'agent-admin', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     const membershipAdmin = await crearMembership(admin, tenant.id, administrador.id, 'administrador')
 
     const clienteAgente = await clienteComo(env!, agente)

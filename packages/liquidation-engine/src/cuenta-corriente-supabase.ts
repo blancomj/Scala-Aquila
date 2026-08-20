@@ -280,6 +280,30 @@ export async function registrarCargoInteres(
 }
 
 /**
+ * Conceptos avanzados Fase 4 — paso periódico de novedades permanentes/
+ * prorrateables, invocado desde liquidar-periodo justo después de
+ * guardarLiquidacion(). Delega toda la lógica (idempotencia, próxima cuota
+ * pendiente) en fn_generar_cargos_novedades_periodo() — un RPC, no un
+ * INSERT directo, porque necesita atomicidad entre "reclamar la cuota" y
+ * "generar el cargo" que un cliente HTTP no puede garantizar sin una
+ * transacción explícita. Devuelve cuántos cargos nuevos se generaron.
+ */
+export async function generarCargosNovedadesPeriodo(
+  cliente: AquilaClient,
+  tenantId: string,
+  periodoId: string,
+): Promise<number> {
+  const { data, error } = await cliente.rpc('fn_generar_cargos_novedades_periodo', {
+    p_tenant_id: tenantId,
+    p_periodo_id: periodoId,
+  })
+  if (error) {
+    throw new Error(`No se pudieron generar los cargos de novedades del periodo: ${error.message}`)
+  }
+  return data
+}
+
+/**
  * Idempotencia entre corridas de calcular-intereses (pregunta abierta del
  * plan, resuelta aquí — no en 0AEL/PLAN): calcularInteresMora() no lleva
  * estado propio y recalcula desde fechaVencimiento cada vez, así que una

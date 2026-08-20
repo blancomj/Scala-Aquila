@@ -3,8 +3,13 @@ import type { Permission } from '~/types/permissions'
 export interface NavItem {
   label: string
   to: string
-  /** Sin permiso = visible para cualquier miembro del tenant (agent y auditor). */
+  /** Sin permiso = visible para cualquier miembro del tenant (auxiliar y auditor). */
   permiso?: Permission
+  /** Módulo de roles funcionales (20260830120000) que gobierna este ítem — sin
+   * módulo = visible sin importar los roles funcionales asignados (comportamiento
+   * de hoy). Con módulo, se oculta si el usuario tiene roles funcionales
+   * asignados y ninguno cubre este módulo (ver tenantStore.puedeVerModulo). */
+  modulo?: string
   icono: string
 }
 
@@ -27,6 +32,8 @@ export const NAV_ICONOS = {
   novedades:
     'M12 9v4m0 4h.01M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z',
   presupuesto: 'M12 3v18M17 7.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 3 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3',
+  periodosVigencia: 'M8 2v4M16 2v4M4 6h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM3 10h18',
+  controlValidaciones: 'M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z M9 12.5l2 2 4-4.5',
   conceptos:
     'M20.6 13.4 13 21a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8L10.8 3.6A2 2 0 0 1 12.2 3H19a2 2 0 0 1 2 2v6.8a2 2 0 0 1-.6 1.4ZM7.5 8a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Z',
   dependencias:
@@ -35,6 +42,7 @@ export const NAV_ICONOS = {
   liquidacion: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
   coeficientes: 'M5 19 19 5M7 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
   politicas: 'M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z',
+  seguridad: 'M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3ZM9 12l2 2 4-4.5',
   configuracion:
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
   plantillasSms: 'M3 6h18v13H3zM3 8l9 6 9-6M8 17h3',
@@ -66,6 +74,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
         label: 'Dashboard de Cartera',
         to: '/cartera',
         permiso: 'data:read',
+        modulo: 'cartera_cobranza',
         icono: NAV_ICONOS.carteraDashboard,
       },
       { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
@@ -73,24 +82,27 @@ export const NAV_GRUPOS: NavGrupo[] = [
     ],
   },
   {
-    titulo: 'Cuenta corriente',
+    titulo: 'Estado de cuenta',
     items: [
       {
         label: 'Resumen',
-        to: '/cuenta-corriente',
+        to: '/estado-cuenta',
         permiso: 'data:read',
+        modulo: 'estado_cuenta',
         icono: NAV_ICONOS.resumenCuenta,
       },
       {
         label: 'Pagos',
-        to: '/cuenta-corriente/pagos',
+        to: '/estado-cuenta/pagos',
         permiso: 'data:create',
+        modulo: 'estado_cuenta',
         icono: NAV_ICONOS.pagos,
       },
       {
         label: 'Novedades',
-        to: '/cuenta-corriente/novedades',
+        to: '/estado-cuenta/novedades',
         permiso: 'data:create',
+        modulo: 'estado_cuenta',
         icono: NAV_ICONOS.novedades,
       },
     ],
@@ -102,25 +114,42 @@ export const NAV_GRUPOS: NavGrupo[] = [
         label: 'Presupuesto',
         to: '/presupuesto',
         permiso: 'data:create',
+        modulo: 'financiero',
         icono: NAV_ICONOS.presupuesto,
       },
-      { label: 'Conceptos', to: '/conceptos', permiso: 'data:create', icono: NAV_ICONOS.conceptos },
+      {
+        label: 'Periodos y vigencia',
+        to: '/presupuesto/periodos',
+        permiso: 'data:create',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.periodosVigencia,
+      },
+      {
+        label: 'Control y validaciones',
+        to: '/presupuesto/control',
+        permiso: 'data:create',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.controlValidaciones,
+      },
       {
         label: 'Dependencias',
         to: '/conceptos/dependencias',
         permiso: 'data:read',
+        modulo: 'financiero',
         icono: NAV_ICONOS.dependencias,
       },
       {
         label: 'Fundamentos normativos',
         to: '/fundamentos',
         permiso: 'data:create',
+        modulo: 'financiero',
         icono: NAV_ICONOS.fundamentos,
       },
       {
         label: 'Liquidación',
         to: '/liquidacion',
         permiso: 'data:create',
+        modulo: 'financiero',
         icono: NAV_ICONOS.liquidacion,
       },
     ],
@@ -161,8 +190,14 @@ export const NAV_GRUPOS: NavGrupo[] = [
     ],
   },
   {
-    titulo: 'Administración',
+    titulo: 'Seguridad',
     items: [
+      {
+        label: 'Seguridad',
+        to: '/seguridad',
+        permiso: 'users:manage',
+        icono: NAV_ICONOS.seguridad,
+      },
       { label: 'Usuarios', to: '/usuarios', permiso: 'users:manage', icono: NAV_ICONOS.usuarios },
       { label: 'Auditoría', to: '/auditoria', permiso: 'audit:view', icono: NAV_ICONOS.auditoria },
     ],

@@ -59,8 +59,13 @@ async function crearCargoCapital(
       tenant_id: tenantId,
       codigo: `CI-${String(Date.now())}-${String(Math.random()).slice(2, 6)}`,
       nombre: 'Cuota',
-      tipo_base: 'coeficiente',
       modo_calculo: 'distribucion',
+      modo_valor: 'formulado',
+      tipo_recurrencia: 'recurrente',
+      periodicidad: 'mensual',
+      alcance: 'todos',
+      fecha_inicio_anio: 2000,
+      fecha_inicio_mes: 1,
       prioridad: 100,
       estado: 'activo',
     })
@@ -127,7 +132,7 @@ d('calcular-intereses (Edge Function)', () => {
   it('setup', async () => {
     agente = await crearUsuario(admin, 'ci-agent')
     tenant = await crearTenant(admin, 'ci', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
 
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({
@@ -275,7 +280,7 @@ d('calcular-intereses (Edge Function) — REQ-NOVEDAD-003: descuento_antes_inter
   it('un DISCOUNT del mismo período reduce la base de capital antes del interés', async () => {
     agente = await crearUsuario(admin, 'ci-desc-agent')
     tenant = await crearTenant(admin, 'ci-desc', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
 
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({

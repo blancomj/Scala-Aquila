@@ -25,8 +25,8 @@ const invitationsStore = useInvitationsStore()
 const esCreacion = computed(() => !props.membresiaId)
 
 const email = ref('')
-const role = ref<'agent' | 'auditor'>('auditor')
-const rolOriginal = ref<'agent' | 'auditor'>('auditor')
+const role = ref<'auxiliar' | 'auditor'>('auditor')
+const rolOriginal = ref<'auxiliar' | 'auditor'>('auditor')
 const correoActual = ref('')
 const fullName = ref('')
 const phone = ref('')
@@ -35,6 +35,11 @@ const status = ref<'active' | 'suspended'>('active')
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
+// Roles funcionales (20260830120000) — solo tiene sentido en edición: la
+// membresía todavía no existe mientras la invitación esté pendiente.
+const rolesFuncionalesAsignados = ref<Set<number>>(new Set())
+const guardandoRolFuncional = ref<number | null>(null)
+
 function precargar(): void {
   const miembro = membersStore.miembros.find((m) => m.id === props.membresiaId)
   if (!miembro) return
@@ -42,13 +47,38 @@ function precargar(): void {
   fullName.value = miembro.profile?.full_name ?? ''
   phone.value = miembro.profile?.phone ?? ''
   status.value = miembro.profile?.status ?? 'active'
-  role.value = miembro.role as 'agent' | 'auditor'
+  role.value = miembro.role as 'auxiliar' | 'auditor'
   rolOriginal.value = role.value
+  rolesFuncionalesAsignados.value = new Set(
+    miembro.roles_funcionales.map((rf) => rf.rol_funcional?.id).filter((id) => id != null),
+  )
 }
 
 watchEffect(() => {
   if (props.membresiaId) precargar()
 })
+
+onMounted(() => {
+  membersStore.cargarCatalogoRolesFuncionales()
+})
+
+async function alternarRolFuncional(rolFuncionalId: number): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !props.membresiaId) return
+  guardandoRolFuncional.value = rolFuncionalId
+  try {
+    if (rolesFuncionalesAsignados.value.has(rolFuncionalId)) {
+      await membersStore.revocarRolFuncional(props.membresiaId, rolFuncionalId, tenantId)
+    } else {
+      await membersStore.asignarRolFuncional(props.membresiaId, rolFuncionalId, tenantId)
+    }
+    precargar()
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo actualizar el rol funcional.')
+  } finally {
+    guardandoRolFuncional.value = null
+  }
+}
 
 function validar(): string | null {
   if (esCreacion.value) {
@@ -84,7 +114,7 @@ async function guardar(): Promise<void> {
     }
     emit('guardado')
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar.'
+    error.value = mensajeError(excepcion, 'No se pudo guardar.')
   } finally {
     guardando.value = false
   }
@@ -135,9 +165,32 @@ async function guardar(): Promise<void> {
         <div class="field">
           <label for="m-rol">Rol</label>
           <select id="m-rol" v-model="role">
-            <option value="agent">Administrador (agent)</option>
-            <option value="auditor">Auditor (auditor)</option>
+            <option value="auxiliar">Auxiliar</option>
+            <option value="auditor">Auditor</option>
           </select>
+        </div>
+      </div>
+
+      <div v-if="!esCreacion" class="field span-2">
+        <label>Roles funcionales</label>
+        <span class="field-hint">
+          Sin ninguno marcado, ve todo lo que su rol permite. Con al menos uno, queda
+          limitado a los módulos que esos roles cubren.
+        </span>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem">
+          <label
+            v-for="rf in membersStore.rolesFuncionalesCatalogo"
+            :key="rf.id"
+            style="display: flex; align-items: center; gap: 0.35rem; font-weight: normal"
+          >
+            <input
+              type="checkbox"
+              :checked="rolesFuncionalesAsignados.has(rf.id)"
+              :disabled="guardandoRolFuncional === rf.id"
+              @change="alternarRolFuncional(rf.id)"
+            >
+            {{ rf.nombre }}
+          </label>
         </div>
       </div>
 

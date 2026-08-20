@@ -19,7 +19,13 @@ import {
 
 type TenantRow = Database['public']['Tables']['tenants']['Row']
 type MembershipRow = Database['public']['Tables']['memberships']['Row']
-type Membresia = MembershipRow & { tenant: TenantRow }
+type RolFuncionalEmbebido = {
+  rol_funcional: { codigo: string; modulos: { modulo: string }[] } | null
+}
+type Membresia = MembershipRow & {
+  tenant: TenantRow
+  roles_funcionales: RolFuncionalEmbebido[]
+}
 
 interface CrearTenantRespuesta {
   tenant: TenantRow
@@ -54,16 +60,54 @@ export const useTenantStore = defineStore('tenant', () => {
     return role.value !== null && hasPermission(role.value, permiso)
   }
 
+  // Espejo en TS de public.puede_ver_modulo() (20260830130000) — mismo
+  // criterio: administrador ve todo; sin roles funcionales asignados, sin
+  // cambios (compat); con al menos uno, queda acotado a lo que cubran.
+  // Solo gatea visibilidad de UI — la RLS real es la barrera, esto evita
+  // parpadeo de módulos que igual devolverían 0 filas.
+  const modulosRolFuncional = computed<Set<string>>(() => {
+    const modulos = new Set<string>()
+    for (const rf of membresiaActiva.value?.roles_funcionales ?? []) {
+      for (const m of rf.rol_funcional?.modulos ?? []) modulos.add(m.modulo)
+    }
+    return modulos
+  })
+
+  function puedeVerModulo(modulo: string): boolean {
+    if (role.value === 'administrador') return true
+    if ((membresiaActiva.value?.roles_funcionales.length ?? 0) === 0) return true
+    return modulosRolFuncional.value.has(modulo)
+  }
+
   async function cargarMemberships(): Promise<Membresia[]> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
+      // memberships_select_miembro (RLS) da visibilidad a TODAS las membresías de cualquier
+      // tenant del que el usuario sea parte (correcto para una vista de "miembros del equipo"),
+      // no solo a las propias — sin este filtro, un usuario en un tenant con más miembros ve
+      // también las filas de membership de esos otros usuarios. Bug real encontrado en vivo: la
+      // fila ajena contaminaba tanto "Mis copropiedades" (tenant listado dos veces) como
+      // membresiaActiva (`.find()` podía resolver al rol de OTRO usuario, no el propio).
+      const {
+        data: { user: usuario },
+      } = await cliente.auth.getUser()
+      if (!usuario) {
+        memberships.value = []
+        return memberships.value
+      }
+
       const { data, error: errorMemberships } = await cliente
         .from('memberships')
-        .select('*, tenant:tenants(*)')
+        .select(
+          '*, tenant:tenants(*), ' +
+            'roles_funcionales:membership_roles_funcionales(' +
+            'rol_funcional:lista_tipos(codigo, modulos:rol_funcional_modulo(modulo)))',
+        )
         .eq('status', 'active')
+        .eq('user_id', usuario.id)
       if (errorMemberships) throw errorMemberships
-      memberships.value = (data ?? []) as Membresia[]
+      memberships.value = (data ?? []) as unknown as Membresia[]
       return memberships.value
     } finally {
       loading.value = false
@@ -105,6 +149,7 @@ export const useTenantStore = defineStore('tenant', () => {
     role,
     permissions,
     puede,
+    puedeVerModulo,
     cargarMemberships,
     crearTenant,
     cambiarTenant,

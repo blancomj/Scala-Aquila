@@ -38,7 +38,7 @@ d('SEC-10: el admin de plataforma no accede a datos de tenant', () => {
     platformAdmin = await crearUsuario(admin, 'platform-admin')
     dueno = await crearUsuario(admin, 'dueno-tenant')
     tenant = await crearTenant(admin, 'visible', dueno.id)
-    await crearMembership(admin, tenant.id, dueno.id, 'agent')
+    await crearMembership(admin, tenant.id, dueno.id, 'auxiliar')
 
     // is_platform_admin se activa vía service_role (auth.uid() es NULL en
     // esa conexión, así que guard_privileged_columns lo permite: es

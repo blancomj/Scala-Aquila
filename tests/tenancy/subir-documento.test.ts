@@ -114,7 +114,7 @@ d('subir-documento (Edge Function)', () => {
     agente = await crearUsuario(admin, 'sd-agent')
     auditor = await crearUsuario(admin, 'sd-auditor')
     tenant = await crearTenant(admin, 'sd', agente.id)
-    await crearMembership(admin, tenant.id, agente.id, 'agent')
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)

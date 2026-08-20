@@ -34,8 +34,18 @@
 --      presupuesto_rubros sobre la tabla `gastos` pospuesta).
 --    • fuente_financiacion no se toca — sigue siendo un concepto propio
 --      (recursos extraordinarios con tope de aplicación, FI-003), no un
---      subárbol de este catálogo. Fusionarlos es una decisión pendiente
---      de validar con el usuario, no asumida aquí.
+--      subárbol de este catálogo. RESUELTO (E9 seguimiento,
+--      20260823290000/300000): se mantienen separados a propósito, no por
+--      falta de tiempo — fuente_financiacion son decisiones de
+--      financiación extraordinaria tomadas al aprobar el presupuesto
+--      (préstamos, uso de reservas, tope contra fondo_imprevistos vía
+--      FI-003), mientras que presupuesto_cuenta (ingreso) + concepto_id
+--      son el árbol de ingresos recurrentes/operativos, real (cargos) o
+--      manual (presupuesto_ejecucion). No hay solape ni riesgo de doble
+--      conteo: fuente_financiacion se valida contra monto_total
+--      directamente, nunca contra una cuenta puntual. Fusionarlos
+--      obligaría a rehacer las guardas de FI-003 y la Edge Function de
+--      previsualización sin ninguna ganancia funcional.
 --    • Semilla de catálogo por defecto para tenants nuevos (UX de
 --      onboarding) — solo se migra el catálogo del/los tenant(s) que ya
 --      tienen presupuesto_rubros hoy.

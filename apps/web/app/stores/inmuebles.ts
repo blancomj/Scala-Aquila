@@ -62,6 +62,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     estadoLegalId?: number | null
     estadoLegalObservaciones?: string
     habitabilidadId?: number | null
+    usoPredioId?: number | null
   }): Promise<InmuebleRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -77,6 +78,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
         estado_legal_id: params.estadoLegalId,
         estado_legal_observaciones: params.estadoLegalObservaciones,
         habitabilidad_id: params.habitabilidadId,
+        uso_predio_id: params.usoPredioId,
       })
       .select('*')
       .single()
@@ -96,6 +98,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     estadoLegalId?: number | null
     estadoLegalObservaciones?: string
     habitabilidadId?: number | null
+    usoPredioId?: number | null
   }): Promise<InmuebleRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
@@ -110,6 +113,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
         estado_legal_id: params.estadoLegalId,
         estado_legal_observaciones: params.estadoLegalObservaciones,
         habitabilidad_id: params.habitabilidadId,
+        uso_predio_id: params.usoPredioId,
       })
       .eq('id', params.id)
       .select('*')

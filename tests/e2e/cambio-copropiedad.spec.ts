@@ -30,8 +30,8 @@ test('cambio de copropiedad: el selector actualiza el tenant activo y el dashboa
     usuario = await crearUsuario(admin, 'e2e-switch')
     tenantA = await crearTenant(admin, 'e2e-switch-a', usuario.id)
     tenantB = await crearTenant(admin, 'e2e-switch-b', usuario.id)
-    await crearMembership(admin, tenantA.id, usuario.id, 'agent')
-    await crearMembership(admin, tenantB.id, usuario.id, 'agent')
+    await crearMembership(admin, tenantA.id, usuario.id, 'auxiliar')
+    await crearMembership(admin, tenantB.id, usuario.id, 'auxiliar')
     await fijarTenantActivo(admin, usuario.id, tenantA.id)
 
     await loginUI(page, usuario.email, usuario.password)

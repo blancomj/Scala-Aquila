@@ -9,7 +9,17 @@ function concepto(
   return {
     id: over.codigo,
     modoCalculo: 'distribucion',
+    modoValor: 'formulado',
+    valorFijo: null,
     prioridad: 0,
+    tipoRecurrencia: 'recurrente',
+    fechaInicioAnio: 2000,
+    fechaInicioMes: 1,
+    fechaFinAnio: null,
+    fechaFinMes: null,
+    periodicidad: 'mensual',
+    alcance: 'todos',
+    alcanceCondiciones: null,
     ...over,
   }
 }
@@ -93,5 +103,14 @@ describe('ordenTopologico — orden determinista (18 §16-21)', () => {
       concepto({ codigo: 'A', formulaAel: 'REGLA A\nRETORNAR CONCEPTO.A' }),
     ])
     expect(() => ordenTopologico(grafo)).toThrow(DependenciaCiclicaError)
+  })
+
+  it('un concepto fijo no tiene dependencias — se salta el parseo, no falla con formulaAel vacío', () => {
+    const grafo = construirGrafo([
+      concepto({ codigo: 'FIJO', formulaAel: '', modoValor: 'fijo', valorFijo: '50000' }),
+      concepto({ codigo: 'FORMULADO', formulaAel: 'REGLA FORMULADO\nRETORNAR CONCEPTO.FIJO' }),
+    ])
+    expect(grafo.find((n) => n.concepto.codigo === 'FIJO')?.dependencias).toEqual([])
+    expect(grafo.find((n) => n.concepto.codigo === 'FORMULADO')?.dependencias).toEqual(['FIJO'])
   })
 })

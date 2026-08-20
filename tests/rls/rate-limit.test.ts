@@ -34,7 +34,7 @@ d('check_rate_limit(): ventana deslizante por bucket', () => {
   beforeAll(async () => {
     usuario = await crearUsuario(admin, 'rl-usuario')
     tenant = await crearTenant(admin, 'rl', usuario.id)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
     cliente = await clienteComo(env!, usuario)
   }, 30_000)
 

@@ -13,7 +13,7 @@
  *
  * AEL-004 Fase 4 (maker-checker, Doc 10 §62/§65/§216): `estado` gana
  * `en_revision` entre `borrador` y `activo`. El contenido
- * (`nombre`/`tipo_base`/`modo_calculo`/`formula_ael`/`prioridad`) solo se
+ * (`nombre`/`modo_calculo`/`formula_ael`/`prioridad`) solo se
  * puede editar en `borrador` — `guard_concepto_transicion()` rechaza
  * cualquier otro caso con `CONCEPTO_INMUTABLE`. La transición
  * `en_revision→activo` falla con `SELF_APPROVAL` si el aprobador es quien
@@ -23,13 +23,17 @@
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
 import type { Tipo } from '@aquila/ael-core'
+import type { CondicionAlcance } from '@aquila/liquidation-engine/alcance'
 import { extraerErrorFuncion } from '~/utils/edge-function-error'
 import type { EntradaMock, ValorMock } from '~/utils/ael-test-runner'
 
 type ConceptoRow = Database['public']['Tables']['conceptos']['Row']
-type ConceptoTipoBase = Database['public']['Enums']['concepto_tipo_base_t']
 type ConceptoModoCalculo = Database['public']['Enums']['concepto_modo_calculo_t']
+type ConceptoModoValor = Database['public']['Enums']['concepto_modo_valor_t']
+type ConceptoTipoRecurrencia = Database['public']['Enums']['concepto_tipo_recurrencia_t']
+type ConceptoPeriodicidad = Database['public']['Enums']['concepto_periodicidad_t']
 type ConceptoEstado = Database['public']['Enums']['concepto_estado_t']
+type ConceptoAlcance = Database['public']['Enums']['concepto_alcance_t']
 type ConceptoVersionRow = Database['public']['Tables']['concepto_versiones']['Row']
 type ConceptoTestCaseRow = Database['public']['Tables']['concepto_test_cases']['Row']
 type JsonColumna = Database['public']['Tables']['concepto_test_cases']['Row']['entradas']
@@ -74,11 +78,22 @@ export interface DiagnosticoPrueba {
   readonly columna: number
 }
 
+export interface PasoTrazaPrueba {
+  readonly nombre: string | null
+  readonly expresionTexto: string
+  readonly valor: string | boolean | null
+  readonly tipo: string
+}
+
 export interface ResultadoPruebaFormula {
   readonly valido: boolean
   readonly resultado: string | boolean | null
   readonly tipo: string | null
   readonly diagnosticos: readonly DiagnosticoPrueba[]
+  /** "Detalle del cálculo" — un paso por DEFINIR ejecutada + el RETORNAR
+   * final (nombre null), en orden. Viene tal cual del evaluador real
+   * (packages/ael-runtime/src/evaluator.ts), no se re-deriva en el cliente. */
+  readonly traza: readonly PasoTrazaPrueba[]
 }
 
 export const useConceptoStore = defineStore('concepto', () => {
@@ -97,11 +112,20 @@ export const useConceptoStore = defineStore('concepto', () => {
 
     const campos = {
       nombre: concepto.nombre,
-      tipo_base: concepto.tipo_base,
       modo_calculo: concepto.modo_calculo,
+      modo_valor: concepto.modo_valor,
       formula_ael: concepto.formula_ael,
+      valor_fijo: concepto.valor_fijo,
       prioridad: concepto.prioridad,
       estado_concepto: concepto.estado,
+      tipo_recurrencia: concepto.tipo_recurrencia,
+      fecha_inicio_anio: concepto.fecha_inicio_anio,
+      fecha_inicio_mes: concepto.fecha_inicio_mes,
+      fecha_fin_anio: concepto.fecha_fin_anio,
+      fecha_fin_mes: concepto.fecha_fin_mes,
+      periodicidad: concepto.periodicidad,
+      alcance: concepto.alcance,
+      alcance_condiciones: concepto.alcance_condiciones,
     }
 
     const { error: errorVersion } = await cliente.from('concepto_versiones').insert({
@@ -147,10 +171,19 @@ export const useConceptoStore = defineStore('concepto', () => {
     tenantId: string
     codigo: string
     nombre: string
-    tipoBase: ConceptoTipoBase
     modoCalculo: ConceptoModoCalculo
-    formulaAel: string
+    modoValor: ConceptoModoValor
+    formulaAel: string | null
+    valorFijo: string | null
     prioridad: number
+    tipoRecurrencia: ConceptoTipoRecurrencia
+    fechaInicioAnio: number | null
+    fechaInicioMes: number | null
+    fechaFinAnio: number | null
+    fechaFinMes: number | null
+    periodicidad: ConceptoPeriodicidad | null
+    alcance: ConceptoAlcance
+    alcanceCondiciones: CondicionAlcance | null
   }): Promise<ConceptoRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -159,10 +192,19 @@ export const useConceptoStore = defineStore('concepto', () => {
         tenant_id: params.tenantId,
         codigo: params.codigo,
         nombre: params.nombre,
-        tipo_base: params.tipoBase,
         modo_calculo: params.modoCalculo,
+        modo_valor: params.modoValor,
         formula_ael: params.formulaAel,
+        valor_fijo: params.valorFijo !== null ? Number(params.valorFijo) : null,
         prioridad: params.prioridad,
+        tipo_recurrencia: params.tipoRecurrencia,
+        fecha_inicio_anio: params.fechaInicioAnio,
+        fecha_inicio_mes: params.fechaInicioMes,
+        fecha_fin_anio: params.fechaFinAnio,
+        fecha_fin_mes: params.fechaFinMes,
+        periodicidad: params.periodicidad,
+        alcance: params.alcance,
+        alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
       })
       .select('*')
       .single()
@@ -177,20 +219,38 @@ export const useConceptoStore = defineStore('concepto', () => {
     id: string
     tenantId: string
     nombre: string
-    tipoBase: ConceptoTipoBase
     modoCalculo: ConceptoModoCalculo
-    formulaAel: string
+    modoValor: ConceptoModoValor
+    formulaAel: string | null
+    valorFijo: string | null
     prioridad: number
+    tipoRecurrencia: ConceptoTipoRecurrencia
+    fechaInicioAnio: number | null
+    fechaInicioMes: number | null
+    fechaFinAnio: number | null
+    fechaFinMes: number | null
+    periodicidad: ConceptoPeriodicidad | null
+    alcance: ConceptoAlcance
+    alcanceCondiciones: CondicionAlcance | null
   }): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
       .from('conceptos')
       .update({
         nombre: params.nombre,
-        tipo_base: params.tipoBase,
         modo_calculo: params.modoCalculo,
+        modo_valor: params.modoValor,
         formula_ael: params.formulaAel,
+        valor_fijo: params.valorFijo !== null ? Number(params.valorFijo) : null,
         prioridad: params.prioridad,
+        tipo_recurrencia: params.tipoRecurrencia,
+        fecha_inicio_anio: params.fechaInicioAnio,
+        fecha_inicio_mes: params.fechaInicioMes,
+        fecha_fin_anio: params.fechaFinAnio,
+        fecha_fin_mes: params.fechaFinMes,
+        periodicidad: params.periodicidad,
+        alcance: params.alcance,
+        alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
       })
       .eq('id', params.id)
       .select('*')

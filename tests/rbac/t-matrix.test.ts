@@ -63,7 +63,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
     auditorUser = await crearUsuario(admin, 'tmatrix-auditor')
     administradorUser = await crearUsuario(admin, 'tmatrix-administrador')
     tenant = await crearTenant(admin, 'tmatrix', agentUser.id)
-    await crearMembership(admin, tenant.id, agentUser.id, 'agent')
+    await crearMembership(admin, tenant.id, agentUser.id, 'auxiliar')
     membershipAuditorId = await crearMembership(admin, tenant.id, auditorUser.id, 'auditor')
     await crearMembership(admin, tenant.id, administradorUser.id, 'administrador')
     clienteAgent = await clienteComo(env!, agentUser)
@@ -84,7 +84,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .select('id')
       .eq('tenant_id', tenant.id)
     expect(errorAgent).toBeNull()
-    expect(datosAgent!.length > 0).toBe(hasPermission('agent', 'users:read'))
+    expect(datosAgent!.length > 0).toBe(hasPermission('auxiliar', 'users:read'))
 
     const { data: datosAuditor, error: errorAuditor } = await clienteAuditor
       .from('memberships')
@@ -116,7 +116,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .eq('id', membershipAuditorId)
       .select('id')
     expect(errorAgent).toBeNull()
-    expect(datosAgent!.length > 0).toBe(hasPermission('agent', 'users:manage'))
+    expect(datosAgent!.length > 0).toBe(hasPermission('auxiliar', 'users:manage'))
 
     const { data: datosAdministrador, error: errorAdministrador } = await clienteAdministrador
       .from('memberships')
@@ -133,7 +133,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .select('id')
       .eq('id', tenant.id)
     expect(errorAgent).toBeNull()
-    expect(datosAgent!.length > 0).toBe(hasPermission('agent', 'data:read'))
+    expect(datosAgent!.length > 0).toBe(hasPermission('auxiliar', 'data:read'))
 
     const { data: datosAuditor, error: errorAuditor } = await clienteAuditor
       .from('tenants')
@@ -165,7 +165,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .eq('id', tenant.id)
       .select('id')
     expect(errorAgent).toBeNull()
-    expect(datosAgent!.length > 0).toBe(hasPermission('agent', 'settings:manage'))
+    expect(datosAgent!.length > 0).toBe(hasPermission('auxiliar', 'settings:manage'))
 
     const { data: datosAdministrador, error: errorAdministrador } = await clienteAdministrador
       .from('tenants')
@@ -184,7 +184,7 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .select('id')
       .eq('tenant_id', tenant.id)
     expect(errorAgent).toBeNull()
-    expect(datosAgent!.length > 0).toBe(hasPermission('agent', 'audit:view'))
+    expect(datosAgent!.length > 0).toBe(hasPermission('auxiliar', 'audit:view'))
 
     const { data: datosAuditor, error: errorAuditor } = await clienteAuditor
       .from('audit_log')

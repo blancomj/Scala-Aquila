@@ -109,7 +109,7 @@ export default {
 
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: inmueble.tenant_id,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorRol) {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)

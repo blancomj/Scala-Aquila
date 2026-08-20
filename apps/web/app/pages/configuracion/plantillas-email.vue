@@ -94,7 +94,7 @@ async function guardar(): Promise<void> {
       cuerpoEditado.value,
     )
   } catch (excepcion) {
-    errorGuardar.value = excepcion instanceof Error ? excepcion.message : 'No se pudo guardar.'
+    errorGuardar.value = mensajeError(excepcion, 'No se pudo guardar.')
   } finally {
     guardando.value = false
   }
@@ -113,8 +113,7 @@ async function reintentarSincronizacion(): Promise<void> {
   try {
     resultadoGuardar.value = await plantillasStore.sincronizar(tenantId, eventoSeleccionado.value)
   } catch (excepcion) {
-    errorSincronizar.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo reintentar la sincronización.'
+    errorSincronizar.value = mensajeError(excepcion, 'No se pudo reintentar la sincronización.')
   } finally {
     sincronizando.value = false
   }
@@ -143,7 +142,7 @@ async function generarPrevia(): Promise<void> {
       overridesPrevia.value,
     )
   } catch (excepcion) {
-    errorPrevia.value = excepcion instanceof Error ? excepcion.message : 'No se pudo generar la vista previa.'
+    errorPrevia.value = mensajeError(excepcion, 'No se pudo generar la vista previa.')
   } finally {
     cargandoPrevia.value = false
   }

@@ -3,7 +3,7 @@
 // El AST v0 es pequeño y cerrado por diseño (sin listas/Y-O-NO/MIENTRAS,
 // AD-21): todo lo que parsear() acepta es representable en bloques sin
 // excepción — la única degradación posible es binaria (el texto no
-// parsea), y esa guarda vive en el padre (conceptos/index.vue, botón de
+// parsea), y esa guarda vive en el padre (ConceptosEditor.vue, botón de
 // modo deshabilitado). Este componente solo defiende el caso null por si
 // se reutiliza en otro lugar sin esa guarda. Reestructurar el cuerpo
 // (agregar/quitar/reordenar instrucciones) sigue sin edición — eso llega

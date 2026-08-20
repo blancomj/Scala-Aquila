@@ -14,9 +14,18 @@ function concepto(overrides: Partial<ConceptoRow> & { codigo: string }): Concept
     id: overrides.codigo,
     tenant_id: 't1',
     nombre: overrides.codigo,
-    tipo_base: 'coeficiente',
     modo_calculo: 'distribucion',
+    modo_valor: 'formulado',
     formula_ael: null,
+    valor_fijo: null,
+    tipo_recurrencia: 'recurrente',
+    fecha_inicio_anio: 2000,
+    fecha_inicio_mes: 1,
+    fecha_fin_anio: null,
+    fecha_fin_mes: null,
+    periodicidad: 'mensual',
+    alcance: 'todos',
+    alcance_condiciones: null,
     prioridad: 100,
     estado: 'activo',
     version: 1,
@@ -35,7 +44,23 @@ describe('conceptoARowSnapshot', () => {
   it('mapea columnas Supabase a la forma que espera construirGrafo, formula_ael null → cadena vacía', () => {
     const filas = [concepto({ codigo: 'A', formula_ael: null })]
     expect(conceptoARowSnapshot(filas)).toEqual([
-      { id: 'A', codigo: 'A', modoCalculo: 'distribucion', formulaAel: '', prioridad: 100 },
+      {
+        id: 'A',
+        codigo: 'A',
+        modoCalculo: 'distribucion',
+        modoValor: 'formulado',
+        formulaAel: '',
+        valorFijo: null,
+        prioridad: 100,
+        tipoRecurrencia: 'recurrente',
+        fechaInicioAnio: 2000,
+        fechaInicioMes: 1,
+        fechaFinAnio: null,
+        fechaFinMes: null,
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        alcanceCondiciones: null,
+      },
     ])
   })
 })

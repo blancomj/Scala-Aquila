@@ -44,8 +44,7 @@ async function guardar(): Promise<void> {
     })
     emit('guardado')
   } catch (excepcion) {
-    error.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo vincular la persona.'
+    error.value = mensajeError(excepcion, 'No se pudo vincular la persona.')
   } finally {
     guardando.value = false
   }

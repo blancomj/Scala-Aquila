@@ -27,6 +27,8 @@ export { liquidar, type ResultadoLiquidacion } from './liquidar.js'
 
 export { construirSnapshotDesdeSupabase, type OpcionesSnapshot } from './snapshot-supabase.js'
 
+export { conceptoAplicaEnPeriodo } from './temporal.js'
+
 export { guardarLiquidacion } from './persistencia-supabase.js'
 
 export {
@@ -34,6 +36,8 @@ export {
   DependenciaDesconocidaError,
   ConceptoNoAnalizaLimpioError,
   EvaluacionConceptoFallidaError,
+  ConceptoFijoSinValorError,
+  ConceptoRecurrenciaSinFechaError,
   ReconciliacionLiquidacionFallidaError,
   OrdenImputacionInvalidoError,
   EstrategiaImputacionInvalidaError,
@@ -210,6 +214,7 @@ export {
   registrarCargosDeLiquidacion,
   registrarCargoInteres,
   obtenerUltimaFechaInteresPorCapital,
+  generarCargosNovedadesPeriodo,
   type OpcionesCargosAbiertos,
   type PoliticaImputacion,
   type DatosPago,

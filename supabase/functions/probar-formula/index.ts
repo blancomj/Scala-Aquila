@@ -37,13 +37,23 @@ interface DiagnosticoLocal {
   readonly mensaje: string
   readonly span: { readonly inicio: { readonly linea: number; readonly columna: number } }
 }
+interface ValorLocal {
+  readonly tipo: string
+  readonly valor?: unknown
+}
+interface PasoTrazaLocal {
+  readonly nombre: string | null
+  readonly expresionTexto: string
+  readonly valor: ValorLocal
+}
 interface ResultadoPruebaLocal {
   readonly valido: boolean
-  readonly resultado: { readonly tipo: string; readonly valor?: unknown } | null
+  readonly resultado: ValorLocal | null
   readonly diagnosticos: readonly DiagnosticoLocal[]
+  readonly traza: readonly PasoTrazaLocal[]
 }
 
-function serializarValor(resultado: { tipo: string; valor?: unknown }): string | boolean | null {
+function serializarValor(resultado: ValorLocal): string | boolean | null {
   switch (resultado.tipo) {
     case 'MONEY':
       return (resultado.valor as { amount: { toString(): string } }).amount.toString()
@@ -109,7 +119,7 @@ export default {
 
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: tenantId,
-      p_roles: ['agent'],
+      p_roles: ['auxiliar'],
     })
     if (errorRol) {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
@@ -190,6 +200,12 @@ export default {
           mensaje: d.mensaje,
           linea: d.span.inicio.linea,
           columna: d.span.inicio.columna,
+        })),
+        traza: resultado.traza.map((paso) => ({
+          nombre: paso.nombre,
+          expresionTexto: paso.expresionTexto,
+          valor: serializarValor(paso.valor),
+          tipo: paso.valor.tipo,
         })),
       },
       200,

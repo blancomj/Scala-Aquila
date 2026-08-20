@@ -46,8 +46,8 @@ d('Aislamiento de dominio PH entre tenants (SEC-11/12)', () => {
     userB = await crearUsuario(admin, 'dom-b')
     tenantA = await crearTenant(admin, 'dom-a', userA.id)
     tenantB = await crearTenant(admin, 'dom-b', userB.id)
-    await crearMembership(admin, tenantA.id, userA.id, 'agent')
-    await crearMembership(admin, tenantB.id, userB.id, 'agent')
+    await crearMembership(admin, tenantA.id, userA.id, 'auxiliar')
+    await crearMembership(admin, tenantB.id, userB.id, 'auxiliar')
     clienteA = await clienteComo(env!, userA)
 
     // 'apartamento' ahora vive en lista_tipos (plataforma, tenant_id NULL) —

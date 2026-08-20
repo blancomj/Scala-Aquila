@@ -51,7 +51,7 @@ function valorCelda(fila: T, clave: string): unknown {
           :key="col.clave"
           :class="[
             col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
-            variante === 'tailwind' ? ['py-1 font-medium', col.alinear === 'derecha' ? 'text-right' : ''] : '',
+            variante === 'tailwind' ? ['py-1 px-3 font-medium', col.alinear === 'derecha' ? 'text-right' : ''] : '',
           ]"
         >
           <slot :name="`encabezado-${col.clave}`">{{ col.etiqueta }}</slot>
@@ -69,7 +69,7 @@ function valorCelda(fila: T, clave: string): unknown {
           :key="col.clave"
           :class="[
             col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
-            variante === 'tailwind' ? ['py-1.5', col.alinear === 'derecha' ? 'text-right' : ''] : '',
+            variante === 'tailwind' ? ['py-1.5 px-3', col.alinear === 'derecha' ? 'text-right' : ''] : '',
             col.claseCelda,
           ]"
         >

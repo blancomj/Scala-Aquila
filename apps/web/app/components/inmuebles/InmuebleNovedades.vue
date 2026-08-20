@@ -54,7 +54,7 @@ async function crear(): Promise<void> {
     montoNovedad.value = null
     descripcion.value = ''
   } catch (excepcion) {
-    error.value = excepcion instanceof Error ? excepcion.message : 'No se pudo crear la novedad.'
+    error.value = mensajeError(excepcion, 'No se pudo crear la novedad.')
   }
 }
 

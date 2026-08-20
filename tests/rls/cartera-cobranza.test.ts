@@ -59,7 +59,7 @@ d('estrategias_cobranza / acciones_cobranza (CAR §9-§10)', () => {
     admin = clienteAdmin(env!)
     usuario = await crearUsuario(admin, 'cobranza')
     tenant = await crearTenant(admin, 'cobranza', usuario.id)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
 
     const tipoInmuebleId = await listaTipoId(admin, 'TIPO_INMUEBLE', 'apartamento')
     const { data: inmueble, error: errInmueble } = await admin

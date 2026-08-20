@@ -42,8 +42,7 @@ async function activarPresupuesto(id: string): Promise<void> {
     await presupuestoStore.activarPresupuesto(id, tenantId)
     emit('update:presupuestoId', id)
   } catch (excepcion) {
-    errorActivar.value =
-      excepcion instanceof Error ? excepcion.message : 'No se pudo activar el presupuesto.'
+    errorActivar.value = mensajeError(excepcion, 'No se pudo activar el presupuesto.')
   } finally {
     activandoId.value = null
   }

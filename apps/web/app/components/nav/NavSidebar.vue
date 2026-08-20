@@ -27,7 +27,9 @@ function toggleGrupo(titulo: string): void {
 }
 
 function puedeVer(item: NavItem): boolean {
-  return !item.permiso || tenantStore.puede(item.permiso)
+  const tienePermiso = !item.permiso || tenantStore.puede(item.permiso)
+  const tieneModulo = !item.modulo || tenantStore.puedeVerModulo(item.modulo)
+  return tienePermiso && tieneModulo
 }
 
 const gruposVisibles = computed(() =>
@@ -48,10 +50,10 @@ function activo(to: string): boolean {
 // grupo (la coloración es solo para el estado inactivo).
 const COLOR_ICONO_GRUPO: Record<string, string> = {
   Cartera: 'text-blue-400',
-  'Cuenta corriente': 'text-emerald-400',
+  'Estado de cuenta': 'text-emerald-400',
   Presupuesto: 'text-violet-400',
   Configuración: 'text-slate-400',
-  Administración: 'text-amber-400',
+  Seguridad: 'text-amber-400',
 }
 const COLOR_ICONO_TOP = 'text-cyan-400'
 const COLOR_ICONO_PLATAFORMA = 'text-rose-400'

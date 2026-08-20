@@ -54,7 +54,7 @@ d('posiciones_cartera_snapshot (CAR §6.3, PH-C27/PH-C29/PH-C30)', () => {
     admin = clienteAdmin(env!)
     usuario = await crearUsuario(admin, 'snapshot')
     tenant = await crearTenant(admin, 'snapshot', usuario.id)
-    await crearMembership(admin, tenant.id, usuario.id, 'agent')
+    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
 
     const tipoId = await tipoApartamentoId(admin)
     const { data: inmueble, error: errInmueble } = await admin

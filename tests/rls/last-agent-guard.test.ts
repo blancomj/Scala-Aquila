@@ -29,7 +29,7 @@ d('SEC-07: guarda del último agent activo', () => {
   it('bloquea degradar al único agent de la copropiedad', async () => {
     const solo = await crearUsuario(admin, 'solo-agent')
     const tenant = await crearTenant(admin, 'solo', solo.id)
-    const membershipId = await crearMembership(admin, tenant.id, solo.id, 'agent')
+    const membershipId = await crearMembership(admin, tenant.id, solo.id, 'auxiliar')
     const cliente = await clienteComo(env!, solo)
 
     const { error } = await cliente
@@ -46,7 +46,7 @@ d('SEC-07: guarda del último agent activo', () => {
       .select('role')
       .eq('id', membershipId)
       .single()
-    expect(verificacion?.role).toBe('agent')
+    expect(verificacion?.role).toBe('auxiliar')
 
     await eliminarTenant(admin, tenant.id)
     await eliminarUsuario(admin, solo.id)
@@ -55,7 +55,7 @@ d('SEC-07: guarda del último agent activo', () => {
   it('bloquea revocar (status) al único agent activo', async () => {
     const solo = await crearUsuario(admin, 'solo-revoke')
     const tenant = await crearTenant(admin, 'revoke', solo.id)
-    const membershipId = await crearMembership(admin, tenant.id, solo.id, 'agent')
+    const membershipId = await crearMembership(admin, tenant.id, solo.id, 'auxiliar')
     const cliente = await clienteComo(env!, solo)
 
     const { error } = await cliente
@@ -76,8 +76,8 @@ d('SEC-07: guarda del último agent activo', () => {
     const uno = await crearUsuario(admin, 'dup-uno')
     const dos = await crearUsuario(admin, 'dup-dos')
     const tenant = await crearTenant(admin, 'dup', uno.id)
-    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'agent')
-    await crearMembership(admin, tenant.id, dos.id, 'agent')
+    const membresiaUno = await crearMembership(admin, tenant.id, uno.id, 'auxiliar')
+    await crearMembership(admin, tenant.id, dos.id, 'auxiliar')
 
     const clienteDos: Cliente = await clienteComo(env!, dos)
     const { error } = await clienteDos
