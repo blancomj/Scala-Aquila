@@ -1,15 +1,19 @@
 <script setup lang="ts">
-// Pestaña "Conceptos" — catálogo liviano (lista + editar/archivar +
-// nuevo). El editor de fórmulas AEL (texto/bloques/IR, pruebas, versiones)
-// no cabe razonablemente en una pestaña — vive en páginas propias
-// (/conceptos/nuevo, /conceptos/[id]), ver ConceptosEditor.vue. El flujo
-// completo de maker-checker (enviar a revisión/aprobar/rechazar/volver a
-// borrador — AEL-004 Fase 4) también se movió a esas páginas, ligado al
-// concepto que se está editando; aquí solo queda la acción rápida
-// "Archivar" (disponible en borrador/activo, mismo criterio que
-// conceptoEsSeleccionable() en la versión anterior de esta pantalla). Las
-// acciones en lote (selección múltiple) se retiraron: no tenían sentido
-// ya con la lista reducida a editar/archivar/nuevo.
+// Catálogo de Conceptos — lista + editar/archivar + nuevo. Vivió como
+// pestaña "Conceptos" dentro de /presupuesto (PresupuestoTabConceptos.vue);
+// movida a página propia en /estado-cuenta/conceptos (ver
+// pages/estado-cuenta/conceptos.vue) porque el catálogo alimenta cuenta
+// corriente/novedades, no solo presupuesto. El editor de fórmulas AEL
+// (texto/bloques/IR, pruebas, versiones) no cabe razonablemente aquí —
+// vive en páginas propias (/conceptos/nuevo, /conceptos/[id]), ver
+// ConceptosEditor.vue. El flujo completo de maker-checker (enviar a
+// revisión/aprobar/rechazar/volver a borrador — AEL-004 Fase 4) también
+// se movió a esas páginas, ligado al concepto que se está editando; aquí
+// solo queda la acción rápida "Archivar" (disponible en borrador/activo,
+// mismo criterio que conceptoEsSeleccionable() en la versión anterior de
+// esta pantalla). Las acciones en lote (selección múltiple) se
+// retiraron: no tenían sentido ya con la lista reducida a
+// editar/archivar/nuevo.
 const tenantStore = useTenantStore()
 const conceptoStore = useConceptoStore()
 

@@ -19,6 +19,11 @@ const catalogos = useState<Record<string, ListaTipoRow[]>>('alcance-catalogos-li
 const meta = computed(() => metaDeCampo(props.modelValue.campo))
 const operadoresDisponibles = computed(() => operadoresPara(props.modelValue.campo))
 
+// CondicionHoja.valor es string | number (los campos de catálogo llevan código,
+// los numéricos un número), pero model-value de UInput solo acepta string —
+// se normaliza aquí y @update:model-value lo devuelve a number.
+const valorTexto = computed(() => String(props.modelValue.valor))
+
 const opcionesCatalogo = computed(() => {
   const familia = meta.value.familiaListaTipos
   if (!familia) return []
@@ -98,7 +103,7 @@ function cambiarCampo(campo: CampoCondicion): void {
 
     <UInput
       v-else
-      :model-value="modelValue.valor"
+      :model-value="valorTexto"
       type="number"
       size="sm"
       class="w-32"

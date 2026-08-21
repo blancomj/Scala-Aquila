@@ -217,9 +217,9 @@ export default {
 
     const { data: fuentes, error: errorFuentes } = await ctx.supabase
       .from('fuente_financiacion')
-      .select('valor_aplicado')
+      .select('valor_aplicado, lista_tipos!inner(codigo)')
       .eq('presupuesto_id', presupuestoId)
-      .eq('tipo', 'otros_ingresos')
+      .eq('lista_tipos.codigo', 'otros_ingresos')
     if (errorFuentes) {
       return errorResponse(500, 'INTERNAL_ERROR', errorFuentes.message, undefined, correlationId)
     }

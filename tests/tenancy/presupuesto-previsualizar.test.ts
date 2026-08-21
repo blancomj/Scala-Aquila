@@ -4,8 +4,9 @@
  * mismo motor que usa liquidation-engine/executor.ts — no uno nuevo).
  *
  * No persiste nada: solo lectura + cálculo. Cubre el neteo contra
- * fuente_financiacion (tipo='otros_ingresos'), la distribución por
- * coeficiente, y el aislamiento por tenant.
+ * fuente_financiacion (tipo_id → lista_tipos.codigo='otros_ingresos',
+ * 20260830210000), la distribución por coeficiente, y el aislamiento por
+ * tenant.
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import {
@@ -73,6 +74,20 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
     .is('tenant_id', null)
     .single<{ id: number }>()
   if (error) throw new Error(`fixture tipo apartamento: ${error.message}`)
+  return data.id
+}
+
+/** Id de plataforma (tenant_id null) de un código de TIPO_FUENTE_FINANCIACION — la columna
+ * `fuente_financiacion.tipo` pasó de enum a `tipo_id` bigint (20260830210000). */
+async function tipoFuenteId(admin: Cliente, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_FUENTE_FINANCIACION')
+    .is('tenant_id', null)
+    .eq('codigo', codigo)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture tipo fuente ${codigo}: ${error.message}`)
   return data.id
 }
 
@@ -207,10 +222,11 @@ d('presupuesto-previsualizar (Edge Function)', () => {
   }, 30_000)
 
   it('neteo: una fuente otros_ingresos reduce la necesidad financiera', async () => {
+    const tipoOtrosIngresosId = await tipoFuenteId(admin, 'otros_ingresos')
     await admin.from('fuente_financiacion').insert({
       tenant_id: tenant.id,
       presupuesto_id: presupuestoId,
-      tipo: 'otros_ingresos',
+      tipo_id: tipoOtrosIngresosId,
       valor_disponible: 100_000,
       valor_aplicado: 100_000,
     })

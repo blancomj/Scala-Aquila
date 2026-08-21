@@ -35,7 +35,7 @@ type PresupuestoCuentaEjecucion =
   Database['public']['Functions']['presupuesto_cuenta_ejecucion']['Returns'][number]
 type PresupuestoEjecucionRow = Database['public']['Tables']['presupuesto_ejecucion']['Row']
 type FuenteFinanciacionRow = Database['public']['Tables']['fuente_financiacion']['Row']
-type FuenteFinanciacionTipo = Database['public']['Enums']['fuente_financiacion_tipo_t']
+type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 
 interface PrevisualizacionDistribucion {
   presupuesto_id: string
@@ -63,8 +63,24 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
   const comparativoCuenta = shallowRef<PresupuestoCuentaEjecucion[]>([])
   const ejecuciones = shallowRef<PresupuestoEjecucionRow[]>([])
   const fuentes = shallowRef<FuenteFinanciacionRow[]>([])
+  const tiposFuente = shallowRef<ListaTipoRow[]>([])
   const fondoImprevistos = ref<number | null>(null)
   const loading = ref(false)
+
+  /** Catálogo TIPO_FUENTE_FINANCIACION (20260830210000, ex-enum) — ampliable por tenant
+   * sin migración, mismo patrón que cargarTiposNovedad (cuentaCorriente.ts). */
+  async function cargarTiposFuente(tenantId: string): Promise<ListaTipoRow[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorTipos } = await cliente
+      .from('lista_tipos')
+      .select('*')
+      .eq('tipo', 'TIPO_FUENTE_FINANCIACION')
+      .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
+      .order('orden')
+    if (errorTipos) throw errorTipos
+    tiposFuente.value = data ?? []
+    return tiposFuente.value
+  }
 
   async function cargarPresupuestos(tenantId: string): Promise<PresupuestoRow[]> {
     loading.value = true
@@ -143,7 +159,6 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     nombre: string
     parentId?: string
     orden?: number
-    conceptoId?: string
   }): Promise<PresupuestoCuentaRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -155,7 +170,6 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         nombre: params.nombre,
         parent_id: params.parentId ?? null,
         orden: params.orden ?? 0,
-        concepto_id: params.conceptoId ?? null,
         // nivel/ruta: placeholders — guard_presupuesto_cuenta_arbol (trigger BEFORE INSERT) los
         // recalcula siempre, ignorando lo que llega aquí. Solo existen para satisfacer el tipo
         // Insert generado (columnas NOT NULL sin default en la definición de la tabla).
@@ -178,9 +192,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
    * el trigger propagar_presupuesto_cuenta_ruta recalcula en cascada el nivel/ruta de todos
    * los descendientes tras el movimiento — no hay que hacerlo desde el cliente.
    *
-   * parentId: undefined = no tocar; null = mover a cuenta raíz; string = nuevo padre.
-   * conceptoId: undefined = no tocar; null = desvincular; string = vincular (solo hoja +
-   * naturaleza ingreso — guard_presupuesto_cuenta_concepto lo exige, 20260823290000). */
+   * parentId: undefined = no tocar; null = mover a cuenta raíz; string = nuevo padre. */
   async function actualizarCuenta(params: {
     id: string
     tenantId: string
@@ -189,7 +201,6 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     orden?: number
     activa?: boolean
     parentId?: string | null
-    conceptoId?: string | null
   }): Promise<PresupuestoCuentaRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
@@ -200,7 +211,6 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         orden: params.orden,
         activa: params.activa,
         parent_id: params.parentId,
-        concepto_id: params.conceptoId,
       })
       .eq('id', params.id)
       .select('*')
@@ -363,6 +373,38 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     return data
   }
 
+  /** Edición de un rubro existente — mismo criterio que actualizarCuenta: la UI solo la ofrece
+   * mientras el presupuesto está en borrador (igual gating que crearRubro), así que no hace
+   * falta un guard de inmutabilidad aquí — a diferencia de fuente_financiacion, ningún trigger
+   * bloquea hoy el UPDATE de presupuesto_rubros por estado del presupuesto padre. */
+  async function actualizarRubro(params: {
+    id: string
+    presupuestoId: string
+    codigo?: string
+    nombre?: string
+    cuentaId?: string
+    montoAnual?: number
+    fundamentoNormativoId?: number | null
+  }): Promise<PresupuestoRubroRow> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorUpdate } = await cliente
+      .from('presupuesto_rubros')
+      .update({
+        codigo: params.codigo,
+        nombre: params.nombre,
+        cuenta_id: params.cuentaId,
+        monto_anual: params.montoAnual,
+        fundamento_normativo_id: params.fundamentoNormativoId,
+      })
+      .eq('id', params.id)
+      .select('*')
+      .single()
+    if (errorUpdate) throw errorUpdate
+
+    await cargarRubros(params.presupuestoId)
+    return data
+  }
+
   async function cargarFuentesFinanciacion(
     presupuestoId: string,
   ): Promise<FuenteFinanciacionRow[]> {
@@ -384,7 +426,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
 
   async function registrarFuenteFinanciacion(params: {
     presupuestoId: string
-    tipo: FuenteFinanciacionTipo
+    tipoId: number
     valorDisponible: number
     valorAplicado: number
     descripcion?: string
@@ -396,7 +438,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
       {
         body: {
           presupuesto_id: params.presupuestoId,
-          tipo: params.tipo,
+          tipo_id: params.tipoId,
           valor_disponible: params.valorDisponible,
           valor_aplicado: params.valorAplicado,
           descripcion: params.descripcion,
@@ -432,6 +474,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     comparativoCuenta.value = []
     ejecuciones.value = []
     fuentes.value = []
+    tiposFuente.value = []
     fondoImprevistos.value = null
   }
 
@@ -443,6 +486,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     comparativoCuenta,
     ejecuciones,
     fuentes,
+    tiposFuente,
     fondoImprevistos,
     loading,
     cargarPresupuestos,
@@ -459,7 +503,9 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     cargarFondoImprevistos,
     cargarRubros,
     crearRubro,
+    actualizarRubro,
     cargarFuentesFinanciacion,
+    cargarTiposFuente,
     registrarFuenteFinanciacion,
     previsualizarDistribucion,
     limpiar,

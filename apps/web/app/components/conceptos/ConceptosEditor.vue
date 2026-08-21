@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Editor de concepto (crear/editar) — extraído de conceptos/index.vue al
-// separar "Conceptos" en catálogo (PresupuestoTabConceptos.vue, solo
-// lista + editar/archivar/nuevo, embebido en Presupuesto) + editor de
+// separar "Conceptos" en catálogo (ConceptosCatalogo.vue, solo lista +
+// editar/archivar/nuevo, en /estado-cuenta/conceptos) + editor de
 // página completa (aquí, /conceptos/nuevo y /conceptos/[id]). La fórmula
 // AEL (texto/bloques/IR), pruebas y versionado no caben razonablemente en
 // una pestaña ni en un drawer — se mantienen como página completa, sin
@@ -54,6 +54,7 @@ const conceptoStore = useConceptoStore()
 const cuentaStore = useCuentaCorrienteStore()
 const liquidacionStore = useLiquidacionStore()
 const politicaFinancieraStore = usePoliticaFinancieraStore()
+const presupuestoStore = usePresupuestoStore()
 
 const editandoId = ref<string | null>(null)
 const codigo = ref('')
@@ -87,6 +88,15 @@ const periodicidad = ref<'mensual' | 'bimensual' | 'trimestral' | 'semestral' | 
 // alcance_condiciones null en ese caso.
 const alcance = ref<'todos' | 'calculado'>('todos')
 const alcanceCondiciones = ref<CondicionGrupo | null>(null)
+
+// Cuenta presupuestal de ingreso (E9, dirección invertida 20260830200000) — a qué cuenta del
+// árbol de presupuesto_cuenta clasifica el ingreso que genera este concepto. Solo hojas de
+// naturaleza ingreso son elegibles (guard_concepto_presupuesto_cuenta lo exige), mismo criterio
+// que opcionesComponentePresupuestal en estado-cuenta/novedades.vue.
+const presupuestoCuentaId = ref<string | null>(null)
+const opcionesCuentaPresupuestal = computed(() =>
+  presupuestoStore.cuentas.filter((c) => c.es_hoja && c.naturaleza === 'ingreso'),
+)
 watch(alcance, (valor) => {
   if (valor === 'todos') {
     alcanceCondiciones.value = null
@@ -147,6 +157,7 @@ onMounted(async () => {
       cuentaStore.cargarInmuebles(tenantId),
       liquidacionStore.cargarPeriodos(tenantId),
       politicaFinancieraStore.cargarPoliticas(tenantId),
+      presupuestoStore.cargarCuentas(tenantId),
     ])
     if (props.conceptoId) {
       const concepto = conceptoStore.conceptos.find((c) => c.id === props.conceptoId)
@@ -189,7 +200,7 @@ const TABS_CONCEPTO = computed(() =>
     ? TODAS_TABS_CONCEPTO.filter((t) => t.id !== 'formula')
     : TODAS_TABS_CONCEPTO,
 )
-const tabActiva = ref<TabConcepto>('formula')
+const tabActiva = ref<TabConcepto>('configuracion')
 watch(modoValor, (valor) => {
   if (valor === 'fijo' && tabActiva.value === 'formula') tabActiva.value = 'configuracion'
 })
@@ -565,6 +576,7 @@ async function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]
   periodicidad.value = concepto.periodicidad ?? 'mensual'
   alcance.value = concepto.alcance
   alcanceCondiciones.value = concepto.alcance_condiciones as unknown as CondicionGrupo | null
+  presupuestoCuentaId.value = concepto.presupuesto_cuenta_id
   error.value = null
   modoFormula.value = 'texto'
   bloqueEnEdicion.value = null
@@ -632,6 +644,7 @@ async function guardar(): Promise<void> {
         periodicidad: esRecurrente ? periodicidad.value : null,
         alcance: alcance.value,
         alcanceCondiciones: alcanceCondiciones.value,
+        presupuestoCuentaId: presupuestoCuentaId.value,
       })
     } else {
       const creado = await conceptoStore.crearConcepto({
@@ -651,6 +664,7 @@ async function guardar(): Promise<void> {
         periodicidad: esRecurrente ? periodicidad.value : null,
         alcance: alcance.value,
         alcanceCondiciones: alcanceCondiciones.value,
+        presupuestoCuentaId: presupuestoCuentaId.value,
       })
       // Tras crear, se navega al editor del concepto recién creado — ahí
       // (no antes) quedan disponibles versiones/casos de prueba, que
@@ -1263,6 +1277,23 @@ async function probar(): Promise<void> {
           </div>
           <UAlert v-if="errorTemporal" color="error" variant="soft" :title="errorTemporal" />
         </template>
+
+        <UFormField label="Cuenta presupuestal" name="presupuesto_cuenta_id" class="max-w-xs">
+          <select
+            v-model="presupuestoCuentaId"
+            :disabled="soloLectura"
+            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+          >
+            <option :value="null">— Sin clasificar —</option>
+            <option v-for="c in opcionesCuentaPresupuestal" :key="c.id" :value="c.id">
+              {{ c.nombre }}
+            </option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">
+            Bajo qué cuenta de ingreso del presupuesto se clasifica lo que cobra este concepto —
+            su ejecutado se suma ahí automáticamente (Σ cargos facturados).
+          </p>
+        </UFormField>
       </div>
 
       <!-- ── Alcance ─────────────────────────────────────────────────── -->

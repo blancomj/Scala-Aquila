@@ -12,6 +12,13 @@
 // los descendientes ante un reparentado lo hace el trigger
 // propagar_presupuesto_cuenta_ruta (20260823210000) — no hay nada que
 // hacer del lado del cliente más que enviar el nuevo parent_id.
+//
+// El vínculo con el concepto de cobro ("¿qué concepto factura el ingreso
+// de esta cuenta?") vivió aquí como campo "Concepto de cobro"
+// (presupuesto_cuenta.concepto_id) hasta 20260830200000 — se invirtió: es
+// el concepto el que declara su cuenta presupuestal
+// (conceptos.presupuesto_cuenta_id, ver ConceptosEditor.vue, pestaña
+// Definición), no la cuenta la que sale a buscar su concepto.
 import type { Database } from '@aquila/shared'
 
 type PresupuestoCuentaRow = Database['public']['Tables']['presupuesto_cuenta']['Row']
@@ -24,7 +31,6 @@ const props = defineProps<{
 const emit = defineEmits<{ cerrar: []; creada: []; editada: [] }>()
 
 const presupuestoStore = usePresupuestoStore()
-const conceptoStore = useConceptoStore()
 
 const modoEdicion = computed(() => props.cuenta !== undefined)
 
@@ -34,19 +40,8 @@ const codigo = ref(props.cuenta?.codigo ?? '')
 const nombre = ref(props.cuenta?.nombre ?? '')
 const orden = ref<number | null>(props.cuenta?.orden ?? 0)
 const activa = ref(props.cuenta?.activa ?? true)
-const conceptoId = ref<string | null>(props.cuenta?.concepto_id ?? null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
-
-onMounted(() => {
-  if (conceptoStore.conceptos.length === 0) conceptoStore.cargarConceptos(props.tenantId)
-})
-
-/** Solo cuentas de ingreso que hoy son hoja pueden vincular un concepto de cobro
- * (guard_presupuesto_cuenta_concepto, 20260823290000) — en creación toda cuenta nueva nace hoja. */
-const mostrarConcepto = computed(
-  () => naturaleza.value === 'ingreso' && (!modoEdicion.value || props.cuenta?.es_hoja === true),
-)
 
 const cuentaPadre = computed(
   () => presupuestoStore.cuentas.find((c) => c.id === parentId.value) ?? null,
@@ -111,7 +106,6 @@ async function guardar(): Promise<void> {
         orden: orden.value ?? 0,
         activa: activa.value,
         parentId: parentId.value,
-        conceptoId: mostrarConcepto.value ? conceptoId.value : undefined,
       })
       emit('editada')
     } else {
@@ -122,7 +116,6 @@ async function guardar(): Promise<void> {
         nombre: nombre.value,
         parentId: parentId.value ?? undefined,
         orden: orden.value ?? 0,
-        conceptoId: mostrarConcepto.value ? (conceptoId.value ?? undefined) : undefined,
       })
       emit('creada')
     }
@@ -165,13 +158,15 @@ async function guardar(): Promise<void> {
           <label for="c-orden">Orden</label>
           <input id="c-orden" v-model.number="orden" type="number" min="0" />
         </div>
-        <div class="field">
-          <label for="c-codigo">Código</label>
-          <input id="c-codigo" v-model="codigo" type="text" />
-        </div>
-        <div class="field">
-          <label for="c-nombre">Nombre</label>
-          <input id="c-nombre" v-model="nombre" type="text" />
+        <div class="field-row-2">
+          <div class="field field-codigo">
+            <label for="c-codigo">Código</label>
+            <input id="c-codigo" v-model="codigo" type="text" maxlength="6" />
+          </div>
+          <div class="field">
+            <label for="c-nombre">Nombre</label>
+            <input id="c-nombre" v-model="nombre" type="text" />
+          </div>
         </div>
         <div v-if="modoEdicion" class="field">
           <label for="c-activa">Estado</label>
@@ -179,19 +174,6 @@ async function guardar(): Promise<void> {
             <option :value="true">Activa</option>
             <option :value="false">Inactiva</option>
           </select>
-        </div>
-        <div v-if="mostrarConcepto" class="field span-2">
-          <label for="c-concepto">Concepto de cobro</label>
-          <select id="c-concepto" v-model="conceptoId">
-            <option :value="null">— Ninguno (movimientos manuales) —</option>
-            <option v-for="c in conceptoStore.conceptos" :key="c.id" :value="c.id">
-              {{ c.codigo }} — {{ c.nombre }}
-            </option>
-          </select>
-          <p class="text-xs text-gray-500 mt-1">
-            Si eliges un concepto, el ejecutado de esta cuenta se calcula solo (Σ cargos
-            facturados) — deja de admitir movimientos manuales de ejecución.
-          </p>
         </div>
       </div>
 

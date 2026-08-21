@@ -8,13 +8,13 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 
-const presupuestoSeleccionadoId = ref<string | null>(null)
-
 await useAsyncData('presupuesto-control', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return []
   return presupuestoStore.cargarPresupuestos(tenantId)
 })
+
+const presupuestoSeleccionadoId = useSeleccionPresupuesto()
 </script>
 
 <template>

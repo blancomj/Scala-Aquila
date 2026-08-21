@@ -105,6 +105,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'estado_cuenta',
         icono: NAV_ICONOS.novedades,
       },
+      {
+        label: 'Conceptos',
+        to: '/estado-cuenta/conceptos',
+        permiso: 'data:create',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.conceptos,
+      },
     ],
   },
   {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Pestaña "Ejecución presupuestal" (E9) — presupuestado vs. ejecutado por cuenta, mismo criterio
-// de secciones Egresos/Ingresos que PresupuestoTabComponentes.vue. El rollup viene siempre de
+// de secciones Egresos/Ingresos que PresupuestoTabPlanCuentas.vue. El rollup viene siempre de
 // presupuesto_cuenta_ejecucion (BD) vía cargarComparativoCuenta — la variación (con prorrateo
 // mensual, E9 seguimiento) se calcula aquí (capa de presentación, por diseño de la función).
 import type { Database } from '@aquila/shared'
@@ -12,6 +12,7 @@ const props = defineProps<{ presupuestoId: string | null }>()
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const liquidacionStore = useLiquidacionStore()
+const conceptoStore = useConceptoStore()
 
 watch(
   () => props.presupuestoId,
@@ -22,17 +23,30 @@ watch(
         presupuestoStore.cargarComparativoCuenta(id),
         presupuestoStore.cargarEjecuciones(tenantId),
         liquidacionStore.cargarPeriodos(tenantId),
+        conceptoStore.cargarConceptos(tenantId),
       ])
     }
   },
   { immediate: true },
 )
 
+/** Qué cuentas reciben su ejecutado automáticamente de al menos un concepto (dirección
+ * invertida, 20260830200000: el vínculo vive en conceptos.presupuesto_cuenta_id, no en la
+ * cuenta) — para el badge "(automático)" de más abajo. */
+const cuentasConConceptoAutomatico = computed(
+  () =>
+    new Set(
+      conceptoStore.conceptos
+        .map((c) => c.presupuesto_cuenta_id)
+        .filter((id): id is string => id !== null),
+    ),
+)
+
 const comparativoPorCuenta = computed(
   () => new Map(presupuestoStore.comparativoCuenta.map((c) => [c.cuenta_id, c])),
 )
 
-/** Mismo orden lexicográfico sobre `ruta` que PresupuestoTabComponentes.vue. */
+/** Mismo orden lexicográfico sobre `ruta` que PresupuestoTabPlanCuentas.vue. */
 function arbol(naturaleza: 'ingreso' | 'egreso') {
   return presupuestoStore.cuentas
     .filter((c) => c.naturaleza === naturaleza)
@@ -154,13 +168,13 @@ async function ajustar(movimiento: PresupuestoEjecucionRow): Promise<void> {
     <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex gap-8">
       <div>
         <p class="text-xs text-gray-500 uppercase tracking-wide">Excedente / pérdida presupuestado</p>
-        <p class="text-lg font-semibold" :class="excedente.presupuestado < 0 ? 'text-amber-500' : ''">
+        <p class="text-lg font-semibold tabular-nums" :class="excedente.presupuestado < 0 ? 'text-amber-500' : ''">
           {{ formatoMoneda(excedente.presupuestado) }}
         </p>
       </div>
       <div>
         <p class="text-xs text-gray-500 uppercase tracking-wide">Excedente / pérdida ejecutado</p>
-        <p class="text-lg font-semibold" :class="excedente.ejecutado < 0 ? 'text-amber-500' : ''">
+        <p class="text-lg font-semibold tabular-nums" :class="excedente.ejecutado < 0 ? 'text-amber-500' : ''">
           {{ formatoMoneda(excedente.ejecutado) }}
         </p>
       </div>
@@ -185,15 +199,22 @@ async function ajustar(movimiento: PresupuestoEjecucionRow): Promise<void> {
             {{ fila.nombre }}
           </span>
           <span v-if="!fila.es_hoja" class="text-xs text-gray-400 ml-1">(grupo)</span>
-          <span v-else-if="fila.concepto_id" class="text-xs text-gray-400 ml-1">(automático)</span>
+          <UBadge v-else-if="cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle" class="ml-1">
+            cobro automático
+          </UBadge>
         </template>
-        <template #celda-presupuestado="{ fila }">{{ formatoMoneda(presupuestado(fila.id)) }}</template>
+        <template #celda-presupuestado="{ fila }">
+          <span class="tabular-nums">{{ formatoMoneda(presupuestado(fila.id)) }}</span>
+        </template>
         <template #celda-aLaFecha="{ fila }">
-          <span class="text-gray-500">{{ formatoMoneda(presupuestadoALaFecha(fila.id)) }}</span>
+          <span class="text-gray-500 tabular-nums">{{ formatoMoneda(presupuestadoALaFecha(fila.id)) }}</span>
         </template>
-        <template #celda-ejecutado="{ fila }">{{ formatoMoneda(ejecutado(fila.id)) }}</template>
+        <template #celda-ejecutado="{ fila }">
+          <span class="tabular-nums">{{ formatoMoneda(ejecutado(fila.id)) }}</span>
+        </template>
         <template #celda-variacion="{ fila }">
           <span
+            class="tabular-nums"
             :class="
               ejecutado(fila.id) > presupuestadoALaFecha(fila.id) && fila.naturaleza === 'egreso'
                 ? 'text-amber-500'
@@ -209,8 +230,8 @@ async function ajustar(movimiento: PresupuestoEjecucionRow): Promise<void> {
     <section>
       <h3 class="text-sm font-semibold mb-2">Movimientos registrados</h3>
       <p class="text-xs text-gray-500 mb-2">
-        Append-only — un monto mal registrado no se edita ni se borra, se corrige con "Ajustar"
-        (inserta una reversión que compensa el original).
+        Un monto mal registrado no se edita ni se borra, para conservar el historial completo —
+        se corrige con "Ajustar" (inserta un movimiento que compensa el original).
       </p>
       <UAlert v-if="errorReversion" color="error" variant="soft" :title="errorReversion" class="mb-2" />
       <UiTabla
@@ -235,7 +256,7 @@ async function ajustar(movimiento: PresupuestoEjecucionRow): Promise<void> {
           <span v-else>—</span>
         </template>
         <template #celda-monto="{ fila }">
-          <span :class="Number(fila.monto) < 0 ? 'text-amber-500' : ''">{{ formatoMoneda(fila.monto) }}</span>
+          <span class="tabular-nums" :class="Number(fila.monto) < 0 ? 'text-amber-500' : ''">{{ formatoMoneda(fila.monto) }}</span>
         </template>
         <template #celda-descripcion="{ fila }">
           <span class="text-gray-500">{{ fila.descripcion ?? '—' }}</span>

@@ -7,13 +7,13 @@
  * opera solo sobre el `DataSnapshot` que esta función produce.
  *
  * PARAMETER.OTROS_INGRESOS_ANUAL (GAP-19, E-16 §5 fase 6 "neteo"): se
- * resuelve como Σ fuente_financiacion.valor_aplicado (tipo='otros_ingresos')
- * del presupuesto vigente — el mismo dato que ya alimenta
- * presupuesto-previsualizar. Antes de `fuente_financiacion`
- * (20260814200000_motor_presupuestal_financiacion.sql) este parámetro no
- * tenía fuente en el esquema y el evaluador fallaba explícito
- * (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en silencio — ese gap
- * ya está cerrado.
+ * resuelve como Σ fuente_financiacion.valor_aplicado (lista_tipos.codigo=
+ * 'otros_ingresos', vía tipo_id — ex-enum, 20260830210000) del presupuesto
+ * vigente — el mismo dato que ya alimenta presupuesto-previsualizar. Antes
+ * de `fuente_financiacion` (20260814200000_motor_presupuestal_financiacion.sql)
+ * este parámetro no tenía fuente en el esquema y el evaluador fallaba
+ * explícito (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en
+ * silencio — ese gap ya está cerrado.
  *
  * Nota de tipos: PostgrestResponse/PostgrestSingleResponse son uniones
  * discriminadas por `error` — tras `if (error) throw`, `data` queda
@@ -370,9 +370,9 @@ export async function construirSnapshotDesdeSupabase(
 
     const { data: fuentes, error: errorFuentes } = await cliente
       .from('fuente_financiacion')
-      .select('valor_aplicado')
+      .select('valor_aplicado, lista_tipos!inner(codigo)')
       .eq('presupuesto_id', presupuesto.id)
-      .eq('tipo', 'otros_ingresos')
+      .eq('lista_tipos.codigo', 'otros_ingresos')
     if (errorFuentes)
       throw new Error(`No se pudieron leer las fuentes de financiación: ${errorFuentes.message}`)
 

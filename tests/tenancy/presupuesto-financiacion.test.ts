@@ -35,9 +35,23 @@ if (!env) {
 interface RespuestaFuente {
   id: string
   presupuesto_id: string
-  tipo: string
+  tipo_id: number
   valor_disponible: string
   valor_aplicado: string
+}
+
+/** Id de plataforma (tenant_id null) de un código de TIPO_FUENTE_FINANCIACION — el payload del
+ * Edge Function pasó de `tipo: <enum>` a `tipo_id: <bigint>` (20260830210000). */
+async function tipoFuenteId(admin: Cliente, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_FUENTE_FINANCIACION')
+    .is('tenant_id', null)
+    .eq('codigo', codigo)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture tipo fuente ${codigo}: ${error.message}`)
+  return data.id
 }
 
 /** presupuesto_cuenta (E8) es un catálogo por tenant, no una fila de
@@ -95,6 +109,8 @@ d('presupuesto-financiacion (Edge Function)', () => {
   let clienteAgent: Cliente
   let clienteAuditor: Cliente
   let presupuestoId: string
+  let tipoOtrosIngresosId: number
+  let tipoCuotaExtraordinariaId: number
 
   afterAll(async () => {
     await eliminarTenant(admin, tenant.id)
@@ -111,6 +127,8 @@ d('presupuesto-financiacion (Edge Function)', () => {
     clienteAgent = await clienteComo(env!, agente)
     clienteAuditor = await clienteComo(env!, auditor)
     presupuestoId = await crearPresupuesto(admin, tenant.id, 2027)
+    tipoOtrosIngresosId = await tipoFuenteId(admin, 'otros_ingresos')
+    tipoCuotaExtraordinariaId = await tipoFuenteId(admin, 'cuota_extraordinaria')
   }, 30_000)
 
   it('flujo feliz: agent registra una fuente de financiación, responde 200', async () => {
@@ -119,7 +137,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
       {
         body: {
           presupuesto_id: presupuestoId,
-          tipo: 'otros_ingresos',
+          tipo_id: tipoOtrosIngresosId,
           valor_disponible: 50_000,
           valor_aplicado: 20_000,
           descripcion: 'Arriendo salón comunal',
@@ -129,7 +147,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
 
     expect(response?.status).toBe(200)
     expect(data?.presupuesto_id).toBe(presupuestoId)
-    expect(data?.tipo).toBe('otros_ingresos')
+    expect(data?.tipo_id).toBe(tipoOtrosIngresosId)
   }, 30_000)
 
   it('INVALID_PAYLOAD (400): valor_aplicado no puede superar valor_disponible', async () => {
@@ -138,7 +156,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
       {
         body: {
           presupuesto_id: presupuestoId,
-          tipo: 'saldo_aplicable',
+          tipo_id: tipoCuotaExtraordinariaId,
           valor_disponible: 100,
           valor_aplicado: 200,
         },
@@ -155,7 +173,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
       {
         body: {
           presupuesto_id: '00000000-0000-0000-0000-000000000000',
-          tipo: 'saldo_aplicable',
+          tipo_id: tipoCuotaExtraordinariaId,
           valor_disponible: 100,
         },
       },
@@ -171,7 +189,7 @@ d('presupuesto-financiacion (Edge Function)', () => {
       {
         body: {
           presupuesto_id: presupuestoId,
-          tipo: 'saldo_aplicable',
+          tipo_id: tipoCuotaExtraordinariaId,
           valor_disponible: 100,
         },
       },

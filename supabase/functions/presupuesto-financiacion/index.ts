@@ -16,7 +16,7 @@ const RATE_LIMIT_VENTANA = '1 hour'
 
 const payloadSchema = z.object({
   presupuesto_id: z.string().uuid(),
-  tipo: z.enum(['otros_ingresos', 'cuota_extraordinaria', 'fondo_imprevistos', 'saldo_aplicable']),
+  tipo_id: z.number().int().positive(),
   valor_disponible: z.number().nonnegative(),
   valor_aplicado: z.number().nonnegative().default(0),
   descripcion: z.string().trim().min(1).optional(),
@@ -84,7 +84,7 @@ export default {
     const { data: fuente, error: errorRpc } = await ctx.supabase
       .rpc('fn_registrar_fuente_financiacion', {
         p_presupuesto_id: parseo.data.presupuesto_id,
-        p_tipo: parseo.data.tipo,
+        p_tipo_id: parseo.data.tipo_id,
         p_valor_disponible: parseo.data.valor_disponible,
         p_valor_aplicado: parseo.data.valor_aplicado,
         p_descripcion: parseo.data.descripcion ?? null,

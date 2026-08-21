@@ -7,19 +7,29 @@
 // coeficientes/usuarios) ya usaba antes de este cambio, no el sistema
 // legacy .ficha-inmueble/.tabs de InmuebleFicha (ese es otro subsistema
 // de diseño, usado solo por fichas/drawers — ver UiDrawer.vue).
+//
 // "Periodos y vigencia" y "Control y validaciones" pasaron a páginas
-// propias del sidebar (ver utils/navegacion.ts). "Conceptos" pasó del
-// sidebar a la pestaña "Conceptos" (PresupuestoTabConceptos.vue): solo
-// catálogo (lista + editar/archivar/nuevo) — el editor de fórmulas AEL
-// completo vive en /conceptos/nuevo y /conceptos/[id] (ver
-// components/conceptos/ConceptosEditor.vue).
+// propias del sidebar (ver utils/navegacion.ts). "Conceptos" también
+// salió de estas pestañas — ahora vive en /estado-cuenta/conceptos
+// (components/conceptos/ConceptosCatalogo.vue), porque el catálogo
+// alimenta cuenta corriente/novedades, no solo presupuesto.
+//
+// Rediseño "Libro Presupuestal" (mockup aprobado): "Catálogo de cuentas" y
+// "Componentes presupuestales" —dos pestañas casi idénticas sobre el mismo
+// árbol— se fusionaron en "Plan de cuentas" (PresupuestoTabPlanCuentas.vue,
+// con su propio toggle Ver montos/Editar estructura). "Fuentes de
+// financiación" salió de "Aplicación de bases" (ahora "Simulación de
+// cobro") a su propia pestaña — no son la misma acción. Se agregó el
+// rastreador de ciclo bajo el encabezado y el badge de estado junto al
+// selector, para que el usuario sepa en qué punto del ciclo presupuestal
+// está sin tener que adivinar leyendo tablas.
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
-
-const presupuestoSeleccionadoId = ref<string | null>(null)
+const route = useRoute()
+const router = useRouter()
 
 await useAsyncData('presupuestos', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -32,20 +42,84 @@ await useAsyncData('presupuestos', async () => {
   return presupuestos
 })
 
+const presupuestoSeleccionadoId = useSeleccionPresupuesto()
+
+const presupuestoSeleccionado = computed(
+  () => presupuestoStore.presupuestos.find((p) => p.id === presupuestoSeleccionadoId.value) ?? null,
+)
+
 // ── pestañas ─────────────────────────────────────────────────────────
 // "Periodos y vigencia" y "Control y validaciones" pasaron a ser páginas
 // propias del sidebar (/presupuesto/periodos, /presupuesto/control) — ya
 // no son pestañas de este orquestador (ver utils/navegacion.ts).
-type Tab = 'presupuestos' | 'componentes' | 'ejecucion' | 'conceptos' | 'distribucion' | 'aplicacion'
-const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
-  { id: 'presupuestos', etiqueta: 'Presupuestos' },
-  { id: 'componentes', etiqueta: 'Componentes presupuestales' },
-  { id: 'ejecucion', etiqueta: 'Ejecución presupuestal' },
-  { id: 'conceptos', etiqueta: 'Conceptos' },
-  { id: 'distribucion', etiqueta: 'Distribución por unidad' },
-  { id: 'aplicacion', etiqueta: 'Aplicación de bases' },
+type Tab = 'presupuestos' | 'cuentas' | 'fuentes' | 'ejecucion' | 'distribucion' | 'simulacion'
+const TABS: ReadonlyArray<{ id: Tab; etiqueta: string; slug: string }> = [
+  { id: 'presupuestos', etiqueta: 'Presupuestos', slug: 'presupuestos' },
+  { id: 'cuentas', etiqueta: 'Plan de cuentas', slug: 'plan-de-cuentas' },
+  { id: 'fuentes', etiqueta: 'Fuentes de financiación', slug: 'fuentes-de-financiacion' },
+  { id: 'ejecucion', etiqueta: 'Ejecución presupuestal', slug: 'ejecucion-presupuestal' },
+  { id: 'distribucion', etiqueta: 'Coeficientes', slug: 'coeficientes' },
+  { id: 'simulacion', etiqueta: 'Simulación de cobro', slug: 'simulacion-de-cobro' },
 ]
+
+// La pestaña activa vive en el hash de la URL — compartible y sobrevive a
+// un refresh (antes se perdía siempre al recargar).
+function tabDesdeHash(hash: string): Tab {
+  const slug = hash.replace(/^#/, '')
+  return TABS.find((t) => t.slug === slug)?.id ?? 'presupuestos'
+}
+// Arranca SIEMPRE en la pestaña por defecto, también en el cliente: el fragmento (#hash) de
+// una URL no viaja en la petición HTTP, así que en SSR `route.hash` está vacío. Inicializar
+// tabActiva desde él hacía que el servidor renderizara una pestaña y el cliente otra —
+// hydration mismatch, tras el cual Vue sigue parcheando contra el DOM que ya no corresponde a
+// su árbol virtual y la pantalla queda descuadrada (la cáscara de una pestaña con el contenido
+// de otra dentro). La sincronización con el hash ocurre ya montado, abajo, solo en cliente.
 const tabActiva = ref<Tab>('presupuestos')
+onMounted(() => {
+  const id = tabDesdeHash(route.hash)
+  if (id !== tabActiva.value) tabActiva.value = id
+})
+watch(tabActiva, (id) => {
+  const slug = TABS.find((t) => t.id === id)!.slug
+  if (route.hash !== `#${slug}`) router.replace({ hash: `#${slug}` })
+})
+watch(
+  () => route.hash,
+  (hash) => {
+    const id = tabDesdeHash(hash)
+    if (id !== tabActiva.value) tabActiva.value = id
+  },
+)
+
+// ── rastreador de ciclo — necesita rubros/fuentes del presupuesto seleccionado, además de lo
+// que cada pestaña ya carga por su cuenta (mismo criterio de recarga que cargarCuentas). ──
+watch(
+  presupuestoSeleccionadoId,
+  async (id) => {
+    if (id) await Promise.all([presupuestoStore.cargarRubros(id), presupuestoStore.cargarFuentesFinanciacion(id)])
+  },
+  { immediate: true },
+)
+
+const cuentaPorId = computed(() => new Map(presupuestoStore.cuentas.map((c) => [c.id, c])))
+const sumaEgresos = computed(() =>
+  presupuestoStore.rubros
+    .filter((r) => cuentaPorId.value.get(r.cuenta_id)?.naturaleza === 'egreso')
+    .reduce((acc, r) => acc + Number(r.monto_anual), 0),
+)
+const montoTotal = computed(() => (presupuestoSeleccionado.value ? Number(presupuestoSeleccionado.value.monto_total) : 0))
+const rubrosCuadran = computed(() => sumaEgresos.value === montoTotal.value)
+const sumaFuentesAplicadas = computed(() =>
+  presupuestoStore.fuentes.reduce((acc, f) => acc + Number(f.valor_aplicado), 0),
+)
+
+function formatoMoneda(valor: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(valor)
+}
 </script>
 
 <template>
@@ -57,17 +131,19 @@ const tabActiva = ref<Tab>('presupuestos')
           Presupuestos, rubros, fuentes de financiación y su reparto entre unidades.
         </p>
       </div>
-      <div class="flex items-end gap-4">
+      <div class="flex items-end gap-3">
+        <UBadge
+          v-if="presupuestoSeleccionado"
+          :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'"
+          variant="subtle"
+          class="mb-1.5"
+        >
+          {{ ETIQUETA_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? presupuestoSeleccionado.estado }}
+        </UBadge>
         <PresupuestoSelector
           v-if="presupuestoStore.presupuestos.length > 0"
           v-model="presupuestoSeleccionadoId"
         />
-        <NuxtLink
-          to="/presupuesto/cuentas"
-          class="text-sm text-primary hover:underline whitespace-nowrap pb-1.5"
-        >
-          Catálogo de cuentas →
-        </NuxtLink>
       </div>
     </div>
 
@@ -76,11 +152,59 @@ const tabActiva = ref<Tab>('presupuestos')
     </p>
 
     <template v-else>
-      <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+      <!-- ── rastreador de ciclo ────────────────────────────────────── -->
+      <div
+        v-if="presupuestoSeleccionado"
+        class="grid grid-cols-1 sm:grid-cols-4 gap-px rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-2"
+      >
+        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+          <p class="text-[10px] uppercase tracking-wide text-gray-400">1 · Total definido</p>
+          <p class="text-sm font-medium flex items-center gap-1.5">
+            <span class="text-green-600">✓</span>
+            <span class="tabular-nums">{{ formatoMoneda(montoTotal) }}</span>
+          </p>
+        </div>
+        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+          <p class="text-[10px] uppercase tracking-wide text-gray-400">2 · Rubros asignados</p>
+          <p class="text-sm font-medium flex items-center gap-1.5" :class="rubrosCuadran ? 'text-green-600' : 'text-amber-600'">
+            <span>{{ rubrosCuadran ? '✓' : '…' }}</span>
+            <span class="tabular-nums">{{ formatoMoneda(sumaEgresos) }} de {{ formatoMoneda(montoTotal) }}</span>
+          </p>
+        </div>
+        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+          <p class="text-[10px] uppercase tracking-wide text-gray-400">3 · Fuentes registradas</p>
+          <p class="text-sm font-medium flex items-center gap-1.5" :class="presupuestoStore.fuentes.length > 0 ? 'text-green-600' : 'text-gray-400'">
+            <span>{{ presupuestoStore.fuentes.length > 0 ? '✓' : '—' }}</span>
+            <span class="tabular-nums">
+              {{ presupuestoStore.fuentes.length }} {{ presupuestoStore.fuentes.length === 1 ? 'fuente' : 'fuentes' }}
+              · {{ formatoMoneda(sumaFuentesAplicadas) }}
+            </span>
+          </p>
+        </div>
+        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+          <p class="text-[10px] uppercase tracking-wide text-gray-400">4 · Listo para activar</p>
+          <p
+            class="text-sm font-medium flex items-center gap-1.5"
+            :class="presupuestoSeleccionado.estado !== 'borrador' ? 'text-green-600' : rubrosCuadran ? 'text-amber-600' : 'text-gray-400'"
+          >
+            <span>{{ presupuestoSeleccionado.estado !== 'borrador' ? '✓' : rubrosCuadran ? '…' : '✕' }}</span>
+            <span>
+              <template v-if="presupuestoSeleccionado.estado !== 'borrador'">Ya activado</template>
+              <template v-else-if="rubrosCuadran">Listo — actívalo en "Presupuestos"</template>
+              <template v-else>Faltan rubros por cuadrar</template>
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto" role="tablist" aria-label="Secciones de Presupuesto">
         <button
           v-for="tab in TABS"
           :key="tab.id"
           type="button"
+          role="tab"
+          :aria-selected="tabActiva === tab.id"
+          :tabindex="tabActiva === tab.id ? 0 : -1"
           class="px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors"
           :class="
             tabActiva === tab.id
@@ -93,25 +217,19 @@ const tabActiva = ref<Tab>('presupuestos')
         </button>
       </nav>
 
-      <div>
+      <div role="tabpanel">
         <PresupuestoTabPresupuestos
           v-if="tabActiva === 'presupuestos'"
           v-model:presupuesto-id="presupuestoSeleccionadoId"
         />
-        <PresupuestoTabComponentes
-          v-else-if="tabActiva === 'componentes'"
-          :presupuesto-id="presupuestoSeleccionadoId"
-        />
+        <PresupuestoTabPlanCuentas v-else-if="tabActiva === 'cuentas'" :presupuesto-id="presupuestoSeleccionadoId" />
+        <PresupuestoTabFuentes v-else-if="tabActiva === 'fuentes'" :presupuesto-id="presupuestoSeleccionadoId" />
         <PresupuestoTabEjecucion
           v-else-if="tabActiva === 'ejecucion'"
           :presupuesto-id="presupuestoSeleccionadoId"
         />
-        <PresupuestoTabConceptos v-else-if="tabActiva === 'conceptos'" />
         <CoeficientesPanel v-else-if="tabActiva === 'distribucion'" />
-        <PresupuestoTabAplicacionBases
-          v-else-if="tabActiva === 'aplicacion'"
-          :presupuesto-id="presupuestoSeleccionadoId"
-        />
+        <PresupuestoTabSimulacion v-else-if="tabActiva === 'simulacion'" :presupuesto-id="presupuestoSeleccionadoId" />
       </div>
     </template>
   </div>

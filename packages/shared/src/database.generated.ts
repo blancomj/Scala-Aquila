@@ -1378,6 +1378,7 @@ export type Database = {
           periodicidad:
             | Database["public"]["Enums"]["concepto_periodicidad_t"]
             | null
+          presupuesto_cuenta_id: string | null
           prioridad: number
           rechazado_motivo: string | null
           tenant_id: string
@@ -1408,6 +1409,7 @@ export type Database = {
           periodicidad?:
             | Database["public"]["Enums"]["concepto_periodicidad_t"]
             | null
+          presupuesto_cuenta_id?: string | null
           prioridad?: number
           rechazado_motivo?: string | null
           tenant_id: string
@@ -1438,6 +1440,7 @@ export type Database = {
           periodicidad?:
             | Database["public"]["Enums"]["concepto_periodicidad_t"]
             | null
+          presupuesto_cuenta_id?: string | null
           prioridad?: number
           rechazado_motivo?: string | null
           tenant_id?: string
@@ -1459,6 +1462,13 @@ export type Database = {
             columns: ["enviado_a_revision_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conceptos_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
             referencedColumns: ["id"]
           },
           {
@@ -2166,7 +2176,7 @@ export type Database = {
           id: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
+          tipo_id: number
           updated_at: string | null
           valor_aplicado: number
           valor_disponible: number
@@ -2178,7 +2188,7 @@ export type Database = {
           id?: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
+          tipo_id: number
           updated_at?: string | null
           valor_aplicado?: number
           valor_disponible: number
@@ -2190,7 +2200,7 @@ export type Database = {
           id?: string
           presupuesto_id?: string
           tenant_id?: string
-          tipo?: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
+          tipo_id?: number
           updated_at?: string | null
           valor_aplicado?: number
           valor_disponible?: number
@@ -2222,6 +2232,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuente_financiacion_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -3677,7 +3694,6 @@ export type Database = {
         Row: {
           activa: boolean
           codigo: string
-          concepto_id: string | null
           created_at: string
           es_hoja: boolean
           id: string
@@ -3693,7 +3709,6 @@ export type Database = {
         Insert: {
           activa?: boolean
           codigo: string
-          concepto_id?: string | null
           created_at?: string
           es_hoja?: boolean
           id?: string
@@ -3709,7 +3724,6 @@ export type Database = {
         Update: {
           activa?: boolean
           codigo?: string
-          concepto_id?: string | null
           created_at?: string
           es_hoja?: boolean
           id?: string
@@ -3723,13 +3737,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "presupuesto_cuenta_concepto_id_fkey"
-            columns: ["concepto_id"]
-            isOneToOne: false
-            referencedRelation: "conceptos"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "presupuesto_cuenta_parent_id_fkey"
             columns: ["parent_id"]
@@ -5324,7 +5331,7 @@ export type Database = {
           p_descripcion?: string
           p_fundamento_normativo_id?: number
           p_presupuesto_id: string
-          p_tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
+          p_tipo_id: number
           p_valor_aplicado?: number
           p_valor_disponible: number
         }
@@ -5335,7 +5342,7 @@ export type Database = {
           id: string
           presupuesto_id: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["fuente_financiacion_tipo_t"]
+          tipo_id: number
           updated_at: string | null
           valor_aplicado: number
           valor_disponible: number
@@ -5544,11 +5551,6 @@ export type Database = {
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_movimiento_tipo_t: "aporte" | "uso"
       fondo_tipo_t: "imprevistos" | "otro"
-      fuente_financiacion_tipo_t:
-        | "otros_ingresos"
-        | "cuota_extraordinaria"
-        | "fondo_imprevistos"
-        | "saldo_aplicable"
       fundamento_tipo_t:
         | "ley"
         | "decreto"
@@ -5873,12 +5875,6 @@ export const Constants = {
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_movimiento_tipo_t: ["aporte", "uso"],
       fondo_tipo_t: ["imprevistos", "otro"],
-      fuente_financiacion_tipo_t: [
-        "otros_ingresos",
-        "cuota_extraordinaria",
-        "fondo_imprevistos",
-        "saldo_aplicable",
-      ],
       fundamento_tipo_t: [
         "ley",
         "decreto",

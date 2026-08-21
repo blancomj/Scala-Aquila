@@ -1,20 +1,26 @@
 /**
  * presupuesto_ejecucion — ejecución presupuestal (E9, 20260823270000) y su
- * seguimiento (20260823290000 ingreso automático vía concepto_id,
+ * seguimiento (ingreso automático vía conceptos.presupuesto_cuenta_id,
  * 20260823300000 reversión). Verificado a mano en dev durante la
  * construcción (incluida la UI real, con datos de GC-001); este archivo
  * codifica esa misma verificación como regresión permanente — no existía
  * ningún test automatizado para E9 hasta ahora.
  *
+ * El vínculo concepto↔cuenta se invirtió en 20260830200000: es el concepto
+ * el que declara su cuenta presupuestal (conceptos.presupuesto_cuenta_id),
+ * no la cuenta la que apunta a su concepto — este archivo ya refleja esa
+ * dirección.
+ *
  * Cubre: aislamiento multitenant + rol agent (insert) vs auditor (solo
  * lectura), guard_presupuesto_ejecucion_cuenta (cuenta/periodo inexistente
- * o de otro tenant, cuenta no-hoja, cuenta con concepto_id vinculado,
+ * o de otro tenant, cuenta no-hoja, cuenta con un concepto vinculado,
  * reversión sin origen / origen inexistente / de otro tenant / de otra
  * cuenta), append-only (ni UPDATE ni DELETE mientras el tenant existe),
- * guard_presupuesto_cuenta_concepto (hoja/naturaleza/tenant), la extensión
+ * guard_concepto_presupuesto_cuenta (hoja/naturaleza/tenant), la extensión
  * de guard_presupuesto_cuenta_arbol que impide darle hijos a una cuenta con
- * concepto_id, y presupuesto_cuenta_ejecucion() — manual + automático
- * (cargos vía concepto_id) + rollup + reversión neteada a cero.
+ * un concepto vinculado, y presupuesto_cuenta_ejecucion() — manual +
+ * automático (cargos vía conceptos.presupuesto_cuenta_id) + rollup +
+ * reversión neteada a cero.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -51,7 +57,6 @@ async function crearCuenta(
     naturaleza: 'ingreso' | 'egreso'
     codigo: string
     parentId?: string
-    conceptoId?: string
   },
 ): Promise<CuentaFixture> {
   const { data, error } = await admin
@@ -62,12 +67,25 @@ async function crearCuenta(
       codigo: params.codigo,
       nombre: params.codigo,
       parent_id: params.parentId ?? null,
-      concepto_id: params.conceptoId ?? null,
     })
     .select('id, nivel, es_hoja')
     .single<CuentaFixture>()
   if (error) throw new Error(`fixture cuenta ${params.codigo}: ${error.message}`)
   return data
+}
+
+/** Vincula un concepto a su cuenta presupuestal (dirección invertida, 20260830200000) — separado
+ * de crearCuenta porque ahora el vínculo vive en conceptos, no en presupuesto_cuenta. */
+async function vincularConceptoCuenta(
+  admin: Cliente,
+  conceptoId: string,
+  cuentaId: string | null,
+): Promise<{ error: { message: string } | null }> {
+  const { error } = await admin
+    .from('conceptos')
+    .update({ presupuesto_cuenta_id: cuentaId })
+    .eq('id', conceptoId)
+  return { error }
 }
 
 async function crearPeriodo(admin: Cliente, tenantId: string, anio: number, mes: number) {
@@ -327,46 +345,38 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     expect(error?.message).toMatch(/PERIODO_TENANT_INCONSISTENTE/)
   })
 
-  // ── guard_presupuesto_cuenta_concepto (20260823290000) ──────────────────
-  it('CUENTA_NO_ES_HOJA (concepto): no se puede vincular un concepto a una cuenta que agrupa', async () => {
+  // ── guard_concepto_presupuesto_cuenta (20260830200000) ──────────────────
+  it('CUENTA_NO_ES_HOJA (concepto): un concepto no puede vincularse a una cuenta que agrupa', async () => {
     const grupoIngreso = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'ingreso', codigo: 'pej-ing-grupo' })
     await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'ingreso', codigo: 'pej-ing-grupo.hijo', parentId: grupoIngreso.id })
     const { conceptoId } = await armarConceptoConCargo(admin, tenantA.id, 2028, 'PEJ-CONCEPTO-1', 1000)
 
-    const { error } = await admin
-      .from('presupuesto_cuenta')
-      .update({ concepto_id: conceptoId })
-      .eq('id', grupoIngreso.id)
+    const { error } = await vincularConceptoCuenta(admin, conceptoId, grupoIngreso.id)
     expect(error?.message).toMatch(/CUENTA_NO_ES_HOJA/)
   })
 
   it('CUENTA_NATURALEZA_INVALIDA: un concepto no puede vincularse a una cuenta de egreso', async () => {
     const { conceptoId } = await armarConceptoConCargo(admin, tenantA.id, 2028, 'PEJ-CONCEPTO-2', 1000)
-    const { error } = await admin
-      .from('presupuesto_cuenta')
-      .update({ concepto_id: conceptoId })
-      .eq('id', cuentaEgresoA.id)
+    const { error } = await vincularConceptoCuenta(admin, conceptoId, cuentaEgresoA.id)
     expect(error?.message).toMatch(/CUENTA_NATURALEZA_INVALIDA/)
   })
 
-  it('CONCEPTO_INEXISTENTE: concepto_id que no existe se rechaza', async () => {
-    const hoja = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'ingreso', codigo: 'pej-ing-fantasma' })
-    const { error } = await admin
-      .from('presupuesto_cuenta')
-      .update({ concepto_id: '00000000-0000-0000-0000-000000000000' })
-      .eq('id', hoja.id)
-    expect(error?.message).toMatch(/CONCEPTO_INEXISTENTE/)
+  it('CUENTA_INEXISTENTE (concepto): presupuesto_cuenta_id que no existe se rechaza', async () => {
+    const { conceptoId } = await armarConceptoConCargo(admin, tenantA.id, 2028, 'PEJ-CONCEPTO-FANTASMA', 1000)
+    const { error } = await vincularConceptoCuenta(
+      admin,
+      conceptoId,
+      '00000000-0000-0000-0000-000000000000',
+    )
+    expect(error?.message).toMatch(/CUENTA_INEXISTENTE/)
   })
 
-  it('CONCEPTO_TENANT_INCONSISTENTE: no se puede vincular un concepto de otro tenant', async () => {
+  it('CUENTA_TENANT_INCONSISTENTE (concepto): no se puede vincular a una cuenta de otro tenant', async () => {
     const { conceptoId: conceptoDeB } = await armarConceptoConCargo(admin, tenantB.id, 2028, 'PEJ-CONCEPTO-B', 1000)
     const hoja = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'ingreso', codigo: 'pej-ing-cruce' })
 
-    const { error } = await admin
-      .from('presupuesto_cuenta')
-      .update({ concepto_id: conceptoDeB })
-      .eq('id', hoja.id)
-    expect(error?.message).toMatch(/CONCEPTO_TENANT_INCONSISTENTE/)
+    const { error } = await vincularConceptoCuenta(admin, conceptoDeB, hoja.id)
+    expect(error?.message).toMatch(/CUENTA_TENANT_INCONSISTENTE/)
   })
 
   it('CUENTA_TIENE_CONCEPTO: una cuenta con concepto vinculado no puede ganar subcuentas', async () => {
@@ -375,8 +385,8 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       tenantId: tenantA.id,
       naturaleza: 'ingreso',
       codigo: 'pej-ing-con-concepto',
-      conceptoId,
     })
+    await vincularConceptoCuenta(admin, conceptoId, hoja.id)
 
     const { error } = await admin.from('presupuesto_cuenta').insert({
       tenant_id: tenantA.id,
@@ -395,8 +405,8 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       tenantId: tenantA.id,
       naturaleza: 'ingreso',
       codigo: 'pej-ing-automatico',
-      conceptoId,
     })
+    await vincularConceptoCuenta(admin, conceptoId, hoja.id)
 
     const { error } = await admin.from('presupuesto_ejecucion').insert({
       tenant_id: tenantA.id,
@@ -415,8 +425,8 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       naturaleza: 'ingreso',
       codigo: 'pej-ing-hoja-auto',
       parentId: padreIngreso.id,
-      conceptoId,
     })
+    await vincularConceptoCuenta(admin, conceptoId, hoja.id)
 
     const presupuesto = await crearPresupuesto(admin, tenantA.id, 2028, 1)
     const { data: totales, error } = await admin.rpc('presupuesto_cuenta_ejecucion', {
@@ -429,14 +439,30 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     expect(porCuenta.get(padreIngreso.id)).toBe(4_000_000)
   })
 
+  it('presupuesto_cuenta_ejecucion suma juntos varios conceptos que apuntan a la misma cuenta', async () => {
+    const hoja = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'ingreso', codigo: 'pej-ing-multi' })
+    const { conceptoId: c1 } = await armarConceptoConCargo(admin, tenantA.id, 2028, 'PEJ-MULTI-1', 1_000_000)
+    const { conceptoId: c2 } = await armarConceptoConCargo(admin, tenantA.id, 2028, 'PEJ-MULTI-2', 500_000)
+    await vincularConceptoCuenta(admin, c1, hoja.id)
+    await vincularConceptoCuenta(admin, c2, hoja.id)
+
+    const presupuesto = await crearPresupuesto(admin, tenantA.id, 2028, 1)
+    const { data: totales, error } = await admin.rpc('presupuesto_cuenta_ejecucion', {
+      p_presupuesto_id: presupuesto,
+    })
+    expect(error).toBeNull()
+    const porCuenta = new Map((totales ?? []).map((t) => [t.cuenta_id, t.ejecutado]))
+    expect(porCuenta.get(hoja.id)).toBe(1_500_000)
+  })
+
   it('presupuesto_cuenta_ejecucion acota el ejecutado automático al año fiscal del presupuesto', async () => {
     const { conceptoId } = await armarConceptoConCargo(admin, tenantA.id, 2029, 'PEJ-CONCEPTO-6', 999)
     const hoja = await crearCuenta(admin, {
       tenantId: tenantA.id,
       naturaleza: 'ingreso',
       codigo: 'pej-ing-otro-anio',
-      conceptoId,
     })
+    await vincularConceptoCuenta(admin, conceptoId, hoja.id)
 
     // presupuesto 2028 no debe ver el cargo de un periodo 2029.
     const presupuesto2028 = await crearPresupuesto(admin, tenantA.id, 2028, 1)

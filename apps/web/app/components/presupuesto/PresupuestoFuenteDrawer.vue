@@ -4,15 +4,19 @@
 // de crear presupuesto/rubro (RLS directa), esto invoca la Edge Function
 // presupuesto-financiacion (guard trigger + resolución de tenant_id
 // server-side) — ver stores/presupuesto.ts::registrarFuenteFinanciacion.
-const props = defineProps<{ presupuestoId: string }>()
+//
+// "Tipo" pasó de un <select> con 4 valores fijos (enum Postgres) a un
+// catálogo lista_tipos (familia TIPO_FUENTE_FINANCIACION, 20260830210000)
+// — se retiró 'saldo_aplicable' (sin respaldo en los presupuestos reales
+// investigados, ver sesión de diseño) y el catálogo ahora es ampliable por
+// tenant sin migración nueva.
+const props = defineProps<{ presupuestoId: string; tenantId: string }>()
 const emit = defineEmits<{ cerrar: []; creado: [] }>()
 
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 
-const tipo = ref<
-  'otros_ingresos' | 'cuota_extraordinaria' | 'fondo_imprevistos' | 'saldo_aplicable'
->('otros_ingresos')
+const tipoId = ref<number | null>(null)
 const valorDisponible = ref<number | null>(null)
 const valorAplicado = ref<number | null>(null)
 const descripcion = ref('')
@@ -20,10 +24,15 @@ const fundamentoNormativoId = ref<number | null>(null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
+onMounted(async () => {
+  if (presupuestoStore.tiposFuente.length === 0) await presupuestoStore.cargarTiposFuente(props.tenantId)
+  if (tipoId.value === null) tipoId.value = presupuestoStore.tiposFuente[0]?.id ?? null
+})
+
 async function guardar(): Promise<void> {
   error.value = null
-  if (valorDisponible.value === null) {
-    error.value = 'Completa el valor disponible.'
+  if (valorDisponible.value === null || tipoId.value === null) {
+    error.value = 'Completa el tipo y el valor disponible.'
     return
   }
 
@@ -31,7 +40,7 @@ async function guardar(): Promise<void> {
   try {
     await presupuestoStore.registrarFuenteFinanciacion({
       presupuestoId: props.presupuestoId,
-      tipo: tipo.value,
+      tipoId: tipoId.value,
       valorDisponible: valorDisponible.value,
       valorAplicado: valorAplicado.value ?? 0,
       descripcion: descripcion.value || undefined,
@@ -52,11 +61,10 @@ async function guardar(): Promise<void> {
       <div class="form-grid">
         <div class="field">
           <label for="f-tipo">Tipo</label>
-          <select id="f-tipo" v-model="tipo">
-            <option value="otros_ingresos">Otros ingresos</option>
-            <option value="cuota_extraordinaria">Cuota extraordinaria</option>
-            <option value="fondo_imprevistos">Fondo de imprevistos</option>
-            <option value="saldo_aplicable">Saldo aplicable</option>
+          <select id="f-tipo" v-model="tipoId">
+            <option v-for="t in presupuestoStore.tiposFuente" :key="t.id" :value="t.id">
+              {{ t.nombre }}
+            </option>
           </select>
         </div>
         <div class="field">

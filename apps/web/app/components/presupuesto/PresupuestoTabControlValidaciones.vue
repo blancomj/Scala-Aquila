@@ -24,6 +24,7 @@ watch(
         presupuestoStore.cargarRubros(id),
         presupuestoStore.cargarFuentesFinanciacion(id),
         presupuestoStore.cargarFondoImprevistos(tenantId),
+        presupuestoStore.cargarTiposFuente(tenantId),
       ])
     } finally {
       cargando.value = false
@@ -72,8 +73,17 @@ const sumaRubros = computed(() =>
 const sumaFuentesAplicadas = computed(() =>
   presupuestoStore.fuentes.reduce((acc, f) => acc + Number(f.valor_aplicado), 0),
 )
+// El tipo de fuente pasó de enum a lista_tipos (20260830210000): se resuelve por `codigo`, no
+// por id, igual que guard_fuente_financiacion — así una fila que el tenant haya creado con el
+// código 'fondo_imprevistos' dispara el mismo check FI-003 que la de plataforma.
+const idsTipoFondoImprevistos = computed(
+  () =>
+    new Set(
+      presupuestoStore.tiposFuente.filter((t) => t.codigo === 'fondo_imprevistos').map((t) => t.id),
+    ),
+)
 const fuentesFondoImprevistos = computed(() =>
-  presupuestoStore.fuentes.filter((f) => f.tipo === 'fondo_imprevistos'),
+  presupuestoStore.fuentes.filter((f) => idsTipoFondoImprevistos.value.has(f.tipo_id)),
 )
 
 const checkRubros = computed<CheckResultado>(() => {
@@ -83,9 +93,9 @@ const checkRubros = computed<CheckResultado>(() => {
   const coincide = sumaRubros.value === montoTotal
   return {
     estado: coincide ? 'ok' : seExigeReconciliacion.value ? 'error' : 'pendiente',
-    titulo: 'Σ Rubros = Monto total del presupuesto',
+    titulo: 'Rubros de egreso = Monto total del presupuesto',
     detalle:
-      'BUDGET_NOT_RECONCILED — la suma de los rubros debe igualar el monto aprobado (exigido al pasar a aprobado/vigente).',
+      'La suma de los rubros de egreso debe igualar el monto total aprobado en asamblea — se exige al aprobar o activar el presupuesto.',
     valor: `${formatoMoneda(sumaRubros.value)} ${coincide ? '=' : '≠'} ${formatoMoneda(montoTotal)}`,
   }
 })
@@ -97,8 +107,9 @@ const checkFuentes = computed<CheckResultado>(() => {
   const ok = sumaFuentesAplicadas.value <= montoTotal
   return {
     estado: ok ? 'ok' : seExigeReconciliacion.value ? 'error' : 'pendiente',
-    titulo: 'Σ Fuentes de financiación aplicadas ≤ Monto total',
-    detalle: 'FINANCIACION_EXCEDE_PRESUPUESTO (exigido al pasar a aprobado/vigente).',
+    titulo: 'Fuentes de financiación aplicadas ≤ Monto total',
+    detalle:
+      'Las fuentes de financiación aplicadas no pueden superar el monto total del presupuesto — se exige al aprobar o activar.',
     valor: `${formatoMoneda(sumaFuentesAplicadas.value)} ${ok ? '≤' : '>'} ${formatoMoneda(montoTotal)}`,
   }
 })
@@ -108,7 +119,7 @@ const checkFondo = computed<CheckResultado>(() => {
     return {
       estado: 'no_aplica',
       titulo: 'Fondo de imprevistos — saldo suficiente',
-      detalle: 'FI-003 — no hay fuentes de tipo fondo_imprevistos en este presupuesto.',
+      detalle: 'No hay fuentes de tipo "Fondo de imprevistos" registradas en este presupuesto.',
       valor: 'No aplica',
     }
   }
@@ -122,7 +133,7 @@ const checkFondo = computed<CheckResultado>(() => {
     estado: ok ? 'ok' : 'error',
     titulo: 'Fondo de imprevistos — saldo suficiente',
     detalle:
-      'FI-003 — valor_disponible declarado no debe exceder el saldo actual del fondo (se exige siempre, no solo al aprobar).',
+      'El valor disponible declarado no puede superar el saldo actual del fondo de imprevistos — se valida siempre, no solo al aprobar.',
     valor: `${formatoMoneda(totalDisponible)} ${ok ? '≤' : '>'} ${formatoMoneda(saldo)}`,
   }
 })
@@ -187,14 +198,13 @@ const todoOk = computed(() =>
             <p class="text-sm font-medium">{{ check.titulo }}</p>
             <p class="text-xs text-gray-500">{{ check.detalle }}</p>
           </div>
-          <p class="text-sm font-medium shrink-0">{{ check.valor }}</p>
+          <p class="text-sm font-medium shrink-0 tabular-nums">{{ check.valor }}</p>
         </div>
       </div>
 
       <p class="text-xs text-gray-500 mt-3">
-        Estos checks reflejan los guard triggers reales de Postgres — hoy solo se evalúan al
-        intentar guardar; esta pestaña los muestra en cualquier momento, sin esperar a que un
-        guardado falle.
+        Estas reglas siempre se validan al guardar — esta pestaña te las muestra por adelantado,
+        sin esperar a que un guardado falle para descubrir el problema.
       </p>
     </template>
   </div>

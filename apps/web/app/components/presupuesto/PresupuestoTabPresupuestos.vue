@@ -4,6 +4,12 @@
 // PLAN aprobado). Selecciona una fila actualiza el mismo
 // presupuestoSeleccionadoId que usa el resto de las pestañas (v-model),
 // no mantiene un estado de selección propio.
+//
+// Estado como badge de color + descripción (mockup "Libro Presupuestal"):
+// "vigente" en gris plano no comunica nada por sí solo — ver
+// utils/presupuesto-labels.ts. El panel de detalle ya no repite monto/fecha
+// de aprobación que la propia tabla muestra al lado; solo aporta lo que la
+// tabla no tiene (acta de asamblea + el aviso de inmutabilidad).
 const props = defineProps<{ presupuestoId: string | null }>()
 const emit = defineEmits<{ 'update:presupuestoId': [id: string] }>()
 
@@ -85,10 +91,14 @@ function onCreado(id: string): void {
             {{ fila.anio }} — v{{ fila.version }}
           </button>
         </template>
-        <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto_total) }}</template>
-        <template #celda-estado="{ fila }"
-          ><span class="text-gray-500">{{ fila.estado }}</span></template
-        >
+        <template #celda-monto="{ fila }">
+          <span class="tabular-nums">{{ formatoMoneda(fila.monto_total) }}</span>
+        </template>
+        <template #celda-estado="{ fila }">
+          <UBadge :color="COLOR_ESTADO_PRESUPUESTO[fila.estado] ?? 'neutral'" variant="subtle">
+            {{ ETIQUETA_ESTADO_PRESUPUESTO[fila.estado] ?? fila.estado }}
+          </UBadge>
+        </template>
         <template #celda-vigencia="{ fila }">
           <span class="text-gray-500">{{
             vigenciaTexto(fila.vigente_desde, fila.vigente_hasta)
@@ -117,31 +127,29 @@ function onCreado(id: string): void {
       v-if="presupuestoSeleccionado"
       class="rounded-lg border border-gray-200 dark:border-gray-800 p-4"
     >
-      <p class="text-sm font-medium">
-        {{ presupuestoSeleccionado.anio }} — v{{ presupuestoSeleccionado.version }}
+      <div class="flex items-start justify-between gap-2 mb-1">
+        <p class="text-sm font-medium">
+          {{ presupuestoSeleccionado.anio }} — v{{ presupuestoSeleccionado.version }}
+        </p>
+        <UBadge
+          :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'"
+          variant="subtle"
+        >
+          {{ ETIQUETA_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? presupuestoSeleccionado.estado }}
+        </UBadge>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">
+        {{ DESCRIPCION_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? '' }}
       </p>
-      <p class="text-xs text-gray-500 mb-3">{{ presupuestoSeleccionado.estado }}</p>
 
       <dl class="space-y-2 text-sm">
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Monto total</dt>
-          <dd class="font-medium">{{ formatoMoneda(presupuestoSeleccionado.monto_total) }}</dd>
-        </div>
         <div class="flex justify-between gap-2">
           <dt class="text-gray-500">Acta asamblea</dt>
           <dd>{{ presupuestoSeleccionado.acta_asamblea ?? '—' }}</dd>
         </div>
         <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Fecha aprobación</dt>
-          <dd>{{ presupuestoSeleccionado.fecha_aprobacion ?? '—' }}</dd>
-        </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Vigente desde</dt>
-          <dd>{{ presupuestoSeleccionado.vigente_desde ?? '—' }}</dd>
-        </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Vigente hasta</dt>
-          <dd>{{ presupuestoSeleccionado.vigente_hasta ?? '—' }}</dd>
+          <dt class="text-gray-500">Vigencia</dt>
+          <dd>{{ vigenciaTexto(presupuestoSeleccionado.vigente_desde, presupuestoSeleccionado.vigente_hasta) }}</dd>
         </div>
       </dl>
     </div>

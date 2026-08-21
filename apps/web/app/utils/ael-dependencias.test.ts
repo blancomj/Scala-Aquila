@@ -26,6 +26,7 @@ function concepto(overrides: Partial<ConceptoRow> & { codigo: string }): Concept
     periodicidad: 'mensual',
     alcance: 'todos',
     alcance_condiciones: null,
+    presupuesto_cuenta_id: null,
     prioridad: 100,
     estado: 'activo',
     version: 1,

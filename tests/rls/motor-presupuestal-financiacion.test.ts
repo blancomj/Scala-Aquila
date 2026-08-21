@@ -2,11 +2,17 @@
  * fuente_financiacion / fundamento_normativo — 20260814200000, corte físico
  * de GAP-19 (Docs/Motor presupuestal/AQUILA_SAAS_E16_...md §8).
  *
+ * fuente_financiacion.tipo pasó de enum a lista_tipos (familia
+ * TIPO_FUENTE_FINANCIACION, 20260830210000, se retiró 'saldo_aplicable') —
+ * este archivo usa tipoFuenteId() para resolver el id de plataforma de cada
+ * código en vez de un literal de enum.
+ *
  * Cubre: aislamiento multitenant (mismo patrón que domain-isolation), el
- * CHECK valor_aplicado <= valor_disponible, las dos reglas del trigger
- * guard_fuente_financiacion (FI-003 fondo insuficiente/inexistente,
- * inmutabilidad heredada del presupuesto padre), y la extensión de
- * guard_presupuesto_reconciliado (fuentes no pueden superar monto_total).
+ * CHECK valor_aplicado <= valor_disponible, las reglas del trigger
+ * guard_fuente_financiacion (tipo_id inexistente/de otra familia/de otro
+ * tenant, FI-003 fondo insuficiente/inexistente, inmutabilidad heredada del
+ * presupuesto padre), y la extensión de guard_presupuesto_reconciliado
+ * (fuentes no pueden superar monto_total).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -90,6 +96,20 @@ async function crearPresupuestoReconciliado(
   return { presupuestoId: presupuesto.id, rubroId: rubro.id }
 }
 
+/** Id de plataforma (tenant_id null) de un código de TIPO_FUENTE_FINANCIACION — reemplaza el
+ * literal de enum que existía antes de 20260830210000. */
+async function tipoFuenteId(admin: Cliente, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_FUENTE_FINANCIACION')
+    .is('tenant_id', null)
+    .eq('codigo', codigo)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture tipo fuente ${codigo}: ${error.message}`)
+  return data.id
+}
+
 d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', () => {
   const admin = clienteAdmin(env!)
   let agenteA: UsuarioPrueba
@@ -103,6 +123,9 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
   let presupuestoAId: string
   let fundamentoAId: number
   let fuenteAId: string
+  let tipoOtrosIngresosId: number
+  let tipoCuotaExtraordinariaId: number
+  let tipoFondoImprevistosId: number
 
   beforeAll(async () => {
     agenteA = await crearUsuario(admin, 'mpf-agent-a')
@@ -117,6 +140,10 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     clienteAgentA = await clienteComo(env!, agenteA)
     clienteAuditorA = await clienteComo(env!, auditorA)
     clienteAgentB = await clienteComo(env!, agenteB)
+
+    tipoOtrosIngresosId = await tipoFuenteId(admin, 'otros_ingresos')
+    tipoCuotaExtraordinariaId = await tipoFuenteId(admin, 'cuota_extraordinaria')
+    tipoFondoImprevistosId = await tipoFuenteId(admin, 'fondo_imprevistos')
 
     const { presupuestoId } = await crearPresupuestoReconciliado(admin, tenantA.id, 2027, 1_000_000)
     presupuestoAId = presupuestoId
@@ -134,7 +161,7 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
       .insert({
         tenant_id: tenantA.id,
         presupuesto_id: presupuestoAId,
-        tipo: 'otros_ingresos',
+        tipo_id: tipoOtrosIngresosId,
         valor_disponible: 100_000,
         valor_aplicado: 50_000,
         fundamento_normativo_id: fundamentoAId,
@@ -189,7 +216,7 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     const { error: errFuente } = await clienteAuditorA.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoAId,
-      tipo: 'saldo_aplicable',
+      tipo_id: tipoCuotaExtraordinariaId,
       valor_disponible: 1000,
     })
     expect(errFuente).not.toBeNull()
@@ -204,18 +231,62 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     const { error } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoAId,
-      tipo: 'saldo_aplicable',
+      tipo_id: tipoCuotaExtraordinariaId,
       valor_disponible: 100,
       valor_aplicado: 150,
     })
     expect(error).not.toBeNull()
   })
 
+  it('TIPO_FUENTE_INEXISTENTE: tipo_id que no existe se rechaza', async () => {
+    const { error } = await admin.from('fuente_financiacion').insert({
+      tenant_id: tenantA.id,
+      presupuesto_id: presupuestoAId,
+      tipo_id: 0,
+      valor_disponible: 100,
+    })
+    expect(error?.message).toMatch(/TIPO_FUENTE_INEXISTENTE/)
+  })
+
+  it('TIPO_FUENTE_INVALIDO: tipo_id de otra familia lista_tipos se rechaza', async () => {
+    const { data: otraFamilia } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'TIPO_INMUEBLE')
+      .limit(1)
+      .single<{ id: number }>()
+
+    const { error } = await admin.from('fuente_financiacion').insert({
+      tenant_id: tenantA.id,
+      presupuesto_id: presupuestoAId,
+      tipo_id: otraFamilia!.id,
+      valor_disponible: 100,
+    })
+    expect(error?.message).toMatch(/TIPO_FUENTE_INVALIDO/)
+  })
+
+  it('TIPO_FUENTE_TENANT_INCONSISTENTE: no se puede usar un tipo propio de otro tenant', async () => {
+    const { data: tipoDeB, error: errTipoB } = await admin
+      .from('lista_tipos')
+      .insert({ tipo: 'TIPO_FUENTE_FINANCIACION', codigo: 'personalizado-b', nombre: 'Personalizado B', tenant_id: tenantB.id })
+      .select('id')
+      .single<{ id: number }>()
+    if (errTipoB) throw new Error(`fixture tipo propio de B: ${errTipoB.message}`)
+
+    const { error } = await admin.from('fuente_financiacion').insert({
+      tenant_id: tenantA.id,
+      presupuesto_id: presupuestoAId,
+      tipo_id: tipoDeB.id,
+      valor_disponible: 100,
+    })
+    expect(error?.message).toMatch(/TIPO_FUENTE_TENANT_INCONSISTENTE/)
+  })
+
   it('FI-003: fondo_imprevistos rechaza si el tenant no tiene fondo configurado', async () => {
     const { error } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoAId,
-      tipo: 'fondo_imprevistos',
+      tipo_id: tipoFondoImprevistosId,
       valor_disponible: 1000,
     })
     expect(error?.message).toMatch(/FONDO_IMPREVISTOS_NO_EXISTE/)
@@ -236,7 +307,7 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     const { error: errExceso } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoAId,
-      tipo: 'fondo_imprevistos',
+      tipo_id: tipoFondoImprevistosId,
       valor_disponible: 501,
     })
     expect(errExceso?.message).toMatch(/FONDO_INSUFICIENTE/)
@@ -244,7 +315,7 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     const { error: errDentro } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoAId,
-      tipo: 'fondo_imprevistos',
+      tipo_id: tipoFondoImprevistosId,
       valor_disponible: 500,
     })
     expect(errDentro).toBeNull()
@@ -262,7 +333,7 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
     const { error } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,
       presupuesto_id: presupuestoId,
-      tipo: 'saldo_aplicable',
+      tipo_id: tipoCuotaExtraordinariaId,
       valor_disponible: 1000,
     })
     expect(error?.message).toMatch(/IMMUTABLE_BUDGET/)
@@ -275,14 +346,14 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
       {
         tenant_id: tenantA.id,
         presupuesto_id: presupuestoId,
-        tipo: 'saldo_aplicable',
+        tipo_id: tipoCuotaExtraordinariaId,
         valor_disponible: 80_000,
         valor_aplicado: 70_000,
       },
       {
         tenant_id: tenantA.id,
         presupuesto_id: presupuestoId,
-        tipo: 'otros_ingresos',
+        tipo_id: tipoOtrosIngresosId,
         valor_disponible: 80_000,
         valor_aplicado: 70_000,
       },

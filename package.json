@@ -23,6 +23,7 @@
     "db:push:prod": "node scripts/db-push.mjs --prod",
     "db:push:prod:dry": "node scripts/db-push.mjs --prod --dry-run",
     "db:types": "node scripts/db-types.mjs",
+    "dev:login": "node scripts/dev-login.mjs",
     "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs",
     "test:e2e": "playwright test"
   },

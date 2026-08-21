@@ -1,24 +1,35 @@
 <script setup lang="ts">
-// Drawer "Agregar rubro" — mismo criterio que MiembroDrawer.vue/
-// PresupuestoCrearDrawer.vue (.ficha-inmueble + .form-grid/.field/.btn).
+// Drawer "Agregar rubro" / "Editar rubro" — mismo criterio que MiembroDrawer.vue/
+// PresupuestoCrearDrawer.vue (.ficha-inmueble + .form-grid/.field/.btn) y el mismo
+// patrón crear/editar que PresupuestoCuentaDrawer.vue (prop `rubro?` opcional).
 // Selects planos para cuenta/fundamento, no UiSelectorBuscable — mismo
 // criterio que el resto de selects dentro de un drawer (rol/estado en
 // MiembroDrawer.vue), listas cortas que no necesitan búsqueda. Solo se
 // listan cuentas hoja (es_hoja) — guard_presupuesto_rubro_cuenta (E8)
 // rechaza un rubro contra una cuenta que agrupa subcuentas, así que ni
 // se ofrecen como opción.
-const props = defineProps<{ presupuestoId: string }>()
-const emit = defineEmits<{ cerrar: []; creado: [] }>()
+import type { Database } from '@aquila/shared'
+
+type PresupuestoRubroRow = Database['public']['Tables']['presupuesto_rubros']['Row']
+
+const props = defineProps<{
+  presupuestoId: string
+  rubro?: PresupuestoRubroRow
+  cuentaIdInicial?: string
+}>()
+const emit = defineEmits<{ cerrar: []; creado: []; editado: [] }>()
 
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 
-const codigo = ref('')
-const nombre = ref('')
-const cuentaId = ref<string | null>(null)
-const montoAnual = ref<number | null>(null)
-const fundamentoNormativoId = ref<number | null>(null)
+const modoEdicion = computed(() => props.rubro !== undefined)
+
+const codigo = ref(props.rubro?.codigo ?? '')
+const nombre = ref(props.rubro?.nombre ?? '')
+const cuentaId = ref<string | null>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? null)
+const montoAnual = ref<number | null>(props.rubro ? Number(props.rubro.monto_anual) : null)
+const fundamentoNormativoId = ref<number | null>(props.rubro?.fundamento_normativo_id ?? null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
@@ -55,18 +66,31 @@ async function guardar(): Promise<void> {
 
   guardando.value = true
   try {
-    await presupuestoStore.crearRubro({
-      presupuestoId: props.presupuestoId,
-      tenantId,
-      codigo: codigo.value,
-      nombre: nombre.value,
-      cuentaId: cuentaId.value,
-      montoAnual: montoAnual.value,
-      fundamentoNormativoId: fundamentoNormativoId.value ?? undefined,
-    })
-    emit('creado')
+    if (modoEdicion.value && props.rubro) {
+      await presupuestoStore.actualizarRubro({
+        id: props.rubro.id,
+        presupuestoId: props.presupuestoId,
+        codigo: codigo.value,
+        nombre: nombre.value,
+        cuentaId: cuentaId.value,
+        montoAnual: montoAnual.value,
+        fundamentoNormativoId: fundamentoNormativoId.value,
+      })
+      emit('editado')
+    } else {
+      await presupuestoStore.crearRubro({
+        presupuestoId: props.presupuestoId,
+        tenantId,
+        codigo: codigo.value,
+        nombre: nombre.value,
+        cuentaId: cuentaId.value,
+        montoAnual: montoAnual.value,
+        fundamentoNormativoId: fundamentoNormativoId.value ?? undefined,
+      })
+      emit('creado')
+    }
   } catch (excepcion) {
-    error.value = mensajeError(excepcion, 'No se pudo agregar el rubro.')
+    error.value = mensajeError(excepcion, 'No se pudo guardar el rubro.')
   } finally {
     guardando.value = false
   }
@@ -75,15 +99,21 @@ async function guardar(): Promise<void> {
 
 <template>
   <div class="ficha-inmueble">
-    <UiDrawer :abierto="true" titulo="Agregar rubro" @cerrar="emit('cerrar')">
+    <UiDrawer
+      :abierto="true"
+      :titulo="modoEdicion ? 'Editar rubro' : 'Agregar rubro'"
+      @cerrar="emit('cerrar')"
+    >
       <div class="form-grid">
-        <div class="field">
-          <label for="r-codigo">Código</label>
-          <input id="r-codigo" v-model="codigo" type="text" />
-        </div>
-        <div class="field">
-          <label for="r-nombre">Nombre</label>
-          <input id="r-nombre" v-model="nombre" type="text" />
+        <div class="field-row-2">
+          <div class="field field-codigo">
+            <label for="r-codigo">Código</label>
+            <input id="r-codigo" v-model="codigo" type="text" maxlength="6" />
+          </div>
+          <div class="field">
+            <label for="r-nombre">Nombre</label>
+            <input id="r-nombre" v-model="nombre" type="text" />
+          </div>
         </div>
         <div class="field">
           <label for="r-cuenta">Cuenta</label>
@@ -114,7 +144,7 @@ async function guardar(): Promise<void> {
       <template #foot>
         <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
         <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Agregando…' : 'Agregar rubro' }}
+          {{ guardando ? 'Guardando…' : modoEdicion ? 'Guardar cambios' : 'Agregar rubro' }}
         </button>
       </template>
     </UiDrawer>

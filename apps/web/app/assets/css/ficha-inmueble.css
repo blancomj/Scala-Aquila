@@ -738,6 +738,12 @@
 .ficha-inmueble .field.span-2 {
   grid-column: span 2;
 }
+/* .field-row-2 usado directo dentro de un .form-grid multi-columna (no el caso de
+   CopropiedadDatosBasicos.vue, que anida un .form-grid de 1 columna) debe ocupar la fila
+   completa para que su propio flex interno reparta el ancho entre sus .field. */
+.ficha-inmueble .form-grid > .field-row-2 {
+  grid-column: 1 / -1;
+}
 .ficha-inmueble .field-row-2 {
   display: flex;
   gap: 16px;
@@ -748,6 +754,11 @@
 }
 .ficha-inmueble .field-row-2 > .field.field-dv {
   flex: 0 0 64px;
+}
+/* Códigos cortos de catálogo (ej. cuenta presupuestal, máx. 6 caracteres) — más ancho que
+   field-dv (dígito de verificación) porque el contenido es alfanumérico, no un solo dígito. */
+.ficha-inmueble .field-row-2 > .field.field-codigo {
+  flex: 0 0 110px;
 }
 .ficha-inmueble .field label {
   font-size: 12px;

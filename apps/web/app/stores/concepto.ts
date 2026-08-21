@@ -184,6 +184,7 @@ export const useConceptoStore = defineStore('concepto', () => {
     periodicidad: ConceptoPeriodicidad | null
     alcance: ConceptoAlcance
     alcanceCondiciones: CondicionAlcance | null
+    presupuestoCuentaId?: string | null
   }): Promise<ConceptoRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -205,6 +206,7 @@ export const useConceptoStore = defineStore('concepto', () => {
         periodicidad: params.periodicidad,
         alcance: params.alcance,
         alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
+        presupuesto_cuenta_id: params.presupuestoCuentaId ?? null,
       })
       .select('*')
       .single()
@@ -232,6 +234,7 @@ export const useConceptoStore = defineStore('concepto', () => {
     periodicidad: ConceptoPeriodicidad | null
     alcance: ConceptoAlcance
     alcanceCondiciones: CondicionAlcance | null
+    presupuestoCuentaId?: string | null
   }): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
@@ -251,6 +254,7 @@ export const useConceptoStore = defineStore('concepto', () => {
         periodicidad: params.periodicidad,
         alcance: params.alcance,
         alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
+        presupuesto_cuenta_id: params.presupuestoCuentaId,
       })
       .eq('id', params.id)
       .select('*')
