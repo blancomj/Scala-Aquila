@@ -183,6 +183,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.configuracion,
       },
       {
+        label: 'Motivos de novedad',
+        to: '/configuracion/motivos-novedad',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
         label: 'Plantillas SMS',
         to: '/configuracion/plantillas-sms',
         permiso: 'settings:manage',

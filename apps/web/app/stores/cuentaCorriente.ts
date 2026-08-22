@@ -22,6 +22,7 @@ type NovedadRow = Database['public']['Tables']['novedades']['Row']
 type NovedadTipo = Database['public']['Enums']['novedad_tipo_t']
 type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 type NovedadCuotaRow = Database['public']['Tables']['novedad_cuotas']['Row']
+type NovedadTipoCuentaRow = Database['public']['Tables']['novedad_tipo_cuenta']['Row']
 type JsonColumnaEstadoCuenta = Database['public']['Tables']['estados_cuenta_generados']['Row']['datos']
 
 interface ResultadoPago {
@@ -69,6 +70,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
   const novedades = shallowRef<NovedadRow[]>([])
   const tiposNovedad = shallowRef<ListaTipoRow[]>([])
   const novedadCuotas = shallowRef<NovedadCuotaRow[]>([])
+  const novedadTipoCuenta = shallowRef<NovedadTipoCuentaRow[]>([])
+  const propietariosPorInmueble = shallowRef<Map<string, string>>(new Map())
   const loading = ref(false)
 
   async function cargarInmuebles(tenantId: string): Promise<InmuebleRow[]> {
@@ -155,6 +158,83 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     if (errorTipos) throw errorTipos
     tiposNovedad.value = data ?? []
     return tiposNovedad.value
+  }
+
+  /** Propietario(s) vigente(s) por inmueble — rol `copropietario` de
+   * PERSONA_PREDIO en inmueble_persona_rol, sin `vigente_hasta`. Se usa para
+   * poder buscar un inmueble por el nombre de su propietario y mostrarlo junto
+   * a la nomenclatura. Un inmueble puede tener varios copropietarios vigentes
+   * (excepción explícita documentada en terceros.ts), así que los nombres se
+   * unen con coma. */
+  async function cargarPropietarios(tenantId: string): Promise<Map<string, string>> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorPropietarios } = await cliente
+      .from('inmueble_persona_rol')
+      .select('inmueble_id, tercero:terceros(nombre_completo), rol:lista_tipos!inner(codigo)')
+      .eq('tenant_id', tenantId)
+      .is('vigente_hasta', null)
+      .eq('rol.codigo', 'copropietario')
+    if (errorPropietarios) throw errorPropietarios
+
+    const acumulado = new Map<string, string[]>()
+    for (const fila of data ?? []) {
+      const nombre = (fila.tercero as { nombre_completo: string } | null)?.nombre_completo
+      if (!nombre) continue
+      const lista = acumulado.get(fila.inmueble_id) ?? []
+      lista.push(nombre)
+      acumulado.set(fila.inmueble_id, lista)
+    }
+    propietariosPorInmueble.value = new Map(
+      [...acumulado].map(([id, nombres]) => [id, nombres.join(', ')]),
+    )
+    return propietariosPorInmueble.value
+  }
+
+  /** Mapa motivo -> cuenta de ingreso (20260830240000). Lo aplica el trigger
+   * `aplicar_novedad_cuenta_por_tipo` al insertar la novedad; aquí solo se lee
+   * para configurarlo y para poder mostrar en el resumen bajo qué cuenta va a
+   * quedar el cobro, sin pedirle esa decisión a quien lo registra. */
+  async function cargarNovedadTipoCuenta(tenantId: string): Promise<NovedadTipoCuentaRow[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorMapa } = await cliente
+      .from('novedad_tipo_cuenta')
+      .select('*')
+      .eq('tenant_id', tenantId)
+    if (errorMapa) throw errorMapa
+    novedadTipoCuenta.value = data ?? []
+    return novedadTipoCuenta.value
+  }
+
+  /** `presupuestoCuentaId === null` borra el vínculo (el motivo vuelve a quedar
+   * sin cuenta, que es un estado válido — la novedad simplemente no se explica
+   * bajo ningún componente presupuestal). */
+  async function guardarNovedadTipoCuenta(params: {
+    tenantId: string
+    tipoNovedadId: number
+    presupuestoCuentaId: string | null
+  }): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+
+    if (params.presupuestoCuentaId === null) {
+      const { error: errorDelete } = await cliente
+        .from('novedad_tipo_cuenta')
+        .delete()
+        .eq('tenant_id', params.tenantId)
+        .eq('tipo_novedad_id', params.tipoNovedadId)
+      if (errorDelete) throw errorDelete
+    } else {
+      const { error: errorUpsert } = await cliente.from('novedad_tipo_cuenta').upsert(
+        {
+          tenant_id: params.tenantId,
+          tipo_novedad_id: params.tipoNovedadId,
+          presupuesto_cuenta_id: params.presupuestoCuentaId,
+        },
+        { onConflict: 'tenant_id,tipo_novedad_id' },
+      )
+      if (errorUpsert) throw errorUpsert
+    }
+
+    await cargarNovedadTipoCuenta(params.tenantId)
   }
 
   async function registrarPago(params: {
@@ -379,6 +459,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     novedades.value = []
     tiposNovedad.value = []
     novedadCuotas.value = []
+    novedadTipoCuenta.value = []
+    propietariosPorInmueble.value = new Map()
   }
 
   return {
@@ -388,12 +470,17 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     novedades,
     tiposNovedad,
     novedadCuotas,
+    novedadTipoCuenta,
+    propietariosPorInmueble,
     loading,
     cargarInmuebles,
     cargarCargosAbiertos,
     cargarPagos,
     cargarNovedades,
     cargarTiposNovedad,
+    cargarNovedadTipoCuenta,
+    guardarNovedadTipoCuenta,
+    cargarPropietarios,
     cargarNovedadCuotas,
     registrarPago,
     calcularIntereses,

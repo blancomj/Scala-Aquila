@@ -553,10 +553,9 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
                 :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
                 @click="alternarGrupo(fila.id)"
               >
-                <span
-                  class="iconify size-4"
-                  :class="gruposColapsados.has(fila.id) ? 'i-lucide:chevron-right' : 'i-lucide:chevron-down'"
-                  aria-hidden="true"
+                <UIcon
+                  :name="gruposColapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                  class="size-4"
                 />
               </button>
               <span v-else class="size-5 shrink-0" aria-hidden="true" />
@@ -592,9 +591,9 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
               @click="iniciarEdicionMonto(fila)"
             >
               {{ formatoMoneda(totalPorCuenta.get(fila.id) ?? 0) }}
-              <span
-                class="iconify i-lucide:pencil size-3 shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
-                aria-hidden="true"
+              <UIcon
+                name="i-lucide-pencil"
+                class="size-3 shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
               />
             </button>
             <span v-else class="tabular-nums">{{ formatoMoneda(totalPorCuenta.get(fila.id) ?? 0) }}</span>
@@ -699,10 +698,9 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
               :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
               @click="alternarGrupo(fila.id)"
             >
-              <span
-                class="iconify size-4"
-                :class="gruposColapsados.has(fila.id) ? 'i-lucide:chevron-right' : 'i-lucide:chevron-down'"
-                aria-hidden="true"
+              <UIcon
+                :name="gruposColapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                class="size-4"
               />
             </button>
             <span v-else class="size-5 shrink-0" aria-hidden="true" />
@@ -710,11 +708,11 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
               ({{ conteoDescendientes.get(fila.id) ?? 0 }})
             </span>
-            <span
+            <UIcon
               v-if="!fila.es_hoja && gruposDeUnSoloHijo.has(fila.id)"
-              class="iconify i-lucide:triangle-alert size-3.5 shrink-0 text-amber-500"
+              name="i-lucide-triangle-alert"
+              class="size-3.5 shrink-0 text-amber-500"
               :title="`«${fila.nombre}» agrupa un solo elemento — considera moverlo directo a su padre en vez de mantener este grupo`"
-              aria-hidden="true"
             />
           </div>
         </template>

@@ -22,6 +22,7 @@ const presupuestoSeleccionado = computed(
 
 const drawerAbierto = ref(false)
 const errorActivar = ref<string | null>(null)
+const presupuestoAActivar = ref<{ id: string; anio: number; version: number } | null>(null)
 
 function formatoMoneda(valor: string | number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -38,15 +39,23 @@ function vigenciaTexto(desde: string | null, hasta: string | null): string {
 
 const activandoId = ref<string | null>(null)
 
-async function activarPresupuesto(id: string): Promise<void> {
+function pedirConfirmacionActivar(fila: { id: string; anio: number; version: number }): void {
+  presupuestoAActivar.value = fila
+}
+
+async function confirmarActivarPresupuesto(): Promise<void> {
+  const fila = presupuestoAActivar.value
+  if (!fila) return
+  presupuestoAActivar.value = null
+
   errorActivar.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
 
-  activandoId.value = id
+  activandoId.value = fila.id
   try {
-    await presupuestoStore.activarPresupuesto(id, tenantId)
-    emit('update:presupuestoId', id)
+    await presupuestoStore.activarPresupuesto(fila.id, tenantId)
+    emit('update:presupuestoId', fila.id)
   } catch (excepcion) {
     errorActivar.value = mensajeError(excepcion, 'No se pudo activar el presupuesto.')
   } finally {
@@ -113,7 +122,7 @@ function onCreado(id: string): void {
             size="xs"
             variant="soft"
             :loading="activandoId === fila.id"
-            @click="activarPresupuesto(fila.id)"
+            @click="pedirConfirmacionActivar(fila)"
           >
             Activar
           </UButton>
@@ -159,5 +168,32 @@ function onCreado(id: string): void {
       @cerrar="drawerAbierto = false"
       @creado="onCreado"
     />
+
+    <UModal
+      :open="presupuestoAActivar !== null"
+      title="¿Activar este presupuesto?"
+      @update:open="(abierto) => { if (!abierto) presupuestoAActivar = null }"
+    >
+      <template #body>
+        <div v-if="presupuestoAActivar" class="space-y-2 text-sm">
+          <p>
+            Vas a activar el presupuesto <strong>{{ presupuestoAActivar.anio }} — v{{ presupuestoAActivar.version }}</strong>.
+          </p>
+          <p class="text-gray-500">
+            Al activarlo pasa a estado <strong>Vigente</strong>: sus valores empiezan a cobrarse a las
+            unidades y el presupuesto queda inmutable — ya no podrás editarlo, cualquier corrección
+            requiere crear una versión nueva.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" @click="presupuestoAActivar = null">Cancelar</UButton>
+          <UButton :loading="activandoId === presupuestoAActivar?.id" @click="confirmarActivarPresupuesto">
+            Activar
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

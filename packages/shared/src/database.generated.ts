@@ -2926,6 +2926,59 @@ export type Database = {
           },
         ]
       }
+      novedad_tipo_cuenta: {
+        Row: {
+          created_at: string
+          presupuesto_cuenta_id: string
+          tenant_id: string
+          tipo_novedad_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          presupuesto_cuenta_id: string
+          tenant_id: string
+          tipo_novedad_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          presupuesto_cuenta_id?: string
+          tenant_id?: string
+          tipo_novedad_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "novedad_tipo_cuenta_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "novedad_tipo_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "novedad_tipo_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "novedad_tipo_cuenta_tipo_novedad_id_fkey"
+            columns: ["tipo_novedad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       novedades: {
         Row: {
           acuerdo_pago_id: string | null

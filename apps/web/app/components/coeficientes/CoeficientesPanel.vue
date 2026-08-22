@@ -15,21 +15,31 @@ const cargando = ref(false)
 const activandoId = ref<string | null>(null)
 const error = ref<string | null>(null)
 const drawerAbierto = ref(false)
+const setIdAbierto = ref<string | undefined>(undefined)
+const conteoPorSet = ref<Map<string, number>>(new Map())
 
-onMounted(async () => {
+const inmueblesActivosCount = computed(
+  () => cuentaStore.inmuebles.filter((i) => i.estado === 'activo').length,
+)
+
+async function cargarTodo(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
   cargando.value = true
   try {
-    await Promise.all([
+    const [, , , conteo] = await Promise.all([
       coeficientesStore.cargarCoeficienteSets(tenantId),
       cuentaStore.cargarInmuebles(tenantId),
       politicaStore.cargarPoliticas(tenantId),
+      coeficientesStore.cargarConteoCoeficientesPorSet(tenantId),
     ])
+    conteoPorSet.value = conteo
   } finally {
     cargando.value = false
   }
-})
+}
+
+onMounted(cargarTodo)
 
 async function activar(id: string): Promise<void> {
   error.value = null
@@ -46,8 +56,19 @@ async function activar(id: string): Promise<void> {
   }
 }
 
-function onCreado(): void {
+function abrirNuevaVersion(): void {
+  setIdAbierto.value = undefined
+  drawerAbierto.value = true
+}
+
+function abrirVersion(id: string): void {
+  setIdAbierto.value = id
+  drawerAbierto.value = true
+}
+
+async function cerrarDrawer(): Promise<void> {
   drawerAbierto.value = false
+  await cargarTodo()
 }
 </script>
 
@@ -56,7 +77,7 @@ function onCreado(): void {
     <div>
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-lg font-semibold">Versiones</h2>
-        <UButton size="xs" @click="drawerAbierto = true">Nueva versión</UButton>
+        <UButton size="xs" @click="abrirNuevaVersion">Nueva versión</UButton>
       </div>
       <p class="text-sm text-gray-500 mb-2">
         Un set por versión, con un coeficiente por inmueble activo.
@@ -71,6 +92,7 @@ function onCreado(): void {
           { clave: 'version', etiqueta: 'Versión' },
           { clave: 'estado', etiqueta: 'Estado' },
           { clave: 'vigenteDesde', etiqueta: 'Vigente desde' },
+          { clave: 'progreso', etiqueta: 'Progreso' },
           { clave: 'suma', etiqueta: 'Σ coeficientes' },
           { clave: 'acciones', etiqueta: '' },
         ]"
@@ -84,19 +106,27 @@ function onCreado(): void {
         <template #celda-vigenteDesde="{ fila }">
           <span class="text-gray-500">{{ fila.vigente_desde }}</span>
         </template>
+        <template #celda-progreso="{ fila }">
+          <span class="text-gray-500">{{ conteoPorSet.get(fila.id) ?? 0 }} / {{ inmueblesActivosCount }}</span>
+        </template>
         <template #celda-suma="{ fila }"
           ><span class="text-gray-500">{{ fila.suma_total }}</span></template
         >
         <template #celda-acciones="{ fila }">
-          <UButton
-            v-if="fila.estado === 'borrador'"
-            size="xs"
-            variant="soft"
-            :loading="activandoId === fila.id"
-            @click="activar(fila.id)"
-          >
-            Activar
-          </UButton>
+          <div class="flex justify-end gap-2">
+            <UButton size="xs" variant="ghost" @click="abrirVersion(fila.id)">
+              {{ fila.estado === 'borrador' ? 'Continuar' : 'Ver' }}
+            </UButton>
+            <UButton
+              v-if="fila.estado === 'borrador'"
+              size="xs"
+              variant="soft"
+              :loading="activandoId === fila.id"
+              @click="activar(fila.id)"
+            >
+              Activar
+            </UButton>
+          </div>
         </template>
       </UiTabla>
 
@@ -105,8 +135,8 @@ function onCreado(): void {
 
     <CoeficientesVersionDrawer
       v-if="drawerAbierto"
-      @cerrar="drawerAbierto = false"
-      @creado="onCreado"
+      :set-id="setIdAbierto"
+      @cerrar="cerrarDrawer"
     />
   </div>
 </template>

@@ -20,6 +20,14 @@
  * más allá de una advertencia visual — guard_presupuesto_reconciliado ya
  * lo exige en BD (BUDGET_NOT_RECONCILED) y ese error llega tal cual, sin
  * traducir (mismo criterio que activarPolitica en politicaFinanciera.ts).
+ *
+ * activarPresupuesto retira primero el presupuesto vigente del MISMO año (si
+ * existe) a 'cerrado' y luego promueve el nuevo — dos UPDATE secuenciales,
+ * nunca hay dos filas vigentes a la vez (presupuestos_vigente_unico es por
+ * (tenant_id, anio); un presupuesto vigente de otro año no se toca).
+ * `guard_presupuesto_inmutable` (redefinido en 20260830230000) admite esa
+ * única transición vigente->cerrado sobre una fila vigente; todo lo demás
+ * sigue bloqueado igual que antes.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -126,8 +134,25 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     return data
   }
 
+  /** Retira primero el presupuesto vigente del MISMO año (si existe) a 'cerrado' y
+   * luego promueve el nuevo — dos UPDATE secuenciales, nunca hay dos filas vigentes
+   * a la vez (presupuestos_vigente_unico es por (tenant_id, anio); un año distinto no
+   * se toca). 20260830230000 redefinió el guard para admitir esa transición puntual. */
   async function activarPresupuesto(id: string, tenantId: string): Promise<void> {
     const cliente = useSupabaseClient<Database>()
+    const nuevo = presupuestos.value.find((p) => p.id === id)
+    const vigenteActual = presupuestos.value.find(
+      (p) => p.tenant_id === tenantId && p.estado === 'vigente' && p.anio === nuevo?.anio && p.id !== id,
+    )
+
+    if (vigenteActual) {
+      const { error: errorRetiro } = await cliente
+        .from('presupuestos')
+        .update({ estado: 'cerrado', vigente_hasta: nuevo?.vigente_desde ?? vigenteActual.vigente_desde })
+        .eq('id', vigenteActual.id)
+      if (errorRetiro) throw errorRetiro
+    }
+
     const { error: errorUpdate } = await cliente
       .from('presupuestos')
       .update({ estado: 'vigente' })

@@ -3,14 +3,14 @@
  * (redondeo, residual, intereses, fondo de imprevistos). PLAN §4.3, 19 §73.
  *
  * SELECT/INSERT van directo por RLS (sin Edge Function), mismo criterio que
- * fundamentoNormativo.ts. `activarPolitica` hace un UPDATE directo — solo
- * funciona para la primera política de un tenant: `guard_politica_inmutable`
- * bloquea cualquier UPDATE una vez que old.estado ya es vigente/historica
- * (ni siquiera para degradarla a historica), y el índice único parcial
- * `politicas_financieras_vigente_unica` rechaza una segunda fila vigente.
- * Reemplazar una política vigente por una versión nueva no tiene mecanismo
- * hoy — gap real del esquema, no se inventa uno aquí; el error de Postgres
- * llega tal cual al store, sin traducir (mismo criterio que members.ts).
+ * fundamentoNormativo.ts. `activarPolitica` retira primero la política vigente
+ * actual (si existe) a 'historica' y luego promueve la nueva — dos UPDATE
+ * secuenciales, nunca hay dos filas vigentes a la vez (el índice único parcial
+ * `politicas_financieras_vigente_unica` solo admite una por tenant).
+ * `guard_politica_inmutable` (redefinido en 20260830230000) admite esa única
+ * transición vigente->historica sobre una fila vigente; todo lo demás —
+ * cualquier otro campo, o cualquier cambio una vez historica — sigue
+ * bloqueado igual que antes.
  *
  * `policy_hash`: 19 §73 (hash del contenido canónico) no existe todavía
  * como función — el seed de GC-001 usa un placeholder literal. Aquí se
@@ -103,8 +103,25 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
     return data
   }
 
+  /** Retira primero la política vigente actual (si existe) a 'historica' y luego
+   * promueve la nueva — dos UPDATE secuenciales, nunca hay dos filas vigentes a la
+   * vez (politicas_financieras_vigente_unica es por tenant_id). 20260830230000
+   * redefinió el guard para admitir esa transición puntual. */
   async function activarPolitica(id: string, tenantId: string): Promise<void> {
     const cliente = useSupabaseClient<Database>()
+    const nueva = politicas.value.find((p) => p.id === id)
+    const vigenteActual = politicas.value.find(
+      (p) => p.tenant_id === tenantId && p.estado === 'vigente' && p.id !== id,
+    )
+
+    if (vigenteActual) {
+      const { error: errorRetiro } = await cliente
+        .from('politicas_financieras')
+        .update({ estado: 'historica', vigente_hasta: nueva?.vigente_desde ?? vigenteActual.vigente_desde })
+        .eq('id', vigenteActual.id)
+      if (errorRetiro) throw errorRetiro
+    }
+
     const { error: errorUpdate } = await cliente
       .from('politicas_financieras')
       .update({ estado: 'vigente' })

@@ -97,6 +97,112 @@ const presupuestoCuentaId = ref<string | null>(null)
 const opcionesCuentaPresupuestal = computed(() =>
   presupuestoStore.cuentas.filter((c) => c.es_hoja && c.naturaleza === 'ingreso'),
 )
+
+// ── Ayuda bajo demanda ───────────────────────────────────────────────
+// Los párrafos explicativos largos se repliegan detrás de un "?" en vez de
+// ocupar espacio permanente: quien ya conoce el campo no vuelve a leerlos.
+// Solo queda visible una pista de una línea donde la elección es
+// genuinamente ambigua (distribución contra directo).
+const ayudasAbiertas = ref(new Set<string>())
+function alternarAyuda(clave: string): void {
+  const siguiente = new Set(ayudasAbiertas.value)
+  if (!siguiente.delete(clave)) siguiente.add(clave)
+  ayudasAbiertas.value = siguiente
+}
+
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+] as const
+
+const CADA_CUANTO: Record<string, string> = {
+  mensual: 'cada mes',
+  bimensual: 'cada dos meses',
+  trimestral: 'cada trimestre',
+  semestral: 'cada semestre',
+  anual: 'cada año',
+}
+
+function mesAnio(mes: number | null, anio: number | null): string {
+  if (!mes || !anio) return '—'
+  return `${MESES[mes - 1]} de ${anio}`
+}
+
+function formatoMoneda(valor: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(valor)
+}
+
+/** Resumen en lenguaje llano de lo que hará el concepto — ensambla todos los
+ * campos en una frase verificable de un vistazo. Devuelve segmentos (no HTML)
+ * para poder resaltar los valores sin usar v-html: el nombre de la cuenta
+ * viene de la base de datos y no debe interpolarse como marcado. */
+const resumenConcepto = computed<{ t: string, b?: boolean }[]>(() => {
+  const partes: { t: string, b?: boolean }[] = []
+
+  if (tipoRecurrencia.value === 'novedad') {
+    partes.push({ t: 'Clasifica como ' })
+    partes.push({ t: 'Novedad', b: true })
+    partes.push({ t: ' lo que se capture manualmente en cada inmueble. No tiene fórmula, monto ni fecha propios. ' })
+  } else {
+    partes.push({ t: 'Cobra ' })
+    if (modoValor.value === 'fijo') {
+      partes.push({ t: 'un monto fijo de ' })
+      partes.push({ t: formatoMoneda(Number(valorFijo.value || 0)), b: true })
+    } else {
+      partes.push({ t: 'el resultado de su fórmula', b: true })
+    }
+
+    if (tipoRecurrencia.value === 'recurrente') {
+      partes.push({ t: ' ' })
+      partes.push({ t: CADA_CUANTO[periodicidad.value] ?? 'cada ciclo', b: true })
+      partes.push({ t: ` desde ${mesAnio(fechaInicioMes.value, fechaInicioAnio.value)}` })
+    } else if (tipoRecurrencia.value === 'por_periodo') {
+      partes.push({ t: ' entre ' })
+      partes.push({ t: mesAnio(fechaInicioMes.value, fechaInicioAnio.value), b: true })
+      partes.push({ t: ' y ' })
+      partes.push({ t: mesAnio(fechaFinMes.value, fechaFinAnio.value), b: true })
+    } else {
+      partes.push({ t: ' ' })
+      partes.push({ t: 'una sola vez', b: true })
+      partes.push({ t: ` en ${mesAnio(fechaInicioMes.value, fechaInicioAnio.value)}` })
+    }
+
+    partes.push({
+      t: modoCalculo.value === 'distribucion'
+        ? ', repartido entre los inmuebles por coeficiente. '
+        : ', calculado por separado para cada inmueble. ',
+    })
+
+    if (alcance.value === 'todos') {
+      partes.push({ t: 'Aplica a ' })
+      partes.push({ t: 'todos', b: true })
+      partes.push({ t: ' los inmuebles. ' })
+    } else {
+      partes.push({ t: 'Aplica solo a los inmuebles que ' })
+      partes.push({ t: 'cumplan las condiciones', b: true })
+      partes.push({ t: '. ' })
+    }
+  }
+
+  const cuenta = opcionesCuentaPresupuestal.value.find((c) => c.id === presupuestoCuentaId.value)
+  if (cuenta) {
+    partes.push({ t: 'Se contabiliza en ' })
+    partes.push({ t: `«${cuenta.nombre}»`, b: true })
+    partes.push({ t: '.' })
+  }
+
+  return partes
+})
+
+/** Un concepto sin cuenta presupuestal cobra pero no aparece en la ejecución
+ * del presupuesto — hoy eso solo se descubre semanas después. */
+const faltaCuentaPresupuestal = computed(
+  () => presupuestoCuentaId.value === null && tipoRecurrencia.value !== 'novedad',
+)
 watch(alcance, (valor) => {
   if (valor === 'todos') {
     alcanceCondiciones.value = null
@@ -186,10 +292,12 @@ const editorRef = ref<{
 // global, no por-concepto). El id interno 'configuracion' se conserva
 // (solo cambió la etiqueta visible) para no tocar el resto de
 // referencias a esa pestaña.
-type TabConcepto = 'formula' | 'configuracion' | 'alcance' | 'auditoria'
+type TabConcepto = 'formula' | 'configuracion' | 'auditoria'
+// "Alcance" ya no es pestaña propia: era un select de dos opciones más un
+// constructor condicional, y vive mejor como una sección de Definición, donde
+// el usuario ya está decidiendo el comportamiento del concepto.
 const TODAS_TABS_CONCEPTO: ReadonlyArray<{ id: TabConcepto; etiqueta: string }> = [
   { id: 'configuracion', etiqueta: 'Definición' },
-  { id: 'alcance', etiqueta: 'Alcance' },
   { id: 'formula', etiqueta: 'Fórmula' },
   { id: 'auditoria', etiqueta: 'Auditoría' },
 ]
@@ -765,6 +873,12 @@ async function probar(): Promise<void> {
             <h1 class="text-xl font-semibold">
               {{ editandoId ? nombre || codigo : 'Nuevo concepto' }}
             </h1>
+            <span
+              v-if="editandoId"
+              class="font-mono text-xs px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500"
+            >
+              {{ codigo }}
+            </span>
             <UBadge
               v-if="conceptoEnEdicion"
               :color="COLOR_ESTADO_CONCEPTO[conceptoEnEdicion.estado] ?? 'neutral'"
@@ -773,23 +887,14 @@ async function probar(): Promise<void> {
               {{ conceptoEnEdicion.estado }}
             </UBadge>
           </div>
-          <p v-if="editandoId" class="text-sm text-gray-500 mt-1">
-            Código: <span class="font-mono">{{ codigo }}</span> · Modo: {{ modoCalculo }} · Valor:
-            {{ modoValor === 'fijo' ? 'Fijo' : 'Formulado' }}
-          </p>
         </div>
+        <!-- Solo acciones reales: "Historial de versiones" y "Probar fórmula"
+             se retiraron porque no eran acciones — hacían `tabActiva = …`, o
+             sea exactamente lo mismo que la barra de pestañas de abajo. El
+             subtítulo "Código · Modo · Valor" también se fue: duplicaba tres
+             campos que están unos centímetros más abajo, y mostraba el enum
+             crudo sin traducir. El código ahora es un chip junto al título. -->
         <div class="flex items-center gap-2 flex-wrap">
-          <UButton v-if="editandoId" variant="soft" size="sm" @click="tabActiva = 'auditoria'">
-            Historial de versiones
-          </UButton>
-          <UButton
-            v-if="modoValor === 'formulado'"
-            variant="soft"
-            size="sm"
-            @click="tabActiva = 'formula'"
-          >
-            Probar fórmula
-          </UButton>
           <UButton v-if="!soloLectura" size="sm" :loading="guardando" @click="guardar">
             {{ editandoId ? 'Guardar cambios' : 'Crear concepto' }}
           </UButton>
@@ -1136,194 +1241,351 @@ async function probar(): Promise<void> {
       </div>
 
       <!-- ── Definición ──────────────────────────────────────────────── -->
-      <div v-else-if="tabActiva === 'configuracion'" class="max-w-lg space-y-4">
-        <div class="flex gap-4">
-          <UFormField label="Nombre" name="nombre" class="flex-1 min-w-0">
-            <UInput v-model="nombre" required :disabled="soloLectura" class="w-full" />
-          </UFormField>
+      <!-- Antes: una sola columna `max-w-lg` con nueve campos apilados sin
+           agrupar, que dejaba ~2/3 del ancho vacío. Ahora: dos columnas
+           (formulario + resumen fijo) y cinco secciones rotuladas, que hacen
+           visible una estructura que siempre estuvo ahí. "Alcance" se absorbió
+           aquí desde su antigua pestaña propia. -->
+      <div v-else-if="tabActiva === 'configuracion'">
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+          <div class="space-y-4">
+            <!-- Identificación -->
+            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Identificación</h3>
+              </header>
+              <div class="p-4 space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
+                  <UFormField label="Nombre" name="nombre" class="min-w-0">
+                    <UInput v-model="nombre" required :disabled="soloLectura" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Código" name="codigo" class="min-w-0">
+                    <UInput
+                      v-model="codigo"
+                      :disabled="editandoId !== null"
+                      placeholder="ADMIN"
+                      maxlength="5"
+                      required
+                      class="w-full font-mono"
+                    />
+                  </UFormField>
+                </div>
+                <p v-if="codigoDuplicado" class="text-xs text-red-500">
+                  Ya existe un concepto con este código.
+                </p>
+                <p v-else-if="editandoId" class="text-xs text-gray-500">
+                  El código queda fijo una vez creado el concepto.
+                </p>
+              </div>
+            </section>
 
-          <UFormField label="Código" name="codigo" class="w-24 shrink-0">
-            <UInput
-              v-model="codigo"
-              :disabled="editandoId !== null"
-              placeholder="ADMIN"
-              maxlength="5"
-              required
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-        <p v-if="codigoDuplicado" class="text-xs text-red-500 -mt-2">
-          Ya existe un concepto con este código.
-        </p>
+            <!-- Cómo se calcula -->
+            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Cómo se calcula</h3>
+              </header>
+              <div class="p-4 space-y-4">
+                <div class="space-y-1.5">
+                  <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Modo de cálculo
+                    <button
+                      type="button"
+                      class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                      :aria-expanded="ayudasAbiertas.has('calculo')"
+                      aria-label="Explicar modo de cálculo"
+                      @click="alternarAyuda('calculo')"
+                    >?</button>
+                  </span>
+                  <!-- Segmentado en vez de <select>: con solo dos opciones, un
+                       desplegable esconde la mitad de la decisión tras un clic. -->
+                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                    <button
+                      v-for="opcion in [
+                        { v: 'distribucion', t: 'Distribución' },
+                        { v: 'directo', t: 'Directo' },
+                      ]"
+                      :key="opcion.v"
+                      type="button"
+                      :disabled="soloLectura"
+                      :aria-pressed="modoCalculo === opcion.v"
+                      class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
+                      :class="
+                        modoCalculo === opcion.v
+                          ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                      "
+                      @click="modoCalculo = opcion.v as 'distribucion' | 'directo'"
+                    >
+                      {{ opcion.t }}
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-500">
+                    {{
+                      modoCalculo === 'distribucion'
+                        ? 'Un total para toda la copropiedad, repartido por coeficiente.'
+                        : 'La fórmula se evalúa una vez por cada inmueble, con sus propios datos.'
+                    }}
+                  </p>
+                  <p
+                    v-if="ayudasAbiertas.has('calculo')"
+                    class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                  >
+                    <strong>Distribución:</strong> la fórmula calcula un solo total para toda la
+                    copropiedad — el motor lo reparte automáticamente por periodo y luego por
+                    coeficiente entre los inmuebles.<br>
+                    <strong>Directo:</strong> la fórmula se evalúa una vez por cada inmueble, con sus
+                    propios datos (área, coeficiente...) — el resultado es directamente el cargo de
+                    ese inmueble.
+                  </p>
+                </div>
 
-        <UFormField label="Modo de cálculo" name="modo_calculo">
-          <select
-            v-model="modoCalculo"
-            :disabled="soloLectura"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="distribucion">Distribución (total, se reparte)</option>
-            <option value="directo">Directo (por inmueble)</option>
-          </select>
-          <p v-if="modoCalculo === 'distribucion'" class="text-xs text-gray-500 mt-1">
-            La fórmula calcula un solo total para toda la copropiedad — el motor lo reparte
-            automáticamente por periodo y luego por coeficiente entre los inmuebles.
-          </p>
-          <p v-else class="text-xs text-gray-500 mt-1">
-            La fórmula se evalúa una vez por cada inmueble, con sus propios datos (área,
-            coeficiente...) — el resultado es directamente el cargo de ese inmueble.
-          </p>
-        </UFormField>
+                <div v-if="tipoRecurrencia !== 'novedad'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Modo de valor</span>
+                    <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                      <button
+                        v-for="opcion in [
+                          { v: 'fijo', t: 'Fijo' },
+                          { v: 'formulado', t: 'Formulado' },
+                        ]"
+                        :key="opcion.v"
+                        type="button"
+                        :disabled="soloLectura"
+                        :aria-pressed="modoValor === opcion.v"
+                        class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
+                        :class="
+                          modoValor === opcion.v
+                            ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
+                            : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                        "
+                        @click="modoValor = opcion.v as 'fijo' | 'formulado'"
+                      >
+                        {{ opcion.t }}
+                      </button>
+                    </div>
+                  </div>
 
-        <template v-if="tipoRecurrencia !== 'novedad'">
-          <div class="flex gap-4">
-            <UFormField
-              label="Modo de valor"
-              name="modo_valor"
-              :class="modoValor === 'fijo' ? 'w-60 shrink-0' : 'flex-1'"
-            >
-              <select
-                v-model="modoValor"
-                :disabled="soloLectura"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                  <UFormField v-if="modoValor === 'fijo'" label="Valor fijo" name="valor_fijo" class="min-w-0">
+                    <UInput v-model="valorFijo" type="number" step="0.01" :disabled="soloLectura" class="w-full" />
+                  </UFormField>
+                  <div v-else class="space-y-1.5">
+                    <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Fórmula</span>
+                    <UButton variant="soft" size="sm" class="w-full justify-center" @click="tabActiva = 'formula'">
+                      Construir y probar →
+                    </UButton>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Cuándo se cobra -->
+            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Cuándo se cobra</h3>
+              </header>
+              <div class="p-4 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <UFormField label="Tipo" name="tipo_recurrencia">
+                    <select
+                      v-model="tipoRecurrencia"
+                      :disabled="soloLectura"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                    >
+                      <option value="recurrente">Recurrente (cada ciclo, desde una fecha)</option>
+                      <option value="unico">Único (una sola vez)</option>
+                      <option value="por_periodo">Por un periodo (rango de fechas)</option>
+                      <option value="novedad" :disabled="existeSingletonNovedad">
+                        Novedad (aplicado por inmueble)
+                      </option>
+                    </select>
+                  </UFormField>
+
+                  <UFormField v-if="tipoRecurrencia === 'recurrente'" label="Periodicidad" name="periodicidad">
+                    <select
+                      v-model="periodicidad"
+                      :disabled="soloLectura"
+                      class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                    >
+                      <option value="mensual">Mensual</option>
+                      <option value="bimensual">Bimensual</option>
+                      <option value="trimestral">Trimestral</option>
+                      <option value="semestral">Semestral</option>
+                      <option value="anual">Anual</option>
+                    </select>
+                  </UFormField>
+                </div>
+
+                <p v-if="existeSingletonNovedad && tipoRecurrencia !== 'novedad'" class="text-xs text-gray-500">
+                  Ya existe un concepto Novedad para esta copropiedad — solo puede haber uno.
+                </p>
+                <p v-else-if="tipoRecurrencia === 'novedad'" class="text-xs text-gray-500">
+                  No tiene fórmula ni fecha propias — cada novedad capturada en un inmueble elige
+                  este concepto para clasificarse como "Novedad" en la liquidación.
+                </p>
+
+                <div v-if="tipoRecurrencia !== 'novedad'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <UFormField
+                    :label="tipoRecurrencia === 'por_periodo' ? 'Inicia en' : 'A partir de'"
+                    name="fecha_inicio"
+                  >
+                    <UiSelectorMesAnio
+                      :anio="fechaInicioAnio"
+                      :mes="fechaInicioMes"
+                      :disabled="soloLectura"
+                      @update:anio="fechaInicioAnio = $event"
+                      @update:mes="fechaInicioMes = $event"
+                    />
+                  </UFormField>
+
+                  <UFormField v-if="tipoRecurrencia === 'por_periodo'" label="Hasta" name="fecha_fin">
+                    <UiSelectorMesAnio
+                      :anio="fechaFinAnio"
+                      :mes="fechaFinMes"
+                      :disabled="soloLectura"
+                      @update:anio="fechaFinAnio = $event"
+                      @update:mes="fechaFinMes = $event"
+                    />
+                  </UFormField>
+                </div>
+
+                <UAlert v-if="errorTemporal" color="error" variant="soft" :title="errorTemporal" />
+
+                <div class="max-w-[180px] space-y-1.5">
+                  <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Prioridad
+                    <button
+                      type="button"
+                      class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                      :aria-expanded="ayudasAbiertas.has('prioridad')"
+                      aria-label="Explicar prioridad"
+                      @click="alternarAyuda('prioridad')"
+                    >?</button>
+                  </span>
+                  <UInput v-model.number="prioridad" type="number" :disabled="soloLectura" class="w-full" />
+                </div>
+                <p
+                  v-if="ayudasAbiertas.has('prioridad')"
+                  class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                >
+                  Define el orden de evaluación cuando varios conceptos concurren en la misma
+                  liquidación — menor número se calcula antes.
+                </p>
+              </div>
+            </section>
+
+            <!-- A quién aplica (antes la pestaña "Alcance") -->
+            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">A quién aplica</h3>
+              </header>
+              <div class="p-4 space-y-3">
+                <div class="max-w-sm space-y-1.5">
+                  <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alcance</span>
+                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                    <button
+                      v-for="opcion in [
+                        { v: 'todos', t: 'Todos los inmuebles' },
+                        { v: 'calculado', t: 'Con condiciones' },
+                      ]"
+                      :key="opcion.v"
+                      type="button"
+                      :disabled="soloLectura"
+                      :aria-pressed="alcance === opcion.v"
+                      class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
+                      :class="
+                        alcance === opcion.v
+                          ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                      "
+                      @click="alcance = opcion.v as 'todos' | 'calculado'"
+                    >
+                      {{ opcion.t }}
+                    </button>
+                  </div>
+                </div>
+
+                <ConceptosCondicionBuilder
+                  v-if="alcance === 'calculado' && alcanceCondiciones"
+                  v-model="alcanceCondiciones"
+                  :readonly="soloLectura"
+                />
+                <p v-if="alcance === 'calculado'" class="text-xs text-gray-500">
+                  En modo <code>distribución</code>, el reparto se recalcula solo entre los
+                  inmuebles que cumplen.
+                </p>
+                <UAlert v-if="errorAlcance" color="error" variant="soft" :title="errorAlcance" />
+              </div>
+            </section>
+
+            <!-- Clasificación contable -->
+            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Clasificación contable
+                </h3>
+              </header>
+              <div class="p-4 space-y-1.5">
+                <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Cuenta presupuestal de ingreso
+                  <button
+                    type="button"
+                    class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                    :aria-expanded="ayudasAbiertas.has('cuenta')"
+                    aria-label="Explicar cuenta presupuestal"
+                    @click="alternarAyuda('cuenta')"
+                  >?</button>
+                </span>
+                <select
+                  v-model="presupuestoCuentaId"
+                  :disabled="soloLectura"
+                  class="w-full max-w-sm rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                >
+                  <option :value="null">— Sin clasificar —</option>
+                  <option v-for="c in opcionesCuentaPresupuestal" :key="c.id" :value="c.id">
+                    {{ c.nombre }}
+                  </option>
+                </select>
+                <p
+                  v-if="ayudasAbiertas.has('cuenta')"
+                  class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                >
+                  Bajo qué cuenta de ingreso del presupuesto se clasifica lo que cobra este
+                  concepto — su ejecutado se suma ahí automáticamente (Σ cargos facturados).
+                </p>
+              </div>
+            </section>
+          </div>
+
+          <!-- Resumen en vivo: la pieza que antes no existía. El usuario tenía
+               que ensamblar mentalmente "distribución + fijo + único + ago 2026"
+               para saber qué acababa de configurar. -->
+          <aside class="lg:sticky lg:top-4 space-y-4">
+            <div class="rounded-lg border border-primary/40 overflow-hidden">
+              <header class="px-4 py-2.5 border-b border-primary/40 bg-primary/5">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Qué hace este concepto
+                </h3>
+              </header>
+              <p class="p-4 text-sm leading-relaxed">
+                <span
+                  v-for="(parte, i) in resumenConcepto"
+                  :key="i"
+                  :class="parte.b ? 'font-semibold text-primary' : ''"
+                >{{ parte.t }}</span>
+              </p>
+              <p
+                v-if="faltaCuentaPresupuestal"
+                class="flex gap-2 px-4 py-3 text-xs leading-relaxed border-t border-gray-200 dark:border-gray-800 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
               >
-                <option value="formulado">Formulado (fórmula AEL)</option>
-                <option value="fijo">Fijo (monto directo)</option>
-              </select>
-            </UFormField>
-
-            <UFormField v-if="modoValor === 'fijo'" label="Valor fijo" name="valor_fijo" class="flex-1 min-w-0">
-              <UInput v-model="valorFijo" type="number" step="0.01" :disabled="soloLectura" class="w-full" />
-            </UFormField>
-          </div>
-          <p v-if="modoValor === 'formulado'" class="text-xs text-gray-500 mt-1">
-            La fórmula se construye y prueba en la pestaña Fórmula.
-          </p>
-        </template>
-
-        <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Tipo" name="tipo_recurrencia">
-            <select
-              v-model="tipoRecurrencia"
-              :disabled="soloLectura"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option value="recurrente">Recurrente (cada ciclo, desde una fecha)</option>
-              <option value="unico">Único (una sola vez)</option>
-              <option value="por_periodo">Por un periodo (rango de fechas)</option>
-              <option value="novedad" :disabled="existeSingletonNovedad">
-                Novedad (aplicado por inmueble)
-              </option>
-            </select>
-            <p v-if="existeSingletonNovedad && tipoRecurrencia !== 'novedad'" class="text-xs text-gray-500 mt-1">
-              Ya existe un concepto Novedad para esta copropiedad — solo puede haber uno.
-            </p>
-            <p v-else-if="tipoRecurrencia === 'novedad'" class="text-xs text-gray-500 mt-1">
-              No tiene fórmula ni fecha propias — cada novedad capturada en un inmueble elige este
-              concepto para clasificarse como "Novedad" en la liquidación.
-            </p>
-          </UFormField>
-
-          <UFormField label="Prioridad" name="prioridad">
-            <UInput v-model.number="prioridad" type="number" :disabled="soloLectura" class="w-full" />
-          </UFormField>
+                <UIcon name="i-lucide-triangle-alert" class="size-4 shrink-0 mt-px" />
+                <span>
+                  Sin cuenta presupuestal: lo que cobre no se verá reflejado en la ejecución del
+                  presupuesto.
+                </span>
+              </p>
+            </div>
+          </aside>
         </div>
-
-        <UFormField v-if="tipoRecurrencia === 'recurrente'" label="Periodicidad" name="periodicidad" class="max-w-xs">
-          <select
-            v-model="periodicidad"
-            :disabled="soloLectura"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="mensual">Mensual</option>
-            <option value="bimensual">Bimensual</option>
-            <option value="trimestral">Trimestral</option>
-            <option value="semestral">Semestral</option>
-            <option value="anual">Anual</option>
-          </select>
-        </UFormField>
-
-        <template v-if="tipoRecurrencia !== 'novedad'">
-          <div class="flex gap-4 flex-wrap">
-            <UFormField
-              :label="tipoRecurrencia === 'por_periodo' ? 'Inicia en' : 'A partir de'"
-              name="fecha_inicio"
-              class="max-w-xs"
-            >
-              <UiSelectorMesAnio
-                :anio="fechaInicioAnio"
-                :mes="fechaInicioMes"
-                :disabled="soloLectura"
-                @update:anio="fechaInicioAnio = $event"
-                @update:mes="fechaInicioMes = $event"
-              />
-            </UFormField>
-
-            <UFormField
-              v-if="tipoRecurrencia === 'por_periodo'"
-              label="Hasta"
-              name="fecha_fin"
-              class="max-w-xs"
-            >
-              <UiSelectorMesAnio
-                :anio="fechaFinAnio"
-                :mes="fechaFinMes"
-                :disabled="soloLectura"
-                @update:anio="fechaFinAnio = $event"
-                @update:mes="fechaFinMes = $event"
-              />
-            </UFormField>
-          </div>
-          <UAlert v-if="errorTemporal" color="error" variant="soft" :title="errorTemporal" />
-        </template>
-
-        <UFormField label="Cuenta presupuestal" name="presupuesto_cuenta_id" class="max-w-xs">
-          <select
-            v-model="presupuestoCuentaId"
-            :disabled="soloLectura"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option :value="null">— Sin clasificar —</option>
-            <option v-for="c in opcionesCuentaPresupuestal" :key="c.id" :value="c.id">
-              {{ c.nombre }}
-            </option>
-          </select>
-          <p class="text-xs text-gray-500 mt-1">
-            Bajo qué cuenta de ingreso del presupuesto se clasifica lo que cobra este concepto —
-            su ejecutado se suma ahí automáticamente (Σ cargos facturados).
-          </p>
-        </UFormField>
-      </div>
-
-      <!-- ── Alcance ─────────────────────────────────────────────────── -->
-      <!-- max-w-3xl (no max-w-lg como Definición): cada condición es un
-           select de campo + operador + valor + "Quitar" en una sola fila —
-           con max-w-lg envuelve a 2-3 líneas por condición. -->
-      <div v-else-if="tabActiva === 'alcance'" class="max-w-3xl space-y-4">
-        <UFormField label="Alcance" name="alcance" class="max-w-xs">
-          <select
-            v-model="alcance"
-            :disabled="soloLectura"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="todos">Todos los inmuebles</option>
-            <option value="calculado">Calculado (condiciones)</option>
-          </select>
-          <p v-if="alcance === 'todos'" class="text-xs text-gray-500 mt-1">
-            Se aplica a todos los inmuebles de la copropiedad, sin filtrar.
-          </p>
-          <p v-else class="text-xs text-gray-500 mt-1">
-            Solo se aplica a los inmuebles que cumplan las condiciones de abajo — si
-            <code>distribución</code>, el reparto se recalcula solo entre esos inmuebles.
-          </p>
-        </UFormField>
-        <ConceptosCondicionBuilder
-          v-if="alcance === 'calculado' && alcanceCondiciones"
-          v-model="alcanceCondiciones"
-          :readonly="soloLectura"
-        />
-        <UAlert v-if="errorAlcance" color="error" variant="soft" :title="errorAlcance" />
       </div>
 
       <!-- ── Auditoría ───────────────────────────────────────────────── -->
