@@ -35,6 +35,12 @@ type ConteoPorSet = Map<string, number>
 export const useCoeficientesStore = defineStore('coeficientes', () => {
   const coeficienteSets = shallowRef<CoeficienteSetRow[]>([])
   const loading = ref(false)
+  /** Coeficientes del set vigente, por inmueble_id — vive en el store (no en
+   * un ref de página) para que la hidratación SSR→cliente de Pinia lo
+   * transporte igual que `coeficienteSets`; un ref de página poblado dentro
+   * de useAsyncData se queda vacío en el cliente porque ese callback no
+   * vuelve a ejecutarse ahí. */
+  const valoresVigentes = shallowRef<Map<string, number>>(new Map())
 
   async function cargarCoeficienteSets(tenantId: string): Promise<CoeficienteSetRow[]> {
     loading.value = true
@@ -137,6 +143,19 @@ export const useCoeficientesStore = defineStore('coeficientes', () => {
     return new Map((data ?? []).map((c) => [c.inmueble_id, Number(c.valor)]))
   }
 
+  /** Busca el set vigente del tenant y carga sus coeficientes en
+   * `valoresVigentes` — lo que consumen las columnas Σ Coeficiente / % del
+   * total de Agrupaciones. Sin set vigente, deja el Map vacío. */
+  async function cargarValoresVigentes(tenantId: string): Promise<Map<string, number>> {
+    const vigente = coeficienteSets.value.find(
+      (s) => s.tenant_id === tenantId && s.estado === 'vigente',
+    )
+    valoresVigentes.value = vigente
+      ? await cargarCoeficientesDeSet(vigente.id, tenantId)
+      : new Map()
+    return valoresVigentes.value
+  }
+
   /** Cuántos inmuebles ya tienen coeficiente en cada set — para mostrar
    * progreso ("245 / 300") en la tabla de versiones sin cargar el detalle. */
   async function cargarConteoCoeficientesPorSet(tenantId: string): Promise<ConteoPorSet> {
@@ -179,15 +198,18 @@ export const useCoeficientesStore = defineStore('coeficientes', () => {
 
   function limpiar(): void {
     coeficienteSets.value = []
+    valoresVigentes.value = new Map()
   }
 
   return {
     coeficienteSets,
+    valoresVigentes,
     loading,
     cargarCoeficienteSets,
     crearSetVacio,
     guardarLoteCoeficientes,
     cargarCoeficientesDeSet,
+    cargarValoresVigentes,
     cargarConteoCoeficientesPorSet,
     activarCoeficienteSet,
     limpiar,

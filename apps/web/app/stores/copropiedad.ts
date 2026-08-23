@@ -47,6 +47,8 @@ export interface ActualizarTenantParams {
   tipo_division_id?: number
   moneda?: string
   zona_horaria?: string
+  dia_facturacion?: number | null
+  canal_notificacion?: string | null
 }
 
 export const useCopropiedadStore = defineStore('copropiedad', () => {

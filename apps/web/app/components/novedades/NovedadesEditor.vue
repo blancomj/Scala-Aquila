@@ -52,6 +52,12 @@ import {
 
 const props = defineProps<{ novedadId?: string }>()
 
+const route = useRoute()
+// Llegar desde "Nueva novedad" en la ficha de un inmueble preselecciona ese
+// inmueble y, al guardar, vuelve a esa ficha en vez de a la lista general.
+const inmuebleIdInicial =
+  typeof route.query.inmuebleId === 'string' ? route.query.inmuebleId : null
+
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
 const presupuestoStore = usePresupuestoStore()
@@ -91,7 +97,7 @@ const novedad = computed(() =>
 )
 
 // ── formulario (solo creación) ─────────────────────────────────────────
-const inmuebleId = ref<string | null>(null)
+const inmuebleId = ref<string | null>(inmuebleIdInicial)
 const descripcion = ref('')
 const tipoNovedadId = ref<number | null>(null)
 
@@ -297,7 +303,7 @@ async function guardar(): Promise<void> {
       prorrateable: repeticion.value === 'prorrateable',
       cuotasTotales: repeticion.value === 'prorrateable' ? cuotasTotales.value : null,
     })
-    await navigateTo('/estado-cuenta/novedades')
+    await navigateTo(inmuebleIdInicial ? `/inmuebles/${inmuebleIdInicial}` : '/estado-cuenta/novedades')
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo crear la novedad.')
   } finally {
@@ -431,7 +437,12 @@ const resumenGuardado = computed<string | null>(() => {
       </div>
 
       <div v-if="!soloLectura" class="flex gap-2">
-        <UButton variant="ghost" to="/estado-cuenta/novedades">Cancelar</UButton>
+        <UButton
+          variant="ghost"
+          :to="inmuebleIdInicial ? `/inmuebles/${inmuebleIdInicial}` : '/estado-cuenta/novedades'"
+        >
+          Cancelar
+        </UButton>
         <UButton :loading="guardando" :disabled="!puedeGuardar" @click="guardar">
           Crear novedad
         </UButton>

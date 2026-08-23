@@ -436,6 +436,74 @@ export type Database = {
           },
         ]
       }
+      agrupaciones: {
+        Row: {
+          activa: boolean
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number
+          parent_id: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          parent_id?: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          parent_id?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agrupaciones_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupaciones_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -1627,6 +1695,7 @@ export type Database = {
           busqueda_tsv: unknown
           caso_juridico_id: string | null
           created_at: string
+          descripcion: string | null
           fecha_vencimiento: string | null
           grupo_id: string
           id: string
@@ -1643,6 +1712,7 @@ export type Database = {
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
           created_at?: string
+          descripcion?: string | null
           fecha_vencimiento?: string | null
           grupo_id?: string
           id?: string
@@ -1659,6 +1729,7 @@ export type Database = {
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
           created_at?: string
+          descripcion?: string | null
           fecha_vencimiento?: string | null
           grupo_id?: string
           id?: string
@@ -2387,6 +2458,7 @@ export type Database = {
       }
       inmuebles: {
         Row: {
+          agrupacion_id: string | null
           area_comun: number | null
           area_privada: number | null
           busqueda_tsv: unknown
@@ -2404,6 +2476,7 @@ export type Database = {
           uso_predio_id: number | null
         }
         Insert: {
+          agrupacion_id?: string | null
           area_comun?: number | null
           area_privada?: number | null
           busqueda_tsv?: unknown
@@ -2421,6 +2494,7 @@ export type Database = {
           uso_predio_id?: number | null
         }
         Update: {
+          agrupacion_id?: string | null
           area_comun?: number | null
           area_privada?: number | null
           busqueda_tsv?: unknown
@@ -2438,6 +2512,13 @@ export type Database = {
           uso_predio_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inmuebles_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inmuebles_estado_legal_id_fkey"
             columns: ["estado_legal_id"]
@@ -2739,6 +2820,46 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tipos"
             referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      lista_tipos_ocultos: {
+        Row: {
+          created_at: string
+          lista_tipos_id: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          lista_tipos_id: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          lista_tipos_id?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lista_tipos_ocultos_lista_tipos_id_fkey"
+            columns: ["lista_tipos_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lista_tipos_ocultos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lista_tipos_ocultos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4283,6 +4404,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          numero_tarjeta_profesional: string | null
           recibe_notificaciones: boolean
           rol_id: number
           tenant_id: string
@@ -4294,6 +4416,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          numero_tarjeta_profesional?: string | null
           recibe_notificaciones?: boolean
           rol_id: number
           tenant_id: string
@@ -4305,6 +4428,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          numero_tarjeta_profesional?: string | null
           recibe_notificaciones?: boolean
           rol_id?: number
           tenant_id?: string
@@ -4346,12 +4470,14 @@ export type Database = {
       }
       tenants: {
         Row: {
+          canal_notificacion: string | null
           ciudad: string | null
           contacto_email: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
           created_at: string
           created_by: string | null
+          dia_facturacion: number | null
           direccion: string | null
           email: string | null
           id: string
@@ -4371,12 +4497,14 @@ export type Database = {
           zona_horaria: string
         }
         Insert: {
+          canal_notificacion?: string | null
           ciudad?: string | null
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
           created_at?: string
           created_by?: string | null
+          dia_facturacion?: number | null
           direccion?: string | null
           email?: string | null
           id?: string
@@ -4396,12 +4524,14 @@ export type Database = {
           zona_horaria?: string
         }
         Update: {
+          canal_notificacion?: string | null
           ciudad?: string | null
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
           created_at?: string
           created_by?: string | null
+          dia_facturacion?: number | null
           direccion?: string | null
           email?: string | null
           id?: string
@@ -4581,10 +4711,14 @@ export type Database = {
       }
       zonas_comunes: {
         Row: {
+          activa: boolean
           area: number | null
           codigo: string
           created_at: string
+          descripcion: string | null
+          es_esencial: boolean
           id: string
+          matricula_inmobiliaria: string | null
           nombre: string
           tenant_id: string
           tipo_id: number
@@ -4592,10 +4726,14 @@ export type Database = {
           uso_exclusivo_inmueble_id: string | null
         }
         Insert: {
+          activa?: boolean
           area?: number | null
           codigo: string
           created_at?: string
+          descripcion?: string | null
+          es_esencial?: boolean
           id?: string
+          matricula_inmobiliaria?: string | null
           nombre: string
           tenant_id: string
           tipo_id: number
@@ -4603,10 +4741,14 @@ export type Database = {
           uso_exclusivo_inmueble_id?: string | null
         }
         Update: {
+          activa?: boolean
           area?: number | null
           codigo?: string
           created_at?: string
+          descripcion?: string | null
+          es_esencial?: boolean
           id?: string
+          matricula_inmobiliaria?: string | null
           nombre?: string
           tenant_id?: string
           tipo_id?: number
@@ -4808,7 +4950,9 @@ export type Database = {
       v_documento_vigente: {
         Row: {
           busqueda_tsv: unknown
+          caso_juridico_id: string | null
           created_at: string | null
+          descripcion: string | null
           fecha_vencimiento: string | null
           grupo_id: string | null
           id: string | null
@@ -4821,37 +4965,14 @@ export type Database = {
           tipo_documento_id: number | null
           version: number | null
         }
-        Insert: {
-          busqueda_tsv?: unknown
-          created_at?: string | null
-          fecha_vencimiento?: string | null
-          grupo_id?: string | null
-          id?: string | null
-          inmueble_id?: string | null
-          nombre_archivo?: string | null
-          storage_path?: string | null
-          subido_por?: string | null
-          tamano_bytes?: number | null
-          tenant_id?: string | null
-          tipo_documento_id?: number | null
-          version?: number | null
-        }
-        Update: {
-          busqueda_tsv?: unknown
-          created_at?: string | null
-          fecha_vencimiento?: string | null
-          grupo_id?: string | null
-          id?: string | null
-          inmueble_id?: string | null
-          nombre_archivo?: string | null
-          storage_path?: string | null
-          subido_por?: string | null
-          tamano_bytes?: number | null
-          tenant_id?: string | null
-          tipo_documento_id?: number | null
-          version?: number | null
-        }
         Relationships: [
+          {
+            foreignKeyName: "documentos_caso_juridico_id_fkey"
+            columns: ["caso_juridico_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_inmueble_id_fkey"
             columns: ["inmueble_id"]
@@ -5016,6 +5137,12 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      agrupacion_subarbol: {
+        Args: { p_agrupacion_id: string }
+        Returns: {
+          id: string
+        }[]
+      }
       cartera_etapa_requiere_aprobacion: {
         Args: {
           p_desde: Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -5037,12 +5164,14 @@ export type Database = {
       create_tenant: {
         Args: { p_name: string; p_slug: string }
         Returns: {
+          canal_notificacion: string | null
           ciudad: string | null
           contacto_email: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
           created_at: string
           created_by: string | null
+          dia_facturacion: number | null
           direccion: string | null
           email: string | null
           id: string

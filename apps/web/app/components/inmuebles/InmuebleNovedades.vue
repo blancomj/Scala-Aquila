@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // Tab Novedades activas — filtro por estado, aprobar/rechazar
-// (PROMPT_FICHA_INMUEBLE.md §1.1 I6). Reutiliza cuentaCorriente.ts
-// (cargarNovedades ahora acepta inmuebleId?, crearNovedad/aprobarNovedad/
-// rechazarNovedad ya existían) — sin invocar la Edge Function por su cuenta.
+// (PROMPT_FICHA_INMUEBLE.md §1.1 I6). Reutiliza cuentaCorriente.ts. La
+// creación vive en /novedades/nueva (NovedadesEditor.vue) — antes este tab
+// tenía su propio drawer de creación con un formulario más viejo y limitado
+// (sin motivo, repetición ni periodo); se quitó para no tener dos caminos
+// distintos para crear lo mismo.
 import type { Database } from '@aquila/shared'
 
-type NovedadTipo = Database['public']['Enums']['novedad_tipo_t']
 type NovedadEstado = Database['public']['Enums']['novedad_estado_t']
 
 const props = defineProps<{ inmuebleId: string }>()
@@ -20,13 +21,6 @@ const novedadesFiltradas = computed(() =>
     : cuentaStore.novedades.filter((n) => n.estado === filtroEstado.value),
 )
 
-const TIPOS: readonly NovedadTipo[] = ['CHARGE', 'DISCOUNT', 'ADJUSTMENT', 'REFUND', 'CREDIT', 'DEBIT']
-
-const mostrarForm = ref(false)
-const tipo = ref<NovedadTipo>('CHARGE')
-const montoNovedad = ref<number | null>(null)
-const descripcion = ref('')
-const fechaEfectiva = ref(new Date().toISOString().slice(0, 10))
 const motivoRechazo = ref<Record<string, string>>({})
 const procesando = ref<string | null>(null)
 const error = ref<string | null>(null)
@@ -35,27 +29,6 @@ async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
   await cuentaStore.cargarNovedades(tenantId, props.inmuebleId)
-}
-
-async function crear(): Promise<void> {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !montoNovedad.value || !descripcion.value.trim()) return
-  error.value = null
-  try {
-    await cuentaStore.crearNovedad({
-      tenantId,
-      inmuebleId: props.inmuebleId,
-      tipo: tipo.value,
-      monto: montoNovedad.value,
-      descripcion: descripcion.value.trim(),
-      fechaEfectiva: fechaEfectiva.value,
-    })
-    mostrarForm.value = false
-    montoNovedad.value = null
-    descripcion.value = ''
-  } catch (excepcion) {
-    error.value = mensajeError(excepcion, 'No se pudo crear la novedad.')
-  }
 }
 
 async function aprobar(id: string): Promise<void> {
@@ -95,43 +68,16 @@ watchEffect(cargar)
         <h2>Novedades activas</h2>
         <p class="panel-sub">Solicitudes de cargo, descuento o ajuste sobre este inmueble.</p>
       </div>
-      <button type="button" class="btn btn--primary" style="font-size: 12.5px; padding: 7px 14px" @click="mostrarForm = true">
+      <NuxtLink
+        :to="`/novedades/nueva?inmuebleId=${inmuebleId}`"
+        class="btn btn--primary"
+        style="font-size: 12.5px; padding: 7px 14px"
+      >
         Nueva novedad
-      </button>
+      </NuxtLink>
     </div>
 
-    <UiDrawer
-      :abierto="mostrarForm"
-      titulo="Nueva novedad"
-      subtitulo="Cargo, descuento o ajuste sobre este inmueble."
-      @cerrar="mostrarForm = false"
-    >
-      <div class="form-grid">
-        <div class="field">
-          <label for="nov-tipo">Tipo</label>
-          <select id="nov-tipo" v-model="tipo">
-            <option v-for="t in TIPOS" :key="t" :value="t">{{ t }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="nov-monto">Monto</label>
-          <input id="nov-monto" v-model.number="montoNovedad" type="number" step="0.01" placeholder="45000">
-        </div>
-        <div class="field span-2">
-          <label for="nov-desc">Descripción</label>
-          <input id="nov-desc" v-model="descripcion" type="text" placeholder="Corrección por cobro doble de parqueadero">
-        </div>
-        <div class="field">
-          <label for="nov-fecha">Fecha efectiva</label>
-          <input id="nov-fecha" v-model="fechaEfectiva" type="date">
-        </div>
-      </div>
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
-      <template #foot>
-        <button type="button" class="btn btn--ghost" @click="mostrarForm = false">Cancelar</button>
-        <button type="button" class="btn btn--primary" @click="crear">Crear novedad</button>
-      </template>
-    </UiDrawer>
+    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
 
     <div class="chips">
       <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'todas' }" @click="filtroEstado = 'todas'">Todas</button>

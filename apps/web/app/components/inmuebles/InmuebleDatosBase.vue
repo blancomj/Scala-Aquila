@@ -15,6 +15,7 @@ const props = defineProps<{ inmuebleId?: string; esCreacion: boolean }>()
 const tenantStore = useTenantStore()
 const inmueblesStore = useInmueblesStore()
 const tercerosStore = useTercerosStore()
+const agrupacionesStore = useAgrupacionesStore()
 
 type TipoInmuebleRow = Database['public']['Tables']['lista_tipos']['Row']
 const tiposInmueble = shallowRef<TipoInmuebleRow[]>([])
@@ -22,6 +23,11 @@ const estadosLegales = shallowRef<TipoInmuebleRow[]>([])
 const habitabilidades = shallowRef<TipoInmuebleRow[]>([])
 const usosPredio = shallowRef<TipoInmuebleRow[]>([])
 const tiposIdentificacion = shallowRef<TipoInmuebleRow[]>([])
+const tiposZonaComun = shallowRef<TipoInmuebleRow[]>([])
+
+function nombreTipoZonaComun(id: number): string {
+  return tiposZonaComun.value.find((t) => t.id === id)?.nombre ?? '—'
+}
 
 function nombreTipoIdentificacion(id: number | null): string {
   return tiposIdentificacion.value.find((t) => t.id === id)?.nombre ?? '—'
@@ -42,6 +48,24 @@ const opcionesUsoPredio = computed(() => [
   { valor: null, etiqueta: '— Sin especificar —' },
   ...usosPredio.value.map((u) => ({ valor: u.id, etiqueta: u.nombre })),
 ])
+// Solo agrupaciones activas: una desactivada sigue mostrándose en los
+// inmuebles que ya la tienen, pero no se ofrece para asignaciones nuevas.
+// La etiqueta es la ruta completa ("Edificio A / Piso 3") para que dos
+// pisos con el mismo nombre en torres distintas sean distinguibles.
+const opcionesAgrupacion = computed(() => [
+  { valor: null, etiqueta: '— Sin agrupar —' },
+  ...agrupacionesStore.arbolPlano
+    .filter((a) => a.activa || a.id === agrupacionId.value)
+    .map((a) => ({ valor: a.id, etiqueta: a.ruta })),
+])
+
+/** Ruta legible de la agrupación vigente — para la ficha de solo lectura,
+ * que antes no la mostraba (solo el formulario de edición la capturaba). */
+const rutaAgrupacionActual = computed(() => {
+  const id = inmueblesStore.inmuebleActivo?.agrupacion_id
+  if (!id) return 'Sin agrupar'
+  return agrupacionesStore.arbolPlano.find((a) => a.id === id)?.ruta ?? 'Sin agrupar'
+})
 
 // ── formulario "Datos generales" (creación y edición) ──────────────────
 const editando = ref(false)
@@ -55,6 +79,7 @@ const estadoLegalId = ref<number | null>(null)
 const estadoLegalObservaciones = ref('')
 const habitabilidadId = ref<number | null>(null)
 const usoPredioId = ref<number | null>(null)
+const agrupacionId = ref<string | null>(null)
 
 const errorEdicion = ref<string | null>(null)
 const guardandoEdicion = ref(false)
@@ -72,6 +97,7 @@ function precargarFormulario(): void {
   estadoLegalObservaciones.value = inm.estado_legal_observaciones ?? ''
   habitabilidadId.value = inm.habitabilidad_id
   usoPredioId.value = inm.uso_predio_id
+  agrupacionId.value = inm.agrupacion_id
 }
 
 function alternarEdicion(): void {
@@ -164,6 +190,7 @@ async function guardar(): Promise<string> {
       estadoLegalObservaciones: estadoLegalObservaciones.value.trim() || undefined,
       habitabilidadId: habitabilidadId.value,
       usoPredioId: usoPredioId.value,
+      agrupacionId: agrupacionId.value,
     })
     for (const persona of personasEnEspera.value) {
       await tercerosStore.asociarTerceroInmueble({ tenantId, inmuebleId: nuevo.id, ...persona })
@@ -184,6 +211,7 @@ async function guardar(): Promise<string> {
     estadoLegalObservaciones: estadoLegalObservaciones.value.trim() || undefined,
     habitabilidadId: habitabilidadId.value,
     usoPredioId: usoPredioId.value,
+    agrupacionId: agrupacionId.value,
   })
   editando.value = false
   return props.inmuebleId
@@ -201,14 +229,22 @@ watchEffect(async () => {
     habitabilidades.value,
     usosPredio.value,
     tiposIdentificacion.value,
+    tiposZonaComun.value,
   ] = await Promise.all([
     cargarListaTipos(tenantId, 'TIPO_INMUEBLE'),
     cargarListaTipos(tenantId, 'ESTADO_LEGAL_PREDIO'),
     cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO'),
     cargarListaTipos(tenantId, 'USO_PREDIO'),
     cargarListaTipos(tenantId, 'TIPO_IDENTIFICACION'),
+    cargarListaTipos(tenantId, 'TIPO_ZONA_COMUN'),
   ])
   await tercerosStore.cargarRolesPersonaPredio(tenantId)
+  // El árbol de agrupaciones alimenta el selector "Agrupación"; se carga
+  // entero porque es chico y la ruta legible se deriva en el cliente.
+  await Promise.all([
+    agrupacionesStore.cargarTiposAgrupacion(tenantId),
+    agrupacionesStore.cargarAgrupaciones(tenantId),
+  ])
 
   if (props.inmuebleId) {
     await Promise.all([
@@ -290,6 +326,16 @@ watchEffect(async () => {
             :opciones="opcionesUsoPredio"
           />
         </div>
+        <div class="field">
+          <label for="f-agrupacion">Agrupación</label>
+          <UiSelectorBuscable
+            id="f-agrupacion"
+            v-model="agrupacionId"
+            variante="ficha"
+            :opciones="opcionesAgrupacion"
+          />
+          <span class="field-hint">Se definen en Ajustes › Agrupaciones.</span>
+        </div>
       </div>
     </div>
 
@@ -307,6 +353,7 @@ watchEffect(async () => {
             <dt>Tipo</dt>
             <dd>{{ tiposInmueble.find((t) => t.id === inmueblesStore.inmuebleActivo?.tipo_id)?.nombre ?? '—' }}</dd>
           </div>
+          <div class="ledger-row"><dt>Agrupación</dt><dd>{{ rutaAgrupacionActual }}</dd></div>
           <div class="ledger-row"><dt>Estado</dt><dd>{{ inmueblesStore.inmuebleActivo?.estado }}</dd></div>
           <div class="ledger-row">
             <dt>Matrícula inmobiliaria</dt><dd>{{ inmueblesStore.inmuebleActivo?.matricula_inmobiliaria ?? '—' }}</dd>
@@ -342,7 +389,10 @@ watchEffect(async () => {
           <p class="card-title">Zonas comunes de uso exclusivo</p>
           <ul v-if="inmueblesStore.zonasExclusivas.length > 0" class="exclusive-list">
             <li v-for="z in inmueblesStore.zonasExclusivas" :key="z.id">
-              <span>{{ z.nombre }}</span>
+              <span>
+                {{ z.nombre }}
+                <span class="field-hint">({{ nombreTipoZonaComun(z.tipo_id) }})</span>
+              </span>
               <span class="area">{{ z.area ?? '—' }} m²</span>
             </li>
           </ul>
@@ -422,6 +472,16 @@ watchEffect(async () => {
             variante="ficha"
             :opciones="opcionesUsoPredio"
           />
+        </div>
+        <div class="field">
+          <label for="fe-agrupacion">Agrupación</label>
+          <UiSelectorBuscable
+            id="fe-agrupacion"
+            v-model="agrupacionId"
+            variante="ficha"
+            :opciones="opcionesAgrupacion"
+          />
+          <span class="field-hint">Se definen en Ajustes › Agrupaciones.</span>
         </div>
       </div>
       <p v-if="errorEdicion" class="note" style="color: var(--ladrillo-text)">{{ errorEdicion }}</p>

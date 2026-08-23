@@ -183,8 +183,26 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.configuracion,
       },
       {
+        label: 'Agrupaciones',
+        to: '/configuracion/agrupaciones',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Zonas comunes',
+        to: '/configuracion/zonas-comunes',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
         label: 'Motivos de novedad',
         to: '/configuracion/motivos-novedad',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Catálogos',
+        to: '/configuracion/catalogos',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.dependencias,
       },

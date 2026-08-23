@@ -55,16 +55,32 @@ export default {
       )
     }
 
-    const inmuebleId = form.get('inmueble_id')
+    const inmuebleIdRaw = form.get('inmueble_id')
+    const tenantIdRaw = form.get('tenant_id')
     const tipoDocumentoIdRaw = form.get('tipo_documento_id')
     const fechaVencimiento = form.get('fecha_vencimiento')
+    const descripcionRaw = form.get('descripcion')
     const archivo = form.get('archivo')
 
-    if (typeof inmuebleId !== 'string' || !UUID_RE.test(inmuebleId)) {
+    // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
+    // explícito en su lugar) — generalización de documentos_inmueble →
+    // documentos (20260822130000), resuelve la mitad "Documentos" del gap
+    // §8.1 de PROMPT_FICHA_COPROPIEDAD.md.
+    const inmuebleId = typeof inmuebleIdRaw === 'string' && inmuebleIdRaw.length > 0 ? inmuebleIdRaw : null
+    if (inmuebleId !== null && !UUID_RE.test(inmuebleId)) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
         'inmueble_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
+    if (inmuebleId === null && (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id.',
         undefined,
         correlationId,
       )
@@ -101,6 +117,25 @@ export default {
         correlationId,
       )
     }
+    if (descripcionRaw !== null && typeof descripcionRaw !== 'string') {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'descripcion debe ser texto.',
+        undefined,
+        correlationId,
+      )
+    }
+    const DESCRIPCION_MAX = 500
+    if (typeof descripcionRaw === 'string' && descripcionRaw.length > DESCRIPCION_MAX) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        `descripcion no puede superar ${DESCRIPCION_MAX} caracteres.`,
+        undefined,
+        correlationId,
+      )
+    }
     if (!(archivo instanceof File)) {
       return errorResponse(400, 'ARCHIVO_INVALIDO', 'Falta el archivo.', undefined, correlationId)
     }
@@ -133,27 +168,38 @@ export default {
     if (bloqueo) return bloqueo
 
     // Lectura RLS-scoped: solo resuelve el inmueble si el usuario es miembro
-    // de ese tenant — nunca se confía en un tenant_id enviado por el cliente.
-    const { data: inmueble, error: errorInmueble } = await ctx.supabase
-      .from('inmuebles')
-      .select('id, tenant_id')
-      .eq('id', inmuebleId)
-      .maybeSingle()
-    if (errorInmueble) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorInmueble.message, undefined, correlationId)
-    }
-    if (!inmueble) {
-      return errorResponse(
-        404,
-        'INMUEBLE_NO_ENCONTRADO',
-        'El inmueble no existe o no es accesible.',
-        undefined,
-        correlationId,
-      )
+    // de ese tenant — nunca se confía en un tenant_id enviado por el cliente
+    // cuando sí hay inmueble_id. Para un documento de la copropiedad misma
+    // (inmueble_id null) no hay tabla que resolver: el tenant_id sí viene del
+    // cliente, pero has_role() abajo lo verifica contra la membresía real del
+    // actor — un tenant_id ajeno simplemente falla ahí, igual que un
+    // inmueble_id ajeno fallaría en el maybeSingle() de abajo.
+    let tenantId: string
+    if (inmuebleId !== null) {
+      const { data: inmueble, error: errorInmueble } = await ctx.supabase
+        .from('inmuebles')
+        .select('id, tenant_id')
+        .eq('id', inmuebleId)
+        .maybeSingle()
+      if (errorInmueble) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorInmueble.message, undefined, correlationId)
+      }
+      if (!inmueble) {
+        return errorResponse(
+          404,
+          'INMUEBLE_NO_ENCONTRADO',
+          'El inmueble no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = inmueble.tenant_id
+    } else {
+      tenantId = tenantIdRaw as string
     }
 
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
-      p_tenant: inmueble.tenant_id,
+      p_tenant: tenantId,
       p_roles: ['auxiliar'],
     })
     if (errorRol) {
@@ -190,9 +236,27 @@ export default {
       )
     }
 
-    const grupoId = crypto.randomUUID()
+    // Versionado: si ya existe un documento vigente del mismo tipo en este
+    // alcance (mismo tenant/inmueble), esta subida lo "reemplaza" — mismo
+    // grupo_id, version+1 (ver comentario de la tabla en
+    // 20260820100300_documentos_inmueble.sql). RLS-scoped: solo ve
+    // documentos del propio tenant, ya verificado como miembro arriba.
+    let consultaVigente = ctx.supabase
+      .from('v_documento_vigente')
+      .select('grupo_id, version')
+      .eq('tenant_id', tenantId)
+      .eq('tipo_documento_id', tipoDocumentoId)
+    consultaVigente =
+      inmuebleId === null ? consultaVigente.is('inmueble_id', null) : consultaVigente.eq('inmueble_id', inmuebleId)
+    const { data: vigente, error: errorVigente } = await consultaVigente.maybeSingle()
+    if (errorVigente) {
+      return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
+    }
+
+    const grupoId = vigente?.grupo_id ?? crypto.randomUUID()
+    const version = (vigente?.version ?? 0) + 1
     const nombreSaneado = sanearNombreArchivo(archivo.name)
-    const storagePath = `${inmueble.tenant_id}/${inmuebleId}/${grupoId}/1_${nombreSaneado}`
+    const storagePath = `${tenantId}/${inmuebleId ?? '_copropiedad'}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
     // documentos_inmueble, generalizada en 20260822130000) tienen política
@@ -207,7 +271,7 @@ export default {
         action: 'subir_documento.storage_fallido',
         correlationId,
         actorId,
-        tenantId: inmueble.tenant_id,
+        tenantId,
         message: errorUpload.message,
       })
       return errorResponse(500, 'INTERNAL_ERROR', errorUpload.message, undefined, correlationId)
@@ -216,17 +280,21 @@ export default {
     const { data: documento, error: errorInsert } = await ctx.supabaseAdmin
       .from('documentos')
       .insert({
-        tenant_id: inmueble.tenant_id,
+        tenant_id: tenantId,
         inmueble_id: inmuebleId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
-        version: 1,
+        version,
         nombre_archivo: archivo.name,
         storage_path: storagePath,
         tamano_bytes: archivo.size,
         fecha_vencimiento:
           typeof fechaVencimiento === 'string' && fechaVencimiento.length > 0
             ? fechaVencimiento
+            : null,
+        descripcion:
+          typeof descripcionRaw === 'string' && descripcionRaw.trim().length > 0
+            ? descripcionRaw.trim()
             : null,
         subido_por: actorId,
       })
@@ -241,7 +309,7 @@ export default {
         action: 'subir_documento.insert_fallido',
         correlationId,
         actorId,
-        tenantId: inmueble.tenant_id,
+        tenantId,
         message: errorInsert.message,
       })
       return errorResponse(500, 'INTERNAL_ERROR', errorInsert.message, undefined, correlationId)
@@ -252,7 +320,7 @@ export default {
       action: 'subir_documento.completada',
       correlationId,
       actorId,
-      tenantId: inmueble.tenant_id,
+      tenantId,
       meta: { documentoId: documento.id, tamanoBytes: archivo.size },
     })
 

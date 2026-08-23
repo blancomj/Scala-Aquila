@@ -1,7 +1,9 @@
 /**
- * Documentos del inmueble (PROMPT_FICHA_INMUEBLE.md §4.2, §8.1). Lee
- * `v_documento_vigente` (última versión de cada grupo_id). La escritura
- * pasa por la Edge Function subir-documento — documentos_inmueble no tiene
+ * Documentos del inmueble o de la copropiedad misma (PROMPT_FICHA_INMUEBLE.md
+ * §4.2, §8.1; generalización a la copropiedad en PROMPT_FICHA_COPROPIEDAD.md
+ * §8.1, migración 20260822130000: inmueble_id nullable, null = documento del
+ * tenant). Lee `v_documento_vigente` (última versión de cada grupo_id). La
+ * escritura pasa por la Edge Function subir-documento — documentos no tiene
  * política INSERT para `authenticated` (mismo criterio que pagos), así que
  * este store nunca hace un insert directo.
  */
@@ -18,16 +20,17 @@ export const useDocumentosStore = defineStore('documentos', () => {
   const loading = ref(false)
   const subiendo = ref(false)
 
-  async function cargarDocumentos(tenantId: string, inmuebleId: string): Promise<DocumentoVigenteRow[]> {
+  /** `inmuebleId` null = documentos de la copropiedad misma, no de un inmueble puntual. */
+  async function cargarDocumentos(
+    tenantId: string,
+    inmuebleId: string | null,
+  ): Promise<DocumentoVigenteRow[]> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
-      const { data, error: errorDocumentos } = await cliente
-        .from('v_documento_vigente')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('inmueble_id', inmuebleId)
-        .order('created_at', { ascending: false })
+      let consulta = cliente.from('v_documento_vigente').select('*').eq('tenant_id', tenantId)
+      consulta = inmuebleId === null ? consulta.is('inmueble_id', null) : consulta.eq('inmueble_id', inmuebleId)
+      const { data, error: errorDocumentos } = await consulta.order('created_at', { ascending: false })
       if (errorDocumentos) throw errorDocumentos
       documentos.value = data ?? []
       return documentos.value
@@ -36,21 +39,30 @@ export const useDocumentosStore = defineStore('documentos', () => {
     }
   }
 
+  /** `inmuebleId` null = sube un documento de la copropiedad misma — la Edge
+   * Function exige entonces `tenant_id` explícito (verificado ahí contra la
+   * membresía real del actor, ver subir-documento/index.ts). */
   async function subirDocumento(params: {
     tenantId: string
-    inmuebleId: string
+    inmuebleId: string | null
     tipoDocumentoId: number
     archivo: File
     fechaVencimiento?: string
+    descripcion?: string
   }): Promise<void> {
     subiendo.value = true
     try {
       const cliente = useSupabaseClient<Database>()
       const form = new FormData()
-      form.set('inmueble_id', params.inmuebleId)
+      if (params.inmuebleId !== null) {
+        form.set('inmueble_id', params.inmuebleId)
+      } else {
+        form.set('tenant_id', params.tenantId)
+      }
       form.set('tipo_documento_id', String(params.tipoDocumentoId))
       form.set('archivo', params.archivo)
       if (params.fechaVencimiento) form.set('fecha_vencimiento', params.fechaVencimiento)
+      if (params.descripcion) form.set('descripcion', params.descripcion)
 
       const { error: errorFuncion } = await cliente.functions.invoke('subir-documento', {
         body: form,

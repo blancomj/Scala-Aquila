@@ -416,6 +416,7 @@ export const useTercerosStore = defineStore('terceros', () => {
     rolId: number
     vigenteDesde: string
     recibeNotificaciones: boolean
+    numeroTarjetaProfesional?: string
   }): Promise<PersonaTenant> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -426,6 +427,7 @@ export const useTercerosStore = defineStore('terceros', () => {
         rol_id: params.rolId,
         vigente_desde: params.vigenteDesde,
         recibe_notificaciones: params.recibeNotificaciones,
+        numero_tarjeta_profesional: params.numeroTarjetaProfesional || null,
       })
       .select('*, tercero:terceros(*), rol:lista_tipos(*)')
       .single()

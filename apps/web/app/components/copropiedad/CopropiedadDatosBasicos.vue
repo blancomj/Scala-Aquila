@@ -10,8 +10,6 @@
 // deliberada del masthead de un solo botón del mockup, §5).
 const tenantStore = useTenantStore()
 const copropiedadStore = useCopropiedadStore()
-const tercerosStore = useTercerosStore()
-const supabase = useSupabaseClient()
 
 const name = ref('')
 const nit = ref('')
@@ -28,52 +26,33 @@ const contactoEmail = ref('')
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
+// Validación inline ligera — solo feedback visual bajo el campo, no bloquea
+// "Guardar cambios": son datos administrativos, no un contrato con la base
+// (que si rechaza el NIT, por ejemplo, ya muestra su propio error).
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RE_TELEFONO = /^[\d\s+()-]{7,20}$/
+const nitError = computed(() =>
+  nit.value.trim().length > 0 && !/^\d{5,15}$/.test(nit.value.trim()) ? 'Solo dígitos, 5 a 15.' : null,
+)
+const emailError = computed(() =>
+  email.value.trim().length > 0 && !RE_EMAIL.test(email.value.trim()) ? 'Correo inválido.' : null,
+)
+const contactoEmailError = computed(() =>
+  contactoEmail.value.trim().length > 0 && !RE_EMAIL.test(contactoEmail.value.trim()) ? 'Correo inválido.' : null,
+)
+const telefono1Error = computed(() =>
+  telefono1.value.trim().length > 0 && !RE_TELEFONO.test(telefono1.value.trim()) ? 'Teléfono inválido.' : null,
+)
+const telefono2Error = computed(() =>
+  telefono2.value.trim().length > 0 && !RE_TELEFONO.test(telefono2.value.trim()) ? 'Teléfono inválido.' : null,
+)
+const contactoTelefonoError = computed(() =>
+  contactoTelefono.value.trim().length > 0 && !RE_TELEFONO.test(contactoTelefono.value.trim())
+    ? 'Teléfono inválido.'
+    : null,
+)
+
 const modalCuentaAbierto = ref(false)
-const modalPersonaAbierta = ref(false)
-
-// ── logo ─────────────────────────────────────────────────────────────
-const MIME_LOGO_PERMITIDOS = new Set(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'])
-const TAMANO_MAXIMO_LOGO = 2 * 1024 * 1024
-const archivoLogo = ref<File | null>(null)
-const subiendoLogo = ref(false)
-const errorLogo = ref<string | null>(null)
-const logoVersion = ref(0)
-
-const logoUrl = computed(() => {
-  const path = copropiedadStore.tenant?.logo_path
-  if (!path) return null
-  const { data } = supabase.storage.from('logo-copropiedad').getPublicUrl(path)
-  return `${data.publicUrl}?v=${logoVersion.value}`
-})
-
-function elegirLogo(evento: Event): void {
-  const input = evento.target as HTMLInputElement
-  const archivo = input.files?.[0] ?? null
-  errorLogo.value = null
-  if (archivo && (!MIME_LOGO_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_MAXIMO_LOGO)) {
-    errorLogo.value = 'Solo PNG, JPG, SVG o WEBP, hasta 2 MB.'
-    archivoLogo.value = null
-    input.value = ''
-    return
-  }
-  archivoLogo.value = archivo
-}
-
-async function subirLogo(): Promise<void> {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !archivoLogo.value) return
-  errorLogo.value = null
-  subiendoLogo.value = true
-  try {
-    await copropiedadStore.subirLogo(tenantId, archivoLogo.value)
-    archivoLogo.value = null
-    logoVersion.value += 1
-  } catch (excepcion) {
-    errorLogo.value = mensajeError(excepcion, 'No se pudo subir el logo.')
-  } finally {
-    subiendoLogo.value = false
-  }
-}
 
 function poblarDesdeTenant(): void {
   const t = copropiedadStore.tenant
@@ -130,16 +109,6 @@ async function alGuardarCuenta(): Promise<void> {
   modalCuentaAbierto.value = false
 }
 
-async function alGuardarPersona(): Promise<void> {
-  modalPersonaAbierta.value = false
-}
-
-async function finalizarPersona(id: string): Promise<void> {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return
-  await tercerosStore.finalizarRelacionTenant(id, tenantId, new Date().toISOString().slice(0, 10))
-}
-
 const TIPO_CUENTA_LABEL: Record<string, string> = {
   ahorros: 'Ahorros',
   corriente: 'Corriente',
@@ -164,7 +133,7 @@ watchEffect(async () => {
 <template>
   <div>
     <div class="form-grid">
-      <div>
+      <div class="card">
         <p class="card-title">Información general</p>
         <div class="form-grid" style="grid-template-columns: 1fr">
           <div class="field">
@@ -175,6 +144,7 @@ watchEffect(async () => {
             <div class="field">
               <label for="f-nit">NIT</label>
               <input id="f-nit" v-model="nit" type="text">
+              <span v-if="nitError" class="field-hint" style="color: var(--ladrillo-text)">{{ nitError }}</span>
             </div>
             <div class="field field-dv">
               <label for="f-dv">DV</label>
@@ -204,20 +174,23 @@ watchEffect(async () => {
             <div class="field">
               <label for="f-tel1">Teléfono 1</label>
               <input id="f-tel1" v-model="telefono1" type="text">
+              <span v-if="telefono1Error" class="field-hint" style="color: var(--ladrillo-text)">{{ telefono1Error }}</span>
             </div>
             <div class="field">
               <label for="f-tel2">Teléfono 2</label>
               <input id="f-tel2" v-model="telefono2" type="text">
+              <span v-if="telefono2Error" class="field-hint" style="color: var(--ladrillo-text)">{{ telefono2Error }}</span>
             </div>
           </div>
           <div class="field">
             <label for="f-email">Correo electrónico</label>
             <input id="f-email" v-model="email" type="text">
+            <span v-if="emailError" class="field-hint" style="color: var(--ladrillo-text)">{{ emailError }}</span>
           </div>
         </div>
       </div>
 
-      <div>
+      <div class="card">
         <p class="card-title">Información de contacto</p>
         <div class="form-grid" style="grid-template-columns: 1fr">
           <div class="field">
@@ -227,37 +200,12 @@ watchEffect(async () => {
           <div class="field">
             <label for="f-contacto-tel">Teléfono del contacto</label>
             <input id="f-contacto-tel" v-model="contactoTelefono" type="text">
+            <span v-if="contactoTelefonoError" class="field-hint" style="color: var(--ladrillo-text)">{{ contactoTelefonoError }}</span>
           </div>
           <div class="field">
             <label for="f-contacto-email">Correo del contacto</label>
             <input id="f-contacto-email" v-model="contactoEmail" type="text">
-          </div>
-          <div class="field">
-            <label>Logo</label>
-            <div class="dropzone">
-              <img
-                v-if="logoUrl"
-                :src="logoUrl"
-                alt="Logo de la copropiedad"
-                style="width: 48px; height: 48px; object-fit: contain; border: 1px solid var(--line); flex-shrink: 0"
-              >
-              <div v-else style="font-size: 22px; color: var(--ink-faint)">⇧</div>
-              <div class="dropzone-text">
-                <p>{{ archivoLogo ? archivoLogo.name : logoUrl ? 'Reemplazar logo' : 'Selecciona un archivo desde tu equipo' }}</p>
-                <span>PNG, JPG, SVG o WEBP · hasta 2 MB</span>
-              </div>
-              <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" style="max-width: 180px" @change="elegirLogo">
-              <button
-                type="button"
-                class="btn btn--primary"
-                style="font-size: 12.5px; padding: 8px 14px"
-                :disabled="subiendoLogo || !archivoLogo"
-                @click="subirLogo"
-              >
-                {{ subiendoLogo ? 'Subiendo…' : 'Subir' }}
-              </button>
-            </div>
-            <p v-if="errorLogo" class="note" style="color: var(--ladrillo-text)">{{ errorLogo }}</p>
+            <span v-if="contactoEmailError" class="field-hint" style="color: var(--ladrillo-text)">{{ contactoEmailError }}</span>
           </div>
         </div>
       </div>
@@ -310,61 +258,17 @@ watchEffect(async () => {
       nunca dos cuentas marcadas a la vez.
     </p>
 
-    <div class="section-title">
-      <div>
-        <h2>Personas vinculadas</h2>
-        <p class="panel-sub" style="margin-top: 2px">
-          Roles sobre la copropiedad misma — administrador, contador, abogado, revisor fiscal.
-        </p>
-      </div>
-      <button type="button" class="btn btn--primary" style="font-size: 12.5px; padding: 7px 14px" @click="modalPersonaAbierta = true">
-        Agregar persona
-      </button>
-    </div>
-    <UiTabla
-      variante="ficha"
-      :columnas="[
-        { clave: 'tercero', etiqueta: 'Tercero' },
-        { clave: 'rol', etiqueta: 'Rol' },
-        { clave: 'vigenteDesde', etiqueta: 'Vigente desde', claseCelda: 'mono' },
-        { clave: 'notificaciones', etiqueta: 'Notificaciones' },
-        { clave: 'acciones', etiqueta: '' },
-      ]"
-      :filas="tercerosStore.personasTenant"
-      :clave-fila="(p) => p.id"
-      vacio="Sin personas vinculadas."
-    >
-      <template #celda-tercero="{ fila }">{{ fila.tercero.nombre_completo }}</template>
-      <template #celda-rol="{ fila }"><span class="badge badge--gris">{{ fila.rol.nombre }}</span></template>
-      <template #celda-vigenteDesde="{ fila }">{{ fila.vigente_desde }}</template>
-      <template #celda-notificaciones="{ fila }">{{ fila.recibe_notificaciones ? 'Sí' : 'No' }}</template>
-      <template #celda-acciones="{ fila }">
-        <button
-          v-if="!fila.vigente_hasta"
-          type="button"
-          class="btn btn--ghost"
-          style="font-size: 11.5px; padding: 4px 10px"
-          @click="finalizarPersona(fila.id)"
-        >
-          Finalizar
-        </button>
-        <span v-else class="badge badge--gris">Finalizada</span>
-      </template>
-    </UiTabla>
-    <p class="note">
-      Se elige entre terceros ya registrados en <strong>Terceros</strong> — natural o jurídico,
-      sin restricción.
-    </p>
+    <CopropiedadPersonasVinculadas
+      familia-rol="PERSONA_COPROPIEDAD"
+      titulo="Personas vinculadas"
+      subtitulo="Roles sobre la copropiedad misma — administrador, contador, abogado, revisor fiscal."
+      nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
+    />
 
     <CopropiedadCuentaBancariaForm
       v-if="modalCuentaAbierto"
       @cerrar="modalCuentaAbierto = false"
       @guardado="alGuardarCuenta"
-    />
-    <CopropiedadPersonaVinculadaForm
-      v-if="modalPersonaAbierta"
-      @cerrar="modalPersonaAbierta = false"
-      @guardado="alGuardarPersona"
     />
   </div>
 </template>

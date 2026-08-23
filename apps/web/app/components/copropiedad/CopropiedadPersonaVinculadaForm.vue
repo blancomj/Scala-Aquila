@@ -5,6 +5,29 @@
 // sin restricción de tipo_persona — un administrador o contador puede ser
 // natural o jurídico indistintamente (a diferencia de representante
 // legal/pagador, donde sí aplica esa restricción).
+//
+// Genérico por familia de rol (`familiaRol`) — reutilizado tanto para
+// "Personas vinculadas" (PERSONA_COPROPIEDAD) como para "Consejo de
+// administración" (ROL_CONCEJO_COPROPIEDAD): tenant_tercero_rol.rol_id no
+// lleva guard de familia (20260822090000_tenant_tercero_rol.sql), así que
+// la única diferencia entre ambos usos es qué familia de lista_tipos
+// alimenta el selector de rol.
+import type { Database } from '@aquila/shared'
+
+const props = withDefaults(
+  defineProps<{
+    familiaRol: string
+    titulo?: string
+    subtitulo?: string
+    mostrarTarjetaProfesional?: boolean
+  }>(),
+  {
+    titulo: 'Agregar persona',
+    subtitulo: 'Vincula un tercero a la copropiedad con un rol',
+    mostrarTarjetaProfesional: true,
+  },
+)
+
 const emit = defineEmits<{ cerrar: []; guardado: [] }>()
 
 const tenantStore = useTenantStore()
@@ -14,9 +37,13 @@ const terceroId = ref('')
 const rolId = ref<number | null>(null)
 const vigenteDesde = ref(new Date().toISOString().slice(0, 10))
 const recibeNotificaciones = ref(true)
+const numeroTarjetaProfesional = ref('')
 
 const guardando = ref(false)
 const error = ref<string | null>(null)
+
+const rolesFamilia = shallowRef<Database['public']['Tables']['lista_tipos']['Row'][]>([])
+
 
 const opcionesTercero = computed(() =>
   tercerosStore.terceros.map((t) => ({
@@ -25,8 +52,14 @@ const opcionesTercero = computed(() =>
   })),
 )
 const opcionesRol = computed(() =>
-  tercerosStore.rolesPersonaCopropiedad.map((r) => ({ valor: r.id, etiqueta: r.nombre })),
+  rolesFamilia.value.map((r) => ({ valor: r.id, etiqueta: r.nombre })),
 )
+
+watchEffect(async () => {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  rolesFamilia.value = await cargarListaTipos(tenantId, props.familiaRol)
+})
 
 async function guardar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -41,6 +74,7 @@ async function guardar(): Promise<void> {
       rolId: rolId.value,
       vigenteDesde: vigenteDesde.value,
       recibeNotificaciones: recibeNotificaciones.value,
+      numeroTarjetaProfesional: numeroTarjetaProfesional.value || undefined,
     })
     emit('guardado')
   } catch (excepcion) {
@@ -54,8 +88,8 @@ async function guardar(): Promise<void> {
 <template>
   <UiDrawer
     :abierto="true"
-    titulo="Agregar persona"
-    subtitulo="Vincula un tercero a la copropiedad con un rol"
+    :titulo="titulo"
+    :subtitulo="subtitulo"
     @cerrar="emit('cerrar')"
   >
     <div class="form-grid" style="grid-template-columns: 1fr">
@@ -83,6 +117,11 @@ async function guardar(): Promise<void> {
       <div class="field">
         <label for="pvt-desde">Vigente desde</label>
         <input id="pvt-desde" v-model="vigenteDesde" type="date">
+      </div>
+      <div v-if="mostrarTarjetaProfesional" class="field">
+        <label for="pvt-tarjeta">Tarjeta profesional</label>
+        <input id="pvt-tarjeta" v-model="numeroTarjetaProfesional" type="text" placeholder="Número de tarjeta profesional">
+        <span class="field-hint">Opcional — aplica a contador, revisor fiscal, abogado.</span>
       </div>
       <div class="field" style="flex-direction: row; align-items: center; gap: 8px">
         <input id="pvt-notif" v-model="recibeNotificaciones" type="checkbox" style="width: auto">

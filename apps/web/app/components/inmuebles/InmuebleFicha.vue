@@ -129,7 +129,7 @@ function badgeEstado(estado: EstadoInmueble): 'tag--sello' | 'tag--gris' {
         </div>
 
         <div v-if="!esCreacion" class="masthead-actions">
-          <button type="button" class="btn btn--ghost" @click="irATab('novedades')">Nueva novedad</button>
+          <NuxtLink v-if="inmuebleId" :to="`/novedades/nueva?inmuebleId=${inmuebleId}`" class="btn btn--ghost">Nueva novedad</NuxtLink>
           <button type="button" class="btn btn--ghost" @click="irATab('cartera')">Registrar pago</button>
           <button type="button" class="btn btn--primary" @click="editarFicha">Editar ficha</button>
           <div style="position: relative">
@@ -218,7 +218,7 @@ function badgeEstado(estado: EstadoInmueble): 'tag--sello' | 'tag--gris' {
           <InmueblesInmuebleCartera :inmueble-id="inmuebleId" />
         </section>
         <section v-else-if="tabActiva === 'novedades' && inmuebleId">
-          <InmueblesInmuebleNovedades :inmueble-id="inmuebleId" />
+          <InmueblesInmuebleNovedades ref="novedadesRef" :inmueble-id="inmuebleId" />
         </section>
         <section v-else-if="tabActiva === 'liquidaciones' && inmuebleId">
           <InmueblesInmuebleLiquidaciones :inmueble-id="inmuebleId" />

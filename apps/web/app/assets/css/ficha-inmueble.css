@@ -96,6 +96,39 @@
   gap: 1.5rem;
   flex-wrap: wrap;
 }
+.ficha-inmueble .masthead-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.ficha-inmueble .logo-circle {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--sello-soft);
+  color: var(--sello-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 18px;
+  overflow: hidden;
+}
+.ficha-inmueble .logo-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--sheet);
+}
+.ficha-inmueble .sub {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin: 4px 0 0;
+}
 .ficha-inmueble .eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -368,6 +401,12 @@
 .ficha-inmueble .card + .card {
   margin-top: 1.25rem;
 }
+/* Dos .card lado a lado dentro de un .form-grid (CopropiedadDatosBasicos.vue,
+   Información general + Información de contacto) son hermanos de grid, no
+   un apilado vertical — el margin-top de arriba los desalinearía. */
+.ficha-inmueble .form-grid > .card + .card {
+  margin-top: 0;
+}
 .ficha-inmueble .card-title {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -589,6 +628,22 @@
   color: var(--ladrillo-text);
   border-color: var(--ladrillo);
 }
+.ficha-inmueble .icon-btn-sm.is-active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.ficha-inmueble .view-toggle {
+  display: flex;
+  gap: 6px;
+}
+.ficha-inmueble .view-toggle--list {
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.ficha-inmueble .doc-results {
+  position: relative;
+}
 
 .ficha-inmueble .timeline {
   position: relative;
@@ -657,7 +712,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.25rem;
   flex-wrap: wrap;
 }
 .ficha-inmueble .dropzone-text {
@@ -681,6 +736,87 @@
   border: 1px solid var(--line-strong);
   background: var(--sheet);
   color: var(--ink);
+}
+
+.ficha-inmueble .dropzone-fields {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr 0.7fr 2fr;
+  gap: 16px;
+  width: 100%;
+  align-items: start;
+}
+.ficha-inmueble .field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ficha-inmueble .field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.ficha-inmueble .field-required {
+  color: var(--ladrillo-text);
+}
+.ficha-inmueble .field-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.ficha-inmueble .field-input {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.ficha-inmueble .field-version {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--gris-soft);
+  color: var(--ink);
+}
+.ficha-inmueble .field-version.is-vacio {
+  font-family: var(--font-sans);
+  color: var(--ink-faint);
+}
+.ficha-inmueble .dropzone-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.ficha-inmueble .dropzone-file {
+  flex: 1 1 260px;
+  min-width: 220px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink-soft);
+}
+.ficha-inmueble .dropzone-file::file-selector-button {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  margin-right: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--gris-soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ficha-inmueble .dropzone-file::file-selector-button:hover {
+  background: var(--line-strong);
 }
 
 .ficha-inmueble .doc-grid {
@@ -1048,6 +1184,9 @@
     grid-column: span 1;
   }
   .ficha-inmueble .doc-grid {
+    grid-template-columns: 1fr;
+  }
+  .ficha-inmueble .dropzone-fields {
     grid-template-columns: 1fr;
   }
   .ficha-inmueble h1 {
