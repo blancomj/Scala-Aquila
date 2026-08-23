@@ -98,73 +98,60 @@ async function subirLogo(): Promise<void> {
 
 <template>
   <div>
-    <div class="form-grid">
-      <div class="field-row-2" style="grid-column: span 1">
-        <div class="field">
-          <label for="f-moneda">Moneda</label>
-          <select id="f-moneda" v-model="moneda">
-            <option value="COP">COP — Peso colombiano</option>
-          </select>
-          <span class="field-hint">Sin más monedas habilitadas.</span>
-        </div>
-        <div class="field">
-          <label for="f-zona-horaria">Zona horaria</label>
-          <select id="f-zona-horaria" v-model="zonaHoraria">
-            <option value="America/Bogota">América/Bogotá (UTC-5)</option>
-          </select>
-        </div>
+    <div class="space-y-4 text-sm max-w-2xl">
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Moneda" name="moneda" help="Sin más monedas habilitadas.">
+          <USelect v-model="moneda" :items="[{ label: 'COP — Peso colombiano', value: 'COP' }]" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField label="Zona horaria" name="zona_horaria">
+          <USelect
+            v-model="zonaHoraria"
+            :items="[{ label: 'América/Bogotá (UTC-5)', value: 'America/Bogota' }]"
+            value-key="value"
+            class="w-full"
+          />
+        </UFormField>
       </div>
-      <div class="field-row-2" style="grid-column: span 1">
-        <div class="field">
-          <div style="display: flex; align-items: baseline; gap: 8px">
-            <label for="f-dia-facturacion">Día de facturación</label>
-            <span class="field-hint">Día del mes de corte (1-28).</span>
-          </div>
-          <input id="f-dia-facturacion" v-model.number="diaFacturacion" type="number" min="1" max="28">
-        </div>
-        <div class="field">
-          <label for="f-canal-notificacion">Canal de notificación</label>
-          <select id="f-canal-notificacion" v-model="canalNotificacion">
-            <option value="">— Sin definir —</option>
-            <option value="email">Email</option>
-            <option value="sms">SMS</option>
-            <option value="whatsapp">WhatsApp</option>
-          </select>
-        </div>
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Día de facturación" name="dia_facturacion" help="Día del mes de corte (1-28).">
+          <UInput v-model.number="diaFacturacion" type="number" min="1" max="28" class="w-full" />
+        </UFormField>
+        <UFormField label="Canal de notificación" name="canal_notificacion">
+          <USelect
+            v-model="canalNotificacion"
+            :items="[
+              { label: '— Sin definir —', value: '' },
+              { label: 'Email', value: 'email' },
+              { label: 'SMS', value: 'sms' },
+              { label: 'WhatsApp', value: 'whatsapp' },
+            ]"
+            value-key="value"
+            class="w-full"
+          />
+        </UFormField>
       </div>
-      <div class="field span-2">
-        <label>Logo</label>
-        <div class="dropzone">
+      <UFormField label="Logo" name="logo">
+        <div class="flex items-center gap-3 border border-neutral-200 rounded-sm p-3">
           <img
             v-if="logoUrl"
             :src="logoUrl"
             alt="Logo de la copropiedad"
-            style="width: 48px; height: 48px; object-fit: contain; border: 1px solid var(--line); flex-shrink: 0"
+            class="w-12 h-12 object-contain border border-neutral-200 shrink-0"
           >
-          <div v-else style="font-size: 22px; color: var(--ink-faint)">⇧</div>
-          <div class="dropzone-text">
-            <p>{{ archivoLogo ? archivoLogo.name : logoUrl ? 'Reemplazar logo' : 'Selecciona un archivo desde tu equipo' }}</p>
-            <span>PNG, JPG, SVG o WEBP · hasta 2 MB</span>
+          <div v-else class="text-xl text-neutral-400">⇧</div>
+          <div class="flex-1 min-w-0">
+            <p class="truncate">{{ archivoLogo ? archivoLogo.name : logoUrl ? 'Reemplazar logo' : 'Selecciona un archivo desde tu equipo' }}</p>
+            <span class="text-xs text-neutral-500">PNG, JPG, SVG o WEBP · hasta 2 MB</span>
           </div>
-          <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" style="max-width: 180px" @change="elegirLogo">
-          <button
-            type="button"
-            class="btn btn--primary"
-            style="font-size: 12.5px; padding: 8px 14px"
-            :disabled="subiendoLogo || !archivoLogo"
-            @click="subirLogo"
-          >
-            {{ subiendoLogo ? 'Subiendo…' : 'Subir' }}
-          </button>
+          <UInput type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="max-w-[180px]" @change="elegirLogo" />
+          <UButton :loading="subiendoLogo" :disabled="!archivoLogo" @click="subirLogo">Subir</UButton>
         </div>
-        <p v-if="errorLogo" class="note" style="color: var(--ladrillo-text)">{{ errorLogo }}</p>
-      </div>
+        <UAlert v-if="errorLogo" color="error" variant="soft" :title="errorLogo" class="mt-2" />
+      </UFormField>
     </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
-    <div style="margin-top: 12px">
-      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-        {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
-      </button>
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3 max-w-2xl" />
+    <div class="mt-3">
+      <UButton :loading="guardando" @click="guardar">Guardar cambios</UButton>
     </div>
 
     <CopropiedadPersonasVinculadas

@@ -130,89 +130,61 @@ watchEffect(async () => {
       </div>
     </div>
 
-    <div class="dropzone">
-      <div class="dropzone-fields">
-        <div class="field-group">
-          <label class="field-label" for="doc-tipo">Tipo de Documento <span class="field-required">*</span></label>
+    <div class="border border-neutral-200 rounded-sm p-4 space-y-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <UFormField label="Tipo de documento" name="tipo_documento_id" required help="Seleccione la categoría del documento">
           <UiSelectorBuscable
-            id="doc-tipo"
             v-model="tipoSeleccionado"
-            variante="ficha"
-            compacta
             :opciones="opcionesTipoDocumento"
             placeholder="Seleccione el tipo de documento"
           />
-          <span class="field-hint">Seleccione la categoría del documento</span>
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="doc-vencimiento">📅 Vencimiento</label>
-          <input id="doc-vencimiento" v-model="fechaVencimiento" type="date" class="field-input">
-          <span class="field-hint">Fecha de vencimiento (opcional)</span>
-        </div>
-        <div class="field-group">
-          <span class="field-label">Versión</span>
-          <div class="field-version" :class="{ 'is-vacio': !proximaVersion }">
-            {{ proximaVersion ? `v${proximaVersion}` : 'Seleccione tipo' }}
-          </div>
-          <span class="field-hint">Auto-incrementa</span>
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="doc-descripcion">Descripción</label>
-          <input
-            id="doc-descripcion"
-            v-model="descripcionDocumento"
-            type="text"
-            class="field-input"
-            maxlength="500"
-            placeholder="Nota sobre el documento"
-          >
-          <span class="field-hint">Opcional</span>
-        </div>
+        </UFormField>
+        <UFormField label="Vencimiento" name="fecha_vencimiento" help="Fecha de vencimiento (opcional)">
+          <UInput v-model="fechaVencimiento" type="date" class="w-full" />
+        </UFormField>
+        <UFormField label="Versión" name="version" help="Auto-incrementa">
+          <UInput :model-value="proximaVersion ? `v${proximaVersion}` : 'Seleccione tipo'" readonly class="w-full" />
+        </UFormField>
+        <UFormField label="Descripción" name="descripcion" help="Opcional">
+          <UInput v-model="descripcionDocumento" type="text" maxlength="500" placeholder="Nota sobre el documento" class="w-full" />
+        </UFormField>
       </div>
 
-      <div class="dropzone-actions">
-        <div style="font-size: 22px; color: var(--ink-faint)">⇧</div>
-        <div class="dropzone-text">
-          <p>{{ archivoSeleccionado ? archivoSeleccionado.name : 'Selecciona un archivo desde tu equipo' }}</p>
-          <span>PDF, JPG o PNG · hasta 15 MB</span>
+      <div class="flex items-center gap-3">
+        <div class="text-xl text-neutral-400">⇧</div>
+        <div class="flex-1 min-w-0">
+          <p class="truncate">{{ archivoSeleccionado ? archivoSeleccionado.name : 'Selecciona un archivo desde tu equipo' }}</p>
+          <span class="text-xs text-neutral-500">PDF, JPG o PNG · hasta 15 MB</span>
         </div>
-        <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="dropzone-file" @change="elegirArchivo">
-        <button
-          type="button"
-          class="btn btn--primary"
-          style="font-size: 12.5px; padding: 8px 14px"
-          :disabled="documentosStore.subiendo || !archivoSeleccionado || !tipoSeleccionado"
-          @click="subir"
-        >
-          {{ documentosStore.subiendo ? 'Subiendo…' : 'Subir' }}
-        </button>
+        <UInput type="file" accept=".pdf,.jpg,.jpeg,.png" class="max-w-[220px]" @change="elegirArchivo" />
+        <UButton :loading="documentosStore.subiendo" :disabled="!archivoSeleccionado || !tipoSeleccionado" @click="subir">
+          Subir
+        </UButton>
       </div>
     </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3" />
 
     <div class="doc-results">
-      <div v-if="documentosStore.documentos.length > 0" class="view-toggle view-toggle--list">
-        <button
-          type="button"
-          class="icon-btn-sm"
-          :class="{ 'is-active': vista === 'detalle' }"
+      <UButtonGroup v-if="documentosStore.documentos.length > 0" size="xs" class="mb-3">
+        <UButton
+          :color="vista === 'detalle' ? 'primary' : 'neutral'"
+          :variant="vista === 'detalle' ? 'solid' : 'outline'"
           title="Vista de detalle"
           aria-label="Vista de detalle"
           @click="vista = 'detalle'"
         >
           ▦
-        </button>
-        <button
-          type="button"
-          class="icon-btn-sm"
-          :class="{ 'is-active': vista === 'lista' }"
+        </UButton>
+        <UButton
+          :color="vista === 'lista' ? 'primary' : 'neutral'"
+          :variant="vista === 'lista' ? 'solid' : 'outline'"
           title="Vista de lista"
           aria-label="Vista de lista"
           @click="vista = 'lista'"
         >
           ☰
-        </button>
-      </div>
+        </UButton>
+      </UButtonGroup>
 
     <div v-if="documentosStore.documentos.length > 0 && vista === 'detalle'" class="doc-grid">
       <div v-for="d in documentosStore.documentos" :key="d.id ?? undefined" class="doc-card">
@@ -225,25 +197,25 @@ watchEffect(async () => {
         </div>
         <p v-if="d.descripcion" class="doc-meta">{{ d.descripcion }}</p>
         <p class="doc-meta">Cargado el {{ d.created_at?.slice(0, 10) }}</p>
-        <div class="doc-foot">
-          <span class="badge badge--gris">{{ nombreTipo(d.tipo_documento_id) }}</span>
-          <span v-if="d.fecha_vencimiento" class="badge badge--oro">Vencimiento {{ d.fecha_vencimiento }}</span>
-          <button
-            type="button"
-            class="btn btn--ghost"
-            style="font-size: 12px; padding: 4px 10px; margin-left: auto"
+        <div class="doc-foot flex items-center gap-2">
+          <UBadge color="neutral" variant="subtle">{{ nombreTipo(d.tipo_documento_id) }}</UBadge>
+          <UBadge v-if="d.fecha_vencimiento" color="warning" variant="subtle">Vencimiento {{ d.fecha_vencimiento }}</UBadge>
+          <UButton
+            variant="ghost"
+            color="neutral"
+            size="xs"
+            class="ml-auto"
             :disabled="descargando === d.storage_path"
             @click="descargar(d.storage_path)"
           >
             {{ descargando === d.storage_path ? 'Generando…' : 'Ver' }}
-          </button>
+          </UButton>
         </div>
       </div>
     </div>
 
     <UiTabla
       v-else-if="documentosStore.documentos.length > 0 && vista === 'lista'"
-      variante="ficha"
       :columnas="columnasLista"
       :filas="documentosStore.documentos"
       :clave-fila="(d: DocumentoRow) => d.id ?? ''"
@@ -255,17 +227,15 @@ watchEffect(async () => {
       <template #celda-fecha_vencimiento="{ fila }">{{ fila.fecha_vencimiento ?? '—' }}</template>
       <template #celda-created_at="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
       <template #celda-acciones="{ fila }">
-        <div class="row-actions">
-          <button
-            type="button"
-            class="btn btn--ghost"
-            style="font-size: 12px; padding: 4px 10px"
-            :disabled="descargando === fila.storage_path"
-            @click="descargar(fila.storage_path)"
-          >
-            {{ descargando === fila.storage_path ? 'Generando…' : 'Ver' }}
-          </button>
-        </div>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          size="xs"
+          :disabled="descargando === fila.storage_path"
+          @click="descargar(fila.storage_path)"
+        >
+          {{ descargando === fila.storage_path ? 'Generando…' : 'Ver' }}
+        </UButton>
       </template>
     </UiTabla>
 

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-// Drawer "Agregar rubro" / "Editar rubro" — mismo criterio que MiembroDrawer.vue/
-// PresupuestoCrearDrawer.vue (.ficha-inmueble + .form-grid/.field/.btn) y el mismo
-// patrón crear/editar que PresupuestoCuentaDrawer.vue (prop `rubro?` opcional).
-// Selects planos para cuenta/fundamento, no UiSelectorBuscable — mismo
-// criterio que el resto de selects dentro de un drawer (rol/estado en
-// MiembroDrawer.vue), listas cortas que no necesitan búsqueda. Solo se
-// listan cuentas hoja (es_hoja) — guard_presupuesto_rubro_cuenta (E8)
-// rechaza un rubro contra una cuenta que agrupa subcuentas, así que ni
-// se ofrecen como opción.
+// Drawer "Agregar rubro" / "Editar rubro" — contenedor UiDrawer (igual que
+// el resto), contenido en Nuxt UI (UFormField/UInput/USelect/UButton),
+// mismo criterio que politicas/PoliticasVersionDrawer.vue (23-08-2026).
+// Mismo patrón crear/editar que PresupuestoCuentaDrawer.vue (prop `rubro?`
+// opcional). USelect para cuenta/fundamento, no UiSelectorBuscable —
+// listas cortas que no necesitan búsqueda. Solo se listan cuentas hoja
+// (es_hoja) — guard_presupuesto_rubro_cuenta (E8) rechaza un rubro contra
+// una cuenta que agrupa subcuentas, así que ni se ofrecen como opción.
 import type { Database } from '@aquila/shared'
 
 type PresupuestoRubroRow = Database['public']['Tables']['presupuesto_rubros']['Row']
@@ -27,7 +26,7 @@ const modoEdicion = computed(() => props.rubro !== undefined)
 
 const codigo = ref(props.rubro?.codigo ?? '')
 const nombre = ref(props.rubro?.nombre ?? '')
-const cuentaId = ref<string | null>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? null)
+const cuentaId = ref<string | undefined>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? undefined)
 const montoAnual = ref<number | null>(props.rubro ? Number(props.rubro.monto_anual) : null)
 const fundamentoNormativoId = ref<number | null>(props.rubro?.fundamento_normativo_id ?? null)
 const guardando = ref(false)
@@ -51,15 +50,20 @@ const cuentasHoja = computed(() => {
   }
   return presupuestoStore.cuentas
     .filter((c) => c.es_hoja)
-    .map((c) => ({ id: c.id, etiqueta: `${rutaNombres(c)} (${c.naturaleza})` }))
-    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
+    .map((c) => ({ value: c.id, label: `${rutaNombres(c)} (${c.naturaleza})` }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 })
+
+const opcionesFundamento = computed(() => [
+  { label: '— Ninguno —', value: null },
+  ...fundamentoStore.fundamentos.map((f) => ({ label: f.norma, value: f.id })),
+])
 
 async function guardar(): Promise<void> {
   error.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
-  if (!codigo.value || !nombre.value || cuentaId.value === null || montoAnual.value === null) {
+  if (!codigo.value || !nombre.value || cuentaId.value === undefined || montoAnual.value === null) {
     error.value = 'Completa código, nombre, cuenta y monto anual.'
     return
   }
@@ -104,48 +108,33 @@ async function guardar(): Promise<void> {
       :titulo="modoEdicion ? 'Editar rubro' : 'Agregar rubro'"
       @cerrar="emit('cerrar')"
     >
-      <div class="form-grid">
-        <div class="field-row-2">
-          <div class="field field-codigo">
-            <label for="r-codigo">Código</label>
-            <input id="r-codigo" v-model="codigo" type="text" maxlength="6" />
-          </div>
-          <div class="field">
-            <label for="r-nombre">Nombre</label>
-            <input id="r-nombre" v-model="nombre" type="text" />
-          </div>
+      <div class="space-y-4 text-sm">
+        <div class="grid grid-cols-[110px_1fr] gap-4">
+          <UFormField label="Código" name="codigo">
+            <UInput v-model="codigo" type="text" maxlength="6" class="w-full" />
+          </UFormField>
+          <UFormField label="Nombre" name="nombre">
+            <UInput v-model="nombre" type="text" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="r-cuenta">Cuenta</label>
-          <select id="r-cuenta" v-model="cuentaId">
-            <option :value="null">— Elegir —</option>
-            <option v-for="c in cuentasHoja" :key="c.id" :value="c.id">
-              {{ c.etiqueta }}
-            </option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="r-monto">Monto anual</label>
-          <input id="r-monto" v-model.number="montoAnual" type="number" min="0" />
-        </div>
-        <div class="field span-2">
-          <label for="r-fundamento">Fundamento normativo</label>
-          <select id="r-fundamento" v-model="fundamentoNormativoId">
-            <option :value="null">— Ninguno —</option>
-            <option v-for="f in fundamentoStore.fundamentos" :key="f.id" :value="f.id">
-              {{ f.norma }}
-            </option>
-          </select>
-        </div>
+        <UFormField label="Cuenta" name="cuenta_id">
+          <USelect v-model="cuentaId" :items="cuentasHoja" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField label="Monto anual" name="monto_anual">
+          <UInput v-model.number="montoAnual" type="number" min="0" class="w-full" />
+        </UFormField>
+        <UFormField label="Fundamento normativo" name="fundamento_normativo_id">
+          <USelect v-model="fundamentoNormativoId" :items="opcionesFundamento" value-key="value" class="w-full" />
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Guardando…' : modoEdicion ? 'Guardar cambios' : 'Agregar rubro' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">
+          {{ modoEdicion ? 'Guardar cambios' : 'Agregar rubro' }}
+        </UButton>
       </template>
     </UiDrawer>
   </div>

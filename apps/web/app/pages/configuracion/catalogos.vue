@@ -142,21 +142,20 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <div>
-      <h1 class="text-xl font-semibold mb-2">Catálogos</h1>
-      <p class="text-sm text-gray-500 max-w-2xl">
+      <h1 class="text-xl font-semibold mb-1">Catálogos</h1>
+      <p class="text-sm text-neutral-500 max-w-2xl">
         Cada familia mezcla los valores de plataforma (comunes a todos los tenants, solo lectura)
-        con los que esta copropiedad agregó por su cuenta. La familia en sí no se crea acá — solo
-        se enriquecen sus valores.
+        con los que esta copropiedad agregó por su cuenta.
       </p>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <div class="space-y-4">
-      <div class="max-w-xs">
-        <label class="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1.5" for="familia-selector">
+    <div class="flex items-end justify-between gap-4 flex-wrap">
+      <div class="max-w-xs w-64">
+        <label class="block text-xs font-medium uppercase tracking-wide text-neutral-400 mb-1.5" for="familia-selector">
           Familia
         </label>
         <UiSelectorBuscable
@@ -167,78 +166,76 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
           @update:model-value="(v) => (familiaActivaCodigo = v as string | null)"
         />
       </div>
-
-      <section v-if="familiaActiva" class="min-w-0">
-        <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
-          <p v-if="familiaActiva.descripcion" class="text-sm text-gray-500 max-w-2xl">
-            {{ familiaActiva.descripcion }}
-          </p>
-          <UButton size="sm" class="ml-auto" @click="abrirNuevo">Agregar valor</UButton>
-        </div>
-
-        <UiTabla
-          :columnas="[
-            { clave: 'codigo', etiqueta: 'Código', claseCelda: 'font-mono text-xs text-gray-500' },
-            { clave: 'nombre', etiqueta: 'Nombre' },
-            { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha' },
-            { clave: 'origen', etiqueta: 'Origen' },
-            { clave: 'estado', etiqueta: 'Estado' },
-            { clave: 'acciones', etiqueta: '' },
-          ]"
-          :filas="valoresFamilia"
-          :clave-fila="(v) => v.id"
-          vacio="Sin valores en esta familia."
-        >
-          <template #celda-orden="{ fila }">
-            <span class="tabular-nums text-gray-500">{{ fila.orden }}</span>
-          </template>
-          <template #celda-origen="{ fila }">
-            <span v-if="fila.tenant_id === null" class="inline-flex text-gray-400" title="Item bloqueado">
-              <UIcon name="i-lucide-lock" class="size-4" />
-            </span>
-            <UBadge v-else color="primary" variant="subtle" size="sm">Copropiedad</UBadge>
-          </template>
-          <template #celda-estado="{ fila }">
-            <UBadge v-if="!fila.activo" color="neutral" variant="subtle" size="sm">Inactivo</UBadge>
-            <UBadge
-              v-else-if="fila.tenant_id === null && catalogosStore.ocultosIds.has(fila.id)"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-            >
-              Oculto
-            </UBadge>
-          </template>
-          <template #celda-acciones="{ fila }">
-            <div v-if="fila.tenant_id !== null" class="flex justify-end gap-1">
-              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" title="Editar" @click="abrirEdicion(fila)" />
-              <UButton
-                size="xs"
-                variant="ghost"
-                :icon="fila.activo ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                :title="fila.activo ? 'Desactivar' : 'Reactivar'"
-                @click="alternarActivo(fila)"
-              />
-            </div>
-            <div v-else class="flex justify-end gap-1">
-              <UButton
-                size="xs"
-                variant="ghost"
-                :icon="catalogosStore.ocultosIds.has(fila.id) ? 'i-lucide-eye' : 'i-lucide-eye-off'"
-                :title="catalogosStore.ocultosIds.has(fila.id) ? 'Mostrar' : 'Ocultar'"
-                @click="alternarOculto(fila)"
-              />
-            </div>
-          </template>
-        </UiTabla>
-        <p class="text-xs text-gray-400 mt-3 flex items-center gap-1">
-          <UIcon name="i-lucide-lock" class="size-3.5" /> — valor de referencia de plataforma, no
-          editable acá (se puede ocultar solo para esta copropiedad).
-          <strong class="text-gray-500 font-medium">Copropiedad</strong> — agregado por este
-          tenant; se puede desactivar, nunca se borra.
-        </p>
-      </section>
+      <UButton v-if="familiaActiva" size="sm" @click="abrirNuevo">Agregar valor</UButton>
     </div>
+
+    <section v-if="familiaActiva" class="min-w-0 space-y-3">
+      <p v-if="familiaActiva.descripcion" class="text-sm text-neutral-500 max-w-2xl -mt-1">
+        {{ familiaActiva.descripcion }}
+      </p>
+
+      <UiTabla
+        :columnas="[
+          { clave: 'codigo', etiqueta: 'Código', claseCelda: 'font-mono text-xs text-neutral-500' },
+          { clave: 'nombre', etiqueta: 'Nombre' },
+          { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha' },
+          { clave: 'origen', etiqueta: 'Origen' },
+          { clave: 'estado', etiqueta: 'Estado' },
+          { clave: 'acciones', etiqueta: '' },
+        ]"
+        :filas="valoresFamilia"
+        :clave-fila="(v) => v.id"
+        vacio="Sin valores en esta familia."
+      >
+        <template #celda-orden="{ fila }">
+          <span class="tabular-nums text-neutral-500">{{ fila.orden }}</span>
+        </template>
+        <template #celda-origen="{ fila }">
+          <span v-if="fila.tenant_id === null" class="inline-flex text-neutral-400" title="Item bloqueado">
+            <UIcon name="i-lucide-lock" class="size-4" />
+          </span>
+          <UBadge v-else color="primary" variant="subtle" size="sm">Copropiedad</UBadge>
+        </template>
+        <template #celda-estado="{ fila }">
+          <UBadge v-if="!fila.activo" color="neutral" variant="subtle" size="sm">Inactivo</UBadge>
+          <UBadge
+            v-else-if="fila.tenant_id === null && catalogosStore.ocultosIds.has(fila.id)"
+            color="neutral"
+            variant="subtle"
+            size="sm"
+          >
+            Oculto
+          </UBadge>
+        </template>
+        <template #celda-acciones="{ fila }">
+          <div v-if="fila.tenant_id !== null" class="flex justify-end gap-1">
+            <UButton size="xs" variant="ghost" icon="i-lucide-pencil" title="Editar" @click="abrirEdicion(fila)" />
+            <UButton
+              size="xs"
+              variant="ghost"
+              :icon="fila.activo ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :title="fila.activo ? 'Desactivar' : 'Reactivar'"
+              @click="alternarActivo(fila)"
+            />
+          </div>
+          <div v-else class="flex justify-end gap-1">
+            <UButton
+              size="xs"
+              variant="ghost"
+              :icon="catalogosStore.ocultosIds.has(fila.id) ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+              :title="catalogosStore.ocultosIds.has(fila.id) ? 'Mostrar' : 'Ocultar'"
+              @click="alternarOculto(fila)"
+            />
+          </div>
+        </template>
+      </UiTabla>
+      <p class="text-xs text-neutral-400 flex items-center gap-1">
+        <UIcon name="i-lucide-lock" class="size-3.5" /> — valor de referencia de plataforma, no
+        editable acá (se puede ocultar solo para esta copropiedad).
+        <strong class="text-neutral-500 font-medium">Copropiedad</strong> — agregado por este
+        tenant; se puede desactivar, nunca se borra.
+      </p>
+    </section>
 
     <UModal
       :open="modalAbierto"
@@ -251,8 +248,8 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Código</span>
-                <span v-if="valorEditando" class="text-xs font-normal text-gray-400">— no se puede cambiar</span>
-                <span v-else class="text-xs font-normal text-gray-400">— minúsculas, sin espacios</span>
+                <span v-if="valorEditando" class="text-xs font-normal text-neutral-400">— no se puede cambiar</span>
+                <span v-else class="text-xs font-normal text-neutral-400">— minúsculas, sin espacios</span>
               </span>
             </template>
             <UInput v-model="formCodigo" :disabled="!!valorEditando" placeholder="ej. fondo_reserva" class="w-full" />
@@ -263,7 +260,7 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
           <UFormField label="Orden" name="orden" class="w-28">
             <UInput v-model.number="formOrden" type="number" min="1" class="w-full" />
           </UFormField>
-          <p v-if="!valorEditando" class="text-xs text-gray-400">
+          <p v-if="!valorEditando" class="text-xs text-neutral-400">
             Queda marcado como "Copropiedad" — visible solo para este tenant.
           </p>
         </div>

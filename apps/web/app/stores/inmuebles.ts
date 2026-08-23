@@ -64,6 +64,8 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     habitabilidadId?: number | null
     usoPredioId?: number | null
     agrupacionId?: string | null
+    referenciaCatastral?: string
+    gravamenTipoId?: number | null
   }): Promise<InmuebleRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -81,6 +83,8 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
         habitabilidad_id: params.habitabilidadId,
         uso_predio_id: params.usoPredioId,
         agrupacion_id: params.agrupacionId,
+        referencia_catastral: params.referenciaCatastral,
+        gravamen_tipo_id: params.gravamenTipoId,
       })
       .select('*')
       .single()
@@ -102,6 +106,8 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     habitabilidadId?: number | null
     usoPredioId?: number | null
     agrupacionId?: string | null
+    referenciaCatastral?: string
+    gravamenTipoId?: number | null
   }): Promise<InmuebleRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
@@ -118,6 +124,8 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
         habitabilidad_id: params.habitabilidadId,
         uso_predio_id: params.usoPredioId,
         agrupacion_id: params.agrupacionId,
+        referencia_catastral: params.referenciaCatastral,
+        gravamen_tipo_id: params.gravamenTipoId,
       })
       .eq('id', params.id)
       .select('*')

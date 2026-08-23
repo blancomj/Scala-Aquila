@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// Drawer "Nuevo presupuesto" — mismo criterio que MiembroDrawer.vue: el
-// contenido va en <div class="ficha-inmueble"> porque las reglas
-// .drawer-*/.form-grid/.field de ficha-inmueble.css están scopeadas bajo
-// ese selector ancestro (sin él, el drawer se renderiza sin estilo — bug
-// real ya documentado ahí). Año + monto total, migrado tal cual del
-// formulario inline que tenía presupuesto/index.vue.
+// Drawer "Nuevo presupuesto" — el contenedor sigue siendo <div
+// class="ficha-inmueble"><UiDrawer> (sin ese ancestro el drawer se
+// renderiza sin estilo — bug real ya documentado en MiembroDrawer.vue),
+// pero el CONTENIDO usa componentes Nuxt UI (UFormField/UInput/UButton),
+// no `.field`/`<input>` plano — mismo criterio que
+// politicas/PoliticasVersionDrawer.vue (23-08-2026, decisión del usuario:
+// que los drawers combinen con el resto de cada página, que ya es Nuxt UI).
 const emit = defineEmits<{ cerrar: []; creado: [id: string] }>()
 
 const tenantStore = useTenantStore()
@@ -47,24 +48,20 @@ async function guardar(): Promise<void> {
       subtitulo="Año y monto total aprobado — los rubros se agregan después, en borrador"
       @cerrar="emit('cerrar')"
     >
-      <div class="form-grid">
-        <div class="field">
-          <label for="p-anio">Año</label>
-          <input id="p-anio" v-model.number="anio" type="number" >
-        </div>
-        <div class="field">
-          <label for="p-monto">Monto total</label>
-          <input id="p-monto" v-model.number="montoTotal" type="number" min="0" >
-        </div>
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <UFormField label="Año" name="anio">
+          <UInput v-model.number="anio" type="number" class="w-full" />
+        </UFormField>
+        <UFormField label="Monto total" name="monto_total">
+          <UInput v-model.number="montoTotal" type="number" min="0" class="w-full" />
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Creando…' : 'Crear presupuesto' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Crear presupuesto</UButton>
       </template>
     </UiDrawer>
   </div>

@@ -31,11 +31,15 @@ function irATab(tab: Tab, deshabilitada?: boolean): void {
 }
 
 const ESTADO_LABEL: Record<string, string> = { active: 'Activo', suspended: 'Suspendido', deleted: 'Eliminado' }
-const ESTADO_TAG_CLASE: Record<string, string> = {
-  active: 'tag--sello',
-  suspended: 'tag--oro',
-  deleted: 'tag--ladrillo',
+const ESTADO_COLOR: Record<string, 'success' | 'warning' | 'error'> = {
+  active: 'success',
+  suspended: 'warning',
+  deleted: 'error',
 }
+
+const tabItems = computed(() =>
+  TABS.map((tab) => ({ label: tab.etiqueta, value: tab.id, disabled: tab.deshabilitada })),
+)
 
 watchEffect(async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -99,9 +103,9 @@ const personasVinculadasActivas = computed(
             <p class="eyebrow">Ficha de la copropiedad</p>
             <div class="title-row">
               <h1>{{ copropiedadStore.tenant?.name ?? '…' }}</h1>
-              <span v-if="copropiedadStore.tenant" class="tag" :class="ESTADO_TAG_CLASE[copropiedadStore.tenant.status] ?? 'tag--gris'">
+              <UBadge v-if="copropiedadStore.tenant" :color="ESTADO_COLOR[copropiedadStore.tenant.status] ?? 'neutral'" variant="subtle">
                 {{ ESTADO_LABEL[copropiedadStore.tenant.status] ?? copropiedadStore.tenant.status }}
-              </span>
+              </UBadge>
             </div>
             <p class="sub">NIT {{ copropiedadStore.tenant?.nit ?? '—' }}</p>
           </div>
@@ -131,19 +135,14 @@ const personasVinculadasActivas = computed(
 
       <div class="rule-double" />
 
-      <nav class="tabs">
-        <button
-          v-for="tab in TABS"
-          :key="tab.id"
-          type="button"
-          class="tab"
-          :class="{ 'is-active': tabActiva === tab.id, 'is-disabled': tab.deshabilitada }"
-          :title="tab.deshabilitada ? 'Próximamente — decisión de arquitectura pendiente' : undefined"
-          @click="irATab(tab.id, tab.deshabilitada)"
-        >
-          {{ tab.etiqueta }}
-        </button>
-      </nav>
+      <UTabs
+        :items="tabItems"
+        :model-value="tabActiva"
+        variant="link"
+        :content="false"
+        class="w-full"
+        @update:model-value="(v) => irATab(v as Tab, TABS.find((t) => t.id === v)?.deshabilitada)"
+      />
       <p class="note" style="margin: 8px 0 0">
         <strong>Histórico</strong> está pendiente — depende de generalizar <code>v_inmueble_historico</code> a la
         copropiedad, una decisión de arquitectura sin resolver todavía.

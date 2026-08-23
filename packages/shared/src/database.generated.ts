@@ -2467,9 +2467,11 @@ export type Database = {
           estado: Database["public"]["Enums"]["inmueble_estado_t"]
           estado_legal_id: number | null
           estado_legal_observaciones: string | null
+          gravamen_tipo_id: number | null
           habitabilidad_id: number | null
           id: string
           matricula_inmobiliaria: string | null
+          referencia_catastral: string | null
           tenant_id: string
           tipo_id: number
           updated_at: string | null
@@ -2485,9 +2487,11 @@ export type Database = {
           estado?: Database["public"]["Enums"]["inmueble_estado_t"]
           estado_legal_id?: number | null
           estado_legal_observaciones?: string | null
+          gravamen_tipo_id?: number | null
           habitabilidad_id?: number | null
           id?: string
           matricula_inmobiliaria?: string | null
+          referencia_catastral?: string | null
           tenant_id: string
           tipo_id: number
           updated_at?: string | null
@@ -2503,9 +2507,11 @@ export type Database = {
           estado?: Database["public"]["Enums"]["inmueble_estado_t"]
           estado_legal_id?: number | null
           estado_legal_observaciones?: string | null
+          gravamen_tipo_id?: number | null
           habitabilidad_id?: number | null
           id?: string
           matricula_inmobiliaria?: string | null
+          referencia_catastral?: string | null
           tenant_id?: string
           tipo_id?: number
           updated_at?: string | null
@@ -2522,6 +2528,13 @@ export type Database = {
           {
             foreignKeyName: "inmuebles_estado_legal_id_fkey"
             columns: ["estado_legal_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmuebles_gravamen_tipo_id_fkey"
+            columns: ["gravamen_tipo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
             referencedColumns: ["id"]

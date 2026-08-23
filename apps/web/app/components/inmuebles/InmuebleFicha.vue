@@ -16,9 +16,20 @@ const props = defineProps<{ inmuebleId?: string }>()
 
 const tenantStore = useTenantStore()
 const inmueblesStore = useInmueblesStore()
+const tercerosStore = useTercerosStore()
 
 const esCreacion = computed(() => !props.inmuebleId)
 const inmueble = computed(() => inmueblesStore.inmuebleActivo)
+
+/** Copropietario vigente — se muestra junto a los tabs (no hace falta abrir
+ * la pestaña Datos base solo para saber de quién es la unidad). */
+const nombrePropietario = computed(() => {
+  if (esCreacion.value) return null
+  const copropietario = tercerosStore.tercerosAsociados.find(
+    (p) => p.rol.codigo === 'copropietario' && !p.vigente_hasta,
+  )
+  return copropietario?.tercero.nombre_completo ?? null
+})
 
 type Tab = 'base' | 'cartera' | 'novedades' | 'liquidaciones' | 'historicos' | 'documentos'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
@@ -41,7 +52,6 @@ const TIPO_ETIQUETA: Record<string, string> = {
   inactivo: 'Inactivo',
 }
 
-const menuAbierto = ref(false)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
@@ -57,14 +67,21 @@ function editarFicha(): void {
 async function cargarTodo(id: string): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
-  await inmueblesStore.cargarInmueble(tenantId, id)
+  await Promise.all([
+    inmueblesStore.cargarInmueble(tenantId, id),
+    tercerosStore.cargarTercerosAsociados(tenantId, id),
+  ])
 }
 
 watch(
   () => props.inmuebleId,
   (id) => {
-    if (id) cargarTodo(id)
-    else inmueblesStore.limpiar()
+    if (id) {
+      cargarTodo(id)
+    } else {
+      inmueblesStore.limpiar()
+      tercerosStore.limpiar()
+    }
   },
   { immediate: true },
 )
@@ -85,7 +102,6 @@ async function guardarInmueble(): Promise<void> {
 
 async function inactivarInmueble(): Promise<void> {
   if (!inmueble.value) return
-  menuAbierto.value = false
   await inmueblesStore.actualizarInmueble({
     id: inmueble.value.id,
     codigo: inmueble.value.codigo,
@@ -101,64 +117,67 @@ async function inactivarInmueble(): Promise<void> {
 }
 
 type EstadoInmueble = Database['public']['Enums']['inmueble_estado_t']
-function badgeEstado(estado: EstadoInmueble): 'tag--sello' | 'tag--gris' {
-  return estado === 'activo' ? 'tag--sello' : 'tag--gris'
+function colorEstado(estado: EstadoInmueble): 'success' | 'neutral' {
+  return estado === 'activo' ? 'success' : 'neutral'
 }
+
+const menuInmueble = [
+  [
+    { label: 'Inactivar inmueble', onSelect: inactivarInmueble },
+    { label: 'Duplicar inmueble', disabled: true },
+    { label: 'Exportar ficha (PDF)', disabled: true },
+  ],
+]
+
+const tabItems = computed(() =>
+  TABS.map((tab) => ({ label: tab.etiqueta, value: tab.id, disabled: esCreacion.value && tab.id !== 'base' })),
+)
 </script>
 
 <template>
   <div class="ficha-inmueble">
     <div class="sheet">
-      <p class="breadcrumb">
-        <NuxtLink to="/inmuebles">Inmuebles</NuxtLink>
-        <span>›</span>
-        <strong>{{ esCreacion ? 'Nuevo' : (inmueble?.codigo ?? '…') }}</strong>
-      </p>
+      <div class="flex items-baseline justify-between gap-4">
+        <p class="breadcrumb" style="margin: 0">
+          <NuxtLink to="/inmuebles">Inmuebles</NuxtLink>
+          <span>›</span>
+          <strong>{{ esCreacion ? 'Nuevo' : (inmueble?.codigo ?? '…') }}</strong>
+        </p>
+        <p class="eyebrow" style="margin: 0">Ficha de inmueble</p>
+      </div>
 
-      <div class="masthead">
+      <div class="masthead mt-2">
         <div>
-          <p class="eyebrow">Ficha de inmueble</p>
           <div class="title-row">
             <h1>{{ esCreacion ? 'Nuevo inmueble' : (inmueble?.codigo ?? '…') }}</h1>
             <div v-if="!esCreacion && inmueble" class="title-badges">
-              <span class="tag" :class="badgeEstado(inmueble.estado)">
+              <UBadge :color="colorEstado(inmueble.estado)" variant="subtle">
                 {{ TIPO_ETIQUETA[inmueble.estado] ?? inmueble.estado }}
-              </span>
+              </UBadge>
             </div>
           </div>
         </div>
 
-        <div v-if="!esCreacion" class="masthead-actions">
-          <NuxtLink v-if="inmuebleId" :to="`/novedades/nueva?inmuebleId=${inmuebleId}`" class="btn btn--ghost">Nueva novedad</NuxtLink>
-          <button type="button" class="btn btn--ghost" @click="irATab('cartera')">Registrar pago</button>
-          <button type="button" class="btn btn--primary" @click="editarFicha">Editar ficha</button>
-          <div style="position: relative">
-            <button type="button" class="btn-icon" style="width: 33px; height: 33px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--sheet); cursor: pointer" aria-haspopup="true" @click="menuAbierto = !menuAbierto">⋮</button>
-            <div v-if="menuAbierto" style="position: absolute; right: 0; top: calc(100% + 6px); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: var(--radius); min-width: 190px; padding: 4px; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.08)">
-              <button type="button" class="btn--danger" style="width: 100%; text-align: left; background: none; border: none; font-family: var(--font-sans); font-size: 13px; padding: 8px 10px; cursor: pointer" @click="inactivarInmueble">
-                Inactivar inmueble
-              </button>
-              <button type="button" disabled title="Próximamente" style="width: 100%; text-align: left; background: none; border: none; font-family: var(--font-sans); font-size: 13px; padding: 8px 10px; cursor: not-allowed; opacity: .5">
-                Duplicar inmueble
-              </button>
-              <button type="button" disabled title="Próximamente" style="width: 100%; text-align: left; background: none; border: none; font-family: var(--font-sans); font-size: 13px; padding: 8px 10px; cursor: not-allowed; opacity: .5">
-                Exportar ficha (PDF)
-              </button>
-            </div>
-          </div>
+        <div v-if="!esCreacion" class="masthead-actions flex items-center gap-2">
+          <UButton v-if="inmuebleId" variant="outline" color="neutral" :to="`/novedades/nueva?inmuebleId=${inmuebleId}`">
+            Nueva novedad
+          </UButton>
+          <UButton variant="outline" color="neutral" @click="irATab('cartera')">Registrar pago</UButton>
+          <UButton @click="editarFicha">Editar ficha</UButton>
+          <UDropdownMenu :items="menuInmueble">
+            <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" aria-label="Más acciones" />
+          </UDropdownMenu>
         </div>
 
-        <div v-else class="masthead-actions">
-          <NuxtLink to="/inmuebles" class="btn btn--ghost">Cancelar</NuxtLink>
-          <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardarInmueble">
-            {{ guardando ? 'Guardando…' : 'Guardar inmueble' }}
-          </button>
+        <div v-else class="masthead-actions flex items-center gap-2">
+          <UButton variant="outline" color="neutral" to="/inmuebles">Cancelar</UButton>
+          <UButton :loading="guardando" @click="guardarInmueble">Guardar inmueble</UButton>
         </div>
       </div>
 
       <div class="rule-double" />
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mb-3" />
 
       <div v-if="!esCreacion && inmueble" class="specstrip">
         <div class="spec-item">
@@ -189,18 +208,20 @@ function badgeEstado(estado: EstadoInmueble): 'tag--sello' | 'tag--gris' {
         el inmueble.
       </p>
 
-      <nav class="tabs">
-        <button
-          v-for="tab in TABS"
-          :key="tab.id"
-          type="button"
-          class="tab"
-          :class="{ 'is-active': tabActiva === tab.id, 'is-disabled': esCreacion && tab.id !== 'base' }"
-          @click="irATab(tab.id)"
-        >
-          {{ tab.etiqueta }}
-        </button>
-      </nav>
+      <div class="flex items-center gap-4">
+        <UTabs
+          :items="tabItems"
+          :model-value="tabActiva"
+          variant="link"
+          :content="false"
+          class="flex-1 min-w-0"
+          @update:model-value="(v) => irATab(v as Tab)"
+        />
+        <p v-if="nombrePropietario" class="text-sm text-neutral-500 whitespace-nowrap shrink-0">
+          <UIcon name="i-lucide-user" class="size-3.5 align-[-2px]" />
+          {{ nombrePropietario }}
+        </p>
+      </div>
       <p v-if="esCreacion" class="create-hint">
         Disponibles después de guardar: cartera, novedades, liquidaciones, históricos y
         documentos.

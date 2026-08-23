@@ -78,66 +78,53 @@ function guardar(): void {
 </script>
 
 <template>
-  <div class="form-grid">
-    <div class="field">
-      <label for="pf-rol">Rol</label>
-      <UiSelectorBuscable id="pf-rol" v-model="rolId" variante="ficha" :opciones="opcionesRol" placeholder="— Elegir —" />
+  <div class="space-y-4 text-sm">
+    <UFormField label="Rol" name="rol_id">
+      <UiSelectorBuscable v-model="rolId" :opciones="opcionesRol" placeholder="— Elegir —" />
+    </UFormField>
+    <UFormField label="Nombre completo" name="nombre">
+      <UInput v-model="nombre" type="text" placeholder="María Fernanda Restrepo Ortiz" class="w-full" />
+    </UFormField>
+    <div class="grid grid-cols-2 gap-4">
+      <UFormField label="Tipo de documento" name="tipo_identificacion_id">
+        <UiSelectorBuscable v-model="tipoIdentificacionId" :opciones="opcionesTipoIdentificacion" placeholder="— Elegir —" />
+      </UFormField>
+      <UFormField label="Número de documento" name="numero_documento">
+        <UInput v-model="numeroDocumento" type="text" placeholder="45.678.912" class="w-full" />
+      </UFormField>
     </div>
-    <div class="field">
-      <label for="pf-nombre">Nombre completo</label>
-      <input id="pf-nombre" v-model="nombre" type="text" placeholder="María Fernanda Restrepo Ortiz">
+    <UFormField v-if="esCopropietario" label="Participación (solo copropietario)" name="porcentaje">
+      <UInput v-model.number="porcentaje" type="number" min="0" max="100" step="0.001" placeholder="100" class="w-full" />
+    </UFormField>
+    <div class="grid grid-cols-2 gap-4">
+      <UFormField label="Email" name="email">
+        <UInput v-model="email" type="email" placeholder="correo@ejemplo.com" class="w-full" />
+      </UFormField>
+      <UFormField label="Teléfono" name="telefono">
+        <UInput v-model="telefono" type="text" placeholder="300 456 7890" class="w-full" />
+      </UFormField>
     </div>
-    <div class="field">
-      <label for="pf-tipo-doc">Tipo de documento</label>
-      <UiSelectorBuscable
-        id="pf-tipo-doc"
-        v-model="tipoIdentificacionId"
-        variante="ficha"
-        :opciones="opcionesTipoIdentificacion"
-        placeholder="— Elegir —"
-      />
+    <div class="grid grid-cols-2 gap-4">
+      <UFormField label="Vigente desde" name="vigente_desde">
+        <UInput v-model="vigenteDesde" type="date" class="w-full" />
+      </UFormField>
+      <UFormField label="Vigente hasta (opcional)" name="vigente_hasta">
+        <UInput v-model="vigenteHasta" type="date" class="w-full" />
+      </UFormField>
     </div>
-    <div class="field">
-      <label for="pf-num-doc">Número de documento</label>
-      <input id="pf-num-doc" v-model="numeroDocumento" type="text" placeholder="45.678.912">
-    </div>
-    <div v-if="esCopropietario" class="field">
-      <label for="pf-pct">Participación (solo copropietario)</label>
-      <input id="pf-pct" v-model.number="porcentaje" type="number" min="0" max="100" step="0.001" placeholder="100">
-    </div>
-    <div class="field">
-      <label for="pf-email">Email</label>
-      <input id="pf-email" v-model="email" type="email" placeholder="correo@ejemplo.com">
-    </div>
-    <div class="field">
-      <label for="pf-tel">Teléfono</label>
-      <input id="pf-tel" v-model="telefono" type="text" placeholder="300 456 7890">
-    </div>
-    <div class="field">
-      <label for="pf-desde">Vigente desde</label>
-      <input id="pf-desde" v-model="vigenteDesde" type="date">
-    </div>
-    <div class="field">
-      <label for="pf-hasta">Vigente hasta (opcional)</label>
-      <input id="pf-hasta" v-model="vigenteHasta" type="date">
-    </div>
-    <div class="field span-2" style="flex-direction: row; gap: 20px; align-items: center">
-      <label style="display: flex; align-items: center; gap: 7px; font-weight: 400">
-        <input v-model="esPagador" type="checkbox" style="width: auto"> Recibe la factura (pagador)
-      </label>
-      <label style="display: flex; align-items: center; gap: 7px; font-weight: 400">
-        <input v-model="recibeNotificaciones" type="checkbox" style="width: auto"> Recibe notificaciones
-      </label>
+    <div class="flex items-center gap-5">
+      <UCheckbox v-model="esPagador" label="Recibe la factura (pagador)" />
+      <UCheckbox v-model="recibeNotificaciones" label="Recibe notificaciones" />
     </div>
   </div>
-  <p class="note">
+  <p class="text-xs text-neutral-500 mt-4">
     Cualquier persona puede marcarse como <strong>pagador</strong> — no tiene que ser el
     copropietario. Solo puede haber un pagador vigente por inmueble a la vez. El
     <strong>coeficiente de copropiedad</strong> tampoco se asigna aquí: se define al incluir
     este inmueble en el set de coeficientes vigente, desde Configuración → Coeficientes.
   </p>
-  <div style="display: flex; gap: 8px; margin-top: 12px">
-    <button type="button" class="btn btn--primary" @click="guardar">Guardar persona</button>
-    <button type="button" class="btn btn--ghost" @click="emit('cancelar')">Cancelar</button>
+  <div class="flex gap-2 mt-3">
+    <UButton @click="guardar">Guardar persona</UButton>
+    <UButton variant="ghost" @click="emit('cancelar')">Cancelar</UButton>
   </div>
 </template>

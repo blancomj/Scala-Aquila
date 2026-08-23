@@ -24,6 +24,7 @@ const habitabilidades = shallowRef<TipoInmuebleRow[]>([])
 const usosPredio = shallowRef<TipoInmuebleRow[]>([])
 const tiposIdentificacion = shallowRef<TipoInmuebleRow[]>([])
 const tiposZonaComun = shallowRef<TipoInmuebleRow[]>([])
+const tiposGravamen = shallowRef<TipoInmuebleRow[]>([])
 
 function nombreTipoZonaComun(id: number): string {
   return tiposZonaComun.value.find((t) => t.id === id)?.nombre ?? '—'
@@ -48,6 +49,11 @@ const opcionesUsoPredio = computed(() => [
   { valor: null, etiqueta: '— Sin especificar —' },
   ...usosPredio.value.map((u) => ({ valor: u.id, etiqueta: u.nombre })),
 ])
+// Sin sentinela null propio: TIPO_GRAVAMEN ya trae "ninguno" sembrado
+// (20260814180000) como su propio valor — ese es el "sin gravamen", no NULL.
+const opcionesTipoGravamen = computed(() =>
+  tiposGravamen.value.map((g) => ({ valor: g.id, etiqueta: g.nombre })),
+)
 // Solo agrupaciones activas: una desactivada sigue mostrándose en los
 // inmuebles que ya la tienen, pero no se ofrece para asignaciones nuevas.
 // La etiqueta es la ruta completa ("Edificio A / Piso 3") para que dos
@@ -80,9 +86,48 @@ const estadoLegalObservaciones = ref('')
 const habitabilidadId = ref<number | null>(null)
 const usoPredioId = ref<number | null>(null)
 const agrupacionId = ref<string | null>(null)
+const referenciaCatastral = ref('')
+const gravamenTipoId = ref<number | null>(null)
 
 const errorEdicion = ref<string | null>(null)
 const guardandoEdicion = ref(false)
+
+function codigoGravamen(id: number | null | undefined): string | undefined {
+  return tiposGravamen.value.find((g) => g.id === id)?.codigo
+}
+
+/** true cuando el gravamen elegido en el formulario no es "ninguno" — en ese
+ * caso la ficha exige un tercero asociado con rol Locatario (un inmueble
+ * hipotecado o en leasing tiene un ocupante distinto del propietario
+ * registrado). Se usa para validar `guardar()` y para el aviso dentro del
+ * formulario (creación y drawer de edición mientras está abierto). */
+const gravamenRequiereLocatario = computed(() => {
+  const codigo = codigoGravamen(gravamenTipoId.value)
+  return codigo !== undefined && codigo !== 'ninguno'
+})
+
+/** Mismo chequeo pero sobre el dato ya guardado (inmuebleActivo), no sobre
+ * el formulario de edición — para el aviso en la ficha de solo lectura,
+ * que debe verse sin necesidad de abrir "Editar" primero. */
+const gravamenPersistidoRequiereLocatario = computed(() => {
+  const codigo = codigoGravamen(inmueblesStore.inmuebleActivo?.gravamen_tipo_id)
+  return codigo !== undefined && codigo !== 'ninguno'
+})
+
+function tieneLocatarioCapturado(): boolean {
+  const rolLocatarioId = rolesDisponibles.value.find((r) => r.codigo === 'locatario')?.id
+  if (props.esCreacion) {
+    return personasEnEspera.value.some((p) => p.rolId === rolLocatarioId)
+  }
+  return tercerosStore.tercerosAsociados.some(
+    (p) => p.rol.codigo === 'locatario' && !p.vigente_hasta,
+  )
+}
+
+const locatarioFaltante = computed(() => gravamenRequiereLocatario.value && !tieneLocatarioCapturado())
+const locatarioFaltantePersistido = computed(
+  () => gravamenPersistidoRequiereLocatario.value && !tieneLocatarioCapturado(),
+)
 
 function precargarFormulario(): void {
   const inm = inmueblesStore.inmuebleActivo
@@ -98,6 +143,8 @@ function precargarFormulario(): void {
   habitabilidadId.value = inm.habitabilidad_id
   usoPredioId.value = inm.uso_predio_id
   agrupacionId.value = inm.agrupacion_id
+  referenciaCatastral.value = inm.referencia_catastral ?? ''
+  gravamenTipoId.value = inm.gravamen_tipo_id
 }
 
 function alternarEdicion(): void {
@@ -173,6 +220,9 @@ async function guardar(): Promise<string> {
   if (!tenantId) throw new Error('No hay copropiedad activa.')
   if (!codigo.value.trim()) throw new Error('El código del inmueble es obligatorio.')
   if (tipoId.value === null) throw new Error('Elige un tipo de inmueble.')
+  if (gravamenRequiereLocatario.value && !tieneLocatarioCapturado()) {
+    throw new Error('El inmueble tiene un gravamen registrado — agrega un tercero con rol Locatario.')
+  }
 
   if (props.esCreacion) {
     if (personasEnEspera.value.length === 0) {
@@ -191,6 +241,8 @@ async function guardar(): Promise<string> {
       habitabilidadId: habitabilidadId.value,
       usoPredioId: usoPredioId.value,
       agrupacionId: agrupacionId.value,
+      referenciaCatastral: referenciaCatastral.value.trim() || undefined,
+      gravamenTipoId: gravamenTipoId.value,
     })
     for (const persona of personasEnEspera.value) {
       await tercerosStore.asociarTerceroInmueble({ tenantId, inmuebleId: nuevo.id, ...persona })
@@ -212,6 +264,8 @@ async function guardar(): Promise<string> {
     habitabilidadId: habitabilidadId.value,
     usoPredioId: usoPredioId.value,
     agrupacionId: agrupacionId.value,
+    referenciaCatastral: referenciaCatastral.value.trim() || undefined,
+    gravamenTipoId: gravamenTipoId.value,
   })
   editando.value = false
   return props.inmuebleId
@@ -230,6 +284,7 @@ watchEffect(async () => {
     usosPredio.value,
     tiposIdentificacion.value,
     tiposZonaComun.value,
+    tiposGravamen.value,
   ] = await Promise.all([
     cargarListaTipos(tenantId, 'TIPO_INMUEBLE'),
     cargarListaTipos(tenantId, 'ESTADO_LEGAL_PREDIO'),
@@ -237,6 +292,7 @@ watchEffect(async () => {
     cargarListaTipos(tenantId, 'USO_PREDIO'),
     cargarListaTipos(tenantId, 'TIPO_IDENTIFICACION'),
     cargarListaTipos(tenantId, 'TIPO_ZONA_COMUN'),
+    cargarListaTipos(tenantId, 'TIPO_GRAVAMEN'),
   ])
   await tercerosStore.cargarRolesPersonaPredio(tenantId)
   // El árbol de agrupaciones alimenta el selector "Agrupación"; se carga
@@ -258,84 +314,75 @@ watchEffect(async () => {
 
 <template>
   <div>
-    <div v-if="esCreacion">
+    <div v-if="esCreacion" class="w-1/2">
       <div class="section-title" style="margin-top: 0"><h2>Datos generales</h2></div>
-      <div class="form-grid">
-        <div class="field">
-          <label for="f-codigo">Código del inmueble</label>
-          <input id="f-codigo" v-model="codigo" type="text" placeholder="AP-501">
-          <span class="field-hint">Debe ser único dentro de la copropiedad.</span>
+      <div class="space-y-4 text-sm">
+        <div class="grid grid-cols-[2fr_3fr] gap-4">
+          <UFormField label="Código" name="codigo" help="Único en la copropiedad.">
+            <UInput v-model="codigo" type="text" placeholder="AP-501" class="w-full" />
+          </UFormField>
+          <UFormField label="Tipo" name="tipo_id">
+            <UiSelectorBuscable v-model="tipoId" :opciones="opcionesTipoInmueble" placeholder="— Elegir —" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-tipo">Tipo</label>
-          <UiSelectorBuscable
-            id="f-tipo"
-            v-model="tipoId"
-            variante="ficha"
-            :opciones="opcionesTipoInmueble"
-            placeholder="— Elegir —"
-          />
+        <div class="grid grid-cols-[3fr_2fr] gap-4">
+          <UFormField label="Matrícula inmobiliaria" name="matricula">
+            <UInput v-model="matricula" type="text" placeholder="060-987654" class="w-full" />
+          </UFormField>
+          <UFormField label="Estado" name="estado">
+            <USelect
+              v-model="estado"
+              :items="[
+                { label: 'Activo', value: 'activo' },
+                { label: 'Inactivo', value: 'inactivo' },
+              ]"
+              value-key="value"
+              class="w-full"
+            />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-matricula">Matrícula inmobiliaria</label>
-          <input id="f-matricula" v-model="matricula" type="text" placeholder="060-987654">
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Área privada (m²)" name="area_privada">
+            <UInput v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40" class="w-full" />
+          </UFormField>
+          <UFormField label="Área común (m²)" name="area_comun">
+            <UInput v-model.number="areaComun" type="number" step="0.01" placeholder="6.20" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-estado">Estado</label>
-          <select id="f-estado" v-model="estado">
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Habitabilidad" name="habitabilidad_id">
+            <UiSelectorBuscable v-model="habitabilidadId" :opciones="opcionesHabitabilidad" />
+          </UFormField>
+          <UFormField label="Uso del predio" name="uso_predio_id">
+            <UiSelectorBuscable v-model="usoPredioId" :opciones="opcionesUsoPredio" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-area-priv">Área privada (m²)</label>
-          <input id="f-area-priv" v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40">
+        <div class="grid gap-4" :class="estadoLegalId === null ? 'grid-cols-1' : 'grid-cols-[2fr_3fr]'">
+          <UFormField label="Estado legal" name="estado_legal_id">
+            <UiSelectorBuscable v-model="estadoLegalId" :opciones="opcionesEstadoLegal" />
+          </UFormField>
+          <UFormField v-if="estadoLegalId !== null" label="Observaciones" name="estado_legal_observaciones">
+            <UInput v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-area-com">Área común asignada (m²)</label>
-          <input id="f-area-com" v-model.number="areaComun" type="number" step="0.01" placeholder="6.20">
+        <UFormField label="Agrupación" name="agrupacion_id" help="Se definen en Ajustes › Agrupaciones.">
+          <UiSelectorBuscable v-model="agrupacionId" :opciones="opcionesAgrupacion" />
+        </UFormField>
+        <div class="grid grid-cols-[3fr_2fr] gap-4">
+          <UFormField label="Referencia catastral" name="referencia_catastral">
+            <UInput v-model="referenciaCatastral" type="text" placeholder="00-01-0001-0001-000000000000" class="w-full" />
+          </UFormField>
+          <UFormField label="Tipo de gravamen" name="gravamen_tipo_id">
+            <UiSelectorBuscable v-model="gravamenTipoId" :opciones="opcionesTipoGravamen" placeholder="— Elegir —" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="f-habitabilidad">Habitabilidad</label>
-          <UiSelectorBuscable
-            id="f-habitabilidad"
-            v-model="habitabilidadId"
-            variante="ficha"
-            :opciones="opcionesHabitabilidad"
-          />
-        </div>
-        <div class="field">
-          <label for="f-estado-legal">Estado legal</label>
-          <UiSelectorBuscable
-            id="f-estado-legal"
-            v-model="estadoLegalId"
-            variante="ficha"
-            :opciones="opcionesEstadoLegal"
-          />
-        </div>
-        <div v-if="estadoLegalId !== null" class="field span-2">
-          <label for="f-estado-legal-obs">Observaciones</label>
-          <input id="f-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
-        </div>
-        <div class="field">
-          <label for="f-uso-predio">Uso del predio</label>
-          <UiSelectorBuscable
-            id="f-uso-predio"
-            v-model="usoPredioId"
-            variante="ficha"
-            :opciones="opcionesUsoPredio"
-          />
-        </div>
-        <div class="field">
-          <label for="f-agrupacion">Agrupación</label>
-          <UiSelectorBuscable
-            id="f-agrupacion"
-            v-model="agrupacionId"
-            variante="ficha"
-            :opciones="opcionesAgrupacion"
-          />
-          <span class="field-hint">Se definen en Ajustes › Agrupaciones.</span>
-        </div>
+        <UAlert
+          v-if="locatarioFaltante"
+          color="warning"
+          variant="soft"
+          title="Falta el locatario"
+          description="Este inmueble tiene un gravamen registrado — agrega un tercero con rol Locatario en Personas asociadas."
+        />
       </div>
     </div>
 
@@ -343,9 +390,7 @@ watchEffect(async () => {
       <div>
         <div class="section-title" style="margin-top: 0">
           <p class="card-title" style="margin: 0">Ficha técnica</p>
-          <button type="button" class="btn btn--ghost" style="font-size: 12px; padding: 5px 11px" @click="alternarEdicion">
-            Editar
-          </button>
+          <UButton variant="outline" color="neutral" size="xs" @click="alternarEdicion">Editar</UButton>
         </div>
         <dl class="ledger">
           <div class="ledger-row"><dt>Código</dt><dd>{{ inmueblesStore.inmuebleActivo?.codigo }}</dd></div>
@@ -372,7 +417,25 @@ watchEffect(async () => {
             <dt>Uso del predio</dt>
             <dd>{{ usosPredio.find((u) => u.id === inmueblesStore.inmuebleActivo?.uso_predio_id)?.nombre ?? '—' }}</dd>
           </div>
+          <div class="ledger-row">
+            <dt>Referencia catastral</dt>
+            <dd>{{ inmueblesStore.inmuebleActivo?.referencia_catastral ?? '—' }}</dd>
+          </div>
+          <div class="ledger-row">
+            <dt>Tipo de gravamen</dt>
+            <dd>
+              {{ tiposGravamen.find((g) => g.id === inmueblesStore.inmuebleActivo?.gravamen_tipo_id)?.nombre ?? '—' }}
+            </dd>
+          </div>
         </dl>
+        <UAlert
+          v-if="locatarioFaltantePersistido"
+          color="warning"
+          variant="soft"
+          title="Falta el locatario"
+          description="Este inmueble tiene un gravamen registrado — agrega un tercero con rol Locatario en Personas asociadas."
+          class="mt-3"
+        />
       </div>
 
       <div>
@@ -407,89 +470,78 @@ watchEffect(async () => {
       subtitulo="Datos generales del inmueble."
       @cerrar="editando = false"
     >
-      <div class="form-grid">
-        <div class="field">
-          <label for="fe-codigo">Código del inmueble</label>
-          <input id="fe-codigo" v-model="codigo" type="text" placeholder="AP-501">
-          <span class="field-hint">Debe ser único dentro de la copropiedad.</span>
+      <div class="space-y-4 text-sm">
+        <div class="grid grid-cols-[2fr_3fr] gap-4">
+          <UFormField label="Código" name="codigo" help="Único en la copropiedad.">
+            <UInput v-model="codigo" type="text" placeholder="AP-501" class="w-full" />
+          </UFormField>
+          <UFormField label="Tipo" name="tipo_id">
+            <UiSelectorBuscable v-model="tipoId" :opciones="opcionesTipoInmueble" placeholder="— Elegir —" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-tipo">Tipo</label>
-          <UiSelectorBuscable
-            id="fe-tipo"
-            v-model="tipoId"
-            variante="ficha"
-            :opciones="opcionesTipoInmueble"
-            placeholder="— Elegir —"
-          />
+        <div class="grid grid-cols-[3fr_2fr] gap-4">
+          <UFormField label="Matrícula inmobiliaria" name="matricula">
+            <UInput v-model="matricula" type="text" placeholder="060-987654" class="w-full" />
+          </UFormField>
+          <UFormField label="Estado" name="estado">
+            <USelect
+              v-model="estado"
+              :items="[
+                { label: 'Activo', value: 'activo' },
+                { label: 'Inactivo', value: 'inactivo' },
+              ]"
+              value-key="value"
+              class="w-full"
+            />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-matricula">Matrícula inmobiliaria</label>
-          <input id="fe-matricula" v-model="matricula" type="text" placeholder="060-987654">
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Área privada (m²)" name="area_privada">
+            <UInput v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40" class="w-full" />
+          </UFormField>
+          <UFormField label="Área común (m²)" name="area_comun">
+            <UInput v-model.number="areaComun" type="number" step="0.01" placeholder="6.20" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-estado">Estado</label>
-          <select id="fe-estado" v-model="estado">
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Habitabilidad" name="habitabilidad_id">
+            <UiSelectorBuscable v-model="habitabilidadId" :opciones="opcionesHabitabilidad" />
+          </UFormField>
+          <UFormField label="Uso del predio" name="uso_predio_id">
+            <UiSelectorBuscable v-model="usoPredioId" :opciones="opcionesUsoPredio" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-area-priv">Área privada (m²)</label>
-          <input id="fe-area-priv" v-model.number="areaPrivada" type="number" step="0.01" placeholder="78.40">
+        <div class="grid gap-4" :class="estadoLegalId === null ? 'grid-cols-1' : 'grid-cols-[2fr_3fr]'">
+          <UFormField label="Estado legal" name="estado_legal_id">
+            <UiSelectorBuscable v-model="estadoLegalId" :opciones="opcionesEstadoLegal" />
+          </UFormField>
+          <UFormField v-if="estadoLegalId !== null" label="Observaciones" name="estado_legal_observaciones">
+            <UInput v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-area-com">Área común asignada (m²)</label>
-          <input id="fe-area-com" v-model.number="areaComun" type="number" step="0.01" placeholder="6.20">
+        <UFormField label="Agrupación" name="agrupacion_id" help="Se definen en Ajustes › Agrupaciones.">
+          <UiSelectorBuscable v-model="agrupacionId" :opciones="opcionesAgrupacion" />
+        </UFormField>
+        <div class="grid grid-cols-[3fr_2fr] gap-4">
+          <UFormField label="Referencia catastral" name="referencia_catastral">
+            <UInput v-model="referenciaCatastral" type="text" placeholder="00-01-0001-0001-000000000000" class="w-full" />
+          </UFormField>
+          <UFormField label="Tipo de gravamen" name="gravamen_tipo_id">
+            <UiSelectorBuscable v-model="gravamenTipoId" :opciones="opcionesTipoGravamen" placeholder="— Elegir —" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="fe-habitabilidad">Habitabilidad</label>
-          <UiSelectorBuscable
-            id="fe-habitabilidad"
-            v-model="habitabilidadId"
-            variante="ficha"
-            :opciones="opcionesHabitabilidad"
-          />
-        </div>
-        <div class="field">
-          <label for="fe-estado-legal">Estado legal</label>
-          <UiSelectorBuscable
-            id="fe-estado-legal"
-            v-model="estadoLegalId"
-            variante="ficha"
-            :opciones="opcionesEstadoLegal"
-          />
-        </div>
-        <div v-if="estadoLegalId !== null" class="field span-2">
-          <label for="fe-estado-legal-obs">Observaciones</label>
-          <input id="fe-estado-legal-obs" v-model="estadoLegalObservaciones" type="text" placeholder="Radicado, juzgado, fecha…">
-        </div>
-        <div class="field">
-          <label for="fe-uso-predio">Uso del predio</label>
-          <UiSelectorBuscable
-            id="fe-uso-predio"
-            v-model="usoPredioId"
-            variante="ficha"
-            :opciones="opcionesUsoPredio"
-          />
-        </div>
-        <div class="field">
-          <label for="fe-agrupacion">Agrupación</label>
-          <UiSelectorBuscable
-            id="fe-agrupacion"
-            v-model="agrupacionId"
-            variante="ficha"
-            :opciones="opcionesAgrupacion"
-          />
-          <span class="field-hint">Se definen en Ajustes › Agrupaciones.</span>
-        </div>
+        <UAlert
+          v-if="locatarioFaltante"
+          color="warning"
+          variant="soft"
+          title="Falta el locatario"
+          description="Este inmueble tiene un gravamen registrado — agrega un tercero con rol Locatario en Personas asociadas."
+        />
       </div>
-      <p v-if="errorEdicion" class="note" style="color: var(--ladrillo-text)">{{ errorEdicion }}</p>
+      <UAlert v-if="errorEdicion" color="error" variant="soft" :title="errorEdicion" class="mt-4" />
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="editando = false">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardandoEdicion" @click="guardarEdicion">
-          {{ guardandoEdicion ? 'Guardando…' : 'Guardar cambios' }}
-        </button>
+        <UButton variant="ghost" @click="editando = false">Cancelar</UButton>
+        <UButton :loading="guardandoEdicion" @click="guardarEdicion">Guardar cambios</UButton>
       </template>
     </UiDrawer>
 
@@ -498,13 +550,14 @@ watchEffect(async () => {
     <template v-if="esCreacion">
       <div class="section-title">
         <h2>Personas asociadas</h2>
-        <button type="button" class="btn btn--ghost" style="font-size: 12px; padding: 5px 11px" @click="mostrarFormPersona = true">
+        <UButton variant="outline" color="neutral" size="xs" @click="mostrarFormPersona = true">
           Agregar otra persona
-        </button>
+        </UButton>
       </div>
-      <InmueblesInmueblePersonaForm v-if="mostrarFormPersona" :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
+      <div v-if="mostrarFormPersona" class="w-1/2">
+        <InmueblesInmueblePersonaForm :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
+      </div>
       <UiTabla
-        variante="ficha"
         :columnas="[
           { clave: 'nombre', etiqueta: 'Persona' },
           { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
@@ -520,7 +573,7 @@ watchEffect(async () => {
         <template #celda-rol="{ fila }">{{ nombreRol(fila.rolId) }}</template>
         <template #celda-participacion="{ fila }">{{ fila.porcentaje ? `${fila.porcentaje} %` : '—' }}</template>
         <template #celda-acciones="{ indice }">
-          <button type="button" class="icon-btn-sm reject" @click="quitarPersonaEnEspera(indice)">✕</button>
+          <UButton variant="ghost" color="error" size="xs" @click="quitarPersonaEnEspera(indice)">✕</UButton>
         </template>
       </UiTabla>
     </template>
@@ -531,9 +584,6 @@ watchEffect(async () => {
           <h2>Personas asociadas</h2>
           <p class="panel-sub">Cualquier persona natural o jurídica con una relación vigente con este inmueble.</p>
         </div>
-        <button type="button" class="btn btn--ghost" style="font-size: 12.5px; padding: 6px 12px" @click="mostrarFormPersona = true">
-          Agregar persona
-        </button>
       </div>
       <UiDrawer
         :abierto="mostrarFormPersona"
@@ -543,14 +593,30 @@ watchEffect(async () => {
       >
         <InmueblesInmueblePersonaForm :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
       </UiDrawer>
-      <div class="chips">
-        <button type="button" class="chip" :class="{ 'is-active': filtroRol === 'todas' }" @click="filtroRol = 'todas'">Todas</button>
-        <button v-for="r in rolesDisponibles" :key="r.id" type="button" class="chip" :class="{ 'is-active': filtroRol === r.codigo }" @click="filtroRol = r.codigo">
-          {{ r.nombre }}
-        </button>
+      <div class="mt-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+        <UButtonGroup size="xs">
+          <UButton
+            :color="filtroRol === 'todas' ? 'primary' : 'neutral'"
+            :variant="filtroRol === 'todas' ? 'solid' : 'outline'"
+            @click="filtroRol = 'todas'"
+          >
+            Todas
+          </UButton>
+          <UButton
+            v-for="r in rolesDisponibles"
+            :key="r.id"
+            :color="filtroRol === r.codigo ? 'primary' : 'neutral'"
+            :variant="filtroRol === r.codigo ? 'solid' : 'outline'"
+            @click="filtroRol = r.codigo"
+          >
+            {{ r.nombre }}
+          </UButton>
+        </UButtonGroup>
+        <UButton variant="outline" color="neutral" size="sm" @click="mostrarFormPersona = true">
+          Agregar persona
+        </UButton>
       </div>
       <UiTabla
-        variante="ficha"
         :columnas="[
           { clave: 'nombre', etiqueta: 'Persona' },
           { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
@@ -564,22 +630,23 @@ watchEffect(async () => {
         :filas="personasAsociadasFiltradas"
         :clave-fila="(p) => p.id"
         vacio="Sin personas asociadas todavía."
+        encabezado-alto
       >
         <template #celda-nombre="{ fila }">{{ fila.tercero.nombre_completo }}</template>
         <template #celda-documento="{ fila }">{{ nombreTipoIdentificacion(fila.tercero.tipo_identificacion_id) }} {{ fila.tercero.numero_documento }}</template>
-        <template #celda-rol="{ fila }"><span class="badge badge--gris">{{ fila.rol.nombre }}</span></template>
+        <template #celda-rol="{ fila }"><UBadge color="neutral" variant="subtle">{{ fila.rol.nombre }}</UBadge></template>
         <template #celda-participacion="{ fila }">{{ fila.porcentaje ? `${fila.porcentaje} %` : '—' }}</template>
         <template #celda-pagador="{ fila }">
-          <div style="text-align: center">
-            <button
-              type="button"
-              class="icon-btn-sm"
-              :class="{ approve: fila.es_pagador }"
+          <div class="text-center">
+            <UButton
+              :color="fila.es_pagador ? 'success' : 'neutral'"
+              variant="ghost"
+              size="xs"
               :title="fila.es_pagador ? 'Recibe la factura' : 'Marcar como pagador'"
               @click="marcarPagador(fila.id)"
             >
               {{ fila.es_pagador ? '✓' : '✕' }}
-            </button>
+            </UButton>
           </div>
         </template>
         <template #celda-notificaciones="{ fila }">

@@ -3,6 +3,13 @@
 // (PROMPT_FICHA_COPROPIEDAD.md §7.2). entidad_financiera_id viene del
 // catálogo ENTIDAD_FINANCIERA (20260822170000/20260822171000) — cierra el
 // gap que antes dejaba "banco" como texto libre.
+//
+// Contenido en Nuxt UI (UFormField/UInput/USelect/UButton), mismo criterio
+// que politicas/PoliticasVersionDrawer.vue (23-08-2026). De paso se agrega
+// el <div class="ficha-inmueble"> que faltaba alrededor de <UiDrawer> — sin
+// ese ancestro el drawer se renderiza sin estilo (bug documentado en
+// MiembroDrawer.vue); CopropiedadDatosBasicos.vue, quien monta este
+// componente, tampoco lo envuelve, así que faltaba en toda la cadena.
 import type { Database } from '@aquila/shared'
 
 type CuentaBancariaTipo = Database['public']['Enums']['cuenta_bancaria_tipo_t']
@@ -54,47 +61,46 @@ async function guardar(): Promise<void> {
 </script>
 
 <template>
-  <UiDrawer
-    :abierto="true"
-    titulo="Agregar cuenta"
-    subtitulo="Cuenta bancaria de la copropiedad"
-    @cerrar="emit('cerrar')"
-  >
-    <div class="form-grid" style="grid-template-columns: 1fr">
-      <div class="field">
-        <label for="cb-banco">Banco</label>
-        <UiSelectorBuscable
-          id="cb-banco"
-          v-model="entidadFinancieraId"
-          variante="ficha"
-          :opciones="opcionesEntidadFinanciera"
-          placeholder="Buscar entidad…"
-        />
+  <div class="ficha-inmueble">
+    <UiDrawer
+      :abierto="true"
+      titulo="Agregar cuenta"
+      subtitulo="Cuenta bancaria de la copropiedad"
+      @cerrar="emit('cerrar')"
+    >
+      <div class="space-y-4 text-sm">
+        <UFormField label="Banco" name="entidad_financiera_id">
+          <UiSelectorBuscable
+            v-model="entidadFinancieraId"
+            :opciones="opcionesEntidadFinanciera"
+            placeholder="Buscar entidad…"
+          />
+        </UFormField>
+        <UFormField label="Tipo de cuenta" name="tipo_cuenta">
+          <USelect
+            v-model="tipoCuenta"
+            :items="[
+              { label: 'Ahorros', value: 'ahorros' },
+              { label: 'Corriente', value: 'corriente' },
+              { label: 'Billetera digital', value: 'billetera' },
+            ]"
+            value-key="value"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Número de cuenta" name="numero_cuenta">
+          <UInput v-model="numeroCuenta" type="text" placeholder="1234567890" class="w-full" />
+        </UFormField>
+        <UFormField label="Titular (opcional)" name="titular">
+          <UInput v-model="titular" type="text" placeholder="Conjunto Residencial DAM5" class="w-full" />
+        </UFormField>
       </div>
-      <div class="field">
-        <label for="cb-tipo">Tipo de cuenta</label>
-        <select id="cb-tipo" v-model="tipoCuenta">
-          <option value="ahorros">Ahorros</option>
-          <option value="corriente">Corriente</option>
-          <option value="billetera">Billetera digital</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="cb-numero">Número de cuenta</label>
-        <input id="cb-numero" v-model="numeroCuenta" type="text" placeholder="1234567890">
-      </div>
-      <div class="field">
-        <label for="cb-titular">Titular (opcional)</label>
-        <input id="cb-titular" v-model="titular" type="text" placeholder="Conjunto Residencial DAM5">
-      </div>
-    </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
-    <template #foot>
-      <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-        {{ guardando ? 'Guardando…' : 'Guardar' }}
-      </button>
-    </template>
-  </UiDrawer>
+      <template #foot>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Guardar</UButton>
+      </template>
+    </UiDrawer>
+  </div>
 </template>

@@ -138,7 +138,7 @@ const filasVisibles = computed<Nodo[]>(() => {
 // "Piso 01..10 dentro de Torre 1" en un solo modal en vez de repetir
 // "Nueva agrupación" diez veces.
 const plantillaAbierta = ref(false)
-const plantillaTipoId = ref<number | null>(null)
+const plantillaTipoId = ref<number | undefined>(undefined)
 const plantillaParentId = ref<string | null>(null)
 const plantillaNombres = ref('')
 const plantillaDescripcion = ref('')
@@ -175,7 +175,7 @@ const plantillaPadre = computed(() =>
 )
 
 function abrirPlantilla(): void {
-  plantillaTipoId.value = agrupacionesStore.tiposAgrupacion[0]?.id ?? null
+  plantillaTipoId.value = agrupacionesStore.tiposAgrupacion[0]?.id
   plantillaParentId.value = null
   plantillaNombres.value = ''
   plantillaDescripcion.value = ''
@@ -188,7 +188,7 @@ function abrirPlantilla(): void {
 
 async function guardarPlantilla(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || plantillaTipoId.value === null || plantillaNombresLista.value.length === 0) return
+  if (!tenantId || plantillaTipoId.value === undefined || plantillaNombresLista.value.length === 0) return
 
   plantillaError.value = null
   plantillaGuardando.value = true
@@ -322,7 +322,7 @@ function formatoPorcentaje(valor: number): string {
 // ── modal crear / editar ───────────────────────────────────────────────
 const modalAbierto = ref(false)
 const editandoId = ref<string | null>(null)
-const formTipoId = ref<number | null>(null)
+const formTipoId = ref<number | undefined>(undefined)
 const formNombre = ref('')
 const formParentId = ref<string | null>(null)
 const formDescripcion = ref('')
@@ -360,7 +360,7 @@ const rutaPrevia = computed(() => {
 
 function abrirNueva(parentId: string | null = null): void {
   editandoId.value = null
-  formTipoId.value = agrupacionesStore.tiposAgrupacion[0]?.id ?? null
+  formTipoId.value = agrupacionesStore.tiposAgrupacion[0]?.id
   formNombre.value = ''
   formParentId.value = parentId
   formDescripcion.value = ''
@@ -383,12 +383,12 @@ function abrirEdicion(nodo: Nodo): void {
 }
 
 const puedeGuardar = computed(
-  () => formTipoId.value !== null && formNombre.value.trim().length > 0,
+  () => formTipoId.value !== undefined && formNombre.value.trim().length > 0,
 )
 
 async function guardar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || formTipoId.value === null) return
+  if (!tenantId || formTipoId.value === undefined) return
 
   error.value = null
   guardando.value = true
@@ -450,7 +450,7 @@ async function confirmarEliminar(): Promise<void> {
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-semibold mb-2">Agrupaciones</h1>
-        <p class="text-sm text-gray-500 max-w-2xl">
+        <p class="text-sm text-neutral-500 max-w-2xl">
           Organiza los inmuebles en edificios, pisos, manzanas o zonas. Se definen una vez aquí y
           después quedan disponibles para asignarlos desde la ficha de cada inmueble.
         </p>
@@ -459,7 +459,7 @@ async function confirmarEliminar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-if="agrupacionesStore.arbolPlano.length === 0" class="text-gray-500 text-sm">
+    <p v-if="agrupacionesStore.arbolPlano.length === 0" class="text-neutral-500 text-sm">
       Todavía no hay agrupaciones. Crea la primera — por ejemplo un Edificio, una Manzana o una
       Zona — y después podrás colgar niveles debajo.
     </p>
@@ -493,12 +493,12 @@ async function confirmarEliminar(): Promise<void> {
         </div>
       </div>
 
-      <p v-if="!setVigente" class="text-xs text-gray-400">
+      <p v-if="!setVigente" class="text-xs text-neutral-400">
         No hay un set de coeficientes vigente — la columna Σ Coeficiente se ve vacía. Actívalo
         desde <NuxtLink to="/coeficientes" class="underline">Coeficientes</NuxtLink>.
       </p>
 
-      <p v-if="busqueda && filasVisibles.length === 0" class="text-gray-500 text-sm">
+      <p v-if="busqueda && filasVisibles.length === 0" class="text-neutral-500 text-sm">
         Sin resultados para «{{ busqueda }}».
       </p>
 
@@ -532,27 +532,27 @@ async function confirmarEliminar(): Promise<void> {
             <UBadge :color="fila.nivel === 1 ? 'primary' : 'neutral'" variant="subtle" size="sm">
               {{ fila.tipoNombre }}
             </UBadge>
-            <span :class="fila.activa ? '' : 'text-gray-400 line-through'">{{ fila.nombre }}</span>
+            <span :class="fila.activa ? '' : 'text-neutral-400 line-through'">{{ fila.nombre }}</span>
             <UBadge v-if="!fila.activa" color="neutral" variant="subtle" size="sm">
               Inactiva
             </UBadge>
           </div>
         </template>
         <template #celda-descripcion="{ fila }">
-          <span class="text-gray-500">{{ fila.descripcion ?? '—' }}</span>
+          <span class="text-neutral-500">{{ fila.descripcion ?? '—' }}</span>
         </template>
         <template #celda-inmuebles="{ fila }">
-          <span class="tabular-nums text-gray-500">
+          <span class="tabular-nums text-neutral-500">
             {{ conteoPorAgrupacion.get(fila.id) ?? 0 }}
           </span>
         </template>
         <template #celda-coeficiente="{ fila }">
-          <span class="tabular-nums text-gray-500">
+          <span class="tabular-nums text-neutral-500">
             {{ setVigente ? formatoCoeficiente(coeficientePorAgrupacion.get(fila.id) ?? 0) : '—' }}
           </span>
         </template>
         <template #celda-porcentaje="{ fila }">
-          <span class="tabular-nums text-gray-500">
+          <span class="tabular-nums text-neutral-500">
             {{ setVigente ? formatoPorcentaje(coeficientePorAgrupacion.get(fila.id) ?? 0) : '—' }}
           </span>
         </template>
@@ -585,7 +585,7 @@ async function confirmarEliminar(): Promise<void> {
         </template>
       </UiTabla>
 
-      <p v-if="setVigente && sinAgruparConCoeficiente > 0" class="text-xs text-gray-400">
+      <p v-if="setVigente && sinAgruparConCoeficiente > 0" class="text-xs text-neutral-400">
         {{ sinAgruparConCoeficiente }} inmuebles con coeficiente todavía no están agrupados — no se
         reflejan en la columna Σ Coeficiente.
       </p>
@@ -602,32 +602,29 @@ async function confirmarEliminar(): Promise<void> {
           <!-- "Depende de" va primero: define dónde cuelga el nodo, y de eso
                depende cómo se lee todo lo demás. -->
           <UFormField label="Depende de" name="padre">
-            <select
+            <USelect
               v-model="formParentId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">Nivel Superior</option>
-              <option v-for="n in opcionesPadre" :key="n.id" :value="n.id">{{ n.ruta }}</option>
-            </select>
+              :items="[{ label: 'Nivel Superior', value: null }, ...opcionesPadre.map((n) => ({ label: n.ruta, value: n.id }))]"
+              value-key="value"
+              class="w-full"
+            />
           </UFormField>
 
           <div class="grid grid-cols-3 gap-3">
             <UFormField label="Tipo" name="tipo" class="col-span-1">
-              <select
+              <USelect
                 v-model="formTipoId"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-              >
-                <option v-for="t in agrupacionesStore.tiposAgrupacion" :key="t.id" :value="t.id">
-                  {{ t.nombre }}
-                </option>
-              </select>
+                :items="agrupacionesStore.tiposAgrupacion.map((t) => ({ label: t.nombre, value: t.id }))"
+                value-key="value"
+                class="w-full"
+              />
             </UFormField>
 
             <UFormField name="nombre" class="col-span-2">
               <template #label>
                 <span class="inline-flex items-baseline gap-1.5">
                   <span>Nombre</span>
-                  <span class="text-xs font-normal text-gray-400">
+                  <span class="text-xs font-normal text-neutral-400">
                     — solo el identificador: «3», no «Piso 3»
                   </span>
                 </span>
@@ -640,7 +637,7 @@ async function confirmarEliminar(): Promise<void> {
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Descripción</span>
-                <span class="text-xs font-normal text-gray-400">— opcional</span>
+                <span class="text-xs font-normal text-neutral-400">— opcional</span>
               </span>
             </template>
             <UInput
@@ -650,16 +647,13 @@ async function confirmarEliminar(): Promise<void> {
             />
           </UFormField>
 
-          <label class="flex items-start gap-2.5 cursor-pointer">
-            <input v-model="formActiva" type="checkbox" class="mt-0.5">
-            <span class="min-w-0">
-              <span class="block">Activa</span>
-              <span class="block text-xs text-gray-500">
-                Al desactivarla deja de ofrecerse para asignaciones nuevas. Los inmuebles que ya
-                la tienen la conservan.
-              </span>
-            </span>
-          </label>
+          <UCheckbox v-model="formActiva">
+            <template #label>Activa</template>
+            <template #description>
+              Al desactivarla deja de ofrecerse para asignaciones nuevas. Los inmuebles que ya la
+              tienen la conservan.
+            </template>
+          </UCheckbox>
 
           <div
             v-if="rutaPrevia"
@@ -690,7 +684,7 @@ async function confirmarEliminar(): Promise<void> {
           <p>
             Vas a eliminar <strong>{{ nodoAEliminar.ruta }}</strong>.
           </p>
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             <template v-if="contarDescendientes(nodoAEliminar) > 0">
               Ni esta agrupación ni sus {{ contarDescendientes(nodoAEliminar) }} subgrupo(s)
               tienen inmuebles asignados, así que se borran todos juntos sin dejar nada colgando.
@@ -720,30 +714,25 @@ async function confirmarEliminar(): Promise<void> {
       <template #body>
         <div class="space-y-4 text-sm">
           <UFormField label="Depende de" name="plantillaPadre">
-            <select
+            <USelect
               v-model="plantillaParentId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">Nivel Superior</option>
-              <option v-for="n in agrupacionesStore.arbolPlano" :key="n.id" :value="n.id">
-                {{ n.ruta }}
-              </option>
-            </select>
+              :items="[{ label: 'Nivel Superior', value: null }, ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id }))]"
+              value-key="value"
+              class="w-full"
+            />
           </UFormField>
 
           <UFormField label="Tipo" name="plantillaTipo">
-            <select
+            <USelect
               v-model="plantillaTipoId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option v-for="t in agrupacionesStore.tiposAgrupacion" :key="t.id" :value="t.id">
-                {{ t.nombre }}
-              </option>
-            </select>
+              :items="agrupacionesStore.tiposAgrupacion.map((t) => ({ label: t.nombre, value: t.id }))"
+              value-key="value"
+              class="w-full"
+            />
           </UFormField>
 
-          <div class="rounded-md border border-gray-200 dark:border-gray-800 p-3 space-y-2">
-            <p class="text-xs text-gray-500">Generar un rango numérico (opcional)</p>
+          <div class="rounded-md border border-neutral-200 dark:border-neutral-800 p-3 space-y-2">
+            <p class="text-xs text-neutral-500">Generar un rango numérico (opcional)</p>
             <div class="flex items-end gap-3">
               <UFormField label="Desde" name="rangoDesde" class="w-20">
                 <UInput v-model.number="rangoDesde" type="number" />
@@ -751,10 +740,7 @@ async function confirmarEliminar(): Promise<void> {
               <UFormField label="Hasta" name="rangoHasta" class="w-20">
                 <UInput v-model.number="rangoHasta" type="number" />
               </UFormField>
-              <label class="flex items-center gap-1.5 text-xs pb-2 whitespace-nowrap">
-                <input v-model="rangoCeros" type="checkbox">
-                Ceros a la izquierda
-              </label>
+              <UCheckbox v-model="rangoCeros" label="Ceros a la izquierda" class="pb-2" />
               <UButton size="xs" variant="soft" @click="generarRango">Generar</UButton>
             </div>
           </div>
@@ -763,7 +749,7 @@ async function confirmarEliminar(): Promise<void> {
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Nombres</span>
-                <span class="text-xs font-normal text-gray-400">
+                <span class="text-xs font-normal text-neutral-400">
                   — uno por línea o separados por coma
                 </span>
               </span>
@@ -780,15 +766,15 @@ async function confirmarEliminar(): Promise<void> {
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Descripción</span>
-                <span class="text-xs font-normal text-gray-400">— opcional, igual para todas</span>
+                <span class="text-xs font-normal text-neutral-400">— opcional, igual para todas</span>
               </span>
             </template>
             <UInput v-model="plantillaDescripcion" class="w-full" />
           </UFormField>
 
-          <p v-if="plantillaNombresLista.length > 0" class="text-xs text-gray-500">
+          <p v-if="plantillaNombresLista.length > 0" class="text-xs text-neutral-500">
             Se crearán {{ plantillaNombresLista.length }} agrupaciones de tipo
-            <strong class="text-gray-700 dark:text-gray-300">{{ plantillaTipoNombre }}</strong>
+            <strong class="text-neutral-700 dark:text-neutral-300">{{ plantillaTipoNombre }}</strong>
             <template v-if="plantillaPadre"> dentro de {{ plantillaPadre.ruta }}</template>
             <template v-else> en el nivel superior</template>:
             {{ plantillaNombresLista.join(', ') }}
@@ -802,7 +788,7 @@ async function confirmarEliminar(): Promise<void> {
           <UButton variant="ghost" @click="plantillaAbierta = false">Cancelar</UButton>
           <UButton
             :loading="plantillaGuardando"
-            :disabled="plantillaTipoId === null || plantillaNombresLista.length === 0"
+            :disabled="plantillaTipoId === undefined || plantillaNombresLista.length === 0"
             @click="guardarPlantilla"
           >
             Crear {{ plantillaNombresLista.length || '' }}
@@ -820,15 +806,12 @@ async function confirmarEliminar(): Promise<void> {
       <template #body>
         <div class="space-y-3 text-sm">
           <UFormField label="Agrupación destino" name="agrupacionDestino">
-            <select
+            <USelect
               v-model="asignacionAgrupacionId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">— Selecciona —</option>
-              <option v-for="n in agrupacionesStore.arbolPlano" :key="n.id" :value="n.id">
-                {{ n.ruta }}
-              </option>
-            </select>
+              :items="[{ label: '— Selecciona —', value: null }, ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id }))]"
+              value-key="value"
+              class="w-full"
+            />
           </UFormField>
 
           <div class="flex items-center justify-between gap-2">
@@ -848,26 +831,25 @@ async function confirmarEliminar(): Promise<void> {
           </div>
 
           <div
-            class="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-md divide-y divide-gray-100 dark:divide-gray-800"
+            class="max-h-64 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-md divide-y divide-neutral-100 dark:divide-neutral-800"
           >
-            <label
+            <div
               v-for="i in inmueblesSinAgruparFiltrados"
               :key="i.id"
-              class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900"
+              class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-900"
             >
-              <input
-                type="checkbox"
-                :checked="asignacionSeleccion.has(i.id)"
-                @change="alternarSeleccion(i.id)"
-              >
-              <span>{{ i.codigo }}</span>
-            </label>
-            <p v-if="inmueblesSinAgruparFiltrados.length === 0" class="px-3 py-2 text-gray-500">
+              <UCheckbox
+                :model-value="asignacionSeleccion.has(i.id)"
+                :label="i.codigo"
+                @update:model-value="alternarSeleccion(i.id)"
+              />
+            </div>
+            <p v-if="inmueblesSinAgruparFiltrados.length === 0" class="px-3 py-2 text-neutral-500">
               No hay inmuebles sin agrupar que coincidan.
             </p>
           </div>
 
-          <p class="text-gray-500">{{ asignacionSeleccion.size }} inmueble(s) seleccionado(s).</p>
+          <p class="text-neutral-500">{{ asignacionSeleccion.size }} inmueble(s) seleccionado(s).</p>
 
           <UAlert v-if="asignacionError" color="error" variant="soft" :title="asignacionError" />
         </div>

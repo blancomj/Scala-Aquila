@@ -1,70 +1,69 @@
 <script setup lang="ts">
 // Políticas financieras — PLAN §4.3. Pantalla pequeña: listar versiones,
-// crear una nueva en borrador, activar. No soporta reemplazar una política
-// ya vigente (guard_politica_inmutable no lo permite hoy — ver stores/politicaFinanciera.ts).
+// crear una nueva en borrador o ver una existente (drawer,
+// components/politicas/PoliticasVersionDrawer.vue), activar. No soporta
+// reemplazar una política ya vigente (guard_politica_inmutable no lo
+// permite hoy — ver stores/politicaFinanciera.ts).
+//
+// Rediseñada (23-08-2026) siguiendo el mismo patrón que CoeficientesPanel.vue
+// (drawer para "nueva versión"/"ver versión" en vez de formulario inline
+// permanente sin forma de inspeccionar una fila) y agregando lo que faltaba
+// para una pantalla de configuración financiera: la política vigente como
+// resumen legible arriba (no una fila más en la tabla) y confirmación antes
+// de "Activar" (retira la vigente actual sin deshacer, ver
+// activarPolitica() en el store).
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'settings:manage' })
 
 const tenantStore = useTenantStore()
 const politicaStore = usePoliticaFinancieraStore()
 
-const redondeoModo = ref<'half_up' | 'half_even' | 'down' | 'up'>('half_up')
-const redondeoEscala = ref(0)
-const interesTasaMensual = ref<number | null>(null)
-const interesTopeMensual = ref<number | null>(null)
-const interesDiasGracia = ref(0)
-const interesDayCount = ref<'mensual_30_dias_reales' | 'actual_365' | 'actual_360' | 'treinta_360'>(
-  'mensual_30_dias_reales',
-)
-const interesDescuentoOrden = ref<'interes_sobre_capital_completo' | 'descuento_antes_interes'>(
-  'interes_sobre_capital_completo',
-)
-const fondoImprevistosPorcentaje = ref<number | null>(null)
-const fondoImprevistosBase = ref<'presupuesto_anual' | 'cuota_administracion' | ''>('')
-const coeficientesSumaEsperada = ref(1)
-const vigenteDesde = ref('')
-const cargando = ref(false)
-const activandoId = ref<string | null>(null)
 const error = ref<string | null>(null)
+const activandoId = ref<string | null>(null)
+const drawerAbierto = ref(false)
+const politicaIdAbierta = ref<string | undefined>(undefined)
+const confirmandoId = ref<string | null>(null)
 
 await useAsyncData('politicas-financieras', () => {
   const tenantId = tenantStore.activeTenant?.id
   return tenantId ? politicaStore.cargarPoliticas(tenantId) : Promise.resolve([])
 })
 
-async function crear(): Promise<void> {
-  error.value = null
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return
+const politicaVigente = computed(() => politicaStore.politicas.find((p) => p.estado === 'vigente'))
+const politicaConfirmando = computed(() =>
+  politicaStore.politicas.find((p) => p.id === confirmandoId.value),
+)
 
-  cargando.value = true
-  try {
-    await politicaStore.crearPolitica({
-      tenantId,
-      redondeoModo: redondeoModo.value,
-      redondeoEscala: redondeoEscala.value,
-      interesTasaMensual: interesTasaMensual.value ?? undefined,
-      interesTopeMensual: interesTopeMensual.value ?? undefined,
-      interesDiasGracia: interesDiasGracia.value,
-      interesDayCount: interesDayCount.value,
-      interesDescuentoOrden: interesDescuentoOrden.value,
-      fondoImprevistosPorcentaje: fondoImprevistosPorcentaje.value ?? undefined,
-      fondoImprevistosBase: fondoImprevistosBase.value || undefined,
-      coeficientesSumaEsperada: coeficientesSumaEsperada.value,
-      vigenteDesde: vigenteDesde.value || undefined,
-    })
-    interesTasaMensual.value = null
-    interesTopeMensual.value = null
-    fondoImprevistosPorcentaje.value = null
-    fondoImprevistosBase.value = ''
-    vigenteDesde.value = ''
-  } catch (excepcion) {
-    error.value = mensajeError(excepcion, 'No se pudo crear la política financiera.')
-  } finally {
-    cargando.value = false
-  }
+const ETIQUETA_ESTADO: Record<string, string> = {
+  vigente: 'Vigente',
+  borrador: 'Borrador',
+  historica: 'Histórica',
+}
+const COLOR_ESTADO: Record<string, 'success' | 'neutral'> = {
+  vigente: 'success',
+  borrador: 'neutral',
+  historica: 'neutral',
 }
 
-async function activar(id: string): Promise<void> {
+function abrirNuevaVersion(): void {
+  politicaIdAbierta.value = undefined
+  drawerAbierto.value = true
+}
+
+function abrirVersion(id: string): void {
+  politicaIdAbierta.value = id
+  drawerAbierto.value = true
+}
+
+async function cerrarDrawer(recargar: boolean): Promise<void> {
+  drawerAbierto.value = false
+  if (!recargar) return
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) await politicaStore.cargarPoliticas(tenantId)
+}
+
+async function confirmarActivar(): Promise<void> {
+  const id = confirmandoId.value
+  if (!id) return
   error.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
@@ -72,6 +71,7 @@ async function activar(id: string): Promise<void> {
   activandoId.value = id
   try {
     await politicaStore.activarPolitica(id, tenantId)
+    confirmandoId.value = null
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo activar la política.')
   } finally {
@@ -81,157 +81,136 @@ async function activar(id: string): Promise<void> {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold mb-2">Políticas financieras</h1>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         Redondeo, residual, intereses y fondo de imprevistos — versionadas (PLAN §4.3).
       </p>
     </div>
 
-    <div>
-      <h2 class="text-lg font-semibold mb-2">Versiones</h2>
-      <p v-if="politicaStore.politicas.length === 0" class="text-gray-500 text-sm">
-        Esta copropiedad todavía no tiene una política financiera.
-      </p>
-      <UiTabla
-        v-else
-        :columnas="[
-          { clave: 'version', etiqueta: 'Versión' },
-          { clave: 'estado', etiqueta: 'Estado' },
-          { clave: 'redondeo', etiqueta: 'Redondeo' },
-          { clave: 'interes', etiqueta: 'Interés' },
-          { clave: 'suma', etiqueta: 'Σ coeficientes' },
-          { clave: 'acciones', etiqueta: '' },
-        ]"
-        :filas="politicaStore.politicas"
-        :clave-fila="(politica) => politica.id"
+    <UAlert v-if="error" color="error" variant="soft" :title="error" />
+
+    <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+      <header
+        class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40"
       >
-        <template #celda-version="{ fila }">v{{ fila.version }}</template>
-        <template #celda-estado="{ fila }">{{ fila.estado }}</template>
-        <template #celda-redondeo="{ fila }">
-          <span class="text-gray-500">{{ fila.redondeo_modo }} · escala {{ fila.redondeo_escala }}</span>
-        </template>
-        <template #celda-interes="{ fila }">
-          <span class="text-gray-500">{{ fila.interes_day_count }} · {{ fila.interes_descuento_orden }}</span>
-        </template>
-        <template #celda-suma="{ fila }"><span class="text-gray-500">{{ fila.coeficientes_suma_esperada }}</span></template>
-        <template #celda-acciones="{ fila }">
-          <UButton
-            v-if="fila.estado === 'borrador'"
-            size="xs"
-            variant="soft"
-            :loading="activandoId === fila.id"
-            @click="activar(fila.id)"
-          >
-            Activar
-          </UButton>
-        </template>
-      </UiTabla>
-    </div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Vigente</h2>
+      </header>
+      <div class="p-4">
+        <p v-if="!politicaVigente" class="text-sm text-neutral-500">
+          Esta copropiedad todavía no tiene una política financiera vigente.
+        </p>
+        <dl v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div>
+            <dt class="text-xs text-neutral-500 mb-0.5">Versión</dt>
+            <dd class="font-medium">v{{ politicaVigente.version }} · desde {{ politicaVigente.vigente_desde }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-neutral-500 mb-0.5">Redondeo</dt>
+            <dd class="font-medium">{{ politicaVigente.redondeo_modo }} · escala {{ politicaVigente.redondeo_escala }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-neutral-500 mb-0.5">Interés mensual</dt>
+            <dd class="font-medium">
+              {{ politicaVigente.interes_tasa_mensual !== null ? `${politicaVigente.interes_tasa_mensual}%` : '—' }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-neutral-500 mb-0.5">Fondo de imprevistos</dt>
+            <dd class="font-medium">
+              {{ politicaVigente.fondo_imprevistos_porcentaje !== null ? `${politicaVigente.fondo_imprevistos_porcentaje}%` : 'Sin fondo' }}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </section>
 
-    <div>
-      <h2 class="text-lg font-semibold mb-2">Crear nueva versión (borrador)</h2>
-      <form class="space-y-4 max-w-sm" @submit.prevent="crear">
-        <UFormField label="Modo de redondeo" name="redondeo_modo">
-          <select
-            v-model="redondeoModo"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="half_up">Half up</option>
-            <option value="half_even">Half even</option>
-            <option value="down">Down</option>
-            <option value="up">Up</option>
-          </select>
-        </UFormField>
+    <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+      <header
+        class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 flex items-center justify-between"
+      >
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Versiones</h2>
+        <UButton size="xs" @click="abrirNuevaVersion">Nueva versión</UButton>
+      </header>
+      <div class="p-4">
+        <p v-if="politicaStore.politicas.length === 0" class="text-neutral-500 text-sm">
+          Esta copropiedad todavía no tiene una política financiera.
+        </p>
+        <UiTabla
+          v-else
+          :columnas="[
+            { clave: 'version', etiqueta: 'Versión' },
+            { clave: 'estado', etiqueta: 'Estado' },
+            { clave: 'redondeo', etiqueta: 'Redondeo' },
+            { clave: 'interes', etiqueta: 'Interés' },
+            { clave: 'suma', etiqueta: 'Σ coeficientes' },
+            { clave: 'acciones', etiqueta: '' },
+          ]"
+          :filas="politicaStore.politicas"
+          :clave-fila="(politica) => politica.id"
+        >
+          <template #celda-version="{ fila }">v{{ fila.version }}</template>
+          <template #celda-estado="{ fila }">
+            <UBadge :color="COLOR_ESTADO[fila.estado]" variant="subtle" size="sm">
+              {{ ETIQUETA_ESTADO[fila.estado] ?? fila.estado }}
+            </UBadge>
+          </template>
+          <template #celda-redondeo="{ fila }">
+            <span class="text-neutral-500">{{ fila.redondeo_modo }} · escala {{ fila.redondeo_escala }}</span>
+          </template>
+          <template #celda-interes="{ fila }">
+            <span class="text-neutral-500">{{ fila.interes_day_count }} · {{ fila.interes_descuento_orden }}</span>
+          </template>
+          <template #celda-suma="{ fila }"><span class="text-neutral-500">{{ fila.coeficientes_suma_esperada }}</span></template>
+          <template #celda-acciones="{ fila }">
+            <div class="flex justify-end gap-1">
+              <UButton size="xs" variant="ghost" @click="abrirVersion(fila.id)">Ver</UButton>
+              <UButton
+                v-if="fila.estado === 'borrador'"
+                size="xs"
+                variant="soft"
+                :loading="activandoId === fila.id"
+                @click="confirmandoId = fila.id"
+              >
+                Activar
+              </UButton>
+            </div>
+          </template>
+        </UiTabla>
+      </div>
+    </section>
 
-        <UFormField label="Escala de redondeo" name="redondeo_escala">
-          <UInput v-model.number="redondeoEscala" type="number" min="0" class="w-full" />
-        </UFormField>
+    <PoliticasVersionDrawer
+      v-if="drawerAbierto"
+      :politica-id="politicaIdAbierta"
+      @cerrar="cerrarDrawer(false)"
+      @creado="cerrarDrawer(true)"
+    />
 
-        <UFormField label="Σ coeficientes esperada" name="coeficientes_suma_esperada">
-          <UInput
-            v-model.number="coeficientesSumaEsperada"
-            type="number"
-            step="0.0000000001"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Tasa de interés mensual" name="interes_tasa_mensual">
-          <UInput
-            v-model.number="interesTasaMensual"
-            type="number"
-            step="0.000001"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Tope de interés mensual" name="interes_tope_mensual">
-          <UInput
-            v-model.number="interesTopeMensual"
-            type="number"
-            step="0.000001"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Días de gracia" name="interes_dias_gracia">
-          <UInput v-model.number="interesDiasGracia" type="number" min="0" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Day-count de mora" name="interes_day_count">
-          <select
-            v-model="interesDayCount"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="mensual_30_dias_reales">Tasa/30 × días reales (histórico)</option>
-            <option value="actual_365">ACTUAL/365</option>
-            <option value="actual_360">ACTUAL/360</option>
-            <option value="treinta_360">30/360</option>
-          </select>
-        </UFormField>
-
-        <UFormField label="Orden descuento vs. interés" name="interes_descuento_orden">
-          <select
-            v-model="interesDescuentoOrden"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="interes_sobre_capital_completo">
-              Interés sobre capital completo (histórico)
-            </option>
-            <option value="descuento_antes_interes">Descuento reduce la base antes del interés</option>
-          </select>
-        </UFormField>
-
-        <UFormField label="% fondo de imprevistos" name="fondo_imprevistos_porcentaje">
-          <UInput
-            v-model.number="fondoImprevistosPorcentaje"
-            type="number"
-            step="0.0001"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Base del fondo de imprevistos" name="fondo_imprevistos_base">
-          <select
-            v-model="fondoImprevistosBase"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="">— Ninguna —</option>
-            <option value="presupuesto_anual">Presupuesto anual</option>
-            <option value="cuota_administracion">Cuota de administración</option>
-          </select>
-        </UFormField>
-
-        <UFormField label="Vigente desde" name="vigente_desde">
-          <UInput v-model="vigenteDesde" type="date" class="w-full" />
-        </UFormField>
-
-        <UAlert v-if="error" color="error" variant="soft" :title="error" />
-
-        <UButton type="submit" :loading="cargando">Crear versión</UButton>
-      </form>
-    </div>
+    <UModal
+      :open="confirmandoId !== null"
+      title="¿Activar esta versión?"
+      @update:open="(abierto) => { if (!abierto) confirmandoId = null }"
+    >
+      <template #body>
+        <div v-if="politicaConfirmando" class="space-y-3 text-sm">
+          <p>
+            Vas a activar la <strong>v{{ politicaConfirmando.version }}</strong>
+            <template v-if="politicaVigente"> — retira la <strong>v{{ politicaVigente.version }}</strong>, hoy vigente</template>.
+          </p>
+          <p class="text-neutral-500">
+            Desde ese momento el motor de liquidación usa estos parámetros. No se puede deshacer —
+            si algo queda mal habría que crear una versión nueva y activarla.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" @click="confirmandoId = null">Cancelar</UButton>
+          <UButton :loading="activandoId !== null" @click="confirmarActivar">Activar</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

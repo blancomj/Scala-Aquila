@@ -397,11 +397,11 @@ function exportarCSV(): void {
   <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold mb-2">Inmuebles</h1>
-      <p class="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
+      <p class="text-sm text-neutral-500 flex items-center gap-2 flex-wrap">
         Unidades de la copropiedad — destino de cobro y prorrateo.
         <button
           type="button"
-          class="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300"
+          class="flex items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
           @click="resumenExpandido = !resumenExpandido"
         >
           <UIcon :name="resumenExpandido ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
@@ -410,32 +410,32 @@ function exportarCSV(): void {
       </p>
     </div>
 
-    <p v-if="cuentaStore.inmuebles.length === 0" class="text-gray-500 text-sm">
+    <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
       Todavía no hay inmuebles registrados.
     </p>
 
     <template v-else>
       <!-- ── resumen ──────────────────────────────────────────────────── -->
       <div v-if="resumenExpandido" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-1">Total unidades</p>
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+          <p class="text-xs text-neutral-500 mb-1">Total unidades</p>
           <p class="text-2xl font-medium">{{ resumen.total }}</p>
         </div>
-        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-1">Activas</p>
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+          <p class="text-xs text-neutral-500 mb-1">Activas</p>
           <p class="text-2xl font-medium">
             {{ resumen.activos }}
-            <span class="text-sm text-gray-400 font-normal">/ {{ resumen.inactivos }} inact.</span>
+            <span class="text-sm text-neutral-400 font-normal">/ {{ resumen.inactivos }} inact.</span>
           </p>
         </div>
-        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-1">Con saldo</p>
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+          <p class="text-xs text-neutral-500 mb-1">Con saldo</p>
           <p class="text-2xl font-medium" :class="resumen.conSaldo > 0 ? 'text-red-600 dark:text-red-400' : ''">
             {{ resumen.conSaldo }}
           </p>
         </div>
-        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-1">Sin agrupar</p>
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+          <p class="text-xs text-neutral-500 mb-1">Sin agrupar</p>
           <p
             class="text-2xl font-medium"
             :class="resumen.sinAgrupar > 0 ? 'text-amber-600 dark:text-amber-400' : ''"
@@ -443,8 +443,8 @@ function exportarCSV(): void {
             {{ resumen.sinAgrupar }}
           </p>
         </div>
-        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-1">Σ coeficiente</p>
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+          <p class="text-xs text-neutral-500 mb-1">Σ coeficiente</p>
           <p class="text-2xl font-medium">
             {{ setVigente ? formatoCoeficiente(Number(setVigente.suma_total)) : '—' }}
           </p>
@@ -472,40 +472,41 @@ function exportarCSV(): void {
             </template>
           </UInput>
 
-          <select
+          <USelect
             v-model="filtroTipoId"
-            class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-          >
-            <option :value="null">Todos los tipos</option>
-            <option v-for="t in tipos" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-          </select>
+            :items="[{ label: 'Todos los tipos', value: null }, ...(tipos ?? []).map((t) => ({ label: t.nombre, value: t.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-44"
+          />
 
-          <select
+          <USelect
             v-model="filtroAgrupacionId"
-            class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-          >
-            <option :value="null">Toda agrupación</option>
-            <option :value="SIN_AGRUPAR">Sin agrupar</option>
-            <option v-for="n in agrupacionesStore.arbolPlano" :key="n.id" :value="n.id">
-              {{ n.ruta }}
-            </option>
-          </select>
+            :items="[
+              { label: 'Toda agrupación', value: null },
+              { label: 'Sin agrupar', value: SIN_AGRUPAR },
+              ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
+            ]"
+            value-key="value"
+            size="sm"
+            class="w-44"
+          />
 
-          <select
+          <USelect
             v-model="filtroUsoPredioId"
-            class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-          >
-            <option :value="null">Todo uso</option>
-            <option v-for="u in usosPredio" :key="u.id" :value="u.id">{{ u.nombre }}</option>
-          </select>
+            :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-44"
+          />
 
-          <select
+          <USelect
             v-model="filtroHabitabilidadId"
-            class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-          >
-            <option :value="null">Todo estado físico</option>
-            <option v-for="h in habitabilidades" :key="h.id" :value="h.id">{{ h.nombre }}</option>
-          </select>
+            :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-44"
+          />
 
           <UButton
             v-if="hayFiltrosActivos"
@@ -537,7 +538,7 @@ function exportarCSV(): void {
         </div>
       </div>
 
-      <p v-if="filasFiltradas.length === 0" class="text-gray-500 text-sm">
+      <p v-if="filasFiltradas.length === 0" class="text-neutral-500 text-sm">
         Sin resultados para los filtros actuales.
       </p>
 
@@ -559,20 +560,20 @@ function exportarCSV(): void {
         @update:orden="orden = $event"
       >
         <template #encabezado-seleccion>
-          <input
-            type="checkbox"
-            :checked="todosVisiblesSeleccionados"
+          <UCheckbox
+            :model-value="todosVisiblesSeleccionados"
             aria-label="Seleccionar todas las visibles"
-            @change="alternarSeleccionTodos"
-          >
+            @update:model-value="alternarSeleccionTodos"
+          />
         </template>
         <template #encabezado-agrupacion>
-          <label class="inline-flex items-center gap-1.5 cursor-pointer">
-            <input v-model="verAgrupado" type="checkbox">
-            <span :class="verAgrupado ? 'text-gray-700 dark:text-gray-300 font-medium' : ''">
-              Ver agrupado
-            </span>
-          </label>
+          <UCheckbox v-model="verAgrupado">
+            <template #label>
+              <span :class="verAgrupado ? 'text-neutral-700 dark:text-neutral-300 font-medium' : ''">
+                Ver agrupado
+              </span>
+            </template>
+          </UCheckbox>
         </template>
 
         <!-- fila de encabezado de grupo (solo en vista agrupada) -->
@@ -585,7 +586,7 @@ function exportarCSV(): void {
             <button
               v-if="fila.colapsable"
               type="button"
-              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
               :title="gruposColapsados.has(fila.id) ? 'Desplegar' : 'Contraer'"
               @click="alternarGrupo(fila.id)"
             >
@@ -604,18 +605,17 @@ function exportarCSV(): void {
               {{ fila.tipoNombre }}
             </UBadge>
             <span class="font-medium">{{ fila.nombre }}</span>
-            <span class="text-xs text-gray-400">{{ fila.unidades }} unidad(es)</span>
+            <span class="text-xs text-neutral-400">{{ fila.unidades }} unidad(es)</span>
           </div>
         </template>
 
         <template #celda-seleccion="{ fila }">
-          <input
+          <UCheckbox
             v-if="!fila.esGrupo"
-            type="checkbox"
-            :checked="seleccion.has(fila.id)"
+            :model-value="seleccion.has(fila.id)"
             :aria-label="`Seleccionar ${fila.codigo}`"
-            @change="alternarSeleccion(fila.id)"
-          >
+            @update:model-value="alternarSeleccion(fila.id)"
+          />
         </template>
         <template #celda-codigo="{ fila }">
           <div
@@ -628,25 +628,25 @@ function exportarCSV(): void {
             <UBadge v-if="fila.estado === 'inactivo'" color="neutral" variant="subtle" size="sm">
               Inactivo
             </UBadge>
-            <p class="text-xs text-gray-500">
+            <p class="text-xs text-neutral-500">
               {{ cuentaStore.propietariosPorInmueble.get(fila.id) ?? 'Sin propietario' }}
             </p>
           </div>
         </template>
         <template #celda-tipo="{ fila }">
-          <span v-if="!fila.esGrupo" class="text-gray-500">{{ nombreTipo(fila.tipo_id) }}</span>
+          <span v-if="!fila.esGrupo" class="text-neutral-500">{{ nombreTipo(fila.tipo_id) }}</span>
         </template>
         <template #celda-agrupacion="{ fila }">
           <!-- En vista agrupada la ruta es redundante: la fila de grupo de
                arriba ya ubica al inmueble. -->
-          <span v-if="!fila.esGrupo && !verAgrupado" class="text-gray-500">
+          <span v-if="!fila.esGrupo && !verAgrupado" class="text-neutral-500">
             {{ fila.agrupacion_id ? rutaPorAgrupacion.get(fila.agrupacion_id) ?? '—' : '—' }}
           </span>
         </template>
         <template #celda-coeficiente="{ fila }">
           <span
             class="tabular-nums"
-            :class="fila.esGrupo ? 'font-medium' : 'text-gray-500'"
+            :class="fila.esGrupo ? 'font-medium' : 'text-neutral-500'"
           >
             <template v-if="!setVigente">—</template>
             <template v-else-if="fila.esGrupo">{{ formatoCoeficiente(fila.coeficiente) }}</template>
@@ -661,7 +661,7 @@ function exportarCSV(): void {
             :class="[
               (fila.esGrupo ? fila.saldo : saldoPorInmueble.get(fila.id) ?? 0) > 0
                 ? 'text-red-600 dark:text-red-400 font-medium'
-                : 'text-gray-400',
+                : 'text-neutral-400',
               fila.esGrupo ? 'font-medium' : '',
             ]"
           >
@@ -670,7 +670,7 @@ function exportarCSV(): void {
         </template>
       </UiTabla>
 
-      <p class="text-xs text-gray-400">
+      <p class="text-xs text-neutral-400">
         Mostrando {{ filasFiltradas.length }} de {{ cuentaStore.inmuebles.length }} unidades
         <template v-if="setVigente">
           · Σ coeficiente filtrado {{ formatoCoeficiente(sumaCoeficienteFiltrado) }}
@@ -686,17 +686,14 @@ function exportarCSV(): void {
     >
       <template #body>
         <div class="space-y-3 text-sm">
-          <p class="text-gray-500">{{ seleccion.size }} unidad(es) seleccionada(s).</p>
+          <p class="text-neutral-500">{{ seleccion.size }} unidad(es) seleccionada(s).</p>
           <UFormField label="Agrupación destino" name="agrupacionDestino">
-            <select
+            <USelect
               v-model="asignarAgrupacionId"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-            >
-              <option :value="null">— Selecciona —</option>
-              <option v-for="n in agrupacionesStore.arbolPlano" :key="n.id" :value="n.id">
-                {{ n.ruta }}
-              </option>
-            </select>
+              :items="[{ label: '— Selecciona —', value: null }, ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id }))]"
+              value-key="value"
+              class="w-full"
+            />
           </UFormField>
           <UAlert v-if="asignarError" color="error" variant="soft" :title="asignarError" />
         </div>

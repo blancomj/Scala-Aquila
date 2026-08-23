@@ -38,13 +38,19 @@ watchEffect(async () => {
         <h2>Históricos</h2>
         <p class="panel-sub">Línea de tiempo de eventos: propiedad, personas, novedades, pagos y liquidaciones.</p>
       </div>
-      <select v-model="filtro" class="cat-select">
-        <option value="todos">Todos los eventos</option>
-        <option value="persona">Personas</option>
-        <option value="novedad">Novedades</option>
-        <option value="pago">Cartera</option>
-        <option value="liquidacion">Liquidaciones</option>
-      </select>
+      <USelect
+        v-model="filtro"
+        :items="[
+          { label: 'Todos los eventos', value: 'todos' },
+          { label: 'Personas', value: 'persona' },
+          { label: 'Novedades', value: 'novedad' },
+          { label: 'Cartera', value: 'pago' },
+          { label: 'Liquidaciones', value: 'liquidacion' },
+        ]"
+        value-key="value"
+        size="sm"
+        class="w-52"
+      />
     </div>
 
     <div v-if="eventosFiltrados.length > 0" class="timeline">

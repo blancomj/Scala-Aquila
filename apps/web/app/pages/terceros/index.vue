@@ -55,17 +55,34 @@ watchEffect(async () => {
           <h1>Terceros</h1>
           <p class="title-sub">Personas naturales y jurídicas del tenant — base para roles sobre inmuebles.</p>
         </div>
-        <button type="button" class="btn btn--primary" @click="abrirCrear">Nuevo tercero</button>
+        <UButton @click="abrirCrear">Nuevo tercero</UButton>
       </div>
 
-      <div class="chips">
-        <button type="button" class="chip" :class="{ 'is-active': filtro === 'todos' }" @click="filtro = 'todos'">Todos</button>
-        <button type="button" class="chip" :class="{ 'is-active': filtro === 'natural' }" @click="filtro = 'natural'">Persona natural</button>
-        <button type="button" class="chip" :class="{ 'is-active': filtro === 'juridica' }" @click="filtro = 'juridica'">Persona jurídica</button>
-      </div>
+      <UButtonGroup size="xs" class="mb-3">
+        <UButton
+          :color="filtro === 'todos' ? 'primary' : 'neutral'"
+          :variant="filtro === 'todos' ? 'solid' : 'outline'"
+          @click="filtro = 'todos'"
+        >
+          Todos
+        </UButton>
+        <UButton
+          :color="filtro === 'natural' ? 'primary' : 'neutral'"
+          :variant="filtro === 'natural' ? 'solid' : 'outline'"
+          @click="filtro = 'natural'"
+        >
+          Persona natural
+        </UButton>
+        <UButton
+          :color="filtro === 'juridica' ? 'primary' : 'neutral'"
+          :variant="filtro === 'juridica' ? 'solid' : 'outline'"
+          @click="filtro = 'juridica'"
+        >
+          Persona jurídica
+        </UButton>
+      </UButtonGroup>
 
       <UiTabla
-        variante="ficha"
         :columnas="[
           { clave: 'tercero', etiqueta: 'Tercero' },
           { clave: 'documento', etiqueta: 'Documento', claseCelda: 'mono' },
@@ -88,14 +105,20 @@ watchEffect(async () => {
         <template #celda-email="{ fila }">{{ fila.email ?? '—' }}</template>
         <template #celda-telefono="{ fila }">{{ fila.telefono ?? '—' }}</template>
         <template #celda-estado="{ fila }">
-          <span class="badge" :class="nombreEstado(fila.estado_id) === 'Activo' ? 'badge--sello' : 'badge--gris'">
+          <UBadge :color="nombreEstado(fila.estado_id) === 'Activo' ? 'success' : 'neutral'" variant="subtle">
             {{ nombreEstado(fila.estado_id) }}
-          </span>
+          </UBadge>
         </template>
         <template #celda-acciones="{ fila }">
-          <div class="row-actions">
-            <button type="button" class="icon-btn-sm" aria-label="Editar" @click="abrirEditar(fila.id)">✎</button>
-          </div>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            aria-label="Editar"
+            @click="abrirEditar(fila.id)"
+          >
+            ✎
+          </UButton>
         </template>
       </UiTabla>
     </div>

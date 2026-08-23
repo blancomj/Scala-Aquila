@@ -47,6 +47,10 @@ const props = withDefaults(
      * filas, porque ahí el orden se aplica dentro de cada grupo y la tabla
      * no puede reordenar el arreglo entero sin romper la jerarquía. */
     orden?: OrdenTabla
+    /** Encabezado con más padding vertical — opt-in por tabla, no cambia el
+     * default (variante="tailwind" normal) para no afectar el resto de la
+     * app. */
+    encabezadoAlto?: boolean
   }>(),
   {
     variante: 'tailwind',
@@ -54,6 +58,7 @@ const props = withDefaults(
     esFilaGrupo: undefined,
     colspanGrupo: undefined,
     orden: undefined,
+    encabezadoAlto: false,
   },
 )
 
@@ -130,7 +135,9 @@ const columnasTrasGrupo = computed(() =>
           :key="col.clave"
           :class="[
             col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
-            variante === 'tailwind' ? ['py-1 px-3 font-medium', col.alinear === 'derecha' ? 'text-right' : ''] : '',
+            variante === 'tailwind'
+              ? [encabezadoAlto ? 'py-2.5' : 'py-1', 'px-3 font-medium', col.alinear === 'derecha' ? 'text-right' : '']
+              : '',
           ]"
         >
           <button

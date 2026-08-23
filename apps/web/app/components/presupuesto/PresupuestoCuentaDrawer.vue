@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Drawer "Nueva cuenta" / "Editar cuenta" (E8) — crea o edita un nodo del
 // árbol de presupuesto_cuenta, incluido reparentar (mover a otro padre).
-// Mismo criterio que PresupuestoRubroDrawer.vue (.ficha-inmueble +
-// .form-grid/.field).
+// Contenedor UiDrawer, contenido en Nuxt UI — mismo criterio que
+// PresupuestoRubroDrawer.vue (23-08-2026).
 //
 // La naturaleza es inmutable siempre (se elige solo al crear una cuenta
 // raíz; una subcuenta hereda la del padre). Reparentar en edición solo
@@ -81,8 +81,13 @@ const opcionesPadre = computed(() =>
     .filter((c) => !descendientesIds.value.has(c.id))
     .filter((c) => !modoEdicion.value || c.naturaleza === props.cuenta?.naturaleza)
     .sort((a, b) => a.ruta.localeCompare(b.ruta))
-    .map((c) => ({ id: c.id, etiqueta: `${'— '.repeat(c.nivel - 1)}${c.nombre} (${c.naturaleza})` })),
+    .map((c) => ({ value: c.id, label: `${'— '.repeat(c.nivel - 1)}${c.nombre} (${c.naturaleza})` })),
 )
+
+const opcionesPadreConRaiz = computed(() => [
+  { label: '— Ninguna (cuenta raíz) —', value: null },
+  ...opcionesPadre.value,
+])
 
 watch(cuentaPadre, (padre) => {
   if (padre && !modoEdicion.value) naturaleza.value = padre.naturaleza
@@ -139,51 +144,55 @@ async function guardar(): Promise<void> {
       "
       @cerrar="emit('cerrar')"
     >
-      <div class="form-grid">
-        <div class="field span-2">
-          <label for="c-padre">Cuenta padre</label>
-          <select id="c-padre" v-model="parentId">
-            <option :value="null">— Ninguna (cuenta raíz) —</option>
-            <option v-for="c in opcionesPadre" :key="c.id" :value="c.id">{{ c.etiqueta }}</option>
-          </select>
+      <div class="space-y-4 text-sm">
+        <UFormField label="Cuenta padre" name="parent_id">
+          <USelect v-model="parentId" :items="opcionesPadreConRaiz" value-key="value" class="w-full" />
+        </UFormField>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Naturaleza" name="naturaleza">
+            <USelect
+              v-model="naturaleza"
+              :items="[
+                { label: 'Egreso', value: 'egreso' },
+                { label: 'Ingreso', value: 'ingreso' },
+              ]"
+              value-key="value"
+              :disabled="modoEdicion || cuentaPadre !== null"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Orden" name="orden">
+            <UInput v-model.number="orden" type="number" min="0" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="c-naturaleza">Naturaleza</label>
-          <select id="c-naturaleza" v-model="naturaleza" :disabled="modoEdicion || cuentaPadre !== null">
-            <option value="egreso">Egreso</option>
-            <option value="ingreso">Ingreso</option>
-          </select>
+        <div class="grid grid-cols-[110px_1fr] gap-4">
+          <UFormField label="Código" name="codigo">
+            <UInput v-model="codigo" type="text" maxlength="6" class="w-full" />
+          </UFormField>
+          <UFormField label="Nombre" name="nombre">
+            <UInput v-model="nombre" type="text" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="c-orden">Orden</label>
-          <input id="c-orden" v-model.number="orden" type="number" min="0" />
-        </div>
-        <div class="field-row-2">
-          <div class="field field-codigo">
-            <label for="c-codigo">Código</label>
-            <input id="c-codigo" v-model="codigo" type="text" maxlength="6" />
-          </div>
-          <div class="field">
-            <label for="c-nombre">Nombre</label>
-            <input id="c-nombre" v-model="nombre" type="text" />
-          </div>
-        </div>
-        <div v-if="modoEdicion" class="field">
-          <label for="c-activa">Estado</label>
-          <select id="c-activa" v-model="activa">
-            <option :value="true">Activa</option>
-            <option :value="false">Inactiva</option>
-          </select>
-        </div>
+        <UFormField v-if="modoEdicion" label="Estado" name="activa">
+          <USelect
+            v-model="activa"
+            :items="[
+              { label: 'Activa', value: true },
+              { label: 'Inactiva', value: false },
+            ]"
+            value-key="value"
+            class="w-full"
+          />
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Guardando…' : modoEdicion ? 'Guardar cambios' : 'Crear cuenta' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">
+          {{ modoEdicion ? 'Guardar cambios' : 'Crear cuenta' }}
+        </UButton>
       </template>
     </UiDrawer>
   </div>

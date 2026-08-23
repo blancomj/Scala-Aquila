@@ -218,107 +218,105 @@ async function guardar(): Promise<void> {
     :subtitulo="esCreacion ? 'Ingresa los datos del nuevo tercero' : 'Actualiza los datos del tercero'"
     @cerrar="emit('cerrar')"
   >
-    <div class="segmented">
-      <button type="button" :class="{ 'is-active': tipoPersona === 'natural' }" :disabled="!esCreacion" @click="tipoPersona = 'natural'">
+    <UButtonGroup class="mb-4">
+      <UButton
+        :color="tipoPersona === 'natural' ? 'primary' : 'neutral'"
+        :variant="tipoPersona === 'natural' ? 'solid' : 'outline'"
+        :disabled="!esCreacion"
+        @click="tipoPersona = 'natural'"
+      >
         Natural
-      </button>
-      <button type="button" :class="{ 'is-active': tipoPersona === 'juridica' }" :disabled="!esCreacion" @click="tipoPersona = 'juridica'">
+      </UButton>
+      <UButton
+        :color="tipoPersona === 'juridica' ? 'primary' : 'neutral'"
+        :variant="tipoPersona === 'juridica' ? 'solid' : 'outline'"
+        :disabled="!esCreacion"
+        @click="tipoPersona = 'juridica'"
+      >
         Jurídica
-      </button>
-    </div>
+      </UButton>
+    </UButtonGroup>
 
-    <div class="form-grid">
-      <div class="field">
-        <label for="t-tipo-id">Tipo identificación</label>
-        <UiSelectorBuscable
-          id="t-tipo-id"
-          v-model="tipoIdentificacionId"
-          variante="ficha"
-          :opciones="opcionesTipoIdentificacion"
-          placeholder="Seleccione"
-        />
+    <div class="space-y-4 text-sm">
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Tipo identificación" name="tipo_identificacion_id">
+          <UiSelectorBuscable
+            v-model="tipoIdentificacionId"
+            :opciones="opcionesTipoIdentificacion"
+            placeholder="Seleccione"
+          />
+        </UFormField>
+        <UFormField label="Documento" name="numero_documento">
+          <UInput v-model="numeroDocumento" type="text" placeholder="Ingrese el documento" class="w-full" />
+        </UFormField>
       </div>
-      <div class="field">
-        <label for="t-documento">Documento</label>
-        <input id="t-documento" v-model="numeroDocumento" type="text" placeholder="Ingrese el documento">
-      </div>
-      <div v-if="esNit" class="field">
-        <label for="t-dv">Dígito de verificación</label>
-        <input id="t-dv" :value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly>
-        <span class="field-hint">Calculado con el algoritmo de la DIAN — no editable.</span>
-      </div>
+      <UFormField
+        v-if="esNit"
+        label="Dígito de verificación"
+        name="digito_verificacion"
+        help="Calculado con el algoritmo de la DIAN — no editable."
+      >
+        <UInput :model-value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly class="w-full" />
+      </UFormField>
 
       <template v-if="tipoPersona === 'natural'">
-        <div class="field span-2">
-          <label for="t-primer-nombre">Primer nombre</label>
-          <input id="t-primer-nombre" v-model="primerNombre" type="text" placeholder="Primer nombre">
+        <UFormField label="Primer nombre" name="primer_nombre">
+          <UInput v-model="primerNombre" type="text" placeholder="Primer nombre" class="w-full" />
+        </UFormField>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Segundo nombre" name="segundo_nombre">
+            <UInput v-model="segundoNombre" type="text" placeholder="Segundo nombre" class="w-full" />
+          </UFormField>
+          <UFormField label="Primer apellido" name="primer_apellido">
+            <UInput v-model="primerApellido" type="text" placeholder="Primer apellido" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="t-segundo-nombre">Segundo nombre</label>
-          <input id="t-segundo-nombre" v-model="segundoNombre" type="text" placeholder="Segundo nombre">
-        </div>
-        <div class="field">
-          <label for="t-primer-apellido">Primer apellido</label>
-          <input id="t-primer-apellido" v-model="primerApellido" type="text" placeholder="Primer apellido">
-        </div>
-        <div class="field">
-          <label for="t-segundo-apellido">Segundo apellido</label>
-          <input id="t-segundo-apellido" v-model="segundoApellido" type="text" placeholder="Segundo apellido">
-        </div>
+        <UFormField label="Segundo apellido" name="segundo_apellido">
+          <UInput v-model="segundoApellido" type="text" placeholder="Segundo apellido" class="w-full" />
+        </UFormField>
       </template>
 
       <template v-else>
-        <div class="field span-2">
-          <label for="t-razon-social">Razón social</label>
-          <input id="t-razon-social" v-model="razonSocial" type="text" placeholder="Ingrese la razón social">
-        </div>
-        <div class="field span-2">
-          <label for="t-rep-legal">Representante legal</label>
-          <UiSelectorBuscable
-            id="t-rep-legal"
-            v-model="representanteLegalId"
-            variante="ficha"
-            :opciones="opcionesRepresentanteLegal"
-          />
-          <span class="field-hint">Solo personas naturales ya registradas como tercero.</span>
-        </div>
-        <div class="field span-2">
-          <label for="t-pagador">Pagador (contacto de facturación por defecto)</label>
-          <UiSelectorBuscable
-            id="t-pagador"
-            v-model="pagadorId"
-            variante="ficha"
-            :opciones="opcionesPagador"
-          />
-          <span class="field-hint">Default de esta empresa — se puede sobrescribir por inmueble.</span>
-        </div>
+        <UFormField label="Razón social" name="razon_social">
+          <UInput v-model="razonSocial" type="text" placeholder="Ingrese la razón social" class="w-full" />
+        </UFormField>
+        <UFormField
+          label="Representante legal"
+          name="representante_legal_id"
+          help="Solo personas naturales ya registradas como tercero."
+        >
+          <UiSelectorBuscable v-model="representanteLegalId" :opciones="opcionesRepresentanteLegal" />
+        </UFormField>
+        <UFormField
+          label="Pagador (contacto de facturación por defecto)"
+          name="pagador_id"
+          help="Default de esta empresa — se puede sobrescribir por inmueble."
+        >
+          <UiSelectorBuscable v-model="pagadorId" :opciones="opcionesPagador" />
+        </UFormField>
       </template>
 
-      <div class="field">
-        <label for="t-email">Email</label>
-        <input id="t-email" v-model="email" type="text" placeholder="Ingrese el email">
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Email" name="email">
+          <UInput v-model="email" type="text" placeholder="Ingrese el email" class="w-full" />
+        </UFormField>
+        <UFormField label="Teléfono" name="telefono">
+          <UInput v-model="telefono" type="text" placeholder="Ingrese el teléfono" class="w-full" />
+        </UFormField>
       </div>
-      <div class="field">
-        <label for="t-telefono">Teléfono</label>
-        <input id="t-telefono" v-model="telefono" type="text" placeholder="Ingrese el teléfono">
-      </div>
-      <div class="field span-2">
-        <label for="t-direccion">Dirección</label>
-        <input id="t-direccion" v-model="direccion" type="text" placeholder="Dirección de correspondencia">
-      </div>
-      <div class="field">
-        <label for="t-estado">Estado</label>
-        <UiSelectorBuscable id="t-estado" v-model="estadoId" variante="ficha" :opciones="opcionesEstado" />
-      </div>
+      <UFormField label="Dirección" name="direccion">
+        <UInput v-model="direccion" type="text" placeholder="Dirección de correspondencia" class="w-full" />
+      </UFormField>
+      <UFormField label="Estado" name="estado_id">
+        <UiSelectorBuscable v-model="estadoId" :opciones="opcionesEstado" />
+      </UFormField>
     </div>
 
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
     <template #foot>
-      <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-        {{ guardando ? 'Guardando…' : 'Guardar' }}
-      </button>
+      <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+      <UButton :loading="guardando" @click="guardar">Guardar</UButton>
     </template>
   </UiDrawer>
 </template>

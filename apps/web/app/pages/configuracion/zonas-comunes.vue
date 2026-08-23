@@ -72,7 +72,7 @@ const editandoId = ref<string | null>(null)
 const guardando = ref(false)
 const formCodigo = ref('')
 const formNombre = ref('')
-const formTipoId = ref<number | null>(null)
+const formTipoId = ref<number | undefined>(undefined)
 const formArea = ref<number | null>(null)
 const formDescripcion = ref('')
 const formEsEsencial = ref(false)
@@ -88,7 +88,7 @@ function abrirNueva(): void {
   editandoId.value = null
   formCodigo.value = ''
   formNombre.value = ''
-  formTipoId.value = zonasStore.tiposZonaComun[0]?.id ?? null
+  formTipoId.value = zonasStore.tiposZonaComun[0]?.id
   formArea.value = null
   formDescripcion.value = ''
   formEsEsencial.value = false
@@ -115,12 +115,12 @@ function abrirEdicion(zona: ZonaComun): void {
 }
 
 const puedeGuardar = computed(
-  () => formCodigo.value.trim().length > 0 && formNombre.value.trim().length > 0 && formTipoId.value !== null,
+  () => formCodigo.value.trim().length > 0 && formNombre.value.trim().length > 0 && formTipoId.value !== undefined,
 )
 
 async function guardar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || formTipoId.value === null) return
+  if (!tenantId || formTipoId.value === undefined) return
 
   error.value = null
   guardando.value = true
@@ -184,7 +184,7 @@ async function confirmarEliminar(): Promise<void> {
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-semibold mb-2">Zonas comunes</h1>
-        <p class="text-sm text-gray-500 max-w-2xl">
+        <p class="text-sm text-neutral-500 max-w-2xl">
           Inventario de bienes comunes de la copropiedad — piscina, salón social, escaleras, redes
           técnicas. Los no esenciales pueden asignarse en uso exclusivo a un inmueble (Art. 20, Ley
           675/2001); nunca generan cobro propio, su sostenimiento se cubre con la cuota de
@@ -196,7 +196,7 @@ async function confirmarEliminar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-if="zonasStore.zonasComunes.length === 0" class="text-gray-500 text-sm">
+    <p v-if="zonasStore.zonasComunes.length === 0" class="text-neutral-500 text-sm">
       Todavía no hay zonas comunes registradas. Crea la primera — por ejemplo la piscina, el salón
       social o un depósito común.
     </p>
@@ -210,23 +210,20 @@ async function confirmarEliminar(): Promise<void> {
           placeholder="Buscar por código, nombre, descripción o inmueble asignado…"
           class="w-80"
         />
-        <select
+        <USelect
           v-model="filtroTipoId"
-          class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-        >
-          <option :value="null">Todos los tipos</option>
-          <option v-for="t in zonasStore.tiposZonaComun" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-        </select>
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer whitespace-nowrap">
-          <input v-model="filtroSoloUsoExclusivo" type="checkbox">
-          Solo con uso exclusivo
-        </label>
+          :items="[{ label: 'Todos los tipos', value: null }, ...zonasStore.tiposZonaComun.map((t) => ({ label: t.nombre, value: t.id }))]"
+          value-key="value"
+          size="sm"
+          class="w-56"
+        />
+        <UCheckbox v-model="filtroSoloUsoExclusivo" label="Solo con uso exclusivo" />
         <UButton v-if="hayFiltrosActivos" size="xs" variant="ghost" @click="limpiarFiltros">
           Limpiar filtros
         </UButton>
       </div>
 
-      <p v-if="hayFiltrosActivos && zonasFiltradas.length === 0" class="text-gray-500 text-sm">
+      <p v-if="hayFiltrosActivos && zonasFiltradas.length === 0" class="text-neutral-500 text-sm">
         Sin resultados para estos filtros.
       </p>
 
@@ -244,17 +241,17 @@ async function confirmarEliminar(): Promise<void> {
         :clave-fila="(zona) => zona.id"
       >
         <template #celda-codigo="{ fila }">
-          <span class="mono" :class="fila.activa ? '' : 'text-gray-400 line-through'">
+          <span class="mono" :class="fila.activa ? '' : 'text-neutral-400 line-through'">
             {{ fila.codigo }}
           </span>
         </template>
         <template #celda-nombre="{ fila }">
           <div class="leading-tight">
-            <span :class="fila.activa ? '' : 'text-gray-400 line-through'">{{ fila.nombre }}</span>
-            <p v-if="fila.matricula_inmobiliaria" class="text-xs text-gray-400">
+            <span :class="fila.activa ? '' : 'text-neutral-400 line-through'">{{ fila.nombre }}</span>
+            <p v-if="fila.matricula_inmobiliaria" class="text-xs text-neutral-400">
               Matrícula {{ fila.matricula_inmobiliaria }}
             </p>
-            <p v-if="fila.descripcion" class="text-xs text-gray-400">{{ fila.descripcion }}</p>
+            <p v-if="fila.descripcion" class="text-xs text-neutral-400">{{ fila.descripcion }}</p>
           </div>
         </template>
         <template #celda-tipo="{ fila }">
@@ -265,13 +262,13 @@ async function confirmarEliminar(): Promise<void> {
           </div>
         </template>
         <template #celda-area="{ fila }">
-          <span class="tabular-nums text-gray-500">{{ fila.area ?? '—' }}{{ fila.area ? ' m²' : '' }}</span>
+          <span class="tabular-nums text-neutral-500">{{ fila.area ?? '—' }}{{ fila.area ? ' m²' : '' }}</span>
         </template>
         <template #celda-asignacion="{ fila }">
-          <span v-if="fila.uso_exclusivo_inmueble_id" class="text-gray-700 dark:text-gray-300">
+          <span v-if="fila.uso_exclusivo_inmueble_id" class="text-neutral-700 dark:text-neutral-300">
             {{ inmueblePorId.get(fila.uso_exclusivo_inmueble_id) ?? '—' }}
           </span>
-          <span v-else class="text-gray-400">Sin asignar</span>
+          <span v-else class="text-neutral-400">Sin asignar</span>
         </template>
         <template #celda-acciones="{ fila }">
           <div class="flex justify-end gap-1">
@@ -309,14 +306,12 @@ async function confirmarEliminar(): Promise<void> {
 
           <div class="grid grid-cols-2 gap-3">
             <UFormField label="Tipo" name="tipo">
-              <select
+              <USelect
                 v-model="formTipoId"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-              >
-                <option v-for="t in zonasStore.tiposZonaComun" :key="t.id" :value="t.id">
-                  {{ t.nombre }}
-                </option>
-              </select>
+                :items="zonasStore.tiposZonaComun.map((t) => ({ label: t.nombre, value: t.id }))"
+                value-key="value"
+                class="w-full"
+              />
             </UFormField>
             <UFormField label="Área (m²)" name="area">
               <UInput v-model.number="formArea" type="number" step="0.01" placeholder="45.00" class="w-full" />
@@ -327,7 +322,7 @@ async function confirmarEliminar(): Promise<void> {
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Matrícula inmobiliaria</span>
-                <span class="text-xs font-normal text-gray-400">
+                <span class="text-xs font-normal text-neutral-400">
                   — opcional, solo si el bien tiene folio propio
                 </span>
               </span>
@@ -343,22 +338,19 @@ async function confirmarEliminar(): Promise<void> {
             <template #label>
               <span class="inline-flex items-baseline gap-1.5">
                 <span>Descripción</span>
-                <span class="text-xs font-normal text-gray-400">— opcional</span>
+                <span class="text-xs font-normal text-neutral-400">— opcional</span>
               </span>
             </template>
             <UInput v-model="formDescripcion" placeholder="Incluye camerinos y zona de duchas" class="w-full" />
           </UFormField>
 
-          <label class="flex items-start gap-2.5 cursor-pointer">
-            <input v-model="formEsEsencial" type="checkbox" class="mt-0.5">
-            <span class="min-w-0">
-              <span class="block">Es esencial</span>
-              <span class="block text-xs text-gray-500">
-                Estructura, fachadas, escaleras, redes principales — indispensable para el edificio.
-                Un bien esencial nunca se puede asignar en uso exclusivo (Art. 20, Ley 675/2001).
-              </span>
-            </span>
-          </label>
+          <UCheckbox v-model="formEsEsencial">
+            <template #label>Es esencial</template>
+            <template #description>
+              Estructura, fachadas, escaleras, redes principales — indispensable para el edificio.
+              Un bien esencial nunca se puede asignar en uso exclusivo (Art. 20, Ley 675/2001).
+            </template>
+          </UCheckbox>
 
           <UFormField label="Asignación de uso exclusivo" name="usoExclusivo">
             <UiSelectorBuscable
@@ -373,15 +365,12 @@ async function confirmarEliminar(): Promise<void> {
             </template>
           </UFormField>
 
-          <label class="flex items-start gap-2.5 cursor-pointer">
-            <input v-model="formActiva" type="checkbox" class="mt-0.5">
-            <span class="min-w-0">
-              <span class="block">Activa</span>
-              <span class="block text-xs text-gray-500">
-                Al desactivarla se conserva en el histórico pero deja de figurar como disponible.
-              </span>
-            </span>
-          </label>
+          <UCheckbox v-model="formActiva">
+            <template #label>Activa</template>
+            <template #description>
+              Al desactivarla se conserva en el histórico pero deja de figurar como disponible.
+            </template>
+          </UCheckbox>
         </div>
       </template>
       <template #footer>
@@ -403,7 +392,7 @@ async function confirmarEliminar(): Promise<void> {
       <template #body>
         <div v-if="zonaAEliminar" class="space-y-2 text-sm">
           <p>Vas a eliminar <strong>{{ zonaAEliminar.nombre }}</strong>.</p>
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             No tiene ningún inmueble asignado, así que se puede borrar sin dejar nada colgando. Si
             más adelante vuelve a hacer falta, se crea de nuevo.
           </p>

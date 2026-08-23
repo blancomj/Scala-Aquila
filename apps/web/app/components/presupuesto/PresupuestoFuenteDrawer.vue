@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// Drawer "Registrar fuente de financiación" — mismo criterio de drawer
-// que el resto (.ficha-inmueble + .form-grid/.field/.btn). A diferencia
+// Drawer "Registrar fuente de financiación" — contenedor UiDrawer (igual
+// que el resto), contenido en componentes Nuxt UI (UFormField/UInput/
+// USelect/UButton), no `.field`/`<select>` plano — mismo criterio que
+// politicas/PoliticasVersionDrawer.vue (23-08-2026). A diferencia
 // de crear presupuesto/rubro (RLS directa), esto invoca la Edge Function
 // presupuesto-financiacion (guard trigger + resolución de tenant_id
 // server-side) — ver stores/presupuesto.ts::registrarFuenteFinanciacion.
@@ -16,7 +18,7 @@ const emit = defineEmits<{ cerrar: []; creado: [] }>()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 
-const tipoId = ref<number | null>(null)
+const tipoId = ref<number | undefined>(undefined)
 const valorDisponible = ref<number | null>(null)
 const valorAplicado = ref<number | null>(null)
 const descripcion = ref('')
@@ -24,14 +26,22 @@ const fundamentoNormativoId = ref<number | null>(null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
+const opcionesTipo = computed(() =>
+  presupuestoStore.tiposFuente.map((t) => ({ label: t.nombre, value: t.id })),
+)
+const opcionesFundamento = computed(() => [
+  { label: '— Ninguno —', value: null },
+  ...fundamentoStore.fundamentos.map((f) => ({ label: f.norma, value: f.id })),
+])
+
 onMounted(async () => {
   if (presupuestoStore.tiposFuente.length === 0) await presupuestoStore.cargarTiposFuente(props.tenantId)
-  if (tipoId.value === null) tipoId.value = presupuestoStore.tiposFuente[0]?.id ?? null
+  if (tipoId.value === undefined) tipoId.value = presupuestoStore.tiposFuente[0]?.id
 })
 
 async function guardar(): Promise<void> {
   error.value = null
-  if (valorDisponible.value === null || tipoId.value === null) {
+  if (valorDisponible.value === null || tipoId.value === undefined) {
     error.value = 'Completa el tipo y el valor disponible.'
     return
   }
@@ -58,45 +68,29 @@ async function guardar(): Promise<void> {
 <template>
   <div class="ficha-inmueble">
     <UiDrawer :abierto="true" titulo="Registrar fuente de financiación" @cerrar="emit('cerrar')">
-      <div class="form-grid">
-        <div class="field">
-          <label for="f-tipo">Tipo</label>
-          <select id="f-tipo" v-model="tipoId">
-            <option v-for="t in presupuestoStore.tiposFuente" :key="t.id" :value="t.id">
-              {{ t.nombre }}
-            </option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="f-disponible">Valor disponible</label>
-          <input id="f-disponible" v-model.number="valorDisponible" type="number" min="0" />
-        </div>
-        <div class="field">
-          <label for="f-aplicado">Valor aplicado</label>
-          <input id="f-aplicado" v-model.number="valorAplicado" type="number" min="0" />
-        </div>
-        <div class="field span-2">
-          <label for="f-descripcion">Descripción</label>
-          <input id="f-descripcion" v-model="descripcion" type="text" />
-        </div>
-        <div class="field span-2">
-          <label for="f-fundamento">Fundamento normativo</label>
-          <select id="f-fundamento" v-model="fundamentoNormativoId">
-            <option :value="null">— Ninguno —</option>
-            <option v-for="f in fundamentoStore.fundamentos" :key="f.id" :value="f.id">
-              {{ f.norma }}
-            </option>
-          </select>
-        </div>
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <UFormField label="Tipo" name="tipo_id" class="col-span-2">
+          <USelect v-model="tipoId" :items="opcionesTipo" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField label="Valor disponible" name="valor_disponible">
+          <UInput v-model.number="valorDisponible" type="number" min="0" class="w-full" />
+        </UFormField>
+        <UFormField label="Valor aplicado" name="valor_aplicado">
+          <UInput v-model.number="valorAplicado" type="number" min="0" class="w-full" />
+        </UFormField>
+        <UFormField label="Descripción" name="descripcion" class="col-span-2">
+          <UInput v-model="descripcion" type="text" class="w-full" />
+        </UFormField>
+        <UFormField label="Fundamento normativo" name="fundamento_normativo_id" class="col-span-2">
+          <USelect v-model="fundamentoNormativoId" :items="opcionesFundamento" value-key="value" class="w-full" />
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Registrando…' : 'Registrar' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Registrar</UButton>
       </template>
     </UiDrawer>
   </div>

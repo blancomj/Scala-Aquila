@@ -129,78 +129,80 @@ async function guardar(): Promise<void> {
       :subtitulo="esCreacion ? 'Se le envía un correo con el enlace de invitación' : 'Nombre, teléfono, rol y estado'"
       @cerrar="emit('cerrar')"
     >
-      <div class="form-grid">
+      <div class="space-y-4 text-sm">
         <template v-if="esCreacion">
-          <div class="field span-2">
-            <label for="m-email">Correo electrónico</label>
-            <input id="m-email" v-model="email" type="email" placeholder="correo@ejemplo.com">
-            <span class="field-hint">
-              El nombre y el teléfono los completa el usuario al aceptar la invitación.
-            </span>
-          </div>
+          <UFormField
+            label="Correo electrónico"
+            name="email"
+            help="El nombre y el teléfono los completa el usuario al aceptar la invitación."
+          >
+            <UInput v-model="email" type="email" placeholder="correo@ejemplo.com" class="w-full" />
+          </UFormField>
         </template>
 
         <template v-else>
-          <div class="field span-2">
-            <label for="m-correo">Correo electrónico</label>
-            <input id="m-correo" :value="correoActual" type="text" readonly>
-          </div>
-          <div class="field span-2">
-            <label for="m-nombre">Nombre</label>
-            <input id="m-nombre" v-model="fullName" type="text" placeholder="Nombre completo">
-          </div>
-          <div class="field">
-            <label for="m-telefono">Teléfono</label>
-            <input id="m-telefono" v-model="phone" type="text" placeholder="Teléfono">
-          </div>
-          <div class="field">
-            <label for="m-estado">Estado</label>
-            <select id="m-estado" v-model="status">
-              <option value="active">Activo</option>
-              <option value="suspended">Inactivo</option>
-            </select>
+          <UFormField label="Correo electrónico" name="correo">
+            <UInput :model-value="correoActual" type="text" readonly class="w-full" />
+          </UFormField>
+          <UFormField label="Nombre" name="nombre">
+            <UInput v-model="fullName" type="text" placeholder="Nombre completo" class="w-full" />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Teléfono" name="telefono">
+              <UInput v-model="phone" type="text" placeholder="Teléfono" class="w-full" />
+            </UFormField>
+            <UFormField label="Estado" name="estado">
+              <USelect
+                v-model="status"
+                :items="[
+                  { label: 'Activo', value: 'active' },
+                  { label: 'Inactivo', value: 'suspended' },
+                ]"
+                value-key="value"
+                class="w-full"
+              />
+            </UFormField>
           </div>
         </template>
 
-        <div class="field">
-          <label for="m-rol">Rol</label>
-          <select id="m-rol" v-model="role">
-            <option value="auxiliar">Auxiliar</option>
-            <option value="auditor">Auditor</option>
-          </select>
-        </div>
-      </div>
+        <UFormField label="Rol" name="rol">
+          <USelect
+            v-model="role"
+            :items="[
+              { label: 'Auxiliar', value: 'auxiliar' },
+              { label: 'Auditor', value: 'auditor' },
+            ]"
+            value-key="value"
+            class="w-full"
+          />
+        </UFormField>
 
-      <div v-if="!esCreacion" class="field span-2">
-        <label>Roles funcionales</label>
-        <span class="field-hint">
-          Sin ninguno marcado, ve todo lo que su rol permite. Con al menos uno, queda
-          limitado a los módulos que esos roles cubren.
-        </span>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem">
-          <label
-            v-for="rf in membersStore.rolesFuncionalesCatalogo"
-            :key="rf.id"
-            style="display: flex; align-items: center; gap: 0.35rem; font-weight: normal"
-          >
-            <input
-              type="checkbox"
-              :checked="rolesFuncionalesAsignados.has(rf.id)"
+        <UFormField
+          v-if="!esCreacion"
+          label="Roles funcionales"
+          name="roles_funcionales"
+          help="Sin ninguno marcado, ve todo lo que su rol permite. Con al menos uno, queda limitado a los módulos que esos roles cubren."
+        >
+          <div class="flex flex-wrap gap-4 mt-1">
+            <UCheckbox
+              v-for="rf in membersStore.rolesFuncionalesCatalogo"
+              :key="rf.id"
+              :model-value="rolesFuncionalesAsignados.has(rf.id)"
               :disabled="guardandoRolFuncional === rf.id"
-              @change="alternarRolFuncional(rf.id)"
-            >
-            {{ rf.nombre }}
-          </label>
-        </div>
+              :label="rf.nombre"
+              @update:model-value="alternarRolFuncional(rf.id)"
+            />
+          </div>
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Guardando…' : esCreacion ? 'Invitar' : 'Guardar' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">
+          {{ esCreacion ? 'Invitar' : 'Guardar' }}
+        </UButton>
       </template>
     </UiDrawer>
   </div>

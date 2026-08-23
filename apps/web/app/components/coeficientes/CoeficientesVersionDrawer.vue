@@ -226,60 +226,60 @@ async function onArchivoSeleccionado(evento: Event): Promise<void> {
       :titulo="soloLectura ? `Coeficientes — v${setExistente?.version}` : 'Nueva versión de coeficientes'"
       @cerrar="emit('cerrar')"
     >
-      <div class="form-grid">
-        <div class="field span-2">
-          <label for="cv-desde">Vigente desde</label>
-          <input
-            id="cv-desde"
+      <div class="space-y-4 text-sm">
+        <UFormField label="Vigente desde" name="vigente_desde">
+          <UInput
             v-model="vigenteDesde"
             type="date"
             :disabled="soloLectura || setIdInterno !== null"
+            class="w-full"
             @change="confirmarFecha"
           />
-        </div>
+        </UFormField>
       </div>
 
-      <p v-if="!setIdInterno" class="note">Elige la fecha de vigencia para empezar a cargar coeficientes.</p>
+      <p v-if="!setIdInterno" class="text-sm text-neutral-500 mt-4">
+        Elige la fecha de vigencia para empezar a cargar coeficientes.
+      </p>
 
       <template v-else>
-        <div v-if="!soloLectura" style="display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap">
-          <button type="button" class="btn btn--ghost" @click="abrirSelectorArchivo">Importar CSV</button>
+        <div v-if="!soloLectura" class="flex items-center gap-2 my-3 flex-wrap">
+          <UButton variant="outline" color="neutral" size="sm" @click="abrirSelectorArchivo">
+            Importar CSV
+          </UButton>
           <input
             ref="inputArchivo"
             type="file"
             accept=".csv"
             style="display: none"
             @change="onArchivoSeleccionado"
-          />
-          <button
-            type="button"
-            class="btn btn--ghost"
+          >
+          <UButton
+            variant="outline"
+            color="neutral"
+            size="sm"
             :disabled="!puedeRepartir"
             :title="`Reparte ${restantePorRepartir} entre los ${vacios.length} inmuebles vacíos, proporcional a su área privada.`"
             @click="repartirRestante"
           >
             Repartir el resto entre los vacíos
-          </button>
-          <span class="note" style="margin: 0">Archivo con encabezado y columnas codigo,coeficiente.</span>
-          <span v-if="guardando" class="note" style="margin: 0">Guardando…</span>
+          </UButton>
+          <span class="text-xs text-neutral-500">Archivo con encabezado y columnas codigo,coeficiente.</span>
+          <span v-if="guardando" class="text-xs text-neutral-500">Guardando…</span>
         </div>
 
-        <p v-if="resumenImportacion" class="note">{{ resumenImportacion }}</p>
+        <p v-if="resumenImportacion" class="text-sm text-neutral-500">{{ resumenImportacion }}</p>
 
-        <label style="display: flex; align-items: center; gap: 6px; margin: 8px 0; font-size: 0.85em">
-          <input v-model="soloVacios" type="checkbox" />
-          Ver solo los vacíos
-        </label>
+        <UCheckbox v-model="soloVacios" label="Ver solo los vacíos" class="my-2" />
 
-        <p v-if="inmueblesActivos.length === 0" class="note">
+        <p v-if="inmueblesActivos.length === 0" class="text-sm text-neutral-500">
           Esta copropiedad todavía no tiene inmuebles activos.
         </p>
-        <p v-else-if="inmueblesVisibles.length === 0" class="note">
+        <p v-else-if="inmueblesVisibles.length === 0" class="text-sm text-neutral-500">
           Todos los inmuebles activos ya tienen coeficiente.
         </p>
         <UiTabla
           v-else
-          variante="ficha"
           :columnas="[
             { clave: 'inmueble', etiqueta: 'Inmueble' },
             { clave: 'coeficiente', etiqueta: 'Coeficiente', alinear: 'derecha' },
@@ -289,28 +289,29 @@ async function onArchivoSeleccionado(evento: Event): Promise<void> {
         >
           <template #celda-inmueble="{ fila }">{{ fila.codigo }}</template>
           <template #celda-coeficiente="{ fila }">
-            <input
+            <UInput
               v-model.number="valores[fila.id]"
               type="text"
               inputmode="decimal"
               placeholder="0.00"
               :disabled="soloLectura"
-              style="width: 100%; text-align: right"
+              class="w-full"
+              :ui="{ base: 'text-right' }"
               @input="onCambioValor(fila.id)"
             />
           </template>
         </UiTabla>
 
-        <p class="note" :style="sumaDifiere ? 'color: var(--ladrillo-text)' : undefined">
+        <p class="text-sm mt-2" :class="sumaDifiere ? 'text-error-600' : 'text-neutral-500'">
           Σ = {{ sumaActual }} (esperada {{ sumaEsperada }})
           <template v-if="sumaDifiere">— no coincide, pero no bloquea el guardado.</template>
         </p>
       </template>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--primary" @click="emit('cerrar')">Cerrar</button>
+        <UButton @click="emit('cerrar')">Cerrar</UButton>
       </template>
     </UiDrawer>
   </div>

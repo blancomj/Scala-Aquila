@@ -178,8 +178,9 @@ function crearHoverTooltip() {
         const dom = document.createElement('div')
         dom.textContent = mensaje
         dom.style.cssText =
-          'max-width: 320px; padding: 6px 10px; font-size: 0.75rem; border-radius: 6px; ' +
-          'background: #1f2937; color: #f9fafb; box-shadow: 0 2px 8px rgba(0,0,0,0.25);'
+          'max-width: 320px; padding: 6px 10px; font-size: 0.75rem; font-family: var(--font-sans); ' +
+          'border-radius: var(--radius-sm); background: var(--color-neutral-900); ' +
+          'color: var(--color-neutral-50); box-shadow: 0 2px 8px rgba(0,0,0,0.25);'
         return { dom }
       },
     }

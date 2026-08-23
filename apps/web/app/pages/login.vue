@@ -51,7 +51,7 @@ async function iniciarSesion(): Promise<void> {
 <template>
   <UCard>
     <template #header>
-      <h1 class="text-lg font-semibold">Iniciar sesión</h1>
+      <h1 class="font-display text-lg font-semibold">Iniciar sesión</h1>
     </template>
 
     <form class="space-y-4" @submit.prevent="iniciarSesion">

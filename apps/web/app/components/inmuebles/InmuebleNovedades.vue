@@ -68,26 +68,43 @@ watchEffect(cargar)
         <h2>Novedades activas</h2>
         <p class="panel-sub">Solicitudes de cargo, descuento o ajuste sobre este inmueble.</p>
       </div>
-      <NuxtLink
-        :to="`/novedades/nueva?inmuebleId=${inmuebleId}`"
-        class="btn btn--primary"
-        style="font-size: 12.5px; padding: 7px 14px"
+      <UButton :to="`/novedades/nueva?inmuebleId=${inmuebleId}`" size="sm">Nueva novedad</UButton>
+    </div>
+
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mb-3" />
+
+    <UButtonGroup size="xs" class="mb-3">
+      <UButton
+        :color="filtroEstado === 'todas' ? 'primary' : 'neutral'"
+        :variant="filtroEstado === 'todas' ? 'solid' : 'outline'"
+        @click="filtroEstado = 'todas'"
       >
-        Nueva novedad
-      </NuxtLink>
-    </div>
-
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
-
-    <div class="chips">
-      <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'todas' }" @click="filtroEstado = 'todas'">Todas</button>
-      <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'pendiente' }" @click="filtroEstado = 'pendiente'">Pendientes</button>
-      <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'aprobada' }" @click="filtroEstado = 'aprobada'">Aprobadas</button>
-      <button type="button" class="chip" :class="{ 'is-active': filtroEstado === 'rechazada' }" @click="filtroEstado = 'rechazada'">Rechazadas</button>
-    </div>
+        Todas
+      </UButton>
+      <UButton
+        :color="filtroEstado === 'pendiente' ? 'primary' : 'neutral'"
+        :variant="filtroEstado === 'pendiente' ? 'solid' : 'outline'"
+        @click="filtroEstado = 'pendiente'"
+      >
+        Pendientes
+      </UButton>
+      <UButton
+        :color="filtroEstado === 'aprobada' ? 'primary' : 'neutral'"
+        :variant="filtroEstado === 'aprobada' ? 'solid' : 'outline'"
+        @click="filtroEstado = 'aprobada'"
+      >
+        Aprobadas
+      </UButton>
+      <UButton
+        :color="filtroEstado === 'rechazada' ? 'primary' : 'neutral'"
+        :variant="filtroEstado === 'rechazada' ? 'solid' : 'outline'"
+        @click="filtroEstado = 'rechazada'"
+      >
+        Rechazadas
+      </UButton>
+    </UButtonGroup>
 
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'tipo', etiqueta: 'Tipo' },
         { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
@@ -100,28 +117,45 @@ watchEffect(cargar)
       :clave-fila="(n) => n.id"
       vacio="Sin novedades para este filtro."
     >
-      <template #celda-tipo="{ fila }"><span class="badge badge--gris">{{ fila.tipo }}</span></template>
+      <template #celda-tipo="{ fila }"><UBadge color="neutral" variant="subtle">{{ fila.tipo }}</UBadge></template>
       <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
       <template #celda-descripcion="{ fila }">{{ fila.descripcion }}</template>
       <template #celda-fechaEfectiva="{ fila }">{{ fila.fecha_efectiva }}</template>
       <template #celda-estado="{ fila }">
-        <span
-          class="badge"
-          :class="fila.estado === 'aprobada' ? 'badge--sello' : fila.estado === 'rechazada' ? 'badge--ladrillo' : 'badge--oro'"
+        <UBadge
+          :color="fila.estado === 'aprobada' ? 'success' : fila.estado === 'rechazada' ? 'error' : 'warning'"
+          variant="subtle"
         >
           {{ fila.estado }}
-        </span>
+        </UBadge>
       </template>
       <template #celda-acciones="{ fila }">
-        <div v-if="fila.estado === 'pendiente'" class="row-actions" style="align-items: center">
-          <input
+        <div v-if="fila.estado === 'pendiente'" class="flex items-center gap-1.5">
+          <UInput
             v-model="motivoRechazo[fila.id]"
             type="text"
             placeholder="Motivo de rechazo"
-            style="width: 130px; font-size: 12px; padding: 5px 8px"
+            size="xs"
+            class="w-32"
+          />
+          <UButton
+            color="success"
+            variant="soft"
+            size="xs"
+            :disabled="procesando === fila.id"
+            @click="aprobar(fila.id)"
           >
-          <button type="button" class="icon-btn-sm approve" :disabled="procesando === fila.id" @click="aprobar(fila.id)">✓</button>
-          <button type="button" class="icon-btn-sm reject" :disabled="procesando === fila.id" @click="rechazar(fila.id)">✕</button>
+            ✓
+          </UButton>
+          <UButton
+            color="error"
+            variant="soft"
+            size="xs"
+            :disabled="procesando === fila.id"
+            @click="rechazar(fila.id)"
+          >
+            ✕
+          </UButton>
         </div>
       </template>
     </UiTabla>

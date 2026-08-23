@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Drawer "Registrar movimiento" (E9) — mismo criterio que PresupuestoRubroDrawer.vue: solo
-// cuentas hoja (guard_presupuesto_ejecucion_cuenta rechaza cualquier otra), select plano para
-// periodo (lista corta, no necesita búsqueda).
+// cuentas hoja (guard_presupuesto_ejecucion_cuenta rechaza cualquier otra), USelect para
+// periodo (lista corta, no necesita búsqueda). Contenido en Nuxt UI (23-08-2026).
 const props = defineProps<{ tenantId: string }>()
 const emit = defineEmits<{ cerrar: []; registrado: [] }>()
 
@@ -32,18 +32,22 @@ const cuentasHoja = computed(() => {
     }
     return segmentos.join(' › ')
   }
-  return presupuestoStore.cuentas
-    .filter((c) => c.es_hoja)
-    .map((c) => ({ id: c.id, etiqueta: `${rutaNombres(c)} (${c.naturaleza})` }))
-    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
+  return [
+    { label: '— Elegir —', value: null },
+    ...presupuestoStore.cuentas
+      .filter((c) => c.es_hoja)
+      .map((c) => ({ value: c.id, label: `${rutaNombres(c)} (${c.naturaleza})` }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ]
 })
 
-const opcionesPeriodo = computed(() =>
-  liquidacionStore.periodos
+const opcionesPeriodo = computed(() => [
+  { label: '— Elegir —', value: null },
+  ...liquidacionStore.periodos
     .slice()
     .sort((a, b) => b.anio - a.anio || b.mes - a.mes)
-    .map((p) => ({ id: p.id, etiqueta: `${p.anio}-${String(p.mes).padStart(2, '0')} (${p.estado})` })),
-)
+    .map((p) => ({ value: p.id, label: `${p.anio}-${String(p.mes).padStart(2, '0')} (${p.estado})` })),
+])
 
 async function guardar(): Promise<void> {
   error.value = null
@@ -74,46 +78,31 @@ async function guardar(): Promise<void> {
 <template>
   <div class="ficha-inmueble">
     <UiDrawer :abierto="true" titulo="Registrar movimiento" @cerrar="emit('cerrar')">
-      <div class="form-grid">
-        <div class="field span-2">
-          <label for="e-cuenta">Cuenta</label>
-          <select id="e-cuenta" v-model="cuentaId">
-            <option :value="null">— Elegir —</option>
-            <option v-for="c in cuentasHoja" :key="c.id" :value="c.id">
-              {{ c.etiqueta }}
-            </option>
-          </select>
+      <div class="space-y-4 text-sm">
+        <UFormField label="Cuenta" name="cuenta_id">
+          <USelect v-model="cuentaId" :items="cuentasHoja" value-key="value" class="w-full" />
+        </UFormField>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Periodo" name="periodo_id">
+            <USelect v-model="periodoId" :items="opcionesPeriodo" value-key="value" class="w-full" />
+          </UFormField>
+          <UFormField label="Monto" name="monto">
+            <UInput v-model.number="monto" type="number" min="0" class="w-full" />
+          </UFormField>
         </div>
-        <div class="field">
-          <label for="e-periodo">Periodo</label>
-          <select id="e-periodo" v-model="periodoId">
-            <option :value="null">— Elegir —</option>
-            <option v-for="p in opcionesPeriodo" :key="p.id" :value="p.id">
-              {{ p.etiqueta }}
-            </option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="e-monto">Monto</label>
-          <input id="e-monto" v-model.number="monto" type="number" min="0" />
-        </div>
-        <div class="field span-2">
-          <label for="e-descripcion">Descripción</label>
-          <input id="e-descripcion" v-model="descripcion" type="text" />
-        </div>
-        <div class="field span-2">
-          <label for="e-referencia">Referencia / comprobante</label>
-          <input id="e-referencia" v-model="referencia" type="text" />
-        </div>
+        <UFormField label="Descripción" name="descripcion">
+          <UInput v-model="descripcion" type="text" class="w-full" />
+        </UFormField>
+        <UFormField label="Referencia / comprobante" name="referencia">
+          <UInput v-model="referencia" type="text" class="w-full" />
+        </UFormField>
       </div>
 
-      <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
       <template #foot>
-        <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Registrando…' : 'Registrar movimiento' }}
-        </button>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Registrar movimiento</UButton>
       </template>
     </UiDrawer>
   </div>

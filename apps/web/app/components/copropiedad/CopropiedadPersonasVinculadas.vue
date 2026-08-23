@@ -51,12 +51,9 @@ async function finalizarPersona(id: string): Promise<void> {
         <h2>{{ titulo }}</h2>
         <p class="panel-sub" style="margin-top: 2px">{{ subtitulo }}</p>
       </div>
-      <button type="button" class="btn btn--primary" style="font-size: 12.5px; padding: 7px 14px" @click="modalAbierto = true">
-        {{ textoBotonAgregar }}
-      </button>
+      <UButton size="sm" @click="modalAbierto = true">{{ textoBotonAgregar }}</UButton>
     </div>
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'tercero', etiqueta: 'Tercero' },
         { clave: 'rol', etiqueta: 'Rol' },
@@ -70,21 +67,15 @@ async function finalizarPersona(id: string): Promise<void> {
       vacio="Sin registros todavía."
     >
       <template #celda-tercero="{ fila }">{{ fila.tercero.nombre_completo }}</template>
-      <template #celda-rol="{ fila }"><span class="badge badge--gris">{{ fila.rol.nombre }}</span></template>
+      <template #celda-rol="{ fila }"><UBadge color="neutral" variant="subtle">{{ fila.rol.nombre }}</UBadge></template>
       <template #celda-tarjetaProfesional="{ fila }">{{ fila.numero_tarjeta_profesional ?? '—' }}</template>
       <template #celda-vigenteDesde="{ fila }">{{ fila.vigente_desde }}{{ fila.vigente_hasta ? ` → ${fila.vigente_hasta}` : '' }}</template>
       <template #celda-notificaciones="{ fila }">{{ fila.recibe_notificaciones ? 'Sí' : 'No' }}</template>
       <template #celda-acciones="{ fila }">
-        <button
-          v-if="!fila.vigente_hasta"
-          type="button"
-          class="btn btn--ghost"
-          style="font-size: 11.5px; padding: 4px 10px"
-          @click="finalizarPersona(fila.id)"
-        >
+        <UButton v-if="!fila.vigente_hasta" variant="outline" color="neutral" size="xs" @click="finalizarPersona(fila.id)">
           Finalizar
-        </button>
-        <span v-else class="badge badge--gris">Finalizada</span>
+        </UButton>
+        <UBadge v-else color="neutral" variant="subtle">Finalizada</UBadge>
       </template>
     </UiTabla>
     <p class="note">{{ notaAyuda }}</p>

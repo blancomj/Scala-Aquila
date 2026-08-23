@@ -12,6 +12,11 @@
 // lleva guard de familia (20260822090000_tenant_tercero_rol.sql), así que
 // la única diferencia entre ambos usos es qué familia de lista_tipos
 // alimenta el selector de rol.
+//
+// Contenido en Nuxt UI (UFormField/UInput/UCheckbox/UButton), mismo
+// criterio que politicas/PoliticasVersionDrawer.vue (23-08-2026). De paso
+// se agrega el <div class="ficha-inmueble"> que faltaba alrededor de
+// <UiDrawer> (bug documentado en MiembroDrawer.vue).
 import type { Database } from '@aquila/shared'
 
 const props = withDefaults(
@@ -86,55 +91,39 @@ async function guardar(): Promise<void> {
 </script>
 
 <template>
-  <UiDrawer
-    :abierto="true"
-    :titulo="titulo"
-    :subtitulo="subtitulo"
-    @cerrar="emit('cerrar')"
-  >
-    <div class="form-grid" style="grid-template-columns: 1fr">
-      <div class="field">
-        <label for="pvt-tercero">Tercero</label>
-        <UiSelectorBuscable
-          id="pvt-tercero"
-          v-model="terceroId"
-          variante="ficha"
-          :opciones="opcionesTercero"
-          placeholder="Buscar tercero…"
-        />
-        <span class="field-hint">Natural o jurídico, sin restricción.</span>
+  <div class="ficha-inmueble">
+    <UiDrawer
+      :abierto="true"
+      :titulo="titulo"
+      :subtitulo="subtitulo"
+      @cerrar="emit('cerrar')"
+    >
+      <div class="space-y-4 text-sm">
+        <UFormField label="Tercero" name="tercero_id" help="Natural o jurídico, sin restricción.">
+          <UiSelectorBuscable v-model="terceroId" :opciones="opcionesTercero" placeholder="Buscar tercero…" />
+        </UFormField>
+        <UFormField label="Rol" name="rol_id">
+          <UiSelectorBuscable v-model="rolId" :opciones="opcionesRol" placeholder="Seleccione" />
+        </UFormField>
+        <UFormField label="Vigente desde" name="vigente_desde">
+          <UInput v-model="vigenteDesde" type="date" class="w-full" />
+        </UFormField>
+        <UFormField
+          v-if="mostrarTarjetaProfesional"
+          label="Tarjeta profesional"
+          name="numero_tarjeta_profesional"
+          help="Opcional — aplica a contador, revisor fiscal, abogado."
+        >
+          <UInput v-model="numeroTarjetaProfesional" type="text" placeholder="Número de tarjeta profesional" class="w-full" />
+        </UFormField>
+        <UCheckbox v-model="recibeNotificaciones" label="Recibe notificaciones" />
       </div>
-      <div class="field">
-        <label for="pvt-rol">Rol</label>
-        <UiSelectorBuscable
-          id="pvt-rol"
-          v-model="rolId"
-          variante="ficha"
-          :opciones="opcionesRol"
-          placeholder="Seleccione"
-        />
-      </div>
-      <div class="field">
-        <label for="pvt-desde">Vigente desde</label>
-        <input id="pvt-desde" v-model="vigenteDesde" type="date">
-      </div>
-      <div v-if="mostrarTarjetaProfesional" class="field">
-        <label for="pvt-tarjeta">Tarjeta profesional</label>
-        <input id="pvt-tarjeta" v-model="numeroTarjetaProfesional" type="text" placeholder="Número de tarjeta profesional">
-        <span class="field-hint">Opcional — aplica a contador, revisor fiscal, abogado.</span>
-      </div>
-      <div class="field" style="flex-direction: row; align-items: center; gap: 8px">
-        <input id="pvt-notif" v-model="recibeNotificaciones" type="checkbox" style="width: auto">
-        <label for="pvt-notif" style="font-weight: 400">Recibe notificaciones</label>
-      </div>
-    </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
-    <template #foot>
-      <button type="button" class="btn btn--ghost" @click="emit('cerrar')">Cancelar</button>
-      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-        {{ guardando ? 'Guardando…' : 'Guardar' }}
-      </button>
-    </template>
-  </UiDrawer>
+      <template #foot>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Guardar</UButton>
+      </template>
+    </UiDrawer>
+  </div>
 </template>

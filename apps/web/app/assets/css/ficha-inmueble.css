@@ -1,66 +1,46 @@
-/* Ficha de inmueble — sistema visual vinculante (PROMPT_FICHA_INMUEBLE.md §5).
- * Traído casi literal de docs/mockups/ficha-inmueble.html: mismos nombres de
- * clase, mismos tokens. Todo prefijado bajo `.ficha-inmueble` (en vez de
- * `:root`/`body` como en el mockup standalone) para no filtrar variables ni
- * estilos al resto de la app, que usa Nuxt UI/Tailwind por fuera de este
- * árbol. La interacción (tabs, modo crear/editar) la resuelve Vue con
- * v-if/v-show, no el script vanilla del mockup. */
-
-/* Self-hosted (no @import de Google Fonts): la CSP del proyecto restringe
- * style-src/font-src a 'self' — ver apps/web/nuxt.config.ts. Archivos en
- * apps/web/public/fonts/, subset latin (suficiente para es-CO). */
-@font-face {
-  font-family: 'Source Serif 4';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url('/fonts/source-serif-4-var.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url('/fonts/ibm-plex-sans-var.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
-}
-
+/* Ficha de inmueble — sistema visual antes independiente (PROMPT_FICHA_INMUEBLE.md
+ * §5, portado de docs/mockups/ficha-inmueble.html). Unificado con tokens.css
+ * (23-08-2026, "quiero que todo el aspecto de la aplicación se rija por un
+ * único estilo") — ya no define su propia paleta ni tipografía: cada
+ * variable de acá referencia el token equivalente de tokens.css o de Nuxt UI
+ * (--ui-color-success/warning/error-*, sin overridear, ver DESIGN_SYSTEM.md).
+ * Los nombres de variable (--sello/--oro/--ladrillo/--gris) se mantienen
+ * porque los ~180 usos en este archivo y en los componentes de ficha/drawers
+ * los referencian por nombre — solo cambió a qué apuntan. Sello (certificado/
+ * positivo) → success, oro (premio/destacado) → warning, ladrillo (alerta) →
+ * error, gris → neutral: mismo criterio semántico, un solo estándar de color
+ * en vez de una paleta paralela. Prefijado bajo `.ficha-inmueble` (no
+ * `:root`) para no chocar selectores con el resto de la app — pero los
+ * *valores* ya son los mismos en los dos sistemas. */
 .ficha-inmueble {
-  --paper: #f6f6f1;
+  --paper: var(--color-neutral-50);
   --sheet: #ffffff;
-  --ink: #1c2320;
-  --ink-soft: #585b52;
-  --ink-faint: #96988c;
-  --line: #e2dfd1;
-  --line-strong: #cbc6b3;
-  --sello: #1f5c4e;
-  --sello-soft: #e4efea;
-  --sello-text: #123d33;
-  --oro: #8a6a17;
-  --oro-soft: #f5edda;
-  --oro-text: #6b4f10;
-  --ladrillo: #a63f27;
-  --ladrillo-soft: #f7e4dd;
-  --ladrillo-text: #7a2e1c;
-  --gris-soft: #edece6;
-  --gris-text: #6c6e63;
-  --font-serif: 'Source Serif 4', Georgia, serif;
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
-  --radius: 3px;
+  --ink: var(--color-neutral-900);
+  --ink-soft: var(--color-neutral-600);
+  --ink-faint: var(--color-neutral-400);
+  --line: var(--color-neutral-200);
+  --line-strong: var(--color-neutral-300);
+  --sello: var(--ui-color-success-600);
+  --sello-soft: var(--ui-color-success-50);
+  --sello-text: var(--ui-color-success-800);
+  --oro: var(--ui-color-warning-600);
+  --oro-soft: var(--ui-color-warning-50);
+  --oro-text: var(--ui-color-warning-800);
+  --ladrillo: var(--ui-color-error-600);
+  --ladrillo-soft: var(--ui-color-error-50);
+  --ladrillo-text: var(--ui-color-error-800);
+  --gris-soft: var(--color-neutral-100);
+  --gris-text: var(--color-neutral-600);
+  --font-serif: var(--font-display); /* Inter Tight — antes Source Serif 4 */
+  /* --font-sans ya no se redeclara acá: al no fijarla, hereda la global de
+     tokens.css (Inter) — antes era 'IBM Plex Sans'. --font-mono SÍ se fuerza
+     acá (a diferencia de --font-serif/--font-sans, dejarla sin declarar
+     heredaría el monospace genérico de Tailwind — DESIGN_SYSTEM.md prohíbe
+     cualquier fuente fuera de Inter/Inter Tight, así que .spec-label/
+     .section-label (las etiquetas en mayúscula tipo "MATRÍCULA INMOBILIARIA")
+     pasan a Inter en vez de quedarse monospace con otro nombre). */
+  --font-mono: var(--font-sans);
+  --radius: 2px; /* mismo criterio de escala que --radius-sm/md/lg/xl de tokens.css */
 
   background: var(--paper);
   color: var(--ink);
@@ -168,7 +148,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   line-height: 1;
 }
@@ -231,13 +211,17 @@
   color: var(--ink-soft);
 }
 .ficha-inmueble .btn--primary {
-  background: var(--sello);
-  border-color: var(--sello);
+  /* Acento de marca (brand), no --sello — "primario" es un rol de
+     interacción, "sello" es un estado (certificado/activo); antes
+     compartían el mismo verde por casualidad del mockup original, acá se
+     separan para que el CTA principal combine con el resto de la app. */
+  background: var(--color-brand-600);
+  border-color: var(--color-brand-600);
   color: #fff;
 }
 .ficha-inmueble .btn--primary:hover {
-  background: var(--sello-text);
-  border-color: var(--sello-text);
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
 }
 .ficha-inmueble .btn--danger {
   color: var(--ladrillo-text);
@@ -299,7 +283,7 @@
 .ficha-inmueble .meter {
   height: 4px;
   background: var(--gris-soft);
-  border-radius: 2px;
+  border-radius: var(--radius);
   margin-top: 8px;
   overflow: hidden;
 }
@@ -333,8 +317,9 @@
   color: var(--ink);
 }
 .ficha-inmueble .tab.is-active {
-  color: var(--sello);
-  border-bottom-color: var(--sello);
+  /* Pestaña activa = interacción/selección → acento de marca, no --sello. */
+  color: var(--color-brand-600);
+  border-bottom-color: var(--color-brand-600);
 }
 .ficha-inmueble .tab.is-disabled {
   color: var(--ink-faint);
@@ -435,7 +420,7 @@
   align-items: center;
   gap: 5px;
   font-size: 12.5px;
-  color: var(--sello);
+  color: var(--color-brand-600); /* enlace = interacción → acento de marca, no --sello */
   text-decoration: none;
   margin-top: 12px;
   background: none;
@@ -513,7 +498,7 @@
   font-size: 11px;
   font-weight: 500;
   padding: 3px 9px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   letter-spacing: 0.02em;
 }
 .ficha-inmueble .badge--sello {
@@ -543,7 +528,7 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   padding: 6px 13px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid var(--line-strong);
   background: var(--sheet);
   color: var(--ink-soft);
@@ -621,8 +606,10 @@
   border-color: var(--ink-soft);
 }
 .ficha-inmueble .icon-btn-sm.approve:hover {
-  color: var(--sello);
-  border-color: var(--sello);
+  /* NovedadesEditor.vue usa color="primary" (default) en su UButton
+     "Aprobar", no success — mismo criterio acá para que combinen. */
+  color: var(--color-brand-600);
+  border-color: var(--color-brand-600);
 }
 .ficha-inmueble .icon-btn-sm.reject:hover {
   color: var(--ladrillo-text);
@@ -913,9 +900,11 @@
 }
 .ficha-inmueble .field input:focus,
 .ficha-inmueble .field select:focus {
+  /* Nuxt UI usa el acento de marca para el anillo de foco en toda la app
+     (outline-primary/25) — mismo criterio acá, no --sello. */
   outline: none;
-  border-color: var(--sello);
-  box-shadow: 0 0 0 3px var(--sello-soft);
+  border-color: var(--color-brand-600);
+  box-shadow: 0 0 0 3px var(--color-brand-200);
 }
 .ficha-inmueble .field-hint {
   font-size: 11px;
@@ -936,8 +925,8 @@
 }
 .ficha-inmueble .selector-buscable-trigger.is-ficha:focus-visible {
   outline: none;
-  border-color: var(--sello);
-  box-shadow: 0 0 0 3px var(--sello-soft);
+  border-color: var(--color-brand-600);
+  box-shadow: 0 0 0 3px var(--color-brand-200);
 }
 .ficha-inmueble .selector-buscable-trigger.is-ficha.is-compacta {
   font-family: var(--font-sans);
@@ -967,8 +956,9 @@
   color: var(--ink);
 }
 .ficha-inmueble .selector-buscable-opcion.is-ficha.is-activa {
-  background: var(--sello-soft);
-  color: var(--sello-text);
+  /* Resaltado de teclado en el combobox = interacción, no estado. */
+  background: var(--color-brand-100);
+  color: var(--color-brand-700);
 }
 .ficha-inmueble .selector-buscable-opcion.is-ficha.is-seleccionada {
   font-weight: 500;
@@ -1009,7 +999,7 @@
 .ficha-inmueble .segmented {
   display: inline-flex;
   border: 1px solid var(--line-strong);
-  border-radius: 20px;
+  border-radius: var(--radius);
   padding: 3px;
 }
 .ficha-inmueble .segmented button {
@@ -1020,11 +1010,13 @@
   background: none;
   border: none;
   padding: 6px 18px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .ficha-inmueble .segmented button.is-active {
-  background: var(--sello);
+  /* Mismo criterio que .btn--primary: selección activa = acento de marca,
+     no --sello (eso es un estado, no una interacción). */
+  background: var(--color-brand-600);
   color: #fff;
 }
 .ficha-inmueble .segmented button:disabled {

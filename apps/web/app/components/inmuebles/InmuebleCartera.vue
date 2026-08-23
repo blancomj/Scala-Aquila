@@ -81,7 +81,6 @@ watchEffect(cargar)
 
     <div class="section-title" style="margin-top: 0"><h2>Cargos pendientes</h2></div>
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'categoria', etiqueta: 'Categoría' },
         { clave: 'pendiente', etiqueta: 'Pendiente', alinear: 'derecha', claseCelda: 'mono' },
@@ -92,7 +91,7 @@ watchEffect(cargar)
       vacio="Sin cargos pendientes."
     >
       <template #celda-categoria="{ fila }">
-        <span class="badge" :class="fila.categoria === 'interes' ? 'badge--ladrillo' : 'badge--gris'">{{ fila.categoria }}</span>
+        <UBadge :color="fila.categoria === 'interes' ? 'error' : 'neutral'" variant="subtle">{{ fila.categoria }}</UBadge>
       </template>
       <template #celda-pendiente="{ fila }">$ {{ Number(fila.monto_pendiente).toLocaleString('es-CO') }}</template>
       <template #celda-desde="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
@@ -100,7 +99,6 @@ watchEffect(cargar)
 
     <div class="section-title"><h2>Pagos recientes</h2></div>
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'fecha', etiqueta: 'Fecha', claseCelda: 'mono' },
         { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
@@ -116,23 +114,22 @@ watchEffect(cargar)
     </UiTabla>
 
     <div class="section-title"><h2>Registrar pago</h2></div>
-    <div class="form-grid">
-      <div class="field">
-        <label for="pago-monto">Monto</label>
-        <input id="pago-monto" v-model.number="monto" type="number" min="0" step="0.01" placeholder="420000">
+    <div class="space-y-4 text-sm max-w-md">
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Monto" name="monto">
+          <UInput v-model.number="monto" type="number" min="0" step="0.01" placeholder="420000" class="w-full" />
+        </UFormField>
+        <UFormField label="Fecha de pago" name="fecha_pago">
+          <UInput v-model="fechaPago" type="date" class="w-full" />
+        </UFormField>
       </div>
-      <div class="field">
-        <label for="pago-fecha">Fecha de pago</label>
-        <input id="pago-fecha" v-model="fechaPago" type="date">
-      </div>
-      <div class="field span-2">
-        <label for="pago-ref">Referencia (opcional)</label>
-        <input id="pago-ref" v-model="referencia" type="text" placeholder="Transferencia · 88213">
-      </div>
+      <UFormField label="Referencia (opcional)" name="referencia">
+        <UInput v-model="referencia" type="text" placeholder="Transferencia · 88213" class="w-full" />
+      </UFormField>
     </div>
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
-    <button type="button" class="btn btn--primary" style="margin-top: 12px" :disabled="registrando || !monto" @click="registrarPago">
-      {{ registrando ? 'Registrando…' : 'Registrar pago' }}
-    </button>
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3 max-w-md" />
+    <UButton class="mt-3" :loading="registrando" :disabled="!monto" @click="registrarPago">
+      Registrar pago
+    </UButton>
   </div>
 </template>

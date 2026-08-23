@@ -27,7 +27,6 @@ watchEffect(async () => {
       </div>
     </div>
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'periodo', etiqueta: 'Periodo', claseCelda: 'mono' },
         { clave: 'estado', etiqueta: 'Estado' },
@@ -40,14 +39,14 @@ watchEffect(async () => {
     >
       <template #celda-periodo="{ fila }">{{ fila.liquidacion.periodo.anio }}-{{ String(fila.liquidacion.periodo.mes).padStart(2, '0') }}</template>
       <template #celda-estado="{ fila }">
-        <span class="badge" :class="fila.liquidacion.estado === 'completada' ? 'badge--sello' : 'badge--ladrillo'">
+        <UBadge :color="fila.liquidacion.estado === 'completada' ? 'success' : 'error'" variant="subtle">
           {{ fila.liquidacion.estado }}
-        </span>
+        </UBadge>
       </template>
       <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
       <template #celda-fecha="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
     </UiTabla>
-    <p class="note">
+    <p class="text-sm text-neutral-500 mt-3">
       Un cierre solo se revierte mediante <strong>reversión auditada</strong> — nunca editando la
       liquidación directamente.
     </p>

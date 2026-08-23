@@ -20,10 +20,15 @@ const colapsado = useCookie<boolean>('sidebar-colapsado', { default: () => false
 // abiertos: por defecto (cookie vacía) todos los grupos están expandidos.
 const gruposCerrados = useCookie<string[]>('sidebar-grupos-cerrados', { default: () => [] })
 
+// Acordeón: al desplegar un grupo, cualquier otro que estuviera desplegado
+// se repliega — nunca queda más de uno abierto a la vez. Al replegar el
+// grupo abierto, los demás quedan como estaban (todos cerrados).
 function toggleGrupo(titulo: string): void {
-  gruposCerrados.value = gruposCerrados.value.includes(titulo)
-    ? gruposCerrados.value.filter((t) => t !== titulo)
-    : [...gruposCerrados.value, titulo]
+  if (gruposCerrados.value.includes(titulo)) {
+    gruposCerrados.value = gruposVisibles.value.map((g) => g.titulo).filter((t) => t !== titulo)
+  } else {
+    gruposCerrados.value = [...gruposCerrados.value, titulo]
+  }
 }
 
 function puedeVer(item: NavItem): boolean {

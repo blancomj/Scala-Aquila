@@ -96,9 +96,14 @@ function imprimir(): void {
 </template>
 
 <style scoped>
+/* Recibo público (sin sesión) — antes usaba la paleta vieja de
+   ficha-inmueble.css hardcodeada a mano (ni siquiera vía var(), copiada del
+   mismo mockup) y Helvetica en vez de Inter. Unificado (23-08-2026) con
+   tokens.css — las custom properties de :root cascan igual dentro de
+   <style scoped>, el scoping solo afecta selectores, no herencia. */
 .estado-cuenta {
-  font-family: Helvetica, Arial, sans-serif;
-  color: #1c2320;
+  font-family: var(--font-sans);
+  color: var(--color-neutral-900);
   display: flex;
   justify-content: center;
   padding: 32px 16px;
@@ -108,15 +113,16 @@ function imprimir(): void {
   max-width: 720px;
 }
 .mensaje {
-  color: #585b52;
+  color: var(--color-neutral-600);
   font-size: 14px;
 }
 h1 {
+  font-family: var(--font-display);
   font-size: 19px;
   margin: 0 0 4px;
 }
 .sub {
-  color: #585b52;
+  color: var(--color-neutral-600);
   font-size: 12px;
   margin: 0 0 20px;
 }
@@ -128,9 +134,9 @@ h1 {
   font-size: 13px;
   font-weight: 500;
   padding: 9px 16px;
-  border-radius: 3px;
-  border: 1px solid #1f5c4e;
-  background: #1f5c4e;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-brand-600);
+  background: var(--color-brand-600);
   color: #fff;
   cursor: pointer;
 }
@@ -145,13 +151,13 @@ th {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #96988c;
-  border-bottom: 1px solid #1c2320;
+  color: var(--color-neutral-400);
+  border-bottom: 1px solid var(--color-neutral-900);
   padding: 6px 8px;
 }
 td {
   padding: 6px 8px;
-  border-bottom: 1px solid #e2dfd1;
+  border-bottom: 1px solid var(--color-neutral-200);
 }
 td.num {
   text-align: right;

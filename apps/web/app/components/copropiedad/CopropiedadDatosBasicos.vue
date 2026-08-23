@@ -132,90 +132,67 @@ watchEffect(async () => {
 
 <template>
   <div>
-    <div class="form-grid">
+    <div class="grid md:grid-cols-2 gap-4">
       <div class="card">
         <p class="card-title">Información general</p>
-        <div class="form-grid" style="grid-template-columns: 1fr">
-          <div class="field">
-            <label for="f-nombre">Nombre de la copropiedad</label>
-            <input id="f-nombre" v-model="name" type="text">
+        <div class="space-y-4 text-sm mt-3">
+          <UFormField label="Nombre de la copropiedad" name="name">
+            <UInput v-model="name" type="text" class="w-full" />
+          </UFormField>
+          <div class="grid grid-cols-[1fr_auto] gap-4">
+            <UFormField label="NIT" name="nit" :error="nitError ?? undefined">
+              <UInput v-model="nit" type="text" class="w-full" />
+            </UFormField>
+            <UFormField label="DV" name="dv">
+              <UInput :model-value="copropiedadStore.tenant?.nit_digito_verificacion ?? ''" type="text" readonly class="w-16" />
+            </UFormField>
           </div>
-          <div class="field-row-2">
-            <div class="field">
-              <label for="f-nit">NIT</label>
-              <input id="f-nit" v-model="nit" type="text">
-              <span v-if="nitError" class="field-hint" style="color: var(--ladrillo-text)">{{ nitError }}</span>
-            </div>
-            <div class="field field-dv">
-              <label for="f-dv">DV</label>
-              <input id="f-dv" :value="copropiedadStore.tenant?.nit_digito_verificacion ?? ''" type="text" readonly>
-            </div>
+          <UFormField
+            label="Tipo de división"
+            name="tipo_division_id"
+            help="Ley 675 de 2001 — clasificación de la propiedad horizontal."
+          >
+            <UiSelectorBuscable v-model="tipoDivisionId" :opciones="opcionesTipoDivision" placeholder="— Elegir —" />
+          </UFormField>
+          <UFormField label="Dirección" name="direccion">
+            <UInput v-model="direccion" type="text" class="w-full" />
+          </UFormField>
+          <UFormField label="Ciudad" name="ciudad">
+            <UInput v-model="ciudad" type="text" class="w-full" />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Teléfono 1" name="telefono_1" :error="telefono1Error ?? undefined">
+              <UInput v-model="telefono1" type="text" class="w-full" />
+            </UFormField>
+            <UFormField label="Teléfono 2" name="telefono_2" :error="telefono2Error ?? undefined">
+              <UInput v-model="telefono2" type="text" class="w-full" />
+            </UFormField>
           </div>
-          <div class="field">
-            <label for="f-tipo-division">Tipo de división</label>
-            <UiSelectorBuscable
-              id="f-tipo-division"
-              v-model="tipoDivisionId"
-              variante="ficha"
-              :opciones="opcionesTipoDivision"
-              placeholder="— Elegir —"
-            />
-            <span class="field-hint">Ley 675 de 2001 — clasificación de la propiedad horizontal.</span>
-          </div>
-          <div class="field">
-            <label for="f-direccion">Dirección</label>
-            <input id="f-direccion" v-model="direccion" type="text">
-          </div>
-          <div class="field">
-            <label for="f-ciudad">Ciudad</label>
-            <input id="f-ciudad" v-model="ciudad" type="text">
-          </div>
-          <div class="field-row-2">
-            <div class="field">
-              <label for="f-tel1">Teléfono 1</label>
-              <input id="f-tel1" v-model="telefono1" type="text">
-              <span v-if="telefono1Error" class="field-hint" style="color: var(--ladrillo-text)">{{ telefono1Error }}</span>
-            </div>
-            <div class="field">
-              <label for="f-tel2">Teléfono 2</label>
-              <input id="f-tel2" v-model="telefono2" type="text">
-              <span v-if="telefono2Error" class="field-hint" style="color: var(--ladrillo-text)">{{ telefono2Error }}</span>
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-email">Correo electrónico</label>
-            <input id="f-email" v-model="email" type="text">
-            <span v-if="emailError" class="field-hint" style="color: var(--ladrillo-text)">{{ emailError }}</span>
-          </div>
+          <UFormField label="Correo electrónico" name="email" :error="emailError ?? undefined">
+            <UInput v-model="email" type="text" class="w-full" />
+          </UFormField>
         </div>
       </div>
 
       <div class="card">
         <p class="card-title">Información de contacto</p>
-        <div class="form-grid" style="grid-template-columns: 1fr">
-          <div class="field">
-            <label for="f-contacto-nombre">Nombre del contacto</label>
-            <input id="f-contacto-nombre" v-model="contactoNombre" type="text">
-          </div>
-          <div class="field">
-            <label for="f-contacto-tel">Teléfono del contacto</label>
-            <input id="f-contacto-tel" v-model="contactoTelefono" type="text">
-            <span v-if="contactoTelefonoError" class="field-hint" style="color: var(--ladrillo-text)">{{ contactoTelefonoError }}</span>
-          </div>
-          <div class="field">
-            <label for="f-contacto-email">Correo del contacto</label>
-            <input id="f-contacto-email" v-model="contactoEmail" type="text">
-            <span v-if="contactoEmailError" class="field-hint" style="color: var(--ladrillo-text)">{{ contactoEmailError }}</span>
-          </div>
+        <div class="space-y-4 text-sm mt-3">
+          <UFormField label="Nombre del contacto" name="contacto_nombre">
+            <UInput v-model="contactoNombre" type="text" class="w-full" />
+          </UFormField>
+          <UFormField label="Teléfono del contacto" name="contacto_telefono" :error="contactoTelefonoError ?? undefined">
+            <UInput v-model="contactoTelefono" type="text" class="w-full" />
+          </UFormField>
+          <UFormField label="Correo del contacto" name="contacto_email" :error="contactoEmailError ?? undefined">
+            <UInput v-model="contactoEmail" type="text" class="w-full" />
+          </UFormField>
         </div>
       </div>
     </div>
 
-    <p v-if="error" class="note" style="color: var(--ladrillo-text)">{{ error }}</p>
-    <div style="margin-top: 12px">
-      <button type="button" class="btn btn--primary" :disabled="guardando" @click="guardar">
-        {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
-      </button>
+    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3" />
+    <div class="mt-3">
+      <UButton :loading="guardando" @click="guardar">Guardar cambios</UButton>
     </div>
 
     <div class="section-title">
@@ -225,12 +202,11 @@ watchEffect(async () => {
           Pueden ser varias — exactamente una es la cuenta de recaudo.
         </p>
       </div>
-      <button type="button" class="btn btn--ghost" style="font-size: 12.5px; padding: 6px 12px" @click="modalCuentaAbierto = true">
+      <UButton variant="outline" color="neutral" size="sm" @click="modalCuentaAbierto = true">
         Agregar cuenta
-      </button>
+      </UButton>
     </div>
     <UiTabla
-      variante="ficha"
       :columnas="[
         { clave: 'banco', etiqueta: 'Banco' },
         { clave: 'tipo', etiqueta: 'Tipo' },
@@ -247,10 +223,10 @@ watchEffect(async () => {
       <template #celda-numero="{ fila }">{{ fila.numero_cuenta }}</template>
       <template #celda-titular="{ fila }">{{ fila.titular ?? '—' }}</template>
       <template #celda-recaudo="{ fila }">
-        <span v-if="fila.es_recaudo" class="badge badge--sello">Recaudo</span>
-        <button v-else type="button" class="btn btn--ghost" style="font-size: 11.5px; padding: 4px 10px" @click="marcarRecaudo(fila.id)">
+        <UBadge v-if="fila.es_recaudo" color="success" variant="subtle">Recaudo</UBadge>
+        <UButton v-else variant="outline" color="neutral" size="xs" @click="marcarRecaudo(fila.id)">
           Marcar como recaudo
-        </button>
+        </UButton>
       </template>
     </UiTabla>
     <p class="note">

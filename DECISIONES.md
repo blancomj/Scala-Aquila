@@ -698,3 +698,86 @@ para cualquier sesión futura (agente o humano): antes de correr `db:push:prod` 
 `supabase functions deploy ... --project-ref <ref-prod>`, preguntar en el chat y
 esperar una respuesta explícita del usuario en ese turno — un paso de "deploy a
 producción" en un plan ya aprobado NO es esa autorización.
+
+---
+
+## D-26 — Design system único de UI (`DESIGN_SYSTEM.md`), sin paleta/tipografía paralela
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | Post F7 (hardening visual)                  |
+| **Estado** | Aceptada                                    |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+**Contexto.** La app corría con la paleta/tipografía default de Nuxt UI, sin
+theming propio, y con un segundo sistema visual completamente independiente
+(`.ficha-inmueble`, `apps/web/app/assets/css/ficha-inmueble.css` — drawers, ficha
+de inmueble, comprobante público) que traía su propia paleta con nombre
+(`--sello`/`--oro`/`--ladrillo`/`--gris`/`--ink`/`--paper`) y su propia tipografía
+(Source Serif 4 + IBM Plex Sans/Mono), documentado como "vinculante"
+(`PROMPT_FICHA_INMUEBLE.md §5`) y aislado a propósito para no filtrar estilos al
+resto de la app.
+
+El usuario pidió integrar el design system "Northline" (`DESIGN_SYSTEM.md`,
+`apps/web/app/assets/css/tokens.css`, `apps/web/app/app.config.ts`) — acento único
+de marca (`brand`, oklch hue 255) + Inter/Inter Tight — y, en iteraciones
+sucesivas, terminó pidiendo explícitamente que **absolutamente todo** el aspecto
+de la aplicación se rigiera por un único estilo, incluido `ficha-inmueble.css`.
+
+Auditando el proyecto completo se encontraron 3 clases de desvío:
+
+1. `ficha-inmueble.css` con paleta/tipografía propia (arriba) — 2 elementos
+   además tenían el bug de que "primario/interacción" (botón CTA, pestaña activa,
+   enlace, foco, resaltado de combobox) compartía el mismo verde que "sello/
+   estado" (certificado/activo) por casualidad del mockup original, no por
+   diseño — quedaron separados: interacción → `brand`, estado → `success`.
+2. Radios hardcodeados sueltos (`border-radius: 20px`/`16px`/`6px`/`3px`) en vez
+   de token, en `ficha-inmueble.css` (tags/badges/chips/segmented) y en 2 páginas
+   con `<style>` propio (`comprobante-cuenta/[id].vue`, tooltip de
+   `AelEditor.vue`) — algunos con `Helvetica` hardcodeada en vez de Inter.
+3. 904 usos de `gray-*` (paleta default de Tailwind) en 66 de 109 archivos `.vue`,
+   contra 0 usos de `neutral-*` (la escala propia de `tokens.css`) — visualmente
+   casi idéntico (`neutral-500` `#6b6b70` vs `gray-500` `#6b7280`), pero dos
+   fuentes de verdad en vez de una.
+
+**Decisión.**
+
+1. `ficha-inmueble.css` deja de definir su propia paleta/tipografía: cada
+   variable local (`--sello`, `--ink`, `--font-sans`...) ahora referencia el
+   token equivalente de `tokens.css`/Nuxt UI (`--color-neutral-*`,
+   `--ui-color-success-*`, `--font-sans`/`--font-display`) en vez de un valor
+   literal — los ~180 usos por nombre en ese archivo no se tocan, solo a qué
+   apunta cada nombre. Los 4 archivos de fuente IBM Plex/Source Serif que
+   quedaron sin ningún uso se borraron de `public/fonts/`.
+2. No se migran retroactivamente los 904 usos de `gray-*` existentes (mismo
+   criterio costo/beneficio que D-24: la diferencia visual es marginal, tocar 66
+   archivos a mano por una diferencia casi imperceptible no se justifica).
+3. **Se formaliza y automatiza la regla hacia adelante**, igual que D-24:
+   - Ningún archivo `.vue`/`.css` nuevo (fuera de un allowlist explícito para
+     dataviz/`ficha-inmueble.css`/`tokens.css`) puede introducir un color
+     hexadecimal/`rgb()` hardcodeado ni una fuente fuera de Inter/Inter Tight —
+     debe pasar por los tokens de `tokens.css` o los props semánticos de Nuxt UI
+     (`primary`/`neutral`/`success`/`warning`/`error`).
+   - Ningún archivo `.vue` nuevo (fuera del allowlist congelado de los 66 ya
+     existentes) puede introducir clases `gray-*` — usa `neutral-*` o las clases
+     semánticas de Nuxt UI (`text-muted`, `border-default`, etc.).
+   - `tests/governance/design-system-coverage.test.ts` (test-guardia, mismo
+     patrón que `enum-lista-tipos-coverage.test.ts`) hace cumplir ambos puntos:
+     escanea `apps/web/app/**/*.{vue,css}` y falla si aparece una violación fuera
+     de las listas `ARCHIVOS_LEGADO_COLOR_HEX`/`ARCHIVOS_LEGADO_GRAY`, congeladas
+     al 23-08-2026 — no se amplían nunca; un archivo nuevo se ajusta al estándar,
+     no se agrega a la lista.
+
+**Fuera de alcance (explícito, no es una omisión).** Dataviz (`components/
+cartera/*Chart.vue`, `pages/cartera/index.vue`) necesita una paleta categórica de
+varios tonos para distinguir escalones (ej. mora), no el acento único — usa la
+skill `dataviz`, no este design system. Syntax highlighting
+(`utils/ael-codemirror.ts`) es una convención propia de editores de código, no de
+marca. Ambos quedan explícitamente excluidos del test-guardia.
+
+**Consecuencia.** La próxima vez que alguien (agente o humano) agregue un color
+hardcodeado, una fuente distinta, o una clase `gray-*` fuera de esos archivos, el
+test falla y señala exactamente qué archivo y qué reemplazo usar — la regla queda
+en el propio repo, no solo en la cabeza de quien la pidió. `DESIGN_SYSTEM.md`
+(copiado a la raíz del repo, antes vivía fuera de `proyecto-web` y ningún agente
+futuro lo habría encontrado) es la referencia que cita el mensaje de error.
