@@ -45,69 +45,94 @@ const periodosDelAnio = computed(() => {
   if (anio === undefined) return []
   return liquidacionStore.periodos.filter((p) => p.anio === anio)
 })
+
+const COLOR_ESTADO_PRESUPUESTO: Record<string, 'neutral' | 'info' | 'success'> = {
+  borrador: 'neutral',
+  aprobado: 'info',
+  vigente: 'success',
+  cerrado: 'neutral',
+}
+const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = {
+  abierto: 'success',
+  en_liquidacion: 'warning',
+  cerrado: 'neutral',
+  bloqueado: 'error',
+}
 </script>
 
 <template>
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div>
       <h2 class="text-lg font-semibold mb-2">Vigencia del presupuesto</h2>
-      <p v-if="!presupuestoSeleccionado" class="text-sm text-gray-500">
+      <p v-if="!presupuestoSeleccionado" class="text-sm text-neutral-500">
         Selecciona un presupuesto para ver su vigencia.
       </p>
-      <dl
-        v-else
-        class="space-y-2 text-sm rounded-lg border border-gray-200 dark:border-gray-800 p-4"
-      >
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Vigente desde</dt>
-          <dd>{{ presupuestoSeleccionado.vigente_desde ?? '—' }}</dd>
+      <div v-else class="rounded-lg border border-neutral-200 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <dt class="flex items-center gap-1.5 text-neutral-500">
+            <UIcon name="i-lucide-calendar" class="size-4" /> Vigente desde
+          </dt>
+          <dd class="font-medium">{{ presupuestoSeleccionado.vigente_desde ?? '—' }}</dd>
         </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Vigente hasta</dt>
-          <dd>{{ presupuestoSeleccionado.vigente_hasta ?? '—' }}</dd>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <dt class="flex items-center gap-1.5 text-neutral-500">
+            <UIcon name="i-lucide-calendar-x" class="size-4" /> Vigente hasta
+          </dt>
+          <dd class="font-medium">{{ presupuestoSeleccionado.vigente_hasta ?? '—' }}</dd>
         </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Fecha de aprobación</dt>
-          <dd>{{ presupuestoSeleccionado.fecha_aprobacion ?? '—' }}</dd>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <dt class="flex items-center gap-1.5 text-neutral-500">
+            <UIcon name="i-lucide-check-circle-2" class="size-4" /> Fecha de aprobación
+          </dt>
+          <dd class="font-medium">{{ presupuestoSeleccionado.fecha_aprobacion ?? '—' }}</dd>
         </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Acta de asamblea</dt>
-          <dd>{{ presupuestoSeleccionado.acta_asamblea ?? '—' }}</dd>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <dt class="flex items-center gap-1.5 text-neutral-500">
+            <UIcon name="i-lucide-file-text" class="size-4" /> Acta de asamblea
+          </dt>
+          <dd class="font-medium text-right">{{ presupuestoSeleccionado.acta_asamblea ?? '—' }}</dd>
         </div>
-        <div class="flex justify-between gap-2">
-          <dt class="text-gray-500">Estado</dt>
-          <dd>{{ presupuestoSeleccionado.estado }}</dd>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <dt class="text-neutral-500">Estado</dt>
+          <dd>
+            <UBadge :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'" variant="subtle">
+              {{ presupuestoSeleccionado.estado }}
+            </UBadge>
+          </dd>
         </div>
-      </dl>
+      </div>
     </div>
 
     <div>
       <h2 class="text-lg font-semibold mb-2">Periodos de liquidación</h2>
-      <p class="text-sm text-gray-500 mb-2">
-        Periodos de {{ presupuestoSeleccionado?.anio ?? '—' }}, el año fiscal de este presupuesto
-        — no hay una FK periodo↔presupuesto explícita (no hace falta: un presupuesto es siempre
-        anual y solo puede haber uno vigente por año, así que el año ya determina la relación).
+      <p class="text-sm text-neutral-500 mb-2">
+        Los 12 periodos mensuales del año fiscal {{ presupuestoSeleccionado?.anio ?? '—' }} de
+        este presupuesto.
       </p>
-      <UiTabla
-        :columnas="[
-          { clave: 'periodo', etiqueta: 'Periodo' },
-          { clave: 'estado', etiqueta: 'Estado' },
-          { clave: 'vencimiento', etiqueta: 'Vencimiento' },
-        ]"
-        :filas="periodosDelAnio"
-        :clave-fila="(fila) => fila.id"
-        :vacio="cargando ? 'Cargando…' : 'Sin periodos para este año todavía.'"
-      >
-        <template #celda-periodo="{ fila }"
-          >{{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}</template
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+        <UiTabla
+          :columnas="[
+            { clave: 'periodo', etiqueta: 'Periodo', claseCelda: 'mono' },
+            { clave: 'estado', etiqueta: 'Estado' },
+            { clave: 'vencimiento', etiqueta: 'Vencimiento', claseCelda: 'mono' },
+          ]"
+          :filas="periodosDelAnio"
+          :clave-fila="(fila) => fila.id"
+          :vacio="cargando ? 'Cargando…' : 'Sin periodos para este año todavía.'"
         >
-        <template #celda-estado="{ fila }"
-          ><span class="text-gray-500">{{ fila.estado }}</span></template
-        >
-        <template #celda-vencimiento="{ fila }">
-          <span class="text-gray-500">{{ fila.fecha_vencimiento ?? '—' }}</span>
-        </template>
-      </UiTabla>
+          <template #celda-periodo="{ fila }"
+            >{{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}</template
+          >
+          <template #celda-estado="{ fila }">
+            <UBadge :color="COLOR_ESTADO_PERIODO[fila.estado] ?? 'neutral'" variant="subtle">
+              {{ fila.estado }}
+            </UBadge>
+          </template>
+          <template #celda-vencimiento="{ fila }">
+            <span class="text-neutral-500">{{ fila.fecha_vencimiento ?? '—' }}</span>
+          </template>
+        </UiTabla>
+      </div>
     </div>
   </div>
 </template>

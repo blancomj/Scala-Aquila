@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // Drawer "Registrar movimiento" (E9) — mismo criterio que PresupuestoRubroDrawer.vue: solo
-// cuentas hoja (guard_presupuesto_ejecucion_cuenta rechaza cualquier otra), USelect para
-// periodo (lista corta, no necesita búsqueda). Contenido en Nuxt UI (23-08-2026).
+// cuentas hoja (guard_presupuesto_ejecucion_cuenta rechaza cualquier otra). USelect para
+// periodo (lista corta, no necesita búsqueda); UiSelectorBuscable para cuenta — el plan de
+// cuentas puede tener decenas de hojas anidadas (ruta completa en el label), a diferencia del
+// periodo sí se justifica la búsqueda. Contenido en Nuxt UI (23-08-2026).
 const props = defineProps<{ tenantId: string }>()
 const emit = defineEmits<{ cerrar: []; registrado: [] }>()
 
@@ -32,13 +34,10 @@ const cuentasHoja = computed(() => {
     }
     return segmentos.join(' › ')
   }
-  return [
-    { label: '— Elegir —', value: null },
-    ...presupuestoStore.cuentas
-      .filter((c) => c.es_hoja)
-      .map((c) => ({ value: c.id, label: `${rutaNombres(c)} (${c.naturaleza})` }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
-  ]
+  return presupuestoStore.cuentas
+    .filter((c) => c.es_hoja)
+    .map((c) => ({ valor: c.id, etiqueta: `${rutaNombres(c)} (${c.naturaleza})` }))
+    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
 })
 
 const opcionesPeriodo = computed(() => [
@@ -80,14 +79,22 @@ async function guardar(): Promise<void> {
     <UiDrawer :abierto="true" titulo="Registrar movimiento" @cerrar="emit('cerrar')">
       <div class="space-y-4 text-sm">
         <UFormField label="Cuenta" name="cuenta_id">
-          <USelect v-model="cuentaId" :items="cuentasHoja" value-key="value" class="w-full" />
+          <UiSelectorBuscable v-model="cuentaId" :opciones="cuentasHoja" placeholder="Buscar cuenta…" />
         </UFormField>
         <div class="grid grid-cols-2 gap-4">
           <UFormField label="Periodo" name="periodo_id">
             <USelect v-model="periodoId" :items="opcionesPeriodo" value-key="value" class="w-full" />
           </UFormField>
           <UFormField label="Monto" name="monto">
-            <UInput v-model.number="monto" type="number" min="0" class="w-full" />
+            <UInputNumber
+              v-model="monto"
+              :min="0"
+              :increment="false"
+              :decrement="false"
+              :format-options="{ style: 'currency', currency: 'COP', maximumFractionDigits: 0 }"
+              locale="es-CO"
+              class="w-full"
+            />
           </UFormField>
         </div>
         <UFormField label="Descripción" name="descripcion">

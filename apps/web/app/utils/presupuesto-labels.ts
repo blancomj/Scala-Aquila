@@ -11,13 +11,6 @@ export const ETIQUETA_ESTADO_PRESUPUESTO: Record<string, string> = {
   cerrado: 'Cerrado',
 }
 
-export const DESCRIPCION_ESTADO_PRESUPUESTO: Record<string, string> = {
-  borrador: 'Editable — todavía no genera cobros a las unidades.',
-  aprobado: 'Aprobado en asamblea, pendiente de activar.',
-  vigente: 'Activo — sus valores ya se están cobrando.',
-  cerrado: 'Cerrado — de solo lectura, corregir crea una versión nueva.',
-}
-
 export const COLOR_ESTADO_PRESUPUESTO: Record<string, 'neutral' | 'primary' | 'success'> = {
   borrador: 'neutral',
   aprobado: 'primary',

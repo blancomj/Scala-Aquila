@@ -137,8 +137,22 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
   /** Retira primero el presupuesto vigente del MISMO año (si existe) a 'cerrado' y
    * luego promueve el nuevo — dos UPDATE secuenciales, nunca hay dos filas vigentes
    * a la vez (presupuestos_vigente_unico es por (tenant_id, anio); un año distinto no
-   * se toca). 20260830230000 redefinió el guard para admitir esa transición puntual. */
-  async function activarPresupuesto(id: string, tenantId: string): Promise<void> {
+   * se toca). 20260830230000 redefinió el guard para admitir esa transición puntual.
+   *
+   * fechaAprobacion/vigenteDesde/vigenteHasta/actaAsamblea: activar es el instante real en que
+   * la asamblea aprueba el presupuesto (Ley 675/2001 art. 51) — hasta ahora estas columnas
+   * existían mudas, ningún flujo las escribía (investigación externa + hallazgo en sesión).
+   * vigenteHasta lo captura el usuario en el modal de activación (por defecto el cierre del año
+   * fiscal, editable) — un presupuesto vigente es inmutable (guard_presupuesto_inmutable), así
+   * que no hay forma de corregirlo después sin retirarlo, mejor pedirlo bien desde el inicio. El
+   * archivo del acta se sube aparte, a la librería de documentos de la copropiedad (ver
+   * PresupuestoTabPresupuestos.vue) — acá solo se guarda la referencia de texto para mostrarla
+   * sin tener que unir tablas. */
+  async function activarPresupuesto(
+    id: string,
+    tenantId: string,
+    datos: { fechaAprobacion: string; vigenteDesde: string; vigenteHasta: string; actaAsamblea: string },
+  ): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const nuevo = presupuestos.value.find((p) => p.id === id)
     const vigenteActual = presupuestos.value.find(
@@ -148,14 +162,20 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     if (vigenteActual) {
       const { error: errorRetiro } = await cliente
         .from('presupuestos')
-        .update({ estado: 'cerrado', vigente_hasta: nuevo?.vigente_desde ?? vigenteActual.vigente_desde })
+        .update({ estado: 'cerrado', vigente_hasta: datos.vigenteDesde })
         .eq('id', vigenteActual.id)
       if (errorRetiro) throw errorRetiro
     }
 
     const { error: errorUpdate } = await cliente
       .from('presupuestos')
-      .update({ estado: 'vigente' })
+      .update({
+        estado: 'vigente',
+        fecha_aprobacion: datos.fechaAprobacion,
+        vigente_desde: datos.vigenteDesde,
+        vigente_hasta: datos.vigenteHasta,
+        acta_asamblea: datos.actaAsamblea,
+      })
       .eq('id', id)
     if (errorUpdate) throw errorUpdate
 

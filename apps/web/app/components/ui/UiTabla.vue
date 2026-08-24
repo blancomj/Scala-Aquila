@@ -14,6 +14,10 @@ export interface ColumnaTabla<TFila = unknown> {
   alinear?: 'derecha'
   /** Clase(s) extra para el <td> — p. ej. "mono" para columnas monoespaciadas. */
   claseCelda?: string
+  /** Ancho fijo (CSS width, ej. "140px") aplicado a th y td — para alinear columnas entre dos
+   * <table> separadas que deben leerse como una sola grilla (p. ej. secciones Egresos/Ingresos
+   * de un mismo árbol de cuentas, cada una su propia UiTabla con auto-layout independiente). */
+  ancho?: string
   /** Si se define, el encabezado se vuelve clickeable para ordenar por esta
    * columna — extrae el valor comparable de la fila (no siempre es
    * `fila[clave]`: "Tipo" o "Saldo" suelen venir de un catálogo o de un mapa
@@ -133,6 +137,7 @@ const columnasTrasGrupo = computed(() =>
         <th
           v-for="col in columnas"
           :key="col.clave"
+          :style="col.ancho ? { width: col.ancho } : undefined"
           :class="[
             col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
             variante === 'tailwind'
@@ -183,6 +188,7 @@ const columnasTrasGrupo = computed(() =>
           <td
             v-for="col in columnasTrasGrupo"
             :key="col.clave"
+            :style="col.ancho ? { width: col.ancho } : undefined"
             :class="[
               col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
               variante === 'tailwind' ? ['py-1.5 px-3', col.alinear === 'derecha' ? 'text-right' : ''] : '',
@@ -199,6 +205,7 @@ const columnasTrasGrupo = computed(() =>
           <td
             v-for="col in columnas"
             :key="col.clave"
+            :style="col.ancho ? { width: col.ancho } : undefined"
             :class="[
               col.alinear === 'derecha' && variante === 'ficha' ? 'num' : '',
               variante === 'tailwind' ? ['py-1.5 px-3', col.alinear === 'derecha' ? 'text-right' : ''] : '',
