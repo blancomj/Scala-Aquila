@@ -83,6 +83,11 @@ function onEnter(): void {
     inmueble: `/inmuebles/${resultado.entidadId}`,
     documento: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : null,
     novedad: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : null,
+    concepto: `/conceptos/${resultado.entidadId}`,
+    cuenta_presupuestal: '/presupuesto',
+    caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
+    agrupacion: '/configuracion/agrupaciones',
+    zona_comun: '/configuracion/zonas-comunes',
   }
   const ruta = rutas[resultado.categoria]
   if (ruta) navegar(ruta)
@@ -150,6 +155,11 @@ onUnmounted(() => {
         <option value="inmueble">Inmuebles</option>
         <option value="documento">Documentos</option>
         <option value="novedad">Novedades</option>
+        <option value="concepto">Conceptos</option>
+        <option value="cuenta_presupuestal">Cuentas presupuestales</option>
+        <option value="caso_juridico">Casos jurídicos</option>
+        <option value="agrupacion">Agrupaciones</option>
+        <option value="zona_comun">Zonas comunes</option>
       </select>
     </div>
 

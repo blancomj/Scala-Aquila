@@ -6,14 +6,18 @@
  * (D-14, vigilado por eslint.config.js) — el resto del paquete es puro y
  * opera solo sobre el `DataSnapshot` que esta función produce.
  *
- * PARAMETER.OTROS_INGRESOS_ANUAL (GAP-19, E-16 §5 fase 6 "neteo"): se
- * resuelve como Σ fuente_financiacion.valor_aplicado (lista_tipos.codigo=
- * 'otros_ingresos', vía tipo_id — ex-enum, 20260830210000) del presupuesto
- * vigente — el mismo dato que ya alimenta presupuesto-previsualizar. Antes
- * de `fuente_financiacion` (20260814200000_motor_presupuestal_financiacion.sql)
- * este parámetro no tenía fuente en el esquema y el evaluador fallaba
- * explícito (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en
- * silencio — ese gap ya está cerrado.
+ * PARAMETER.OTROS_INGRESOS_ANUAL / CUOTA_EXTRAORDINARIA_ANUAL / FONDO_IMPREVISTOS_ANUAL
+ * (GAP-19, E-16 §5 fase 6 "neteo"): cada uno se resuelve como Σ fuente_financiacion.
+ * valor_aplicado filtrado por lista_tipos.codigo (vía tipo_id — ex-enum, 20260830210000) del
+ * presupuesto vigente. Antes de `fuente_financiacion`
+ * (20260814200000_motor_presupuestal_financiacion.sql) estos parámetros no tenían fuente en el
+ * esquema y el evaluador fallaba explícito (17 §37 SNAPSHOT INCOMPLETE) en vez de asumir cero en
+ * silencio. Al principio solo OTROS_INGRESOS_ANUAL tenía parámetro — investigación externa
+ * (INCP, Ley 675 art. 35/38) confirmó que cuota_extraordinaria también es ingreso real (se
+ * reconoce en el estado de resultados al cobrarse) y fondo_imprevistos es aplicar un saldo ya
+ * existente (efectivo restringido) — ambos merecían el mismo camino de neteo que otros_ingresos,
+ * cerrado ahora. Ninguna fórmula está obligada a usarlos: quedan disponibles, igual que
+ * OTROS_INGRESOS_ANUAL, para quien escriba la regla de la cuota.
  *
  * Nota de tipos: PostgrestResponse/PostgrestSingleResponse son uniones
  * discriminadas por `error` — tras `if (error) throw`, `data` queda
@@ -372,14 +376,26 @@ export async function construirSnapshotDesdeSupabase(
       .from('fuente_financiacion')
       .select('valor_aplicado, lista_tipos!inner(codigo)')
       .eq('presupuesto_id', presupuesto.id)
-      .eq('lista_tipos.codigo', 'otros_ingresos')
+      .in('lista_tipos.codigo', ['otros_ingresos', 'cuota_extraordinaria', 'fondo_imprevistos'])
     if (errorFuentes)
       throw new Error(`No se pudieron leer las fuentes de financiación: ${errorFuentes.message}`)
 
-    const otrosIngresosAplicados = fuentes.reduce((acc, f) => acc + f.valor_aplicado, 0)
+    const sumaPorCodigo = (codigo: string) =>
+      fuentes
+        .filter((f) => f.lista_tipos.codigo === codigo)
+        .reduce((acc, f) => acc + f.valor_aplicado, 0)
+
     parametros.OTROS_INGRESOS_ANUAL = {
       tipo: 'MONEY',
-      valor: money(otrosIngresosAplicados, tenant.moneda),
+      valor: money(sumaPorCodigo('otros_ingresos'), tenant.moneda),
+    }
+    parametros.CUOTA_EXTRAORDINARIA_ANUAL = {
+      tipo: 'MONEY',
+      valor: money(sumaPorCodigo('cuota_extraordinaria'), tenant.moneda),
+    }
+    parametros.FONDO_IMPREVISTOS_ANUAL = {
+      tipo: 'MONEY',
+      valor: money(sumaPorCodigo('fondo_imprevistos'), tenant.moneda),
     }
   }
 

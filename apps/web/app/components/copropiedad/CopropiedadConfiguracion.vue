@@ -14,7 +14,7 @@ const supabase = useSupabaseClient()
 const moneda = ref('COP')
 const zonaHoraria = ref('America/Bogota')
 const diaFacturacion = ref<number | null>(null)
-const canalNotificacion = ref('')
+const canalNotificacion = ref<string | null>(null)
 
 const guardando = ref(false)
 const error = ref<string | null>(null)
@@ -26,7 +26,7 @@ watch(
     moneda.value = t.moneda
     zonaHoraria.value = t.zona_horaria
     diaFacturacion.value = t.dia_facturacion
-    canalNotificacion.value = t.canal_notificacion ?? ''
+    canalNotificacion.value = t.canal_notificacion ?? null
   },
   { immediate: true },
 )
@@ -120,7 +120,7 @@ async function subirLogo(): Promise<void> {
           <USelect
             v-model="canalNotificacion"
             :items="[
-              { label: '— Sin definir —', value: '' },
+              { label: '— Sin definir —', value: null },
               { label: 'Email', value: 'email' },
               { label: 'SMS', value: 'sms' },
               { label: 'WhatsApp', value: 'whatsapp' },

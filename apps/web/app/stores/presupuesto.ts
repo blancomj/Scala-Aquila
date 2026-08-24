@@ -72,6 +72,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
   const ejecuciones = shallowRef<PresupuestoEjecucionRow[]>([])
   const fuentes = shallowRef<FuenteFinanciacionRow[]>([])
   const tiposFuente = shallowRef<ListaTipoRow[]>([])
+  const tiposCentroCosto = shallowRef<ListaTipoRow[]>([])
   const fondoImprevistos = ref<number | null>(null)
   const loading = ref(false)
 
@@ -88,6 +89,23 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     if (errorTipos) throw errorTipos
     tiposFuente.value = data ?? []
     return tiposFuente.value
+  }
+
+  /** Catálogo CENTRO_COSTO (20260830420000) — en qué área/proceso/servicio se consume el
+   * recurso, independiente de agrupacion_id (estructura física). Mismo patrón que
+   * cargarTiposFuente. */
+  async function cargarTiposCentroCosto(tenantId: string): Promise<ListaTipoRow[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorTipos } = await cliente
+      .from('lista_tipos')
+      .select('*')
+      .eq('tipo', 'CENTRO_COSTO')
+      .eq('activo', true)
+      .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
+      .order('orden')
+    if (errorTipos) throw errorTipos
+    tiposCentroCosto.value = data ?? []
+    return tiposCentroCosto.value
   }
 
   async function cargarPresupuestos(tenantId: string): Promise<PresupuestoRow[]> {
@@ -322,6 +340,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     descripcion?: string
     referencia?: string
     ajustaMovimientoId?: string
+    agrupacionId?: string
+    centroCostoId?: number
   }): Promise<PresupuestoEjecucionRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -334,6 +354,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         descripcion: params.descripcion,
         referencia: params.referencia,
         ajusta_movimiento_id: params.ajustaMovimientoId,
+        agrupacion_id: params.agrupacionId,
+        centro_costo_id: params.centroCostoId,
       })
       .select('*')
       .single()
@@ -358,6 +380,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
       monto: -Number(params.movimiento.monto),
       descripcion: params.descripcion ?? `Reversión de "${params.movimiento.descripcion ?? params.movimiento.id}"`,
       ajustaMovimientoId: params.movimiento.id,
+      agrupacionId: params.movimiento.agrupacion_id ?? undefined,
+      centroCostoId: params.movimiento.centro_costo_id ?? undefined,
     })
   }
 
@@ -397,6 +421,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     cuentaId: string
     montoAnual: number
     fundamentoNormativoId?: number
+    agrupacionId?: string
+    centroCostoId?: number
   }): Promise<PresupuestoRubroRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -409,6 +435,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         cuenta_id: params.cuentaId,
         monto_anual: params.montoAnual,
         fundamento_normativo_id: params.fundamentoNormativoId,
+        agrupacion_id: params.agrupacionId,
+        centro_costo_id: params.centroCostoId,
       })
       .select('*')
       .single()
@@ -430,6 +458,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     cuentaId?: string
     montoAnual?: number
     fundamentoNormativoId?: number | null
+    agrupacionId?: string | null
+    centroCostoId?: number | null
   }): Promise<PresupuestoRubroRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorUpdate } = await cliente
@@ -440,6 +470,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         cuenta_id: params.cuentaId,
         monto_anual: params.montoAnual,
         fundamento_normativo_id: params.fundamentoNormativoId,
+        agrupacion_id: params.agrupacionId,
+        centro_costo_id: params.centroCostoId,
       })
       .eq('id', params.id)
       .select('*')
@@ -476,6 +508,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     valorAplicado: number
     descripcion?: string
     fundamentoNormativoId?: number
+    presupuestoCuentaId?: string
   }): Promise<FuenteFinanciacionRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorFuncion } = await cliente.functions.invoke<FuenteFinanciacionRow>(
@@ -488,6 +521,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
           valor_aplicado: params.valorAplicado,
           descripcion: params.descripcion,
           fundamento_normativo_id: params.fundamentoNormativoId,
+          presupuesto_cuenta_id: params.presupuestoCuentaId,
         },
       },
     )
@@ -520,6 +554,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     ejecuciones.value = []
     fuentes.value = []
     tiposFuente.value = []
+    tiposCentroCosto.value = []
     fondoImprevistos.value = null
   }
 
@@ -532,6 +567,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     ejecuciones,
     fuentes,
     tiposFuente,
+    tiposCentroCosto,
     fondoImprevistos,
     loading,
     cargarPresupuestos,
@@ -549,6 +585,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     cargarRubros,
     crearRubro,
     actualizarRubro,
+    cargarTiposCentroCosto,
     cargarFuentesFinanciacion,
     cargarTiposFuente,
     registrarFuenteFinanciacion,

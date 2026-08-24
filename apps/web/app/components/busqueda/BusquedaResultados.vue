@@ -16,11 +16,26 @@ const ETIQUETA_CATEGORIA: Record<CategoriaBusqueda, string> = {
   inmueble: 'Inmuebles',
   documento: 'Documentos',
   novedad: 'Novedades',
+  concepto: 'Conceptos',
+  cuenta_presupuestal: 'Cuentas presupuestales',
+  caso_juridico: 'Casos jurídicos',
+  agrupacion: 'Agrupaciones',
+  zona_comun: 'Zonas comunes',
 }
 
 // Orden fijo (no el de aparición) — mismo orden que el selector de
 // categoría del prompt §1.1.
-const ORDEN_CATEGORIAS: CategoriaBusqueda[] = ['tercero', 'inmueble', 'documento', 'novedad']
+const ORDEN_CATEGORIAS: CategoriaBusqueda[] = [
+  'tercero',
+  'inmueble',
+  'documento',
+  'novedad',
+  'concepto',
+  'cuenta_presupuestal',
+  'caso_juridico',
+  'agrupacion',
+  'zona_comun',
+]
 
 const grupos = computed(() => {
   const porCategoria = new Map<CategoriaBusqueda, { resultado: ResultadoBusqueda; indice: number }[]>()
@@ -42,6 +57,11 @@ function irA(resultado: ResultadoBusqueda): void {
     inmueble: `/inmuebles/${resultado.entidadId}`,
     documento: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : null,
     novedad: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : null,
+    concepto: `/conceptos/${resultado.entidadId}`,
+    cuenta_presupuestal: '/presupuesto',
+    caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
+    agrupacion: '/configuracion/agrupaciones',
+    zona_comun: '/configuracion/zonas-comunes',
   }
   const ruta = primaria[resultado.categoria]
   if (ruta) emit('navegar', ruta)

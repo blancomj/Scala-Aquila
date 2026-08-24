@@ -29,7 +29,13 @@ const modoVista = ref<'montos' | 'estructura'>('montos')
 watch(
   () => props.presupuestoId,
   async (id) => {
-    if (id) await Promise.all([presupuestoStore.cargarRubros(id), presupuestoStore.cargarTotalesCuenta(id)])
+    if (id) {
+      await Promise.all([
+        presupuestoStore.cargarRubros(id),
+        presupuestoStore.cargarTotalesCuenta(id),
+        presupuestoStore.cargarFuentesFinanciacion(id),
+      ])
+    }
   },
   { immediate: true },
 )
@@ -42,7 +48,10 @@ watch(
 // que en realidad ya no admite escritura manual (CUENTA_CONCEPTO_AUTOMATICO).
 onMounted(() => {
   const tenantId = tenantStore.activeTenant?.id
-  if (tenantId) conceptoStore.cargarConceptos(tenantId)
+  if (tenantId) {
+    conceptoStore.cargarConceptos(tenantId)
+    if (presupuestoStore.tiposFuente.length === 0) presupuestoStore.cargarTiposFuente(tenantId)
+  }
 })
 
 const presupuestoSeleccionado = computed(
@@ -70,6 +79,36 @@ const cuentasConConceptoAutomatico = computed(
         .filter((id): id is string => id !== null),
     ),
 )
+
+/** Reconciliación con "Fuentes de financiación" (20260830400000, investigación INCP/Ley 675 art.
+ * 35/38): una cuenta de Ingresos con monto asignado, que no es cobro automático de un concepto y
+ * que ninguna fuente de tipo "otros_ingresos"/"cuota_extraordinaria" vincula, es un aviso —
+ * ambas tablas modelan la misma plata desde ángulos distintos y no se reconcilian solas. */
+const tipoCodigoPorId = computed(
+  () => new Map(presupuestoStore.tiposFuente.map((t) => [t.id, t.codigo])),
+)
+const cuentasVinculadasDesdeFuente = computed(
+  () =>
+    new Set(
+      presupuestoStore.fuentes
+        .filter((f) => {
+          const codigo = tipoCodigoPorId.value.get(f.tipo_id)
+          return codigo === 'otros_ingresos' || codigo === 'cuota_extraordinaria'
+        })
+        .map((f) => f.presupuesto_cuenta_id)
+        .filter((id): id is string => id !== null),
+    ),
+)
+
+function sinFuenteVinculada(cuenta: { id: string; naturaleza: string; es_hoja: boolean }): boolean {
+  return (
+    cuenta.naturaleza === 'ingreso' &&
+    cuenta.es_hoja &&
+    !cuentasConConceptoAutomatico.value.has(cuenta.id) &&
+    !cuentasVinculadasDesdeFuente.value.has(cuenta.id) &&
+    (totalPorCuenta.value.get(cuenta.id) ?? 0) > 0
+  )
+}
 
 /** `ruta` es un path materializado zero-padded (ej. "0005.0001") — el
  * orden lexicográfico ya coincide con el orden del árbol, sin necesitar
@@ -380,11 +419,10 @@ function onRubroGuardado(): void {
   if (props.presupuestoId) presupuestoStore.cargarTotalesCuenta(props.presupuestoId)
 }
 
-// ── "Editar estructura" — administración del árbol (antes /presupuesto/cuentas) ──
-const arbolCompleto = computed(() =>
-  [...presupuestoStore.cuentas].sort((a, b) => a.ruta.localeCompare(b.ruta)),
-)
-
+// ── "Editar estructura" — administración del árbol (antes /presupuesto/cuentas), separado en
+// Egresos/Ingresos (arbolEgresos/arbolIngresos, arriba) — antes era una sola tabla ordenada por
+// `ruta` sin separar naturaleza, y esos dos árboles pueden interleavarse en el orden lexicográfico
+// (feedback de usuario: la tabla mezclaba cuentas de Ingreso y Egreso sin ninguna agrupación). ──
 const drawerCuentaAbierto = ref(false)
 const cuentaEnEdicion = ref<(typeof presupuestoStore.cuentas)[number] | null>(null)
 const parentIdParaNueva = ref<string | undefined>(undefined)
@@ -459,15 +497,6 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
           </UButton>
         </div>
         <UButton
-          v-if="idsGrupo.length > 0"
-          size="xs"
-          variant="ghost"
-          :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
-          @click="alternarTodo()"
-        >
-          {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
-        </UButton>
-        <UButton
           v-if="modoVista === 'montos' && presupuestoSeleccionado?.estado === 'borrador'"
           size="xs"
           @click="abrirNuevoRubro()"
@@ -526,7 +555,18 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
         v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]"
         :key="seccion.titulo"
       >
-        <h3 class="text-sm font-semibold mb-2">{{ seccion.titulo }}</h3>
+        <div class="flex items-center gap-2 mb-2">
+          <h3 class="text-sm font-semibold">{{ seccion.titulo }}</h3>
+          <UButton
+            v-if="seccion.titulo === 'Egresos' && idsGrupo.length > 0"
+            size="xs"
+            variant="ghost"
+            :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
+            @click="alternarTodo()"
+          >
+            {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
+          </UButton>
+        </div>
         <!-- claseCelda 'w-px whitespace-nowrap' en monto/porcentaje: sin table-layout:fixed, una
              tabla HTML reparte el ancho sobrante entre las columnas sin restricción — con solo
              3 columnas y nombres de cuenta cortos (grupos contraídos), esa sobra caía sobre
@@ -565,6 +605,15 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
               </span>
               <UBadge v-if="fila.es_hoja && cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle">
                 cobro automático
+              </UBadge>
+              <UBadge
+                v-else-if="fila.es_hoja && sinFuenteVinculada(fila)"
+                size="xs"
+                color="warning"
+                variant="subtle"
+                :title="'Este ingreso no tiene una fuente de financiación vinculada en la pestaña Fuentes de financiación.'"
+              >
+                sin fuente vinculada
               </UBadge>
             </div>
           </template>
@@ -670,24 +719,35 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
     <template v-else>
       <UAlert v-if="errorActiva" color="error" variant="soft" :title="errorActiva" />
 
-      <p v-if="arbolCompleto.length === 0" class="text-gray-500 text-sm">
-        Esta copropiedad todavía no tiene cuentas presupuestales.
-      </p>
-
-      <UiTabla
-        v-else
-        :columnas="[
-          { clave: 'nombre', etiqueta: 'Cuenta' },
-          { clave: 'codigo', etiqueta: 'Código' },
-          { clave: 'naturaleza', etiqueta: 'Naturaleza' },
-          { clave: 'tipo', etiqueta: 'Tipo' },
-          { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha' },
-          { clave: 'estado', etiqueta: 'Estado' },
-          { clave: 'acciones', etiqueta: '' },
-        ]"
-        :filas="visibles(arbolCompleto)"
-        :clave-fila="(fila) => fila.id"
+      <section
+        v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]"
+        :key="seccion.titulo"
       >
+        <div class="flex items-center gap-2 mb-2">
+          <h3 class="text-sm font-semibold">{{ seccion.titulo }}</h3>
+          <UButton
+            v-if="seccion.titulo === 'Egresos' && idsGrupo.length > 0"
+            size="xs"
+            variant="ghost"
+            :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
+            @click="alternarTodo()"
+          >
+            {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
+          </UButton>
+        </div>
+        <UiTabla
+          :columnas="[
+            { clave: 'nombre', etiqueta: 'Cuenta' },
+            { clave: 'codigo', etiqueta: 'Código' },
+            { clave: 'tipo', etiqueta: 'Tipo' },
+            { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha' },
+            { clave: 'estado', etiqueta: 'Estado' },
+            { clave: 'acciones', etiqueta: '' },
+          ]"
+          :filas="visibles(seccion.filas)"
+          :clave-fila="(fila) => fila.id"
+          vacio="Sin cuentas todavía."
+        >
         <template #celda-nombre="{ fila }">
           <div class="flex items-center gap-1" :style="{ paddingLeft: `${(fila.nivel - 1) * 16}px` }">
             <button
@@ -717,9 +777,6 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
           </div>
         </template>
         <template #celda-codigo="{ fila }"><span class="font-mono text-xs">{{ fila.codigo }}</span></template>
-        <template #celda-naturaleza="{ fila }">
-          <span class="text-gray-500">{{ fila.naturaleza === 'egreso' ? 'Egreso' : 'Ingreso' }}</span>
-        </template>
         <template #celda-tipo="{ fila }">
           <span class="text-gray-500">{{ fila.es_hoja ? 'Hoja' : 'Grupo' }}</span>
         </template>
@@ -756,7 +813,8 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             />
           </div>
         </template>
-      </UiTabla>
+        </UiTabla>
+      </section>
 
       <PresupuestoCuentaDrawer
         v-if="drawerCuentaAbierto && tenantStore.activeTenant"

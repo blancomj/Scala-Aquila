@@ -12,7 +12,16 @@
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
 
-export type CategoriaBusqueda = 'tercero' | 'inmueble' | 'documento' | 'novedad'
+export type CategoriaBusqueda =
+  | 'tercero'
+  | 'inmueble'
+  | 'documento'
+  | 'novedad'
+  | 'concepto'
+  | 'cuenta_presupuestal'
+  | 'caso_juridico'
+  | 'agrupacion'
+  | 'zona_comun'
 
 export interface ResultadoBusqueda {
   categoria: CategoriaBusqueda
@@ -25,8 +34,20 @@ export interface ResultadoBusqueda {
 
 type FilaRpc = Database['public']['Functions']['fn_buscar_global']['Returns'][number]
 
+const CATEGORIAS_VALIDAS = new Set<string>([
+  'tercero',
+  'inmueble',
+  'documento',
+  'novedad',
+  'concepto',
+  'cuenta_presupuestal',
+  'caso_juridico',
+  'agrupacion',
+  'zona_comun',
+])
+
 function esCategoriaValida(valor: string): valor is CategoriaBusqueda {
-  return valor === 'tercero' || valor === 'inmueble' || valor === 'documento' || valor === 'novedad'
+  return CATEGORIAS_VALIDAS.has(valor)
 }
 
 export const useBusquedaStore = defineStore('busqueda', () => {

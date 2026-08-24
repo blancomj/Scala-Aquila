@@ -48,6 +48,18 @@ export const PARAMETER_CATALOGO: Readonly<Record<string, DocContrato>> = {
     descripcion:
       'Σ fuente_financiacion.valor_aplicado (tipo=otros_ingresos) del presupuesto vigente — neteo GAP-19.',
   },
+  CUOTA_EXTRAORDINARIA_ANUAL: {
+    tipo: 'MONEY',
+    descripcion:
+      'Σ fuente_financiacion.valor_aplicado (tipo=cuota_extraordinaria) del presupuesto vigente — es ' +
+      'ingreso real (Ley 675 art. 38, INCP), igual que otros_ingresos.',
+  },
+  FONDO_IMPREVISTOS_ANUAL: {
+    tipo: 'MONEY',
+    descripcion:
+      'Σ fuente_financiacion.valor_aplicado (tipo=fondo_imprevistos) del presupuesto vigente — no es ' +
+      'ingreso nuevo, es aplicar un saldo ya existente del fondo (INCP: efectivo restringido).',
+  },
 }
 
 export const UNIT_CATALOGO: Readonly<Record<string, DocContrato>> = {

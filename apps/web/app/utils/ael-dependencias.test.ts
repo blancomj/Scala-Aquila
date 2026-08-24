@@ -37,6 +37,7 @@ function concepto(overrides: Partial<ConceptoRow> & { codigo: string }): Concept
     aprobado_por: null,
     aprobado_at: null,
     rechazado_motivo: null,
+    busqueda_tsv: null,
     ...overrides,
   }
 }

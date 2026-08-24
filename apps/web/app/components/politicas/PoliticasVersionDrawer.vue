@@ -45,8 +45,8 @@ const interesDescuentoOrden = ref<'interes_sobre_capital_completo' | 'descuento_
 const fondoImprevistosPorcentaje = ref<number | null>(
   politicaExistente.value?.fondo_imprevistos_porcentaje ?? null,
 )
-const fondoImprevistosBase = ref<'presupuesto_anual' | 'cuota_administracion' | ''>(
-  politicaExistente.value?.fondo_imprevistos_base ?? '',
+const fondoImprevistosBase = ref<'presupuesto_anual' | 'cuota_administracion' | null>(
+  politicaExistente.value?.fondo_imprevistos_base ?? null,
 )
 const coeficientesSumaEsperada = ref(politicaExistente.value?.coeficientes_suma_esperada ?? 1)
 const vigenteDesde = ref(politicaExistente.value?.vigente_desde ?? '')
@@ -70,7 +70,7 @@ const opcionesDescuentoOrden = [
   { label: 'Descuento reduce la base antes del interés', value: 'descuento_antes_interes' },
 ]
 const opcionesFondoBase = [
-  { label: '— Ninguna —', value: '' },
+  { label: '— Ninguna —', value: null },
   { label: 'Presupuesto anual', value: 'presupuesto_anual' },
   { label: 'Cuota de administración', value: 'cuota_administracion' },
 ]

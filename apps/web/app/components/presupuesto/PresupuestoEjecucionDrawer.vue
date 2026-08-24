@@ -9,16 +9,34 @@ const emit = defineEmits<{ cerrar: []; registrado: [] }>()
 
 const presupuestoStore = usePresupuestoStore()
 const liquidacionStore = useLiquidacionStore()
+const agrupacionesStore = useAgrupacionesStore()
 
 const cuentaId = ref<string | null>(null)
 const periodoId = ref<string | null>(null)
 const monto = ref<number | null>(null)
 const descripcion = ref('')
 const referencia = ref('')
+const agrupacionId = ref<string | null>(null)
+const centroCostoId = ref<number | null>(null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
 await useAsyncData('periodos-ejecucion', () => liquidacionStore.cargarPeriodos(props.tenantId))
+
+onMounted(() => {
+  if (agrupacionesStore.agrupaciones.length === 0) agrupacionesStore.cargarAgrupaciones(props.tenantId)
+  if (presupuestoStore.tiposCentroCosto.length === 0) presupuestoStore.cargarTiposCentroCosto(props.tenantId)
+})
+
+const opcionesAgrupacion = computed(() => [
+  { label: '— Sin ubicación —', value: null },
+  ...agrupacionesStore.arbolPlano.map((a) => ({ label: a.ruta, value: a.id })),
+])
+
+const opcionesCentroCosto = computed(() => [
+  { label: '— Sin centro de costo —', value: null },
+  ...presupuestoStore.tiposCentroCosto.map((t) => ({ label: t.nombre, value: t.id })),
+])
 
 /** Misma construcción de ruta legible que PresupuestoRubroDrawer.vue (parent_id, no `ruta`). */
 const cuentasHoja = computed(() => {
@@ -64,6 +82,8 @@ async function guardar(): Promise<void> {
       monto: monto.value,
       descripcion: descripcion.value || undefined,
       referencia: referencia.value || undefined,
+      agrupacionId: agrupacionId.value ?? undefined,
+      centroCostoId: centroCostoId.value ?? undefined,
     })
     emit('registrado')
   } catch (excepcion) {
@@ -103,6 +123,14 @@ async function guardar(): Promise<void> {
         <UFormField label="Referencia / comprobante" name="referencia">
           <UInput v-model="referencia" type="text" class="w-full" />
         </UFormField>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Agrupación (ubicación)" name="agrupacion_id">
+            <USelect v-model="agrupacionId" :items="opcionesAgrupacion" value-key="value" class="w-full" />
+          </UFormField>
+          <UFormField label="Centro de costo" name="centro_costo_id">
+            <USelect v-model="centroCostoId" :items="opcionesCentroCosto" value-key="value" class="w-full" />
+          </UFormField>
+        </div>
       </div>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />

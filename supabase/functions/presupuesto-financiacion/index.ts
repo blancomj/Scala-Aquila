@@ -21,6 +21,7 @@ const payloadSchema = z.object({
   valor_aplicado: z.number().nonnegative().default(0),
   descripcion: z.string().trim().min(1).optional(),
   fundamento_normativo_id: z.number().int().positive().optional(),
+  presupuesto_cuenta_id: z.string().uuid().optional(),
 })
 
 export default {
@@ -89,6 +90,7 @@ export default {
         p_valor_aplicado: parseo.data.valor_aplicado,
         p_descripcion: parseo.data.descripcion ?? null,
         p_fundamento_normativo_id: parseo.data.fundamento_normativo_id ?? null,
+        p_presupuesto_cuenta_id: parseo.data.presupuesto_cuenta_id ?? null,
       })
       .single()
 
@@ -108,7 +110,11 @@ export default {
             ? 409
             : code === 'FONDO_IMPREVISTOS_NO_EXISTE' || code === 'FONDO_INSUFICIENTE'
               ? 422
-              : 409
+              : code === 'CUENTA_INEXISTENTE' ||
+                  code === 'CUENTA_TENANT_INCONSISTENTE' ||
+                  code === 'CUENTA_NATURALEZA_INVALIDA'
+                ? 422
+                : 409
       return errorResponse(status, code, message, undefined, correlationId)
     }
     if (!fuente) {

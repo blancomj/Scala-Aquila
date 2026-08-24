@@ -89,6 +89,14 @@ async function confirmarActivar(): Promise<void> {
       </p>
     </div>
 
+    <NuxtLink
+      to="/estado-cuenta/conceptos"
+      class="text-sm text-primary hover:underline"
+      title="Estas políticas definen intereses de mora, redondeo y fondo de imprevistos — qué y cuánto se cobra por cada concepto se define en Conceptos."
+    >
+      Ver conceptos y fórmulas →
+    </NuxtLink>
+
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
     <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">

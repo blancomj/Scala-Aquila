@@ -47,6 +47,29 @@ const CONFIG: Record<ResultadoBusqueda['categoria'], ConfigCategoria> = {
       to: r.inmuebleId ? `/inmuebles/${r.inmuebleId}` : null,
     }),
   },
+  concepto: {
+    icono: 'M4 4h8l8 8-8 8-8-8V4Z M7 7h.01',
+    primaria: (r) => ({ label: 'Ver concepto', to: `/conceptos/${r.entidadId}` }),
+  },
+  cuenta_presupuestal: {
+    icono: 'M4 6h16M4 12h10M4 18h7',
+    primaria: () => ({ label: 'Ver en Plan de cuentas', to: '/presupuesto' }),
+  },
+  caso_juridico: {
+    icono: 'M4 8h16v11H4zM9 8V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2',
+    primaria: (r) => ({
+      label: r.inmuebleId ? 'Ver ficha del inmueble' : 'Ver cartera',
+      to: r.inmuebleId ? `/inmuebles/${r.inmuebleId}` : '/cartera',
+    }),
+  },
+  agrupacion: {
+    icono: 'M4 21V9l8-6 8 6v12M9 21v-6h6v6',
+    primaria: () => ({ label: 'Ver agrupaciones', to: '/configuracion/agrupaciones' }),
+  },
+  zona_comun: {
+    icono: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7ZM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+    primaria: () => ({ label: 'Ver zonas comunes', to: '/configuracion/zonas-comunes' }),
+  },
 }
 
 const config = computed(() => CONFIG[props.resultado.categoria])

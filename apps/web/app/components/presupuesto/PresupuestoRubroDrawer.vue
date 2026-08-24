@@ -21,6 +21,7 @@ const emit = defineEmits<{ cerrar: []; creado: []; editado: [] }>()
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
+const agrupacionesStore = useAgrupacionesStore()
 
 const modoEdicion = computed(() => props.rubro !== undefined)
 
@@ -29,8 +30,29 @@ const nombre = ref(props.rubro?.nombre ?? '')
 const cuentaId = ref<string | undefined>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? undefined)
 const montoAnual = ref<number | null>(props.rubro ? Number(props.rubro.monto_anual) : null)
 const fundamentoNormativoId = ref<number | null>(props.rubro?.fundamento_normativo_id ?? null)
+const agrupacionId = ref<string | null>(props.rubro?.agrupacion_id ?? null)
+const centroCostoId = ref<number | null>(props.rubro?.centro_costo_id ?? null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
+
+onMounted(() => {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  if (agrupacionesStore.agrupaciones.length === 0) agrupacionesStore.cargarAgrupaciones(tenantId)
+  if (presupuestoStore.tiposCentroCosto.length === 0) presupuestoStore.cargarTiposCentroCosto(tenantId)
+})
+
+/** Cualquier nivel del árbol, no solo hojas — a diferencia de cuentaId (E8): un gasto puede ser
+ * real de la torre completa (ver comentario de agrupacion_id en la migración 20260830420000). */
+const opcionesAgrupacion = computed(() => [
+  { label: '— Sin ubicación —', value: null },
+  ...agrupacionesStore.arbolPlano.map((a) => ({ label: a.ruta, value: a.id })),
+])
+
+const opcionesCentroCosto = computed(() => [
+  { label: '— Sin centro de costo —', value: null },
+  ...presupuestoStore.tiposCentroCosto.map((t) => ({ label: t.nombre, value: t.id })),
+])
 
 /** Ruta legible (ej. "Servicios Públicos › Energía Eléctrica") — se arma
  * siguiendo parent_id en vez de repetir la lógica de `ruta` (BD), que es
@@ -79,6 +101,8 @@ async function guardar(): Promise<void> {
         cuentaId: cuentaId.value,
         montoAnual: montoAnual.value,
         fundamentoNormativoId: fundamentoNormativoId.value,
+        agrupacionId: agrupacionId.value,
+        centroCostoId: centroCostoId.value,
       })
       emit('editado')
     } else {
@@ -90,6 +114,8 @@ async function guardar(): Promise<void> {
         cuentaId: cuentaId.value,
         montoAnual: montoAnual.value,
         fundamentoNormativoId: fundamentoNormativoId.value ?? undefined,
+        agrupacionId: agrupacionId.value ?? undefined,
+        centroCostoId: centroCostoId.value ?? undefined,
       })
       emit('creado')
     }
@@ -126,6 +152,14 @@ async function guardar(): Promise<void> {
         <UFormField label="Fundamento normativo" name="fundamento_normativo_id">
           <USelect v-model="fundamentoNormativoId" :items="opcionesFundamento" value-key="value" class="w-full" />
         </UFormField>
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Agrupación (ubicación)" name="agrupacion_id">
+            <USelect v-model="agrupacionId" :items="opcionesAgrupacion" value-key="value" class="w-full" />
+          </UFormField>
+          <UFormField label="Centro de costo" name="centro_costo_id">
+            <USelect v-model="centroCostoId" :items="opcionesCentroCosto" value-key="value" class="w-full" />
+          </UFormField>
+        </div>
       </div>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />

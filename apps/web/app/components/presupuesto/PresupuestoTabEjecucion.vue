@@ -22,13 +22,31 @@ watch(
       await Promise.all([
         presupuestoStore.cargarComparativoCuenta(id),
         presupuestoStore.cargarEjecuciones(tenantId),
+        presupuestoStore.cargarRubros(id),
         liquidacionStore.cargarPeriodos(tenantId),
         conceptoStore.cargarConceptos(tenantId),
+        presupuestoStore.tiposCentroCosto.length === 0
+          ? presupuestoStore.cargarTiposCentroCosto(tenantId)
+          : Promise.resolve(),
       ])
     }
   },
   { immediate: true },
 )
+
+const centroCostoPorId = computed(
+  () => new Map(presupuestoStore.tiposCentroCosto.map((t) => [t.id, t.nombre])),
+)
+
+/** Compartido entre "Cuentas" y "Movimientos" — mismo filtro, se mantiene al cambiar de vista.
+ * En "Cuentas" recalcula presupuestado/ejecutado en cliente (ver más abajo); en "Movimientos"
+ * filtra directamente las filas. */
+const filtroCentroCosto = ref<number | null>(null)
+
+const opcionesFiltroCentroCosto = computed(() => [
+  { label: 'Todos los centros de costo', value: null },
+  ...presupuestoStore.tiposCentroCosto.map((t) => ({ label: t.nombre, value: t.id })),
+])
 
 /** Qué cuentas reciben su ejecutado automáticamente de al menos un concepto (dirección
  * invertida, 20260830200000: el vínculo vive en conceptos.presupuesto_cuenta_id, no en la
@@ -137,17 +155,67 @@ function formatoMoneda(valor: string | number): string {
   }).format(Number(valor))
 }
 
+const presupuestoSeleccionado = computed(
+  () => presupuestoStore.presupuestos.find((p) => p.id === props.presupuestoId) ?? null,
+)
+
+/** Todas las cuentas hoja bajo una cuenta (ella misma si ya es hoja) — para recalcular
+ * presupuestado/ejecutado filtrado por centro de costo en el cliente: presupuesto_cuenta_ejecucion
+ * (el rollup de BD que alimenta comparativoCuenta) no conoce centro_costo_id, así que el filtro
+ * solo puede aplicarse recorriendo rubros/ejecuciones directamente. */
+const hojasPorCuenta = computed(() => {
+  const hijosPorPadre = new Map<string, string[]>()
+  for (const c of presupuestoStore.cuentas) {
+    if (!c.parent_id) continue
+    const hermanos = hijosPorPadre.get(c.parent_id) ?? []
+    hermanos.push(c.id)
+    hijosPorPadre.set(c.parent_id, hermanos)
+  }
+  const memo = new Map<string, string[]>()
+  function hojas(id: string): string[] {
+    const cacheado = memo.get(id)
+    if (cacheado) return cacheado
+    const resultado = cuentaPorId.value.get(id)?.es_hoja
+      ? [id]
+      : (hijosPorPadre.get(id) ?? []).flatMap((hijoId) => hojas(hijoId))
+    memo.set(id, resultado)
+    return resultado
+  }
+  const salida = new Map<string, string[]>()
+  for (const c of presupuestoStore.cuentas) salida.set(c.id, hojas(c.id))
+  return salida
+})
+
+/** Acotado al año fiscal del presupuesto, igual criterio que presupuesto_cuenta_ejecucion (BD). */
+function presupuestadoFiltrado(cuentaId: string, centroCostoId: number): number {
+  const hojas = new Set(hojasPorCuenta.value.get(cuentaId) ?? [cuentaId])
+  return presupuestoStore.rubros
+    .filter((r) => hojas.has(r.cuenta_id) && r.centro_costo_id === centroCostoId)
+    .reduce((acc, r) => acc + Number(r.monto_anual), 0)
+}
+
+function ejecutadoFiltrado(cuentaId: string, centroCostoId: number): number {
+  const hojas = new Set(hojasPorCuenta.value.get(cuentaId) ?? [cuentaId])
+  const anio = presupuestoSeleccionado.value?.anio
+  return presupuestoStore.ejecuciones
+    .filter(
+      (e) =>
+        hojas.has(e.cuenta_id) &&
+        e.centro_costo_id === centroCostoId &&
+        periodoPorId.value.get(e.periodo_id)?.anio === anio,
+    )
+    .reduce((acc, e) => acc + Number(e.monto), 0)
+}
+
 function presupuestado(cuentaId: string): number {
+  if (filtroCentroCosto.value !== null) return presupuestadoFiltrado(cuentaId, filtroCentroCosto.value)
   return Number(comparativoPorCuenta.value.get(cuentaId)?.presupuestado ?? 0)
 }
 
 function ejecutado(cuentaId: string): number {
+  if (filtroCentroCosto.value !== null) return ejecutadoFiltrado(cuentaId, filtroCentroCosto.value)
   return Number(comparativoPorCuenta.value.get(cuentaId)?.ejecutado ?? 0)
 }
-
-const presupuestoSeleccionado = computed(
-  () => presupuestoStore.presupuestos.find((p) => p.id === props.presupuestoId) ?? null,
-)
 
 /** Meses transcurridos del año fiscal del presupuesto — capa de presentación (E9 seguimiento):
  * un año ya cerrado cuenta como completo (12), uno futuro como 0 (todavía no arranca), el año
@@ -200,7 +268,8 @@ function onRegistrado(): void {
 const revirtiendoId = ref<string | null>(null)
 const errorReversion = ref<string | null>(null)
 
-// ── Movimientos: búsqueda + agrupar cada reversión bajo el movimiento que corrige ──
+// ── Movimientos: búsqueda + agrupar cada reversión bajo el movimiento que corrige (filtro de
+// centro de costo declarado arriba, compartido con "Cuentas") ──
 const busquedaMovimientos = ref('')
 
 const RANGO_DIACRITICOS = new RegExp('[̀-ͯ]', 'g')
@@ -237,6 +306,7 @@ const filasMovimientos = computed<FilaMovimiento[]>(() => {
   const filas: FilaMovimiento[] = []
   for (const mov of presupuestoStore.ejecuciones) {
     if (mov.ajusta_movimiento_id) continue
+    if (filtroCentroCosto.value !== null && mov.centro_costo_id !== filtroCentroCosto.value) continue
     const reversiones = reversionesPorOriginal.get(mov.id) ?? []
     if (!coincide(mov) && !reversiones.some(coincide)) continue
     filas.push({ movimiento: mov, esReversion: false })
@@ -295,7 +365,7 @@ async function exportarCuentas(): Promise<void> {
 
 async function exportarMovimientos(): Promise<void> {
   const XLSX = await import('xlsx')
-  const encabezados = ['Cuenta', 'Periodo', 'Monto', 'Descripción', 'Tipo']
+  const encabezados = ['Cuenta', 'Periodo', 'Monto', 'Descripción', 'Centro de costo', 'Tipo']
   const filas = filasMovimientos.value.map(({ movimiento, esReversion }) => {
     const periodo = periodoPorId.value.get(movimiento.periodo_id)
     return [
@@ -303,11 +373,12 @@ async function exportarMovimientos(): Promise<void> {
       periodo ? `${periodo.anio}-${String(periodo.mes).padStart(2, '0')}` : '',
       Math.round(Number(movimiento.monto)),
       movimiento.descripcion ?? '',
+      movimiento.centro_costo_id ? (centroCostoPorId.value.get(movimiento.centro_costo_id) ?? '') : '',
       esReversion ? 'Reversión' : 'Original',
     ]
   })
   const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filas])
-  hoja['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 16 }, { wch: 40 }, { wch: 12 }]
+  hoja['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 16 }, { wch: 40 }, { wch: 20 }, { wch: 12 }]
   const libro = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(libro, hoja, 'Movimientos')
   XLSX.writeFile(libro, 'movimientos-ejecucion.xlsx')
@@ -341,15 +412,6 @@ function exportar(): void {
         </UButton>
       </div>
       <div class="flex items-center gap-2">
-        <UButton
-          v-if="modoVista === 'cuentas' && idsGrupo.length > 0"
-          size="xs"
-          variant="ghost"
-          :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
-          @click="alternarTodo()"
-        >
-          {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
-        </UButton>
         <UButton size="xs" variant="ghost" icon="i-lucide-file-down" @click="exportar()">
           Exportar a Excel
         </UButton>
@@ -382,7 +444,27 @@ function exportar(): void {
       </div>
 
       <section v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]" :key="seccion.titulo">
-        <h3 class="text-sm font-semibold mb-2">{{ seccion.titulo }}</h3>
+        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold">{{ seccion.titulo }}</h3>
+            <UButton
+              v-if="seccion.titulo === 'Egresos' && idsGrupo.length > 0"
+              size="xs"
+              variant="ghost"
+              :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
+              @click="alternarTodo()"
+            >
+              {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
+            </UButton>
+          </div>
+          <USelect
+            v-if="seccion.titulo === 'Egresos'"
+            v-model="filtroCentroCosto"
+            :items="opcionesFiltroCentroCosto"
+            value-key="value"
+            class="w-52"
+          />
+        </div>
         <UiTabla
           :columnas="[
             { clave: 'nombre', etiqueta: 'Cuenta' },
@@ -447,13 +529,21 @@ function exportar(): void {
 
     <!-- ══════════════════ Movimientos ══════════════════ -->
     <template v-else>
-      <div class="flex items-center justify-between gap-3">
-        <UInput
-          v-model="busquedaMovimientos"
-          icon="i-lucide-search"
-          placeholder="Buscar por cuenta o descripción"
-          class="w-80"
-        />
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <UInput
+            v-model="busquedaMovimientos"
+            icon="i-lucide-search"
+            placeholder="Buscar por cuenta o descripción"
+            class="w-80"
+          />
+          <USelect
+            v-model="filtroCentroCosto"
+            :items="opcionesFiltroCentroCosto"
+            value-key="value"
+            class="w-52"
+          />
+        </div>
         <p class="text-xs text-gray-500 text-right">
           Un monto mal registrado no se edita ni se borra — se corrige con "Ajustar", que aparece
           agrupado justo debajo del movimiento original.
@@ -466,6 +556,7 @@ function exportar(): void {
           { clave: 'periodo', etiqueta: 'Periodo' },
           { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha' },
           { clave: 'descripcion', etiqueta: 'Descripción' },
+          { clave: 'centroCosto', etiqueta: 'Centro de costo' },
           { clave: 'acciones', etiqueta: '' },
         ]"
         :filas="filasMovimientos"
@@ -492,6 +583,11 @@ function exportar(): void {
         </template>
         <template #celda-descripcion="{ fila }">
           <span class="text-gray-500">{{ fila.movimiento.descripcion ?? '—' }}</span>
+        </template>
+        <template #celda-centroCosto="{ fila }">
+          <span class="text-gray-500">
+            {{ fila.movimiento.centro_costo_id ? centroCostoPorId.get(fila.movimiento.centro_costo_id) ?? '—' : '—' }}
+          </span>
         </template>
         <template #celda-acciones="{ fila }">
           <UButton

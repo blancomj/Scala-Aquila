@@ -67,6 +67,10 @@ const conteoPorFiltro = computed<Record<ClaveFiltro, number>>(() => ({
   todos: conceptoStore.conceptos.length,
 }))
 
+const opcionesFiltro = computed(() =>
+  FILTROS.map((f) => ({ label: `${f.etiqueta} (${conteoPorFiltro.value[f.clave]})`, value: f.clave })),
+)
+
 const conceptosFiltrados = computed<Concepto[]>(() => {
   const porEstado = conceptoStore.conceptos.filter((c) => {
     if (filtro.value === 'en_uso') return c.estado !== 'archivado'
@@ -127,31 +131,22 @@ async function confirmarArchivar(): Promise<void> {
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <NuxtLink to="/conceptos/dependencias" class="text-sm text-primary hover:underline">
-        Dependencias e impacto →
-      </NuxtLink>
+      <div class="flex items-center gap-4">
+        <NuxtLink to="/conceptos/dependencias" class="text-sm text-primary hover:underline">
+          Dependencias e impacto →
+        </NuxtLink>
+        <NuxtLink
+          to="/politicas"
+          class="text-sm text-primary hover:underline"
+          title="Los conceptos definen qué y cuánto se cobra — las reglas de intereses y mora (cómo se imputa un pago atrasado) viven en Políticas financieras."
+        >
+          Reglas de intereses y mora →
+        </NuxtLink>
+      </div>
       <UButton size="sm" @click="nuevo">Nuevo concepto</UButton>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm">
-        <button
-          v-for="opcion in FILTROS"
-          :key="opcion.clave"
-          type="button"
-          class="px-3 py-1 rounded transition-colors"
-          :aria-pressed="filtro === opcion.clave"
-          :class="
-            filtro === opcion.clave
-              ? 'bg-white dark:bg-gray-900 shadow-sm font-medium'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          "
-          @click="filtro = opcion.clave"
-        >
-          {{ opcion.etiqueta }} ({{ conteoPorFiltro[opcion.clave] }})
-        </button>
-      </div>
-
+    <div class="flex flex-wrap items-center gap-3">
       <UInput
         v-model="busqueda"
         icon="i-lucide-search"
@@ -159,6 +154,7 @@ async function confirmarArchivar(): Promise<void> {
         size="sm"
         class="w-64"
       />
+      <USelect v-model="filtro" :items="opcionesFiltro" value-key="value" size="sm" class="w-44" />
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
@@ -224,17 +220,23 @@ async function confirmarArchivar(): Promise<void> {
       </template>
       <template #celda-acciones="{ fila }">
         <div class="flex justify-end gap-2">
-          <UButton size="xs" variant="soft" @click="editar(fila.id)">Editar</UButton>
+          <UButton
+            size="xs"
+            variant="soft"
+            icon="i-lucide-pencil"
+            aria-label="Editar"
+            @click="editar(fila.id)"
+          />
           <UButton
             v-if="esArchivable(fila)"
             size="xs"
             variant="ghost"
             color="error"
+            icon="i-lucide-archive"
+            aria-label="Archivar"
             :loading="cambiandoEstadoId === fila.id"
             @click="pedirConfirmacionArchivar(fila)"
-          >
-            Archivar
-          </UButton>
+          />
         </div>
       </template>
     </UiTabla>

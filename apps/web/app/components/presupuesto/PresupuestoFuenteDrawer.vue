@@ -12,6 +12,12 @@
 // — se retiró 'saldo_aplicable' (sin respaldo en los presupuestos reales
 // investigados, ver sesión de diseño) y el catálogo ahora es ampliable por
 // tenant sin migración nueva.
+//
+// Vínculo opcional a una cuenta de Ingresos (20260830400000): solo tiene sentido para
+// otros_ingresos/cuota_extraordinaria — son ingreso real (INCP, Ley 675 art. 35/38), pueden
+// tener una cuenta propia en Plan de cuentas. fondo_imprevistos NO es ingreso (usa un saldo que
+// ya existe, efectivo restringido) — por eso el selector se oculta para ese tipo, en vez de
+// ofrecer un vínculo que nunca debería exigirse.
 const props = defineProps<{ presupuestoId: string; tenantId: string }>()
 const emit = defineEmits<{ cerrar: []; creado: [] }>()
 
@@ -23,6 +29,7 @@ const valorDisponible = ref<number | null>(null)
 const valorAplicado = ref<number | null>(null)
 const descripcion = ref('')
 const fundamentoNormativoId = ref<number | null>(null)
+const presupuestoCuentaId = ref<string | null>(null)
 const guardando = ref(false)
 const error = ref<string | null>(null)
 
@@ -33,6 +40,24 @@ const opcionesFundamento = computed(() => [
   { label: '— Ninguno —', value: null },
   ...fundamentoStore.fundamentos.map((f) => ({ label: f.norma, value: f.id })),
 ])
+
+const tipoSeleccionadoCodigo = computed(
+  () => presupuestoStore.tiposFuente.find((t) => t.id === tipoId.value)?.codigo,
+)
+const requiereCuentaIngreso = computed(
+  () => tipoSeleccionadoCodigo.value === 'otros_ingresos' || tipoSeleccionadoCodigo.value === 'cuota_extraordinaria',
+)
+
+const opcionesCuentaIngreso = computed(() =>
+  presupuestoStore.cuentas
+    .filter((c) => c.naturaleza === 'ingreso' && c.es_hoja)
+    .map((c) => ({ valor: c.id, etiqueta: c.nombre }))
+    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta)),
+)
+
+watch(requiereCuentaIngreso, (requiere) => {
+  if (!requiere) presupuestoCuentaId.value = null
+})
 
 onMounted(async () => {
   if (presupuestoStore.tiposFuente.length === 0) await presupuestoStore.cargarTiposFuente(props.tenantId)
@@ -55,6 +80,7 @@ async function guardar(): Promise<void> {
       valorAplicado: valorAplicado.value ?? 0,
       descripcion: descripcion.value || undefined,
       fundamentoNormativoId: fundamentoNormativoId.value ?? undefined,
+      presupuestoCuentaId: presupuestoCuentaId.value ?? undefined,
     })
     emit('creado')
   } catch (excepcion) {
@@ -80,6 +106,19 @@ async function guardar(): Promise<void> {
         </UFormField>
         <UFormField label="Descripción" name="descripcion" class="col-span-2">
           <UInput v-model="descripcion" type="text" class="w-full" />
+        </UFormField>
+        <UFormField
+          v-if="requiereCuentaIngreso"
+          label="Cuenta de Ingresos (opcional)"
+          name="presupuesto_cuenta_id"
+          class="col-span-2"
+          help="Vincúlala a su cuenta en Plan de cuentas para que ambas queden sincronizadas."
+        >
+          <UiSelectorBuscable
+            v-model="presupuestoCuentaId"
+            :opciones="opcionesCuentaIngreso"
+            placeholder="Sin vincular"
+          />
         </UFormField>
         <UFormField label="Fundamento normativo" name="fundamento_normativo_id" class="col-span-2">
           <USelect v-model="fundamentoNormativoId" :items="opcionesFundamento" value-key="value" class="w-full" />

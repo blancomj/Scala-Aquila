@@ -16,31 +16,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       acciones_cobranza: {
@@ -439,6 +414,7 @@ export type Database = {
       agrupaciones: {
         Row: {
           activa: boolean
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           id: string
@@ -451,6 +427,7 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           id?: string
@@ -463,6 +440,7 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           id?: string
@@ -877,6 +855,7 @@ export type Database = {
           abogado_tercero_id: string | null
           aprobado_at: string
           aprobado_por: string | null
+          busqueda_tsv: unknown
           certificacion_id: string
           ciudad: string | null
           consecutivo: string
@@ -902,6 +881,7 @@ export type Database = {
           abogado_tercero_id?: string | null
           aprobado_at?: string
           aprobado_por?: string | null
+          busqueda_tsv?: unknown
           certificacion_id: string
           ciudad?: string | null
           consecutivo: string
@@ -927,6 +907,7 @@ export type Database = {
           abogado_tercero_id?: string | null
           aprobado_at?: string
           aprobado_por?: string | null
+          busqueda_tsv?: unknown
           certificacion_id?: string
           ciudad?: string | null
           consecutivo?: string
@@ -1429,6 +1410,7 @@ export type Database = {
           alcance_condiciones: Json | null
           aprobado_at: string | null
           aprobado_por: string | null
+          busqueda_tsv: unknown
           codigo: string
           created_at: string
           enviado_a_revision_at: string | null
@@ -1460,6 +1442,7 @@ export type Database = {
           alcance_condiciones?: Json | null
           aprobado_at?: string | null
           aprobado_por?: string | null
+          busqueda_tsv?: unknown
           codigo: string
           created_at?: string
           enviado_a_revision_at?: string | null
@@ -1491,6 +1474,7 @@ export type Database = {
           alcance_condiciones?: Json | null
           aprobado_at?: string | null
           aprobado_por?: string | null
+          busqueda_tsv?: unknown
           codigo?: string
           created_at?: string
           enviado_a_revision_at?: string | null
@@ -2245,6 +2229,7 @@ export type Database = {
           descripcion: string | null
           fundamento_normativo_id: number | null
           id: string
+          presupuesto_cuenta_id: string | null
           presupuesto_id: string
           tenant_id: string
           tipo_id: number
@@ -2257,6 +2242,7 @@ export type Database = {
           descripcion?: string | null
           fundamento_normativo_id?: number | null
           id?: string
+          presupuesto_cuenta_id?: string | null
           presupuesto_id: string
           tenant_id: string
           tipo_id: number
@@ -2269,6 +2255,7 @@ export type Database = {
           descripcion?: string | null
           fundamento_normativo_id?: number | null
           id?: string
+          presupuesto_cuenta_id?: string | null
           presupuesto_id?: string
           tenant_id?: string
           tipo_id?: number
@@ -2282,6 +2269,13 @@ export type Database = {
             columns: ["fundamento_normativo_id"]
             isOneToOne: false
             referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuente_financiacion_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
             referencedColumns: ["id"]
           },
           {
@@ -3880,6 +3874,7 @@ export type Database = {
       presupuesto_cuenta: {
         Row: {
           activa: boolean
+          busqueda_tsv: unknown
           codigo: string
           created_at: string
           es_hoja: boolean
@@ -3895,6 +3890,7 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          busqueda_tsv?: unknown
           codigo: string
           created_at?: string
           es_hoja?: boolean
@@ -3910,6 +3906,7 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          busqueda_tsv?: unknown
           codigo?: string
           created_at?: string
           es_hoja?: boolean
@@ -3949,7 +3946,9 @@ export type Database = {
       }
       presupuesto_ejecucion: {
         Row: {
+          agrupacion_id: string | null
           ajusta_movimiento_id: string | null
+          centro_costo_id: number | null
           created_at: string
           cuenta_id: string
           descripcion: string | null
@@ -3961,7 +3960,9 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
+          centro_costo_id?: number | null
           created_at?: string
           cuenta_id: string
           descripcion?: string | null
@@ -3973,7 +3974,9 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
+          centro_costo_id?: number | null
           created_at?: string
           cuenta_id?: string
           descripcion?: string | null
@@ -3986,10 +3989,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "presupuesto_ejecucion_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "presupuesto_ejecucion_ajusta_movimiento_id_fkey"
             columns: ["ajusta_movimiento_id"]
             isOneToOne: false
             referencedRelation: "presupuesto_ejecucion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
           {
@@ -4031,6 +4048,8 @@ export type Database = {
       }
       presupuesto_rubros: {
         Row: {
+          agrupacion_id: string | null
+          centro_costo_id: number | null
           codigo: string
           created_at: string
           cuenta_id: string
@@ -4043,6 +4062,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agrupacion_id?: string | null
+          centro_costo_id?: number | null
           codigo: string
           created_at?: string
           cuenta_id: string
@@ -4055,6 +4076,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agrupacion_id?: string | null
+          centro_costo_id?: number | null
           codigo?: string
           created_at?: string
           cuenta_id?: string
@@ -4067,6 +4090,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuesto_rubros_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_rubros_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "presupuesto_rubros_cuenta_id_fkey"
             columns: ["cuenta_id"]
@@ -4726,6 +4763,7 @@ export type Database = {
         Row: {
           activa: boolean
           area: number | null
+          busqueda_tsv: unknown
           codigo: string
           created_at: string
           descripcion: string | null
@@ -4741,6 +4779,7 @@ export type Database = {
         Insert: {
           activa?: boolean
           area?: number | null
+          busqueda_tsv?: unknown
           codigo: string
           created_at?: string
           descripcion?: string | null
@@ -4756,6 +4795,7 @@ export type Database = {
         Update: {
           activa?: boolean
           area?: number | null
+          busqueda_tsv?: unknown
           codigo?: string
           created_at?: string
           descripcion?: string | null
@@ -5525,6 +5565,7 @@ export type Database = {
         Args: {
           p_descripcion?: string
           p_fundamento_normativo_id?: number
+          p_presupuesto_cuenta_id?: string
           p_presupuesto_id: string
           p_tipo_id: number
           p_valor_aplicado?: number
@@ -5535,6 +5576,7 @@ export type Database = {
           descripcion: string | null
           fundamento_normativo_id: number | null
           id: string
+          presupuesto_cuenta_id: string | null
           presupuesto_id: string
           tenant_id: string
           tipo_id: number
@@ -5977,9 +6019,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
