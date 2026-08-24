@@ -91,6 +91,45 @@ export const ERROR_CODES = {
   CONCEPTO_INEXISTENTE: 'CONCEPTO_INEXISTENTE',
   CONCEPTO_TENANT_INCONSISTENTE: 'CONCEPTO_TENANT_INCONSISTENTE',
 
+  // ── Plan de cuentas contable (PC-1) ──────────────────────────────────────
+  // Catálogo distinto del presupuestal: aquí la jerarquía la impone el propio código numérico
+  // (5505 cuelga de 55, que cuelga de 5), no un parent_id libre — de ahí que los códigos de
+  // error hablen de niveles y prefijos y no de hojas ni de naturaleza mezclada.
+  CUENTA_RAIZ_INVALIDA: 'CUENTA_RAIZ_INVALIDA',
+  CUENTA_LONGITUD_INVALIDA: 'CUENTA_LONGITUD_INVALIDA',
+  CUENTA_NIVEL_SALTADO: 'CUENTA_NIVEL_SALTADO',
+  CUENTA_CODIGO_INCOHERENTE: 'CUENTA_CODIGO_INCOHERENTE',
+  CUENTA_AGRUPA_SUBCUENTAS: 'CUENTA_AGRUPA_SUBCUENTAS',
+  // Instanciación del plan por copropiedad (fn_instanciar_plan_contable, PC-2)
+  PLAN_CONTABLE_INEXISTENTE: 'PLAN_CONTABLE_INEXISTENTE',
+  TENANT_INEXISTENTE: 'TENANT_INEXISTENTE',
+
+  // ── Puentes hacia el plan contable (PC-3) ────────────────────────────────
+  // Los emite validar_cuenta_contable_destino(), compartida por presupuesto_cuenta,
+  // fondos, cuentas_bancarias y contable_cuenta_default.
+  CUENTA_CONTABLE_INEXISTENTE: 'CUENTA_CONTABLE_INEXISTENTE',
+  CUENTA_CONTABLE_TENANT_INCONSISTENTE: 'CUENTA_CONTABLE_TENANT_INCONSISTENTE',
+  CUENTA_CONTABLE_NO_ADMITE_MOVIMIENTO: 'CUENTA_CONTABLE_NO_ADMITE_MOVIMIENTO',
+  CUENTA_CONTABLE_INACTIVA: 'CUENTA_CONTABLE_INACTIVA',
+  CUENTA_CONTABLE_CLASE_INCOMPATIBLE: 'CUENTA_CONTABLE_CLASE_INCOMPATIBLE',
+  EVENTO_CONTABLE_INVALIDO: 'EVENTO_CONTABLE_INVALIDO',
+  // Hace cumplir en el motor una decisión de diseño ya fundamentada (PC-9): impide recrear por
+  // tenant un código de cuenta que la plantilla global retiró por doctrina (ej. grupo 27/32).
+  CUENTA_CODIGO_RETIRADO: 'CUENTA_CODIGO_RETIRADO',
+
+  // ── Contrapartida de la ejecución presupuestal (PC-4) ────────────────────
+  // Sin contrapartida el movimiento tiene débito y ningún crédito: no es exportable.
+  LIQUIDACION_REQUERIDA: 'LIQUIDACION_REQUERIDA',
+  LIQUIDACION_CUENTA_BANCARIA_REQUERIDA: 'LIQUIDACION_CUENTA_BANCARIA_REQUERIDA',
+  LIQUIDACION_CUENTA_BANCARIA_NO_APLICA: 'LIQUIDACION_CUENTA_BANCARIA_NO_APLICA',
+  LIQUIDACION_TERCERO_REQUERIDO: 'LIQUIDACION_TERCERO_REQUERIDO',
+  CUENTA_BANCARIA_INEXISTENTE: 'CUENTA_BANCARIA_INEXISTENTE',
+  CUENTA_BANCARIA_TENANT_INCONSISTENTE: 'CUENTA_BANCARIA_TENANT_INCONSISTENTE',
+  CUENTA_BANCARIA_INACTIVA: 'CUENTA_BANCARIA_INACTIVA',
+  TERCERO_INEXISTENTE: 'TERCERO_INEXISTENTE',
+  TERCERO_TENANT_INCONSISTENTE: 'TERCERO_TENANT_INCONSISTENTE',
+  FECHA_DOCUMENTO_FUERA_DE_EJERCICIO: 'FECHA_DOCUMENTO_FUERA_DE_EJERCICIO',
+
   // ── Ejecución presupuestal (E9) ──────────────────────────────────────────
   PERIODO_INEXISTENTE: 'PERIODO_INEXISTENTE',
   PERIODO_TENANT_INCONSISTENTE: 'PERIODO_TENANT_INCONSISTENTE',

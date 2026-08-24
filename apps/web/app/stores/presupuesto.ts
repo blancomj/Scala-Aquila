@@ -342,6 +342,14 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
     ajustaMovimientoId?: string
     agrupacionId?: string
     centroCostoId?: number
+    /** PC-4: de dónde salió el dinero — determina la contrapartida contable. La columna es NOT
+     * NULL desde PC-4b, así que es obligatoria también aquí; una reversión pasa la del
+     * movimiento que corrige (ver revertirEjecucion). */
+    liquidacion: Database['public']['Enums']['ejecucion_liquidacion_t']
+    cuentaBancariaId?: string
+    terceroId?: string
+    /** Fecha del soporte. Si se omite, el guard la deriva del primer día del periodo. */
+    fechaDocumento?: string
   }): Promise<PresupuestoEjecucionRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -356,6 +364,10 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         ajusta_movimiento_id: params.ajustaMovimientoId,
         agrupacion_id: params.agrupacionId,
         centro_costo_id: params.centroCostoId,
+        liquidacion: params.liquidacion,
+        cuenta_bancaria_id: params.cuentaBancariaId,
+        tercero_id: params.terceroId,
+        fecha_documento: params.fechaDocumento,
       })
       .select('*')
       .single()
@@ -382,6 +394,13 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
       ajustaMovimientoId: params.movimiento.id,
       agrupacionId: params.movimiento.agrupacion_id ?? undefined,
       centroCostoId: params.movimiento.centro_costo_id ?? undefined,
+      // Una reversión deshace el movimiento por el mismo camino por el que salió el dinero: se
+      // reintegra al banco del que salió, o baja la cuenta por pagar que se había creado. El
+      // guard haría esta misma herencia si no se enviaran, pero explicitarlas deja el asiento
+      // resultante visible desde el código en vez de escondido en un trigger.
+      liquidacion: params.movimiento.liquidacion,
+      cuentaBancariaId: params.movimiento.cuenta_bancaria_id ?? undefined,
+      terceroId: params.movimiento.tercero_id ?? undefined,
     })
   }
 

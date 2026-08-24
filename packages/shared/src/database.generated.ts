@@ -1539,6 +1539,296 @@ export type Database = {
           },
         ]
       }
+      contable_codigo_retirado: {
+        Row: {
+          codigo: string
+          created_at: string
+          fundamento_normativo_id: number | null
+          motivo: string
+          plan_id: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          motivo: string
+          plan_id: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          motivo?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_codigo_retirado_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_codigo_retirado_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "contable_plan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_cuenta: {
+        Row: {
+          activa: boolean
+          clase: number
+          codigo: string
+          created_at: string
+          id: string
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel: number
+          nombre: string
+          parent_id: string | null
+          permite_movimiento: boolean
+          plan_cuenta_id: string | null
+          requiere_centro_costo: boolean
+          requiere_fondo: boolean
+          requiere_inmueble: boolean
+          requiere_tercero: boolean
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          clase?: number
+          codigo: string
+          created_at?: string
+          id?: string
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel?: number
+          nombre: string
+          parent_id?: string | null
+          permite_movimiento?: boolean
+          plan_cuenta_id?: string | null
+          requiere_centro_costo?: boolean
+          requiere_fondo?: boolean
+          requiere_inmueble?: boolean
+          requiere_tercero?: boolean
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          clase?: number
+          codigo?: string
+          created_at?: string
+          id?: string
+          naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel?: number
+          nombre?: string
+          parent_id?: string | null
+          permite_movimiento?: boolean
+          plan_cuenta_id?: string | null
+          requiere_centro_costo?: boolean
+          requiere_fondo?: boolean
+          requiere_inmueble?: boolean
+          requiere_tercero?: boolean
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_cuenta_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_plan_cuenta_id_fkey"
+            columns: ["plan_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_plan_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_cuenta_default: {
+        Row: {
+          contable_cuenta_id: string
+          created_at: string
+          evento_id: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          contable_cuenta_id: string
+          created_at?: string
+          evento_id: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          contable_cuenta_id?: string
+          created_at?: string
+          evento_id?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_cuenta_default_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_default_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_default_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_cuenta_default_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_plan: {
+        Row: {
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          version: number
+          vigente: boolean
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          version?: number
+          vigente?: boolean
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          version?: number
+          vigente?: boolean
+        }
+        Relationships: []
+      }
+      contable_plan_cuenta: {
+        Row: {
+          clase: number
+          codigo: string
+          created_at: string
+          fundamento_normativo_id: number | null
+          id: string
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel: number
+          nombre: string
+          opcional: boolean
+          parent_id: string | null
+          permite_movimiento: boolean
+          plan_id: string
+          requiere_centro_costo: boolean
+          requiere_fondo: boolean
+          requiere_inmueble: boolean
+          requiere_tercero: boolean
+        }
+        Insert: {
+          clase?: number
+          codigo: string
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel?: number
+          nombre: string
+          opcional?: boolean
+          parent_id?: string | null
+          permite_movimiento?: boolean
+          plan_id: string
+          requiere_centro_costo?: boolean
+          requiere_fondo?: boolean
+          requiere_inmueble?: boolean
+          requiere_tercero?: boolean
+        }
+        Update: {
+          clase?: number
+          codigo?: string
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel?: number
+          nombre?: string
+          opcional?: boolean
+          parent_id?: string | null
+          permite_movimiento?: boolean
+          plan_id?: string
+          requiere_centro_costo?: boolean
+          requiere_fondo?: boolean
+          requiere_inmueble?: boolean
+          requiere_tercero?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_plan_cuenta_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_plan_cuenta_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "contable_plan_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_plan_cuenta_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "contable_plan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       costas_judiciales: {
         Row: {
           autoridad: string
@@ -1616,6 +1906,7 @@ export type Database = {
       cuentas_bancarias: {
         Row: {
           activa: boolean
+          contable_cuenta_id: string | null
           created_at: string
           entidad_financiera_id: number
           es_recaudo: boolean
@@ -1628,6 +1919,7 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          contable_cuenta_id?: string | null
           created_at?: string
           entidad_financiera_id: number
           es_recaudo?: boolean
@@ -1640,6 +1932,7 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          contable_cuenta_id?: string | null
           created_at?: string
           entidad_financiera_id?: number
           es_recaudo?: boolean
@@ -1651,6 +1944,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cuentas_bancarias_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cuentas_bancarias_entidad_financiera_id_fkey"
             columns: ["entidad_financiera_id"]
@@ -2180,6 +2480,7 @@ export type Database = {
       }
       fondos: {
         Row: {
+          contable_cuenta_id: string | null
           created_at: string
           id: string
           nombre: string
@@ -2189,6 +2490,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          contable_cuenta_id?: string | null
           created_at?: string
           id?: string
           nombre: string
@@ -2198,6 +2500,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          contable_cuenta_id?: string | null
           created_at?: string
           id?: string
           nombre?: string
@@ -2207,6 +2510,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fondos_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fondos_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2313,37 +2623,46 @@ export type Database = {
           articulo: string | null
           created_at: string
           descripcion: string | null
+          fecha_validacion: string | null
           fecha_vigencia: string | null
+          fuente_url: string | null
           id: number
           norma: string
           referencia: string | null
           tenant_id: string | null
           tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at: string | null
+          validado_por: string | null
         }
         Insert: {
           articulo?: string | null
           created_at?: string
           descripcion?: string | null
+          fecha_validacion?: string | null
           fecha_vigencia?: string | null
+          fuente_url?: string | null
           id?: never
           norma: string
           referencia?: string | null
           tenant_id?: string | null
           tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at?: string | null
+          validado_por?: string | null
         }
         Update: {
           articulo?: string | null
           created_at?: string
           descripcion?: string | null
+          fecha_validacion?: string | null
           fecha_vigencia?: string | null
+          fuente_url?: string | null
           id?: never
           norma?: string
           referencia?: string | null
           tenant_id?: string | null
           tipo?: Database["public"]["Enums"]["fundamento_tipo_t"]
           updated_at?: string | null
+          validado_por?: string | null
         }
         Relationships: [
           {
@@ -3876,6 +4195,7 @@ export type Database = {
           activa: boolean
           busqueda_tsv: unknown
           codigo: string
+          contable_cuenta_id: string | null
           created_at: string
           es_hoja: boolean
           id: string
@@ -3892,6 +4212,7 @@ export type Database = {
           activa?: boolean
           busqueda_tsv?: unknown
           codigo: string
+          contable_cuenta_id?: string | null
           created_at?: string
           es_hoja?: boolean
           id?: string
@@ -3908,6 +4229,7 @@ export type Database = {
           activa?: boolean
           busqueda_tsv?: unknown
           codigo?: string
+          contable_cuenta_id?: string | null
           created_at?: string
           es_hoja?: boolean
           id?: string
@@ -3921,6 +4243,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuesto_cuenta_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "presupuesto_cuenta_parent_id_fkey"
             columns: ["parent_id"]
@@ -3944,48 +4273,101 @@ export type Database = {
           },
         ]
       }
+      presupuesto_cuenta_plantilla: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          naturaleza: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel: number
+          nombre: string
+          orden: number
+          parent_id: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          naturaleza: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel: number
+          nombre: string
+          orden?: number
+          parent_id?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          naturaleza?: Database["public"]["Enums"]["presupuesto_cuenta_naturaleza_t"]
+          nivel?: number
+          nombre?: string
+          orden?: number
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuesto_cuenta_plantilla_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta_plantilla"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuesto_ejecucion: {
         Row: {
           agrupacion_id: string | null
           ajusta_movimiento_id: string | null
           centro_costo_id: number | null
           created_at: string
+          cuenta_bancaria_id: string | null
           cuenta_id: string
           descripcion: string | null
+          fecha_documento: string | null
           id: string
+          liquidacion: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto: number
           periodo_id: string
           referencia: string | null
           registrado_por: string | null
           tenant_id: string
+          tercero_id: string | null
         }
         Insert: {
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
           created_at?: string
+          cuenta_bancaria_id?: string | null
           cuenta_id: string
           descripcion?: string | null
+          fecha_documento?: string | null
           id?: string
+          liquidacion: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto: number
           periodo_id: string
           referencia?: string | null
           registrado_por?: string | null
           tenant_id: string
+          tercero_id?: string | null
         }
         Update: {
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
           created_at?: string
+          cuenta_bancaria_id?: string | null
           cuenta_id?: string
           descripcion?: string | null
+          fecha_documento?: string | null
           id?: string
+          liquidacion?: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto?: number
           periodo_id?: string
           referencia?: string | null
           registrado_por?: string | null
           tenant_id?: string
+          tercero_id?: string | null
         }
         Relationships: [
           {
@@ -4007,6 +4389,13 @@ export type Database = {
             columns: ["centro_costo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
             referencedColumns: ["id"]
           },
           {
@@ -4042,6 +4431,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
             referencedColumns: ["id"]
           },
         ]
@@ -5214,6 +5610,44 @@ export type Database = {
         Args: { p_bucket: string; p_max_hits: number; p_window: string }
         Returns: boolean
       }
+      contable_cuadre: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          diferencia: number
+          lineas: number
+          sin_cuenta: number
+          total_credito: number
+          total_debito: number
+        }[]
+      }
+      contable_movimientos: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          agrupacion_id: string
+          centro_costo_id: number
+          credito: number
+          cuenta_codigo: string
+          cuenta_nombre: string
+          debito: number
+          descripcion: string
+          documento: string
+          entidad: string
+          fecha: string
+          fondo_id: string
+          inmueble_id: string
+          origen: string
+          origen_id: string
+          tercero_id: string
+        }[]
+      }
+      contable_parametrizacion_pendiente: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          ambito: string
+          detalle: string
+          referencia: string
+        }[]
+      }
       create_tenant: {
         Args: { p_name: string; p_slug: string }
         Returns: {
@@ -5483,6 +5917,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_instanciar_plan_contable: {
+        Args: {
+          p_incluir_opcionales?: boolean
+          p_plan_codigo?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          creadas: number
+          existentes: number
+        }[]
+      }
+      fn_instanciar_presupuesto_cuenta: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          creadas: number
+          existentes: number
+        }[]
+      }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
         Returns: undefined
@@ -5612,6 +6064,15 @@ export type Database = {
         }
       }
       fn_unaccent_immutable: { Args: { p_texto: string }; Returns: string }
+      fundamento_validacion_pendiente: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          fundamento_id: number
+          norma: string
+        }[]
+      }
       has_role: {
         Args: {
           p_roles: Database["public"]["Enums"]["tenant_role_t"][]
@@ -5707,6 +6168,38 @@ export type Database = {
         Args: { p_modulo: string; p_tenant: string }
         Returns: boolean
       }
+      validar_cuenta_contable_destino: {
+        Args: {
+          p_cuenta_id: string
+          p_prefijo_codigo?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          activa: boolean
+          clase: number
+          codigo: string
+          created_at: string
+          id: string
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nivel: number
+          nombre: string
+          parent_id: string | null
+          permite_movimiento: boolean
+          plan_cuenta_id: string | null
+          requiere_centro_costo: boolean
+          requiere_fondo: boolean
+          requiere_inmueble: boolean
+          requiere_tercero: boolean
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_cuenta"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       alcance_accion_cobranza_t: "inmueble" | "cargo"
@@ -5734,7 +6227,9 @@ export type Database = {
         | "unico"
         | "por_periodo"
         | "novedad"
+      contable_naturaleza_t: "debito" | "credito"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
+      ejecucion_liquidacion_t: "pagado_banco" | "pagado_caja" | "por_pagar"
       estado_accion_cobranza_t:
         | "programada"
         | "pendiente_aprobacion"
@@ -5794,6 +6289,7 @@ export type Database = {
         | "reglamento_ph"
         | "decision_asamblea"
         | "otra"
+        | "orientacion_tecnica"
       inmueble_estado_t: "activo" | "inactivo"
       interes_day_count_t:
         | "mensual_30_dias_reales"
@@ -6049,7 +6545,9 @@ export const Constants = {
         "por_periodo",
         "novedad",
       ],
+      contable_naturaleza_t: ["debito", "credito"],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
+      ejecucion_liquidacion_t: ["pagado_banco", "pagado_caja", "por_pagar"],
       estado_accion_cobranza_t: [
         "programada",
         "pendiente_aprobacion",
@@ -6115,6 +6613,7 @@ export const Constants = {
         "reglamento_ph",
         "decision_asamblea",
         "otra",
+        "orientacion_tecnica",
       ],
       inmueble_estado_t: ["activo", "inactivo"],
       interes_day_count_t: [
