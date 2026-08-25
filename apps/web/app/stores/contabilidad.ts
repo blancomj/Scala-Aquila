@@ -137,14 +137,33 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
   }
 
   /** Retirar una cuenta es desactivarla, nunca borrarla: puede tener movimientos proyectados
-   * que necesitan seguir resolviendo su código (mismo criterio que presupuesto_cuenta). */
+   * que necesitan seguir resolviendo su código (mismo criterio que presupuesto_cuenta). Código y
+   * padre no se editan aquí a propósito — cambiarlos reabre la jerarquía (guard_contable_cuenta_
+   * arbol) y no hay UI de reparentado para este catálogo. */
   async function actualizarCuenta(
     tenantId: string,
     id: string,
-    cambios: { activa?: boolean; nombre?: string },
+    cambios: {
+      activa?: boolean
+      nombre?: string
+      naturaleza?: Database['public']['Enums']['contable_naturaleza_t']
+      requiereTercero?: boolean
+      requiereCentroCosto?: boolean
+      requiereFondo?: boolean
+      requiereInmueble?: boolean
+    },
   ): Promise<void> {
+    const { requiereTercero, requiereCentroCosto, requiereFondo, requiereInmueble, ...resto } =
+      cambios
+    const patch: Database['public']['Tables']['contable_cuenta']['Update'] = {
+      ...resto,
+      ...(requiereTercero !== undefined && { requiere_tercero: requiereTercero }),
+      ...(requiereCentroCosto !== undefined && { requiere_centro_costo: requiereCentroCosto }),
+      ...(requiereFondo !== undefined && { requiere_fondo: requiereFondo }),
+      ...(requiereInmueble !== undefined && { requiere_inmueble: requiereInmueble }),
+    }
     const cliente = useSupabaseClient<Database>()
-    const { error } = await cliente.from('contable_cuenta').update(cambios).eq('id', id)
+    const { error } = await cliente.from('contable_cuenta').update(patch).eq('id', id)
     if (error) throw error
     await cargarPlan(tenantId)
   }

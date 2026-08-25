@@ -1,7 +1,3 @@
-/**
- * GENERADO — no editar a mano (Fase I §3.3, DB-first).
- * Regenerar con: pnpm db:types
- */
 export type Json =
   | string
   | number
@@ -15,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -1586,7 +1607,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number
+          nivel: number | null
           nombre: string
           parent_id: string | null
           permite_movimiento: boolean
@@ -1605,7 +1626,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number
+          nivel?: number | null
           nombre: string
           parent_id?: string | null
           permite_movimiento?: boolean
@@ -1624,7 +1645,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number
+          nivel?: number | null
           nombre?: string
           parent_id?: string | null
           permite_movimiento?: boolean
@@ -1758,7 +1779,7 @@ export type Database = {
           fundamento_normativo_id: number | null
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number
+          nivel: number | null
           nombre: string
           opcional: boolean
           parent_id: string | null
@@ -1776,7 +1797,7 @@ export type Database = {
           fundamento_normativo_id?: number | null
           id?: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number
+          nivel?: number | null
           nombre: string
           opcional?: boolean
           parent_id?: string | null
@@ -1794,7 +1815,7 @@ export type Database = {
           fundamento_normativo_id?: number | null
           id?: string
           naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number
+          nivel?: number | null
           nombre?: string
           opcional?: boolean
           parent_id?: string | null
@@ -3038,38 +3059,117 @@ export type Database = {
       }
       liquidaciones: {
         Row: {
+          anulada_at: string | null
+          anulada_por: string | null
+          aplicada_at: string | null
+          aprobada_at: string | null
+          aprobada_por: string | null
+          avisos_aceptados: Json | null
           created_at: string
           estado: Database["public"]["Enums"]["liquidacion_estado_t"]
           id: string
+          motivo_anulacion: string | null
+          motivo_rechazo: string | null
+          nota_solicitud: string | null
           periodo_id: string
+          propuesta_at: string | null
+          propuesta_por: string | null
           result_hash: string
+          sello_datos: string | null
+          simulada_at: string
+          simulada_por: string | null
+          snapshot: Json | null
+          snapshot_hash: string | null
           tenant_id: string
           tenant_total: number
+          updated_at: string | null
         }
         Insert: {
+          anulada_at?: string | null
+          anulada_por?: string | null
+          aplicada_at?: string | null
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          avisos_aceptados?: Json | null
           created_at?: string
           estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
           id?: string
+          motivo_anulacion?: string | null
+          motivo_rechazo?: string | null
+          nota_solicitud?: string | null
           periodo_id: string
+          propuesta_at?: string | null
+          propuesta_por?: string | null
           result_hash: string
+          sello_datos?: string | null
+          simulada_at?: string
+          simulada_por?: string | null
+          snapshot?: Json | null
+          snapshot_hash?: string | null
           tenant_id: string
           tenant_total: number
+          updated_at?: string | null
         }
         Update: {
+          anulada_at?: string | null
+          anulada_por?: string | null
+          aplicada_at?: string | null
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          avisos_aceptados?: Json | null
           created_at?: string
           estado?: Database["public"]["Enums"]["liquidacion_estado_t"]
           id?: string
+          motivo_anulacion?: string | null
+          motivo_rechazo?: string | null
+          nota_solicitud?: string | null
           periodo_id?: string
+          propuesta_at?: string | null
+          propuesta_por?: string | null
           result_hash?: string
+          sello_datos?: string | null
+          simulada_at?: string
+          simulada_por?: string | null
+          snapshot?: Json | null
+          snapshot_hash?: string | null
           tenant_id?: string
           tenant_total?: number
+          updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "liquidaciones_anulada_por_fkey"
+            columns: ["anulada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "liquidaciones_periodo_id_fkey"
             columns: ["periodo_id"]
             isOneToOne: false
             referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_propuesta_por_fkey"
+            columns: ["propuesta_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_simulada_por_fkey"
+            columns: ["simulada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -5708,6 +5808,10 @@ export type Database = {
           promesas_por_vencer_monto: number
         }[]
       }
+      fn_aplicar_liquidacion: {
+        Args: { p_liquidacion_id: string; p_snapshot_hash?: string }
+        Returns: Json
+      }
       fn_aprobar_novedad: {
         Args: { p_actor_id: string; p_novedad_id: string }
         Returns: {
@@ -5777,6 +5881,18 @@ export type Database = {
           p_vigente_desde: string
         }
         Returns: undefined
+      }
+      fn_crear_preliquidacion: {
+        Args: {
+          p_lineas: Json
+          p_periodo_id: string
+          p_result_hash: string
+          p_snapshot?: Json
+          p_snapshot_hash?: string
+          p_tenant_id: string
+          p_tenant_total: number
+        }
+        Returns: Json
       }
       fn_dashboard_cartera: {
         Args: { p_fecha_corte: string; p_tenant_id: string }
@@ -5934,6 +6050,23 @@ export type Database = {
           creadas: number
           existentes: number
         }[]
+      }
+      fn_liquidacion_prevuelo: {
+        Args: {
+          p_liquidacion_id?: string
+          p_periodo_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          codigo: string
+          detalle: string
+          severidad: string
+          titulo: string
+        }[]
+      }
+      fn_liquidacion_sello_datos: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: string
       }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
@@ -6181,7 +6314,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number
+          nivel: number | null
           nombre: string
           parent_id: string | null
           permite_movimiento: boolean
@@ -6300,7 +6433,14 @@ export type Database = {
         | "interes_sobre_capital_completo"
         | "descuento_antes_interes"
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
-      liquidacion_estado_t: "completada" | "fallida"
+      liquidacion_estado_t:
+        | "pre_liquidada"
+        | "pendiente_aprobacion"
+        | "rechazada"
+        | "aplicada"
+        | "descartada"
+        | "anulada"
+        | "fallida"
       member_status_t: "active" | "revoked"
       nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
       novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
@@ -6515,6 +6655,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
@@ -6627,7 +6770,15 @@ export const Constants = {
         "descuento_antes_interes",
       ],
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
-      liquidacion_estado_t: ["completada", "fallida"],
+      liquidacion_estado_t: [
+        "pre_liquidada",
+        "pendiente_aprobacion",
+        "rechazada",
+        "aplicada",
+        "descartada",
+        "anulada",
+        "fallida",
+      ],
       member_status_t: ["active", "revoked"],
       nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
       novedad_estado_t: ["pendiente", "aprobada", "rechazada"],

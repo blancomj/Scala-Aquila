@@ -55,6 +55,14 @@ const props = withDefaults(
      * default (variante="tailwind" normal) para no afectar el resto de la
      * app. */
     encabezadoAlto?: boolean
+    /** table-layout: fixed — opt-in por tabla. El truco `width: 1%` (claseCelda 'w-px') solo
+     * funciona en auto-layout como una PISTA de "encoge al contenido"; el navegador puede
+     * seguir estirando esa columna si el contenido de otra fila es más ancho (visto en
+     * PresupuestoTabPlanCuentas.vue: Tipo/Orden se corrían a la derecha porque "Cuenta" seguía
+     * creciendo). Con `fijo`, cada `ancho` es una medida real y la única columna sin `ancho`
+     * absorbe el resto de forma determinista — pero entonces TODAS las columnas necesitan un
+     * `ancho` explícito salvo esa, porque en table-layout:fixed no hay heurística de contenido. */
+    fijo?: boolean
   }>(),
   {
     variante: 'tailwind',
@@ -63,6 +71,7 @@ const props = withDefaults(
     colspanGrupo: undefined,
     orden: undefined,
     encabezadoAlto: false,
+    fijo: false,
   },
 )
 
@@ -126,7 +135,7 @@ const columnasTrasGrupo = computed(() =>
 <template>
   <table
     v-if="filas.length > 0"
-    :class="variante === 'tailwind' ? 'w-full text-sm' : undefined"
+    :class="variante === 'tailwind' ? ['w-full text-sm', fijo ? 'table-fixed' : ''] : undefined"
   >
     <thead>
       <tr
@@ -175,8 +184,8 @@ const columnasTrasGrupo = computed(() =>
           v-if="esFilaGrupo && esFilaGrupo(fila)"
           :class="
             variante === 'tailwind'
-              ? 'border-b border-gray-100 dark:border-gray-900 bg-gray-50 dark:bg-gray-900/50'
-              : undefined
+              ? 'group border-b border-gray-100 dark:border-gray-900 bg-gray-50 dark:bg-gray-900/50'
+              : 'group'
           "
         >
           <td
@@ -200,7 +209,7 @@ const columnasTrasGrupo = computed(() =>
         </tr>
         <tr
           v-else
-          :class="variante === 'tailwind' ? 'border-b border-gray-100 dark:border-gray-900' : undefined"
+          :class="variante === 'tailwind' ? 'group border-b border-gray-100 dark:border-gray-900' : 'group'"
         >
           <td
             v-for="col in columnas"

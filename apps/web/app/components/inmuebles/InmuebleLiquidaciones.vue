@@ -3,9 +3,36 @@
 // (PROMPT_FICHA_INMUEBLE.md §1.1 I7). Solo lectura vía
 // liquidacion.ts::cargarLineasPorInmueble (extendido en T2) — el motor de
 // liquidación en sí queda fuera de alcance (§1.2), esta ficha solo lo
-// consume. liquidaciones.estado es 'completada'|'fallida' (D-14) — no el
-// borrador/cerrada de 4 estados que muestra el mockup, que no corresponde
-// a ninguna decisión real del esquema (gana el esquema, §2).
+// consume.
+//
+// Los 7 estados vienen de L0 (20260830570000, liquidación en dos tiempos):
+// antes eran 2 ('completada'|'fallida') y bastaba un ternario. Aquí solo se
+// traduce estado → color/etiqueta; el flujo que los produce vive en la
+// pantalla de liquidación, no en la ficha del inmueble.
+import type { Database } from '@aquila/shared'
+
+type LiquidacionEstado = Database['public']['Enums']['liquidacion_estado_t']
+
+const COLOR_ESTADO: Record<LiquidacionEstado, 'success' | 'error' | 'warning' | 'info' | 'neutral'> = {
+  aplicada: 'success',
+  pendiente_aprobacion: 'info',
+  pre_liquidada: 'warning',
+  rechazada: 'warning',
+  anulada: 'error',
+  fallida: 'error',
+  descartada: 'neutral',
+}
+
+const ETIQUETA_ESTADO: Record<LiquidacionEstado, string> = {
+  aplicada: 'Aplicada',
+  pendiente_aprobacion: 'Pendiente de aprobación',
+  pre_liquidada: 'Pre-liquidada',
+  rechazada: 'Rechazada',
+  anulada: 'Anulada',
+  fallida: 'Fallida',
+  descartada: 'Descartada',
+}
+
 const props = defineProps<{ inmuebleId: string }>()
 
 const tenantStore = useTenantStore()
@@ -39,8 +66,8 @@ watchEffect(async () => {
     >
       <template #celda-periodo="{ fila }">{{ fila.liquidacion.periodo.anio }}-{{ String(fila.liquidacion.periodo.mes).padStart(2, '0') }}</template>
       <template #celda-estado="{ fila }">
-        <UBadge :color="fila.liquidacion.estado === 'completada' ? 'success' : 'error'" variant="subtle">
-          {{ fila.liquidacion.estado }}
+        <UBadge :color="COLOR_ESTADO[fila.liquidacion.estado]" variant="subtle">
+          {{ ETIQUETA_ESTADO[fila.liquidacion.estado] }}
         </UBadge>
       </template>
       <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>

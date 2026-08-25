@@ -24,6 +24,13 @@ const busqueda = ref('')
 const soloMovimiento = ref(false)
 const colapsados = ref(new Set<string>())
 
+// ── resumen (tarjetas, plegable) ─────────────────────────────────────────
+// Cookie, no localStorage: mismo criterio que inmuebles/index.vue (localStorage produce
+// hydration mismatch porque el servidor no puede leerlo en el primer render). Arranca cerrado
+// (feedback de usuario, 2026-08-24): a diferencia de inmuebles/index.vue, aquí tanto el resumen
+// como el árbol de cuentas deben verse cerrados al entrar a la pantalla.
+const resumenExpandido = useCookie<boolean>('contable-plan-resumen-expandido', { default: () => false })
+
 await useAsyncData('contable-plan', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
@@ -35,6 +42,10 @@ await useAsyncData('contable-plan', async () => {
   ])
   return true
 })
+
+// El árbol también arranca contraído — misma lógica que el botón "Contraer todo" (colapsarTodo,
+// abajo), aplicada una vez al cargar en vez de dejar el primer render con todo expandido.
+colapsarTodo()
 
 /** "¿de dónde salió este valor?" también aplica al plan de cuentas (prompt maestro §58): cuando
  * una cuenta existe por una razón que no es obvia por el nombre —el caso central es el fondo de
@@ -157,18 +168,62 @@ function dimensiones(c: ContableCuentaNodo): string[] {
   if (c.requiere_inmueble) d.push('Inmueble')
   return d
 }
+
+// ── Nueva cuenta (auxiliar propio) / Editar cuenta ────────────────────────
+// Un Auxiliar (nivel 5, código de 9 dígitos) ya no puede ganar hijos —
+// guard_contable_cuenta_arbol no reconoce ninguna longitud siguiente — así que no se ofrece la
+// acción sobre esas filas.
+const cuentaPadreParaNueva = ref<ContableCuentaNodo | null>(null)
+const cuentaEnEdicion = ref<ContableCuentaNodo | null>(null)
+
+function abrirNuevaCuenta(fila: ContableCuentaNodo): void {
+  cuentaEnEdicion.value = null
+  cuentaPadreParaNueva.value = fila
+}
+
+function abrirEdicionCuenta(fila: ContableCuentaNodo): void {
+  cuentaPadreParaNueva.value = null
+  cuentaEnEdicion.value = fila
+}
+
+function cerrarDrawerCuenta(): void {
+  cuentaPadreParaNueva.value = null
+  cuentaEnEdicion.value = null
+}
+
+async function alCrearCuenta(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  cerrarDrawerCuenta()
+  if (!tenantId) return
+  aviso.value = 'Cuenta creada.'
+  await contabilidadStore.cargarPlan(tenantId)
+}
+
+async function alEditarCuenta(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  cerrarDrawerCuenta()
+  if (!tenantId) return
+  aviso.value = 'Cuenta actualizada.'
+  await contabilidadStore.cargarPlan(tenantId)
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
-        <h1 class="text-xl font-semibold mb-2">Plan de cuentas contable</h1>
-        <p class="text-sm text-muted max-w-2xl">
-          Responde <em>qué es contablemente</em> cada operación. Es una estructura distinta del
-          plan de cuentas presupuestal, que responde <em>en qué partida se planeó</em>: varias
-          partidas del presupuesto pueden compartir una misma cuenta contable, y lo que las
-          distingue viaja como dimensión del movimiento.
+        <h1 class="text-xl font-semibold mb-1">Plan de cuentas contable</h1>
+        <p class="text-sm text-muted flex items-center gap-2 flex-wrap">
+          Mantenimiento de la estructura del plan de cuentas
+          <button
+            v-if="contabilidadStore.tienePlan"
+            type="button"
+            class="flex items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            @click="resumenExpandido = !resumenExpandido"
+          >
+            <UIcon :name="resumenExpandido ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
+            {{ resumenExpandido ? 'Cerrar resumen' : 'Ver resumen' }}
+          </button>
         </p>
       </div>
       <UButton
@@ -210,7 +265,7 @@ function dimensiones(c: ContableCuentaNodo): string[] {
     </div>
 
     <template v-else>
-      <div class="grid gap-4 sm:grid-cols-4">
+      <div v-if="resumenExpandido" class="grid gap-4 sm:grid-cols-4">
         <div class="rounded-lg border border-default p-4">
           <p class="text-xs text-muted uppercase tracking-wide">Cuentas</p>
           <p class="text-lg font-semibold">{{ resumen.total }}</p>
@@ -292,14 +347,31 @@ function dimensiones(c: ContableCuentaNodo): string[] {
               @click="alternar(fila.codigo)"
             />
             <span v-else class="w-6" />
-            <span class="tabular-nums font-medium">{{ fila.codigo }}</span>
-            <span :class="fila.permite_movimiento ? '' : 'font-semibold'">{{ fila.nombre }}</span>
+            <button
+              type="button"
+              class="flex items-center gap-1 hover:underline hover:text-primary rounded-sm"
+              :title="`Editar ${fila.codigo} · ${fila.nombre}`"
+              @click="abrirEdicionCuenta(fila)"
+            >
+              <span class="tabular-nums font-medium">{{ fila.codigo }}</span>
+              <span :class="fila.permite_movimiento ? '' : 'font-semibold'">{{ fila.nombre }}</span>
+            </button>
             <UBadge v-if="!fila.activa" color="neutral" variant="subtle" size="xs">Inactiva</UBadge>
             <UIcon
               v-if="fundamentoDe(fila.codigo)"
               name="i-lucide-scale"
               class="size-3.5 text-muted shrink-0"
               :title="`${fundamentoDe(fila.codigo)!.norma}${fundamentoDe(fila.codigo)!.articulo ? ' — ' + fundamentoDe(fila.codigo)!.articulo : ''}: ${fundamentoDe(fila.codigo)!.descripcion ?? ''}`"
+            />
+            <UButton
+              v-if="fila.codigo.length < 9"
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-plus"
+              aria-label="Nueva cuenta"
+              :title="`Agregar cuenta bajo ${fila.codigo}`"
+              class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              @click="abrirNuevaCuenta(fila)"
             />
           </div>
         </template>
@@ -340,5 +412,20 @@ function dimensiones(c: ContableCuentaNodo): string[] {
         uso no se puede desactivar: primero hay que reasignar sus partidas en el mapeo.
       </p>
     </template>
+
+    <ContabilidadCuentaDrawer
+      v-if="cuentaPadreParaNueva && tenantStore.activeTenant"
+      :tenant-id="tenantStore.activeTenant.id"
+      :cuenta-padre="cuentaPadreParaNueva"
+      @cerrar="cerrarDrawerCuenta"
+      @creada="alCrearCuenta"
+    />
+    <ContabilidadCuentaDrawer
+      v-if="cuentaEnEdicion && tenantStore.activeTenant"
+      :tenant-id="tenantStore.activeTenant.id"
+      :cuenta="cuentaEnEdicion"
+      @cerrar="cerrarDrawerCuenta"
+      @editada="alEditarCuenta"
+    />
   </div>
 </template>

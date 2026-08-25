@@ -1,30 +1,28 @@
 <script setup lang="ts">
-// Pestaña "Plan de cuentas" — fusión de lo que antes eran dos pestañas casi
-// idénticas: "Catálogo de cuentas" (administrar el árbol: crear/editar/
-// activar) y "Componentes presupuestales" (asignarle montos vía rubros).
-// Mismo árbol de presupuesto_cuenta (E8) visto desde dos ángulos — mockup
-// "Libro Presupuestal": un toggle "Ver montos / Editar estructura" en vez
-// de dos pantallas con el mismo árbol y el mismo botón "Nueva cuenta"
-// duplicado.
+// Pestaña "Plan de cuentas" — una sola tabla para estructura y montos, en vez del toggle
+// "Ver montos / Editar estructura" que tenía antes (dos pantallas casi idénticas del mismo
+// árbol de presupuesto_cuenta, E8). Fusión pedida por el usuario (2026-08-24) siguiendo la
+// misma filosofía ya aplicada en el plan de cuentas contable: el nombre es un link que edita
+// la cuenta, y un único "+" que solo aparece al pasar el ratón sobre el nombre agrega una
+// subcuenta (feedback de usuario, 2026-08-24: un "+" también junto al monto confundía — debe
+// haber uno solo por fila).
 //
-// "Ver montos" es el modo por defecto (para qué entra la mayoría de las
-// veces) y muestra egresos/ingresos separados igual que el Estado de
-// Resultado Integral real revisado (Casos de uso/Presupuesto), con el
-// panel de reconciliación (Σ rubros de egreso vs. monto_total) como barra
-// de progreso en vez de una línea de texto — es el desajuste más común y
-// el que bloquea activar el presupuesto.
+// Columnas fusionadas: Cuenta, Tipo, Orden, Monto, % del total, Activa. Código se quitó
+// (decisión explícita del usuario, 2026-08-24) — sigue viajando dentro de la cuenta y visible
+// al editarla, solo deja de ocupar columna propia. "Estado" (texto Activa/Inactiva) y
+// "Acciones" (el botón de activar/desactivar) eran dos columnas separadas en la antigua
+// "Editar estructura" — se fusionan en una sola ("Activa"): el icono/color del botón ya
+// comunica el estado, no hace falta repetirlo en texto aparte.
 //
-// "Editar estructura" es exactamente el contenido de la antigua página
-// /presupuesto/cuentas (luego PresupuestoTabCuentas.vue) — administración
-// del árbol, sin cambios de lógica, solo de ubicación.
+// El botón genérico "Agregar rubro" de la cabecera se quitó (decisión explícita del usuario):
+// el "+" por fila ya cubre el caso con la cuenta preseleccionada, que es estrictamente mejor
+// que abrir el drawer y tener que elegirla a mano.
 const props = defineProps<{ presupuestoId: string | null }>()
 
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 const conceptoStore = useConceptoStore()
-
-const modoVista = ref<'montos' | 'estructura'>('montos')
 
 watch(
   () => props.presupuestoId,
@@ -267,20 +265,14 @@ function detalleRubrosRelevante(cuenta: CuentaFila): boolean {
   return unico.fundamento_normativo_id !== null || unico.codigo !== cuenta.codigo || unico.nombre !== cuenta.nombre
 }
 
-const drawerRubroAbierto = ref(false)
+// El "+" para crear un rubro nuevo se quitó de la columna Monto (feedback de usuario,
+// 2026-08-24: solo debe haber un "+" por fila, junto al nombre, para agregar subcuenta). El
+// alta del primer rubro de una cuenta hoja sigue cubierta por la edición en línea del monto
+// (guardarMonto, arriba); este drawer ahora solo se abre en modo edición.
 const rubroEnEdicion = ref<(typeof presupuestoStore.rubros)[number] | null>(null)
-const cuentaIdParaNuevoRubro = ref<string | undefined>(undefined)
-
-function abrirNuevoRubro(): void {
-  rubroEnEdicion.value = null
-  cuentaIdParaNuevoRubro.value = undefined
-  drawerRubroAbierto.value = true
-}
 
 function abrirEdicionRubro(rubro: (typeof presupuestoStore.rubros)[number]): void {
   rubroEnEdicion.value = rubro
-  cuentaIdParaNuevoRubro.value = undefined
-  drawerRubroAbierto.value = true
 }
 
 // ── Monto anual editable en la propia fila de la cuenta ──────────────────
@@ -409,9 +401,7 @@ function enfocarMonto(el: unknown): void {
 }
 
 function cerrarDrawerRubro(): void {
-  drawerRubroAbierto.value = false
   rubroEnEdicion.value = null
-  cuentaIdParaNuevoRubro.value = undefined
 }
 
 function onRubroGuardado(): void {
@@ -419,10 +409,11 @@ function onRubroGuardado(): void {
   if (props.presupuestoId) presupuestoStore.cargarTotalesCuenta(props.presupuestoId)
 }
 
-// ── "Editar estructura" — administración del árbol (antes /presupuesto/cuentas), separado en
-// Egresos/Ingresos (arbolEgresos/arbolIngresos, arriba) — antes era una sola tabla ordenada por
-// `ruta` sin separar naturaleza, y esos dos árboles pueden interleavarse en el orden lexicográfico
-// (feedback de usuario: la tabla mezclaba cuentas de Ingreso y Egreso sin ninguna agrupación). ──
+// ── Administración del árbol (antes /presupuesto/cuentas, luego "Editar estructura") ─────────
+// Separado en Egresos/Ingresos (arbolEgresos/arbolIngresos, arriba) — antes era una sola tabla
+// ordenada por `ruta` sin separar naturaleza, y esos dos árboles pueden interleavarse en el
+// orden lexicográfico (feedback de usuario: la tabla mezclaba cuentas de Ingreso y Egreso sin
+// ninguna agrupación).
 const drawerCuentaAbierto = ref(false)
 const cuentaEnEdicion = ref<(typeof presupuestoStore.cuentas)[number] | null>(null)
 const parentIdParaNueva = ref<string | undefined>(undefined)
@@ -469,93 +460,57 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
 
 <template>
   <div class="space-y-6 max-w-[1030px] mx-auto">
-    <div class="flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <h2 class="text-lg font-semibold">Plan de cuentas</h2>
-        <p class="text-sm text-gray-500">
-          La estructura de cuentas es fija por copropiedad; los montos se asignan por cada
-          presupuesto.
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-800 p-0.5">
-          <UButton
-            type="button"
-            size="xs"
-            :variant="modoVista === 'montos' ? 'solid' : 'ghost'"
-            @click="modoVista = 'montos'"
-          >
-            Ver montos
-          </UButton>
-          <UButton
-            type="button"
-            size="xs"
-            :variant="modoVista === 'estructura' ? 'solid' : 'ghost'"
-            @click="modoVista = 'estructura'"
-          >
-            Editar estructura
-          </UButton>
-        </div>
-        <UButton
-          v-if="modoVista === 'montos' && presupuestoSeleccionado?.estado === 'borrador'"
-          size="xs"
-          @click="abrirNuevoRubro()"
-        >
-          Agregar rubro
-        </UButton>
-        <UButton v-else-if="modoVista === 'estructura'" size="xs" variant="soft" @click="abrirNuevaCuenta()">
-          Nueva cuenta
-        </UButton>
-      </div>
+    <div>
+      <h2 class="text-lg font-semibold">Plan de cuentas</h2>
+      <p class="text-sm text-gray-500">
+        La estructura de cuentas es fija por copropiedad; los montos se asignan por cada
+        presupuesto.
+      </p>
     </div>
 
-    <!-- ══════════════════ Ver montos ══════════════════ -->
-    <template v-if="modoVista === 'montos'">
-      <div
-        v-if="presupuestoSeleccionado"
-        class="rounded-lg border p-4"
-        :class="
-          reconciliado
-            ? 'border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
-            : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20'
-        "
-      >
-        <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
-          <p class="text-sm">
-            <span class="text-xl font-semibold tabular-nums">{{ formatoMoneda(sumaEgresos) }}</span>
-            <span class="text-gray-500"> asignados de {{ formatoMoneda(montoTotal) }} en rubros de egreso</span>
-          </p>
-        </div>
-        <div class="h-1.5 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden mb-2">
-          <div
-            class="h-full rounded-full transition-all"
-            :class="reconciliado ? 'bg-green-500' : 'bg-amber-500'"
-            :style="{ width: `${porcentajeAsignado}%` }"
-          />
-        </div>
-        <p class="text-xs" :class="reconciliado ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'">
-          <template v-if="reconciliado">
-            Los rubros de egreso cuadran con el monto total — este presupuesto puede activarse.
-          </template>
-          <template v-else>
-            Faltan <strong class="tabular-nums">{{ formatoMoneda(faltante) }}</strong> por distribuir. Para
-            activar este presupuesto, la suma de los rubros de egreso debe igualar el monto total
-            aprobado en asamblea.
-          </template>
+    <div
+      v-if="presupuestoSeleccionado"
+      class="rounded-lg border p-4"
+      :class="
+        reconciliado
+          ? 'border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
+          : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20'
+      "
+    >
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-sm">
+          <span class="text-xl font-semibold tabular-nums">{{ formatoMoneda(sumaEgresos) }}</span>
+          <span class="text-gray-500"> asignados de {{ formatoMoneda(montoTotal) }} en rubros de egreso</span>
         </p>
       </div>
-
-      <UAlert v-if="errorMonto" color="error" variant="soft" :title="errorMonto" />
-
-      <p v-if="presupuestoSeleccionado?.estado === 'borrador'" class="text-xs text-gray-500">
-        Haz clic sobre el monto de una cuenta para escribir su valor anual.
+      <div class="h-1.5 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden mb-2">
+        <div
+          class="h-full rounded-full transition-all"
+          :class="reconciliado ? 'bg-green-500' : 'bg-amber-500'"
+          :style="{ width: `${porcentajeAsignado}%` }"
+        />
+      </div>
+      <p class="text-xs" :class="reconciliado ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'">
+        <template v-if="reconciliado">
+          Los rubros de egreso cuadran con el monto total — este presupuesto puede activarse.
+        </template>
+        <template v-else>
+          Faltan <strong class="tabular-nums">{{ formatoMoneda(faltante) }}</strong> por distribuir. Para
+          activar este presupuesto, la suma de los rubros de egreso debe igualar el monto total
+          aprobado en asamblea.
+        </template>
       </p>
+    </div>
 
-      <section
-        v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]"
-        :key="seccion.titulo"
-      >
-        <div class="flex items-center gap-2 mb-2">
+    <UAlert v-if="errorMonto" color="error" variant="soft" :title="errorMonto" />
+    <UAlert v-if="errorActiva" color="error" variant="soft" :title="errorActiva" />
+
+    <section
+      v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]"
+      :key="seccion.titulo"
+    >
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold">{{ seccion.titulo }}</h3>
           <UButton
             v-if="seccion.titulo === 'Egresos' && idsGrupo.length > 0"
@@ -567,57 +522,97 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
           </UButton>
         </div>
-        <!-- claseCelda 'w-px whitespace-nowrap' en monto/porcentaje: sin table-layout:fixed, una
-             tabla HTML reparte el ancho sobrante entre las columnas sin restricción — con solo
-             3 columnas y nombres de cuenta cortos (grupos contraídos), esa sobra caía sobre
-             "Monto" y separaba la cifra del "% del total" (screenshot del usuario). `width: 1%`
-             es el truco estándar para que una columna se ajuste a su contenido y toda la
-             sobra la absorba la única columna sin esa clase ("Cuenta"). -->
-        <UiTabla
-          :columnas="[
-            { clave: 'nombre', etiqueta: 'Cuenta' },
-            { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'w-px whitespace-nowrap' },
-            { clave: 'porcentaje', etiqueta: '% del total', alinear: 'derecha', claseCelda: 'w-px whitespace-nowrap' },
-          ]"
-          :filas="visibles(seccion.filas)"
-          :clave-fila="(fila) => fila.id"
-          vacio="Sin cuentas todavía."
+        <UButton
+          v-if="seccion.titulo === 'Egresos'"
+          size="xs"
+          variant="soft"
+          icon="i-lucide-plus"
+          @click="abrirNuevaCuenta()"
         >
-          <template #celda-nombre="{ fila }">
-            <div class="flex items-center gap-1" :style="{ paddingLeft: `${(fila.nivel - 1) * 16}px` }">
-              <button
-                v-if="!fila.es_hoja"
-                type="button"
-                class="flex size-5 shrink-0 items-center justify-center rounded border border-gray-300 text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
-                :aria-expanded="!gruposColapsados.has(fila.id)"
-                :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
-                @click="alternarGrupo(fila.id)"
-              >
-                <UIcon
-                  :name="gruposColapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
-                  class="size-4"
-                />
-              </button>
-              <span v-else class="size-5 shrink-0" aria-hidden="true" />
+          Nueva cuenta
+        </UButton>
+      </div>
+      <!-- `fijo` (table-layout: fixed): el truco `width: 1%` (auto-layout) solo insinúa
+           "encógete al contenido" — el navegador podía seguir estirando "Cuenta" más allá de lo
+           necesario y empujar Tipo/Orden lejos del nombre (feedback de usuario, screenshot).
+           Con `fijo`, cada `ancho` es una medida real y solo "Cuenta" queda sin `ancho` para
+           absorber el resto de forma determinista. -->
+      <UiTabla
+        fijo
+        :columnas="[
+          { clave: 'nombre', etiqueta: 'Cuenta' },
+          { clave: 'tipo', etiqueta: 'Tipo', ancho: '90px' },
+          { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha', ancho: '70px' },
+          { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', ancho: '200px' },
+          { clave: 'porcentaje', etiqueta: '% del total', alinear: 'derecha', ancho: '100px' },
+          { clave: 'activa', etiqueta: 'Activa', alinear: 'derecha', ancho: '70px' },
+        ]"
+        :filas="visibles(seccion.filas)"
+        :clave-fila="(fila) => fila.id"
+        vacio="Sin cuentas todavía."
+      >
+        <template #celda-nombre="{ fila }">
+          <div class="flex items-center gap-1" :style="{ paddingLeft: `${(fila.nivel - 1) * 16}px` }">
+            <button
+              v-if="!fila.es_hoja"
+              type="button"
+              class="flex size-5 shrink-0 items-center justify-center rounded border border-gray-300 text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
+              :aria-expanded="!gruposColapsados.has(fila.id)"
+              :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
+              @click="alternarGrupo(fila.id)"
+            >
+              <UIcon
+                :name="gruposColapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                class="size-4"
+              />
+            </button>
+            <span v-else class="size-5 shrink-0" aria-hidden="true" />
+            <button
+              type="button"
+              class="flex items-center gap-1 hover:underline hover:text-primary rounded-sm"
+              :title="`Editar ${fila.nombre}`"
+              @click="abrirEdicionCuenta(fila)"
+            >
               <span :class="{ 'font-medium': fila.nivel === 1 }">{{ fila.nombre }}</span>
-              <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
-                ({{ conteoDescendientes.get(fila.id) ?? 0 }})
-              </span>
-              <UBadge v-if="fila.es_hoja && cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle">
-                cobro automático
-              </UBadge>
-              <UBadge
-                v-else-if="fila.es_hoja && sinFuenteVinculada(fila)"
-                size="xs"
-                color="warning"
-                variant="subtle"
-                :title="'Este ingreso no tiene una fuente de financiación vinculada en la pestaña Fuentes de financiación.'"
-              >
-                sin fuente vinculada
-              </UBadge>
-            </div>
-          </template>
-          <template #celda-monto="{ fila }">
+            </button>
+            <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
+              ({{ conteoDescendientes.get(fila.id) ?? 0 }})
+            </span>
+            <UBadge v-if="fila.es_hoja && cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle">
+              cobro automático
+            </UBadge>
+            <UBadge
+              v-else-if="fila.es_hoja && sinFuenteVinculada(fila)"
+              size="xs"
+              color="warning"
+              variant="subtle"
+              :title="'Este ingreso no tiene una fuente de financiación vinculada en la pestaña Fuentes de financiación.'"
+            >
+              sin fuente vinculada
+            </UBadge>
+            <UIcon
+              v-if="!fila.es_hoja && gruposDeUnSoloHijo.has(fila.id)"
+              name="i-lucide-triangle-alert"
+              class="size-3.5 shrink-0 text-amber-500"
+              :title="`«${fila.nombre}» agrupa un solo elemento — considera moverlo directo a su padre en vez de mantener este grupo`"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-plus"
+              aria-label="Agregar subcuenta"
+              :title="`Agregar cuenta bajo ${fila.nombre}`"
+              class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              @click="abrirNuevaCuenta(fila.id)"
+            />
+          </div>
+        </template>
+        <template #celda-tipo="{ fila }">
+          <span class="text-gray-500">{{ fila.es_hoja ? 'Hoja' : 'Grupo' }}</span>
+        </template>
+        <template #celda-orden="{ fila }"><span class="text-gray-500 tabular-nums">{{ fila.orden }}</span></template>
+        <template #celda-monto="{ fila }">
+          <div class="flex items-center justify-end gap-1">
             <input
               v-if="montoEditandoCuentaId === fila.id"
               :ref="enfocarMonto"
@@ -646,162 +641,13 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
               />
             </button>
             <span v-else class="tabular-nums">{{ formatoMoneda(totalPorCuenta.get(fila.id) ?? 0) }}</span>
-          </template>
-          <template #celda-porcentaje="{ fila }">
-            <span class="text-gray-500 tabular-nums">{{ porcentajeDelTotal(fila.id) }}</span>
-          </template>
-        </UiTabla>
-
-        <!-- No se filtra por es_hoja: una cuenta que era hoja y ganó hijos después conserva los
-             rubros que ya tenía directamente (E8, caso real verificado en dev) — siguen contando
-             en su subtotal, así que también deben verse en el detalle si es relevante (ver
-             detalleRubrosRelevante: oculta el caso común de un solo rubro que ya es un
-             duplicado exacto de la fila del árbol de arriba). -->
-        <div v-for="cuenta in visibles(seccion.filas).filter(detalleRubrosRelevante)" :key="cuenta.id" class="mt-3">
-          <h4 class="text-xs font-medium text-gray-500 mb-1" :style="{ paddingLeft: `${(cuenta.nivel - 1) * 16}px` }">
-            {{ cuenta.nombre }}
-          </h4>
-          <UiTabla
-            :columnas="[
-              { clave: 'codigo', etiqueta: 'Código' },
-              { clave: 'nombre', etiqueta: 'Nombre' },
-              { clave: 'montoAnual', etiqueta: 'Monto anual', alinear: 'derecha' },
-              { clave: 'fundamento', etiqueta: 'Fundamento' },
-              { clave: 'acciones', etiqueta: '' },
-            ]"
-            :filas="rubrosDeCuenta(cuenta.id)"
-            :clave-fila="(rubro) => rubro.id"
-          >
-            <template #celda-codigo="{ fila }">{{ fila.codigo }}</template>
-            <template #celda-nombre="{ fila }">{{ fila.nombre }}</template>
-            <template #celda-montoAnual="{ fila }">
-              <span class="tabular-nums">{{ formatoMoneda(fila.monto_anual) }}</span>
-            </template>
-            <template #celda-fundamento="{ fila }">
-              <span class="text-gray-500">
-                {{ fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—' }}
-              </span>
-            </template>
-            <template #celda-acciones="{ fila }">
-              <div class="flex justify-end">
-                <UButton
-                  v-if="presupuestoSeleccionado?.estado === 'borrador'"
-                  size="xs"
-                  variant="soft"
-                  icon="i-lucide-pencil"
-                  aria-label="Editar rubro"
-                  @click="abrirEdicionRubro(fila)"
-                />
-              </div>
-            </template>
-          </UiTabla>
-        </div>
-      </section>
-
-      <p v-if="cuentasConConceptoAutomatico.size > 0" class="text-xs text-gray-500">
-        <UBadge size="xs" variant="subtle">cobro automático</UBadge>
-        el valor de esta cuenta se toma directamente de lo facturado por el concepto vinculado —
-        no se digita a mano ni se puede editar aquí.
-      </p>
-
-      <PresupuestoRubroDrawer
-        v-if="drawerRubroAbierto && presupuestoId"
-        :presupuesto-id="presupuestoId"
-        :rubro="rubroEnEdicion ?? undefined"
-        :cuenta-id-inicial="cuentaIdParaNuevoRubro"
-        @cerrar="cerrarDrawerRubro"
-        @creado="onRubroGuardado"
-        @editado="onRubroGuardado"
-      />
-    </template>
-
-    <!-- ══════════════════ Editar estructura ══════════════════ -->
-    <template v-else>
-      <UAlert v-if="errorActiva" color="error" variant="soft" :title="errorActiva" />
-
-      <section
-        v-for="seccion in [{ titulo: 'Egresos', filas: arbolEgresos }, { titulo: 'Ingresos', filas: arbolIngresos }]"
-        :key="seccion.titulo"
-      >
-        <div class="flex items-center gap-2 mb-2">
-          <h3 class="text-sm font-semibold">{{ seccion.titulo }}</h3>
-          <UButton
-            v-if="seccion.titulo === 'Egresos' && idsGrupo.length > 0"
-            size="xs"
-            variant="ghost"
-            :icon="todoContraido ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevrons-down-up'"
-            @click="alternarTodo()"
-          >
-            {{ todoContraido ? 'Expandir todo' : 'Contraer todo' }}
-          </UButton>
-        </div>
-        <UiTabla
-          :columnas="[
-            { clave: 'nombre', etiqueta: 'Cuenta' },
-            { clave: 'codigo', etiqueta: 'Código' },
-            { clave: 'tipo', etiqueta: 'Tipo' },
-            { clave: 'orden', etiqueta: 'Orden', alinear: 'derecha' },
-            { clave: 'estado', etiqueta: 'Estado' },
-            { clave: 'acciones', etiqueta: '' },
-          ]"
-          :filas="visibles(seccion.filas)"
-          :clave-fila="(fila) => fila.id"
-          vacio="Sin cuentas todavía."
-        >
-        <template #celda-nombre="{ fila }">
-          <div class="flex items-center gap-1" :style="{ paddingLeft: `${(fila.nivel - 1) * 16}px` }">
-            <button
-              v-if="!fila.es_hoja"
-              type="button"
-              class="flex size-5 shrink-0 items-center justify-center rounded border border-gray-300 text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
-              :aria-expanded="!gruposColapsados.has(fila.id)"
-              :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
-              @click="alternarGrupo(fila.id)"
-            >
-              <UIcon
-                :name="gruposColapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
-                class="size-4"
-              />
-            </button>
-            <span v-else class="size-5 shrink-0" aria-hidden="true" />
-            <span :class="{ 'font-medium': fila.nivel === 1 }">{{ fila.nombre }}</span>
-            <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
-              ({{ conteoDescendientes.get(fila.id) ?? 0 }})
-            </span>
-            <UIcon
-              v-if="!fila.es_hoja && gruposDeUnSoloHijo.has(fila.id)"
-              name="i-lucide-triangle-alert"
-              class="size-3.5 shrink-0 text-amber-500"
-              :title="`«${fila.nombre}» agrupa un solo elemento — considera moverlo directo a su padre en vez de mantener este grupo`"
-            />
           </div>
         </template>
-        <template #celda-codigo="{ fila }"><span class="font-mono text-xs">{{ fila.codigo }}</span></template>
-        <template #celda-tipo="{ fila }">
-          <span class="text-gray-500">{{ fila.es_hoja ? 'Hoja' : 'Grupo' }}</span>
+        <template #celda-porcentaje="{ fila }">
+          <span class="text-gray-500 tabular-nums">{{ porcentajeDelTotal(fila.id) }}</span>
         </template>
-        <template #celda-orden="{ fila }"><span class="text-gray-500 tabular-nums">{{ fila.orden }}</span></template>
-        <template #celda-estado="{ fila }">
-          <span :class="fila.activa ? 'text-green-600' : 'text-gray-400'">
-            {{ fila.activa ? 'Activa' : 'Inactiva' }}
-          </span>
-        </template>
-        <template #celda-acciones="{ fila }">
-          <div class="flex justify-end gap-2">
-            <UButton
-              size="xs"
-              variant="soft"
-              icon="i-lucide-pencil"
-              aria-label="Editar"
-              @click="abrirEdicionCuenta(fila)"
-            />
-            <UButton
-              size="xs"
-              variant="soft"
-              icon="i-lucide-plus"
-              aria-label="Agregar subcuenta"
-              @click="abrirNuevaCuenta(fila.id)"
-            />
+        <template #celda-activa="{ fila }">
+          <div class="flex justify-end">
             <UButton
               size="xs"
               variant="ghost"
@@ -813,18 +659,75 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             />
           </div>
         </template>
-        </UiTabla>
-      </section>
+      </UiTabla>
 
-      <PresupuestoCuentaDrawer
-        v-if="drawerCuentaAbierto && tenantStore.activeTenant"
-        :tenant-id="tenantStore.activeTenant.id"
-        :cuenta="cuentaEnEdicion ?? undefined"
-        :parent-id-inicial="parentIdParaNueva"
-        @cerrar="cerrarDrawerCuenta"
-        @creada="cerrarDrawerCuenta"
-        @editada="cerrarDrawerCuenta"
-      />
-    </template>
+      <!-- No se filtra por es_hoja: una cuenta que era hoja y ganó hijos después conserva los
+           rubros que ya tenía directamente (E8, caso real verificado en dev) — siguen contando
+           en su subtotal, así que también deben verse en el detalle si es relevante (ver
+           detalleRubrosRelevante: oculta el caso común de un solo rubro que ya es un
+           duplicado exacto de la fila del árbol de arriba). -->
+      <div v-for="cuenta in visibles(seccion.filas).filter(detalleRubrosRelevante)" :key="cuenta.id" class="mt-3">
+        <h4 class="text-xs font-medium text-gray-500 mb-1" :style="{ paddingLeft: `${(cuenta.nivel - 1) * 16}px` }">
+          {{ cuenta.nombre }}
+        </h4>
+        <UiTabla
+          :columnas="[
+            { clave: 'codigo', etiqueta: 'Código' },
+            { clave: 'nombre', etiqueta: 'Nombre' },
+            { clave: 'montoAnual', etiqueta: 'Monto anual', alinear: 'derecha' },
+            { clave: 'fundamento', etiqueta: 'Fundamento' },
+          ]"
+          :filas="rubrosDeCuenta(cuenta.id)"
+          :clave-fila="(rubro) => rubro.id"
+        >
+          <template #celda-codigo="{ fila }">{{ fila.codigo }}</template>
+          <template #celda-nombre="{ fila }">
+            <button
+              v-if="presupuestoSeleccionado?.estado === 'borrador'"
+              type="button"
+              class="hover:underline hover:text-primary rounded-sm"
+              :title="`Editar rubro ${fila.nombre}`"
+              @click="abrirEdicionRubro(fila)"
+            >
+              {{ fila.nombre }}
+            </button>
+            <span v-else>{{ fila.nombre }}</span>
+          </template>
+          <template #celda-montoAnual="{ fila }">
+            <span class="tabular-nums">{{ formatoMoneda(fila.monto_anual) }}</span>
+          </template>
+          <template #celda-fundamento="{ fila }">
+            <span class="text-gray-500">
+              {{ fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—' }}
+            </span>
+          </template>
+        </UiTabla>
+      </div>
+    </section>
+
+    <p v-if="cuentasConConceptoAutomatico.size > 0" class="text-xs text-gray-500">
+      <UBadge size="xs" variant="subtle">cobro automático</UBadge>
+      el valor de esta cuenta se toma directamente de lo facturado por el concepto vinculado —
+      no se digita a mano ni se puede editar aquí.
+    </p>
+
+    <PresupuestoRubroDrawer
+      v-if="rubroEnEdicion && presupuestoId"
+      :presupuesto-id="presupuestoId"
+      :rubro="rubroEnEdicion"
+      @cerrar="cerrarDrawerRubro"
+      @creado="onRubroGuardado"
+      @editado="onRubroGuardado"
+    />
+
+    <PresupuestoCuentaDrawer
+      v-if="drawerCuentaAbierto && tenantStore.activeTenant"
+      :tenant-id="tenantStore.activeTenant.id"
+      :cuenta="cuentaEnEdicion ?? undefined"
+      :parent-id-inicial="parentIdParaNueva"
+      @cerrar="cerrarDrawerCuenta"
+      @creada="cerrarDrawerCuenta"
+      @editada="cerrarDrawerCuenta"
+    />
   </div>
 </template>
