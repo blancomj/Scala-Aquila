@@ -567,6 +567,7 @@ export type Database = {
       cargos: {
         Row: {
           cargo_capital_origen_id: string | null
+          cargo_reversado_id: string | null
           categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id: string | null
           created_at: string
@@ -582,6 +583,7 @@ export type Database = {
         }
         Insert: {
           cargo_capital_origen_id?: string | null
+          cargo_reversado_id?: string | null
           categoria: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
@@ -597,6 +599,7 @@ export type Database = {
         }
         Update: {
           cargo_capital_origen_id?: string | null
+          cargo_reversado_id?: string | null
           categoria?: Database["public"]["Enums"]["cargo_categoria_t"]
           concepto_id?: string | null
           created_at?: string
@@ -621,6 +624,20 @@ export type Database = {
           {
             foreignKeyName: "cargos_cargo_capital_origen_id_fkey"
             columns: ["cargo_capital_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_cargo_reversado_id_fkey"
+            columns: ["cargo_reversado_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_cargo_reversado_id_fkey"
+            columns: ["cargo_reversado_id"]
             isOneToOne: false
             referencedRelation: "v_cargo_saldo"
             referencedColumns: ["id"]
@@ -1607,7 +1624,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number | null
+          nivel: number
           nombre: string
           parent_id: string | null
           permite_movimiento: boolean
@@ -1626,7 +1643,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number | null
+          nivel?: number
           nombre: string
           parent_id?: string | null
           permite_movimiento?: boolean
@@ -1645,7 +1662,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number | null
+          nivel?: number
           nombre?: string
           parent_id?: string | null
           permite_movimiento?: boolean
@@ -1779,7 +1796,7 @@ export type Database = {
           fundamento_normativo_id: number | null
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number | null
+          nivel: number
           nombre: string
           opcional: boolean
           parent_id: string | null
@@ -1797,7 +1814,7 @@ export type Database = {
           fundamento_normativo_id?: number | null
           id?: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number | null
+          nivel?: number
           nombre: string
           opcional?: boolean
           parent_id?: string | null
@@ -1815,7 +1832,7 @@ export type Database = {
           fundamento_normativo_id?: number | null
           id?: string
           naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel?: number | null
+          nivel?: number
           nombre?: string
           opcional?: boolean
           parent_id?: string | null
@@ -2170,6 +2187,8 @@ export type Database = {
           generado_por: string | null
           id: string
           inmueble_id: string
+          liquidacion_id: string | null
+          periodo_id: string | null
           tenant_id: string
         }
         Insert: {
@@ -2178,6 +2197,8 @@ export type Database = {
           generado_por?: string | null
           id?: string
           inmueble_id: string
+          liquidacion_id?: string | null
+          periodo_id?: string | null
           tenant_id: string
         }
         Update: {
@@ -2186,6 +2207,8 @@ export type Database = {
           generado_por?: string | null
           id?: string
           inmueble_id?: string
+          liquidacion_id?: string | null
+          periodo_id?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -2208,6 +2231,20 @@ export type Database = {
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estados_cuenta_generados_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estados_cuenta_generados_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
             referencedColumns: ["id"]
           },
           {
@@ -4099,6 +4136,7 @@ export type Database = {
             | null
           interes_tope_mensual: number | null
           policy_hash: string
+          reconocimiento_ingreso: Database["public"]["Enums"]["presupuesto_reconocimiento_ingreso_t"]
           redondeo_escala: number
           redondeo_modo: Database["public"]["Enums"]["redondeo_modo_t"]
           residual_metodo: Database["public"]["Enums"]["residual_metodo_t"]
@@ -4129,6 +4167,7 @@ export type Database = {
             | null
           interes_tope_mensual?: number | null
           policy_hash: string
+          reconocimiento_ingreso?: Database["public"]["Enums"]["presupuesto_reconocimiento_ingreso_t"]
           redondeo_escala?: number
           redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
           residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
@@ -4159,6 +4198,7 @@ export type Database = {
             | null
           interes_tope_mensual?: number | null
           policy_hash?: string
+          reconocimiento_ingreso?: Database["public"]["Enums"]["presupuesto_reconocimiento_ingreso_t"]
           redondeo_escala?: number
           redondeo_modo?: Database["public"]["Enums"]["redondeo_modo_t"]
           residual_metodo?: Database["public"]["Enums"]["residual_metodo_t"]
@@ -5808,6 +5848,10 @@ export type Database = {
           promesas_por_vencer_monto: number
         }[]
       }
+      fn_anular_liquidacion: {
+        Args: { p_liquidacion_id: string; p_motivo: string }
+        Returns: Json
+      }
       fn_aplicar_liquidacion: {
         Args: { p_liquidacion_id: string; p_snapshot_hash?: string }
         Returns: Json
@@ -5908,6 +5952,10 @@ export type Database = {
           interes_causado: number
           saldo_credito: number
         }[]
+      }
+      fn_emitir_estados_cuenta: {
+        Args: { p_liquidacion_id: string }
+        Returns: number
       }
       fn_evolucion_cartera_vencida: {
         Args: { p_fecha_hasta: string; p_meses?: number; p_tenant_id: string }
@@ -6314,7 +6362,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
-          nivel: number | null
+          nivel: number
           nombre: string
           parent_id: string | null
           permite_movimiento: boolean
@@ -6457,6 +6505,7 @@ export type Database = {
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       presupuesto_cuenta_naturaleza_t: "ingreso" | "egreso"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
+      presupuesto_reconocimiento_ingreso_t: "causacion" | "caja"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       residual_metodo_t: "mayor_resto"
       resultado_accion_cobranza_t:
@@ -6796,6 +6845,7 @@ export const Constants = {
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       presupuesto_cuenta_naturaleza_t: ["ingreso", "egreso"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
+      presupuesto_reconocimiento_ingreso_t: ["causacion", "caja"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       residual_metodo_t: ["mayor_resto"],
       resultado_accion_cobranza_t: [
