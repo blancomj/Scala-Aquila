@@ -4118,6 +4118,9 @@ export type Database = {
         Row: {
           coeficientes_suma_esperada: number
           created_at: string
+          descuento_pronto_pago_dias: number
+          descuento_pronto_pago_modo: Database["public"]["Enums"]["descuento_pronto_pago_modo_t"]
+          descuento_pronto_pago_porcentaje: number
           estado: Database["public"]["Enums"]["vigencia_estado_t"]
           fondo_imprevistos_base:
             | Database["public"]["Enums"]["fondo_base_calculo_t"]
@@ -4149,6 +4152,9 @@ export type Database = {
         Insert: {
           coeficientes_suma_esperada?: number
           created_at?: string
+          descuento_pronto_pago_dias?: number
+          descuento_pronto_pago_modo?: Database["public"]["Enums"]["descuento_pronto_pago_modo_t"]
+          descuento_pronto_pago_porcentaje?: number
           estado?: Database["public"]["Enums"]["vigencia_estado_t"]
           fondo_imprevistos_base?:
             | Database["public"]["Enums"]["fondo_base_calculo_t"]
@@ -4180,6 +4186,9 @@ export type Database = {
         Update: {
           coeficientes_suma_esperada?: number
           created_at?: string
+          descuento_pronto_pago_dias?: number
+          descuento_pronto_pago_modo?: Database["public"]["Enums"]["descuento_pronto_pago_modo_t"]
+          descuento_pronto_pago_porcentaje?: number
           estado?: Database["public"]["Enums"]["vigencia_estado_t"]
           fondo_imprevistos_base?:
             | Database["public"]["Enums"]["fondo_base_calculo_t"]
@@ -5852,6 +5861,10 @@ export type Database = {
         Args: { p_liquidacion_id: string; p_motivo: string }
         Returns: Json
       }
+      fn_aplicar_descuento_pronto_pago: {
+        Args: { p_pago_id: string }
+        Returns: number
+      }
       fn_aplicar_liquidacion: {
         Args: { p_liquidacion_id: string; p_snapshot_hash?: string }
         Returns: Json
@@ -6392,7 +6405,7 @@ export type Database = {
         | "fisico"
         | "interno"
       cargo_categoria_t: "capital" | "interes" | "otro"
-      cargo_origen_t: "liquidacion_linea" | "novedad" | "interes"
+      cargo_origen_t: "liquidacion_linea" | "novedad" | "interes" | "descuento"
       concepto_alcance_t: "todos" | "calculado"
       concepto_estado_t: "borrador" | "en_revision" | "activo" | "archivado"
       concepto_modo_calculo_t: "directo" | "distribucion"
@@ -6410,6 +6423,7 @@ export type Database = {
         | "novedad"
       contable_naturaleza_t: "debito" | "credito"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
+      descuento_pronto_pago_modo_t: "reduce_deuda" | "saldo_a_favor"
       ejecucion_liquidacion_t: "pagado_banco" | "pagado_caja" | "por_pagar"
       estado_accion_cobranza_t:
         | "programada"
@@ -6719,7 +6733,7 @@ export const Constants = {
         "interno",
       ],
       cargo_categoria_t: ["capital", "interes", "otro"],
-      cargo_origen_t: ["liquidacion_linea", "novedad", "interes"],
+      cargo_origen_t: ["liquidacion_linea", "novedad", "interes", "descuento"],
       concepto_alcance_t: ["todos", "calculado"],
       concepto_estado_t: ["borrador", "en_revision", "activo", "archivado"],
       concepto_modo_calculo_t: ["directo", "distribucion"],
@@ -6739,6 +6753,7 @@ export const Constants = {
       ],
       contable_naturaleza_t: ["debito", "credito"],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
+      descuento_pronto_pago_modo_t: ["reduce_deuda", "saldo_a_favor"],
       ejecucion_liquidacion_t: ["pagado_banco", "pagado_caja", "por_pagar"],
       estado_accion_cobranza_t: [
         "programada",
