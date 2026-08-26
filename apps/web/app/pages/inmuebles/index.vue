@@ -433,17 +433,18 @@ function exportarCSV(): void {
     </div>
 
     <!-- ── acciones (siempre visibles — es el paso 1 del onboarding guiado,
-         nunca puede quedar oculto detrás del estado vacío) ────────────── -->
-    <div class="flex items-center justify-end">
+         nunca puede quedar oculto detrás del estado vacío). Sin inmuebles
+         todavía no hay fila de filtros donde meterlo, así que va en su
+         propia línea junto al texto vacío; con datos se une a la fila de
+         filtros más abajo. ────────────────────────────────────────────── -->
+    <div v-if="cuentaStore.inmuebles.length === 0" class="flex items-center justify-between gap-2">
+      <p class="text-neutral-500 text-sm">
+        Todavía no hay inmuebles registrados. Importa un lote desde Excel o crea el primero manualmente.
+      </p>
       <UDropdownMenu :items="menuAcciones">
         <UButton size="sm" variant="soft" trailing-icon="i-lucide-chevron-down">Acciones</UButton>
       </UDropdownMenu>
     </div>
-
-    <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
-      Todavía no hay inmuebles registrados. Importa un lote desde Excel o crea el primero manualmente
-      con los botones de arriba.
-    </p>
 
     <template v-else>
       <!-- ── resumen ──────────────────────────────────────────────────── -->
@@ -483,69 +484,75 @@ function exportarCSV(): void {
       </div>
 
       <!-- ── filtros ──────────────────────────────────────────────────── -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <UInput
-          v-model="busqueda"
-          size="sm"
-          icon="i-lucide-search"
-          placeholder="Buscar por código o propietario…"
-          class="w-64"
-        >
-          <template v-if="busqueda" #trailing>
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-x"
-              title="Limpiar búsqueda"
-              @click="busqueda = ''"
-            />
-          </template>
-        </UInput>
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <UInput
+            v-model="busqueda"
+            size="sm"
+            icon="i-lucide-search"
+            placeholder="Buscar por código o propietario…"
+            class="w-56"
+          >
+            <template v-if="busqueda" #trailing>
+              <UButton
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-x"
+                title="Limpiar búsqueda"
+                @click="busqueda = ''"
+              />
+            </template>
+          </UInput>
 
-        <USelect
-          v-model="filtroTipoId"
-          :items="[{ label: 'Todos los tipos', value: null }, ...(tipos ?? []).map((t) => ({ label: t.nombre, value: t.id }))]"
-          value-key="value"
-          size="sm"
-          class="w-44"
-        />
+          <USelect
+            v-model="filtroTipoId"
+            :items="[{ label: 'Todos los tipos', value: null }, ...(tipos ?? []).map((t) => ({ label: t.nombre, value: t.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-36"
+          />
 
-        <USelect
-          v-model="filtroAgrupacionId"
-          :items="[
-            { label: 'Toda agrupación', value: null },
-            { label: 'Sin agrupar', value: SIN_AGRUPAR },
-            ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
-          ]"
-          value-key="value"
-          size="sm"
-          class="w-44"
-        />
+          <USelect
+            v-model="filtroAgrupacionId"
+            :items="[
+              { label: 'Toda agrupación', value: null },
+              { label: 'Sin agrupar', value: SIN_AGRUPAR },
+              ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
+            ]"
+            value-key="value"
+            size="sm"
+            class="w-40"
+          />
 
-        <USelect
-          v-model="filtroUsoPredioId"
-          :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
-          value-key="value"
-          size="sm"
-          class="w-44"
-        />
+          <USelect
+            v-model="filtroUsoPredioId"
+            :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-36"
+          />
 
-        <USelect
-          v-model="filtroHabitabilidadId"
-          :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
-          value-key="value"
-          size="sm"
-          class="w-44"
-        />
+          <USelect
+            v-model="filtroHabitabilidadId"
+            :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-36"
+          />
 
-        <UButton
-          v-if="hayFiltrosActivos"
-          size="sm"
-          variant="ghost"
-          icon="i-lucide-x"
-          title="Limpiar filtros"
-          @click="limpiarFiltros"
-        />
+          <UButton
+            v-if="hayFiltrosActivos"
+            size="sm"
+            variant="ghost"
+            icon="i-lucide-x"
+            title="Limpiar filtros"
+            @click="limpiarFiltros"
+          />
+        </div>
+
+        <UDropdownMenu :items="menuAcciones">
+          <UButton size="sm" variant="soft" trailing-icon="i-lucide-chevron-down">Acciones</UButton>
+        </UDropdownMenu>
       </div>
 
       <!-- ── barra de selección ───────────────────────────────────────── -->
