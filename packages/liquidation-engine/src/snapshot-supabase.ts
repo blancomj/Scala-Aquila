@@ -26,7 +26,13 @@
  * real: `data` puede ser `null` sin error, y así se trata más abajo.
  */
 import type { AquilaClient } from '@aquila/shared'
-import { crearDecimal, money, type ModoRedondeo } from '@aquila/financial-kernel'
+import {
+  crearDecimal,
+  money,
+  sumarDecimales,
+  type Decimal,
+  type ModoRedondeo,
+} from '@aquila/financial-kernel'
 import type { TypedValue } from '@aquila/ael-runtime'
 import type { AtributosInmueble } from './alcance.js'
 import type { DataSnapshot, SnapshotConcepto, SnapshotPeriodo } from './snapshot.js'
@@ -146,13 +152,18 @@ async function resolverAtributosInmueble(
     .eq('tenant_id', tenantId)
     .gt('monto_pendiente', 0)
   if (errorCargos) throw new Error(`No se pudo leer el saldo de cartera: ${errorCargos.message}`)
-  const saldoPorInmueble = new Map<string, number>()
+  const saldoPorInmueble = new Map<string, Decimal>()
   for (const c of cargosFilas) {
     // v_cargo_saldo tipa ambas columnas nullable (vista, no tabla) — en la
     // práctica nunca lo son para una fila real de cargo; se descarta la fila
     // en el caso imposible en vez de asumir 0 en silencio.
     if (c.inmueble_id === null || c.monto_pendiente === null) continue
-    saldoPorInmueble.set(c.inmueble_id, (saldoPorInmueble.get(c.inmueble_id) ?? 0) + c.monto_pendiente)
+    // H1 (auditoría 2026-08-26): suma con Decimal, no `+` de JS — única
+    // acumulación de dinero de este paquete que no pasaba por financial-kernel.
+    saldoPorInmueble.set(
+      c.inmueble_id,
+      (saldoPorInmueble.get(c.inmueble_id) ?? crearDecimal(0)).plus(c.monto_pendiente),
+    )
   }
 
   const resultado = new Map<string, Omit<AtributosInmueble, 'areaPrivada'>>()
@@ -380,10 +391,11 @@ export async function construirSnapshotDesdeSupabase(
     if (errorFuentes)
       throw new Error(`No se pudieron leer las fuentes de financiación: ${errorFuentes.message}`)
 
+    // H1 (auditoría 2026-08-26): suma con Decimal, no `+` de JS.
     const sumaPorCodigo = (codigo: string) =>
-      fuentes
-        .filter((f) => f.lista_tipos.codigo === codigo)
-        .reduce((acc, f) => acc + f.valor_aplicado, 0)
+      sumarDecimales(
+        fuentes.filter((f) => f.lista_tipos.codigo === codigo).map((f) => f.valor_aplicado),
+      )
 
     parametros.OTROS_INGRESOS_ANUAL = {
       tipo: 'MONEY',
