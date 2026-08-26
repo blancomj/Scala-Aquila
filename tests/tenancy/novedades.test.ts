@@ -360,4 +360,38 @@ d('crear-novedad / aprobar-novedad / rechazar-novedad (Edge Functions)', () => {
     expect(data).toBeNull()
     expect(response?.status).toBe(500)
   }, 30_000)
+
+  it('S1 (auditoría 2026-08-26): dos aprobaciones concurrentes no duplican el cargo', async () => {
+    const { data: novedad, error: errNovedad } = await admin
+      .from('novedades')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmuebleId,
+        tipo: 'CHARGE',
+        monto: 50_000,
+        descripcion: 'Concurrencia S1',
+        fecha_efectiva: '2027-01-20',
+        estado: 'pendiente',
+        created_by: agente.id,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errNovedad) throw new Error(`fixture novedad: ${errNovedad.message}`)
+
+    const [r1, r2] = await Promise.allSettled([
+      admin.rpc('fn_aprobar_novedad', { p_novedad_id: novedad.id, p_actor_id: agente.id }),
+      admin.rpc('fn_aprobar_novedad', { p_novedad_id: novedad.id, p_actor_id: agente.id }),
+    ])
+    const resultados = [r1, r2].map((r) => (r.status === 'fulfilled' ? r.value.error?.message : r.reason))
+    // Una gana, la otra falla con NOVEDAD_NO_PENDIENTE — nunca las dos en silencio.
+    expect(resultados.filter((m) => m === undefined)).toHaveLength(1)
+    expect(resultados.some((m) => m?.includes('NOVEDAD_NO_PENDIENTE'))).toBe(true)
+
+    const { data: cargos, error: errCargos } = await admin
+      .from('cargos')
+      .select('id')
+      .eq('novedad_id', novedad.id)
+    if (errCargos) throw new Error(`verificación cargos: ${errCargos.message}`)
+    expect(cargos).toHaveLength(1)
+  }, 30_000)
 })
