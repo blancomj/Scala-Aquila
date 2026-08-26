@@ -210,7 +210,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede registrar pagos.',
+        'Solo un auxiliar puede registrar pagos.',
         undefined,
         correlationId,
       )

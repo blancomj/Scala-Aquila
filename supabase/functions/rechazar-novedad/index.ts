@@ -91,7 +91,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede rechazar novedades.',
+        'Solo un auxiliar puede rechazar novedades.',
         undefined,
         correlationId,
       )

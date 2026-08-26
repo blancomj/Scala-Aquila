@@ -93,7 +93,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede aprobar novedades.',
+        'Solo un auxiliar puede aprobar novedades.',
         undefined,
         correlationId,
       )

@@ -152,7 +152,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede crear novedades.',
+        'Solo un auxiliar puede crear novedades.',
         undefined,
         correlationId,
       )

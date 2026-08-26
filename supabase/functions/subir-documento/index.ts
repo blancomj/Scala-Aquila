@@ -209,7 +209,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede subir documentos.',
+        'Solo un auxiliar puede subir documentos.',
         undefined,
         correlationId,
       )

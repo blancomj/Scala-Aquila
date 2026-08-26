@@ -119,7 +119,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede calcular intereses.',
+        'Solo un auxiliar puede calcular intereses.',
         undefined,
         correlationId,
       )

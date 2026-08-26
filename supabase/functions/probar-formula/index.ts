@@ -128,7 +128,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede probar fórmulas.',
+        'Solo un auxiliar puede probar fórmulas.',
         undefined,
         correlationId,
       )

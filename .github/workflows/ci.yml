@@ -27,6 +27,20 @@ jobs:
           fi
           echo "OK: ningún JWT en archivos versionados."
 
+      - name: Ninguna clave de Brevo/Supabase en archivos versionados
+        # M6 (auditoría externa 2026-08-26): el chequeo de arriba solo cubría
+        # el prefijo de un JWT — una clave de Brevo o un access token de la
+        # API de gestión de Supabase pasarían desapercibidos. Mismos
+        # patrones que se usan en producción real de este stack:
+        # xkeysib-/xsmtpsib- (Brevo), sbp_ (Supabase management API token).
+        run: |
+          if git ls-files -z -- ':!.github/workflows/ci.yml' \
+            | xargs -0 grep -lE 'xkeysib-|xsmtpsib-|sbp_[a-f0-9]{40}' 2>/dev/null; then
+            echo "::error::Se encontró una clave de Brevo o un token de Supabase en un archivo versionado."
+            exit 1
+          fi
+          echo "OK: ninguna clave de Brevo/Supabase en archivos versionados."
+
       - name: .env.example sin valores
         run: |
           if grep -E '^(SUPABASE_|BREVO_|UPSTASH_)[A-Z_]+=.+' .env.example; then

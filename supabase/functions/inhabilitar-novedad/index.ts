@@ -93,7 +93,7 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un agent puede inhabilitar novedades.',
+        'Solo un auxiliar puede inhabilitar novedades.',
         undefined,
         correlationId,
       )
