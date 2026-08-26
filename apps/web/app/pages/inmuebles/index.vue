@@ -416,8 +416,27 @@ function exportarCSV(): void {
       </p>
     </div>
 
+    <!-- ── acciones (siempre visibles — es el paso 1 del onboarding guiado,
+         nunca puede quedar oculto detrás del estado vacío) ────────────── -->
+    <div class="flex items-center justify-end gap-2">
+      <UButton
+        v-if="cuentaStore.inmuebles.length > 0"
+        size="sm"
+        variant="soft"
+        icon="i-lucide-download"
+        @click="exportarCSV"
+      >
+        Exportar
+      </UButton>
+      <UButton size="sm" variant="soft" icon="i-lucide-upload" @click="importarAbierto = true">
+        Importar desde Excel
+      </UButton>
+      <UButton size="sm" to="/inmuebles/nuevo">Nuevo inmueble</UButton>
+    </div>
+
     <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
-      Todavía no hay inmuebles registrados.
+      Todavía no hay inmuebles registrados. Importa un lote desde Excel o crea el primero manualmente
+      con los botones de arriba.
     </p>
 
     <template v-else>
@@ -524,15 +543,6 @@ function exportarCSV(): void {
           />
         </div>
 
-        <div class="flex items-center gap-2">
-          <UButton size="sm" variant="soft" icon="i-lucide-download" @click="exportarCSV">
-            Exportar
-          </UButton>
-          <UButton size="sm" variant="soft" icon="i-lucide-upload" @click="importarAbierto = true">
-            Importar desde Excel
-          </UButton>
-          <UButton size="sm" to="/inmuebles/nuevo">Nuevo inmueble</UButton>
-        </div>
       </div>
 
       <!-- ── barra de selección ───────────────────────────────────────── -->
