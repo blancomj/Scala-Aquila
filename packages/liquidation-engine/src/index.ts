@@ -29,8 +29,6 @@ export { construirSnapshotDesdeSupabase, type OpcionesSnapshot } from './snapsho
 
 export { conceptoAplicaEnPeriodo } from './temporal.js'
 
-export { guardarLiquidacion } from './persistencia-supabase.js'
-
 export {
   DependenciaCiclicaError,
   DependenciaDesconocidaError,
@@ -211,12 +209,10 @@ export {
   obtenerPoliticaMora,
   obtenerPoliticaImputacion,
   registrarPago,
-  registrarCargosDeLiquidacion,
   registrarCargoInteres,
   obtenerUltimaFechaInteresPorCapital,
   generarCargosNovedadesPeriodo,
   type OpcionesCargosAbiertos,
   type PoliticaImputacion,
   type DatosPago,
-  type LiquidacionLineaInsertada,
 } from './cuenta-corriente-supabase.js'

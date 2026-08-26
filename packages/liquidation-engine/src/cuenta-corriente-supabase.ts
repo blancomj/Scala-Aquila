@@ -207,40 +207,6 @@ export async function registrarPago(
   return pago.id
 }
 
-/** Filas ya insertadas de liquidacion_lineas (con `.select()` sobre el insert). */
-export interface LiquidacionLineaInsertada {
-  readonly id: string
-  readonly inmueble_id: string
-  readonly concepto_id: string
-  readonly monto: number
-}
-
-/** AD-33 aplicado a capital: un cargo por cada línea de liquidación con monto != 0. */
-export async function registrarCargosDeLiquidacion(
-  cliente: AquilaClient,
-  tenantId: string,
-  periodoId: string,
-  lineas: readonly LiquidacionLineaInsertada[],
-): Promise<void> {
-  const cargos = lineas
-    .filter((l) => l.monto !== 0)
-    .map((l) => ({
-      tenant_id: tenantId,
-      inmueble_id: l.inmueble_id,
-      periodo_id: periodoId,
-      categoria: 'capital' as const,
-      origen_tipo: 'liquidacion_linea' as const,
-      liquidacion_linea_id: l.id,
-      concepto_id: l.concepto_id,
-      monto_original: l.monto,
-    }))
-  if (cargos.length === 0) return
-
-  const { error } = await cliente.from('cargos').insert(cargos)
-  if (error)
-    throw new Error(`No se pudieron registrar los cargos de la liquidación: ${error.message}`)
-}
-
 /** AD-33: el interés se registra como cargo categoria='interes', heredando periodo/inmueble del capital origen. */
 export async function registrarCargoInteres(
   cliente: AquilaClient,

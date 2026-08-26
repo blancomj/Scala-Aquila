@@ -65,12 +65,6 @@ verify_jwt = true
 import_map = "./functions/presupuesto-previsualizar/deno.json"
 entrypoint = "./functions/presupuesto-previsualizar/index.ts"
 
-[functions.liquidar-periodo]
-enabled = true
-verify_jwt = true
-import_map = "./functions/liquidar-periodo/deno.json"
-entrypoint = "./functions/liquidar-periodo/index.ts"
-
 [functions.crear-novedad]
 enabled = true
 verify_jwt = true

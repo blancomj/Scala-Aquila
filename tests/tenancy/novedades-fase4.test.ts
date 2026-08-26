@@ -47,9 +47,9 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
 }
 
 /** El concepto singleton "Novedad" (tipo_recurrencia='novedad') — creado
- * directo con el cliente admin, igual que CUOTA_ADMIN en
- * tests/tenancy/liquidar-periodo.test.ts, porque ConceptosEditor.vue no
- * forma parte del contrato HTTP que este archivo prueba. */
+ * directo con el cliente admin, igual que CUOTA_L7 en
+ * tests/liquidacion/flujo-dos-tiempos.test.ts, porque ConceptosEditor.vue
+ * no forma parte del contrato HTTP que este archivo prueba. */
 async function crearConceptoNovedad(admin: Cliente, tenantId: string): Promise<string> {
   const { data, error } = await admin
     .from('conceptos')

@@ -1,8 +1,9 @@
 /**
  * Conceptos avanzados Fase 2 — construirSnapshotDesdeSupabase() filtra
  * conceptos por tipo_recurrencia + fechas (temporal.ts::conceptoAplicaEnPeriodo)
- * contra un tenant y periodos sembrados a propósito para este test — no
- * toca los conceptos reales de GC-001 (gc001-snapshot.test.ts).
+ * contra un tenant y periodos sembrados a propósito para este test — mismo
+ * criterio que snapshot-fuente-financiacion.test.ts: tenant propio, no un
+ * tenant de demostración compartido.
  */
 import { construirSnapshotDesdeSupabase } from '@aquila/liquidation-engine'
 import { afterAll, describe, expect, it } from 'vitest'

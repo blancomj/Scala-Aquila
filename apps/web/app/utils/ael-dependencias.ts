@@ -7,8 +7,8 @@
  *
  * Importa desde los subpaths ./graph y ./errors, nunca desde el barrel
  * "." de @aquila/liquidation-engine — ese barrel re-exporta módulos
- * server-only (snapshot-supabase.ts, persistencia-supabase.ts,
- * cuenta-corriente-supabase.ts) que no deben llegar al bundle del cliente.
+ * server-only (snapshot-supabase.ts, cuenta-corriente-supabase.ts) que no
+ * deben llegar al bundle del cliente.
  */
 import { construirGrafo, ordenTopologico, type NodoGrafo } from '@aquila/liquidation-engine/graph'
 import {

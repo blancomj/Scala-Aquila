@@ -78,14 +78,6 @@ export interface ResultadoAnulacion {
   motivo: string
 }
 
-interface ResultadoLiquidacion {
-  liquidacion_id: string
-  periodo_id: string
-  result_hash: string
-  tenant_total: string
-  lineas: { inmueble_id: string; concepto_codigo: string; monto: string }[]
-}
-
 export const useLiquidacionStore = defineStore('liquidacion', () => {
   const periodos = shallowRef<PeriodoRow[]>([])
   const liquidaciones = shallowRef<LiquidacionRow[]>([])
@@ -161,25 +153,6 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     if (errorLineas) throw errorLineas
     lineasPorInmueble.value = (data ?? []) as LineaLiquidacionInmueble[]
     return lineasPorInmueble.value
-  }
-
-  /** @deprecated Camino viejo de un solo paso — lo reemplazan simular() +
-   * solicitarAplicacion() + aplicar(). Se conserva mientras exista la Edge
-   * Function `liquidar-periodo`; ninguna pantalla lo usa ya. */
-  async function liquidarPeriodo(
-    periodoId: string,
-    tenantId: string,
-  ): Promise<ResultadoLiquidacion> {
-    const cliente = useSupabaseClient<Database>()
-    const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoLiquidacion>(
-      'liquidar-periodo',
-      { body: { periodo_id: periodoId } },
-    )
-    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
-    if (!data) throw new Error('liquidar-periodo no devolvió datos.')
-
-    await cargarLiquidaciones(tenantId)
-    return data
   }
 
   // ── El flujo de dos tiempos ───────────────────────────────────────────
@@ -308,7 +281,6 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     cargarLiquidaciones,
     cargarLineasPorInmueble,
     cargarLineasDeLiquidacion,
-    liquidarPeriodo,
     cargarPrevuelo,
     simular,
     solicitarAplicacion,
