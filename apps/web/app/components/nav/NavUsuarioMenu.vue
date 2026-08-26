@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ROL_LABEL } from '~/utils/rol-labels'
+
 const usuario = useSupabaseUser()
 const cliente = useSupabaseClient()
 const router = useRouter()
@@ -11,11 +13,6 @@ const TEMA_OPCIONES = [
   { valor: 'dark', etiqueta: 'Oscuro', icono: 'luna' },
   { valor: 'system', etiqueta: 'Sistema', icono: 'sistema' },
 ] as const
-
-const ROL_LABEL: Record<string, string> = {
-  agent: 'Administrador',
-  auditor: 'Auditor',
-}
 
 const menuAbierto = useMenuHeaderAbierto()
 const abierto = computed(() => menuAbierto.value === 'usuario')

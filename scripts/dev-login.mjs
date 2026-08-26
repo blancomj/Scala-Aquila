@@ -22,8 +22,12 @@ if (!url || !serviceRoleKey) {
   process.exit(1)
 }
 
+// global.fetch: la implementación de fetch que trae @supabase/supabase-js
+// por defecto falla con "fetch failed" en Node 24 / Windows; el fetch nativo
+// de Node sí conecta sin problema (confirmado con un POST directo).
 const admin = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
+  global: { fetch },
 })
 
 const { data, error } = await admin.auth.admin.generateLink({

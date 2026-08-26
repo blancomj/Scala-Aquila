@@ -82,9 +82,44 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = data
   }
 
+  /**
+   * Mismo criterio exacto que copropiedadStore.subirLogo (20260822180000):
+   * bucket público sin metadata ni versionado, ruta fija por dueño para que
+   * un re-upload sea upsert real. Acá la carpeta es {userId}, no {tenantId}
+   * (20260901120000_avatar_usuario.sql). El `?v=` en la URL guardada es
+   * cache-buster propio — a diferencia del logo, avatar_url se lee tal cual
+   * en varios componentes (NavUsuarioMenu, esta página), así que el
+   * cache-bust va horneado en el valor guardado, no en cada consumidor.
+   */
+  async function subirAvatar(archivo: File): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const {
+      data: { user: usuario },
+    } = await cliente.auth.getUser()
+    if (!usuario) throw new Error('Sesión inválida.')
+
+    const path = `${usuario.id}/avatar`
+    const { error: errorUpload } = await cliente.storage
+      .from('avatares')
+      .upload(path, archivo, { upsert: true, contentType: archivo.type })
+    if (errorUpload) throw errorUpload
+
+    const { data: publica } = cliente.storage.from('avatares').getPublicUrl(path)
+    const avatarUrl = `${publica.publicUrl}?v=${Date.now()}`
+
+    const { data, error: errorPerfil } = await cliente
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', usuario.id)
+      .select('*')
+      .single()
+    if (errorPerfil) throw errorPerfil
+    profile.value = data
+  }
+
   function limpiar(): void {
     profile.value = null
   }
 
-  return { profile, loading, isPlatformAdmin, cargarPerfil, actualizarPerfil, limpiar }
+  return { profile, loading, isPlatformAdmin, cargarPerfil, actualizarPerfil, subirAvatar, limpiar }
 })
