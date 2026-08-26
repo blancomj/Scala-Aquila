@@ -367,6 +367,22 @@ async function confirmarAsignar(): Promise<void> {
 // ── importar desde Excel (onboarding guiado, Doc 3 auditoría #1) ──────────
 const importarAbierto = ref(false)
 
+// ── menú de acciones (Nuevo/Importar/Exportar) ─────────────────────────────
+// Antes 3 botones sueltos en el header — poco uso individual (pedido del
+// usuario, 2026-08-26) para justificar ocupar espacio permanente en la
+// barra; se agrupan en un solo desplegable. "Nuevo inmueble" sigue siendo
+// la acción más común, pero ya no amerita ser el único botón sólido de la
+// página — coherente con agruparla también.
+const menuAcciones = computed(() => [
+  [
+    { label: 'Nuevo inmueble', icon: 'i-lucide-plus', to: '/inmuebles/nuevo' },
+    { label: 'Importar desde Excel', icon: 'i-lucide-upload', onSelect: () => { importarAbierto.value = true } },
+    ...(cuentaStore.inmuebles.length > 0
+      ? [{ label: 'Exportar', icon: 'i-lucide-download', onSelect: exportarCSV }]
+      : []),
+  ],
+])
+
 async function alImportar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   importarAbierto.value = false
@@ -418,20 +434,10 @@ function exportarCSV(): void {
 
     <!-- ── acciones (siempre visibles — es el paso 1 del onboarding guiado,
          nunca puede quedar oculto detrás del estado vacío) ────────────── -->
-    <div class="flex items-center justify-end gap-2">
-      <UButton
-        v-if="cuentaStore.inmuebles.length > 0"
-        size="sm"
-        variant="soft"
-        icon="i-lucide-download"
-        @click="exportarCSV"
-      >
-        Exportar
-      </UButton>
-      <UButton size="sm" variant="soft" icon="i-lucide-upload" @click="importarAbierto = true">
-        Importar desde Excel
-      </UButton>
-      <UButton size="sm" to="/inmuebles/nuevo">Nuevo inmueble</UButton>
+    <div class="flex items-center justify-end">
+      <UDropdownMenu :items="menuAcciones">
+        <UButton size="sm" variant="soft" trailing-icon="i-lucide-chevron-down">Acciones</UButton>
+      </UDropdownMenu>
     </div>
 
     <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
@@ -477,72 +483,69 @@ function exportarCSV(): void {
       </div>
 
       <!-- ── filtros ──────────────────────────────────────────────────── -->
-      <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="flex items-center gap-2 flex-wrap">
-          <UInput
-            v-model="busqueda"
-            size="sm"
-            icon="i-lucide-search"
-            placeholder="Buscar por código o propietario…"
-            class="w-64"
-          >
-            <template v-if="busqueda" #trailing>
-              <UButton
-                size="xs"
-                variant="ghost"
-                icon="i-lucide-x"
-                title="Limpiar búsqueda"
-                @click="busqueda = ''"
-              />
-            </template>
-          </UInput>
+      <div class="flex items-center gap-2 flex-wrap">
+        <UInput
+          v-model="busqueda"
+          size="sm"
+          icon="i-lucide-search"
+          placeholder="Buscar por código o propietario…"
+          class="w-64"
+        >
+          <template v-if="busqueda" #trailing>
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-x"
+              title="Limpiar búsqueda"
+              @click="busqueda = ''"
+            />
+          </template>
+        </UInput>
 
-          <USelect
-            v-model="filtroTipoId"
-            :items="[{ label: 'Todos los tipos', value: null }, ...(tipos ?? []).map((t) => ({ label: t.nombre, value: t.id }))]"
-            value-key="value"
-            size="sm"
-            class="w-44"
-          />
+        <USelect
+          v-model="filtroTipoId"
+          :items="[{ label: 'Todos los tipos', value: null }, ...(tipos ?? []).map((t) => ({ label: t.nombre, value: t.id }))]"
+          value-key="value"
+          size="sm"
+          class="w-44"
+        />
 
-          <USelect
-            v-model="filtroAgrupacionId"
-            :items="[
-              { label: 'Toda agrupación', value: null },
-              { label: 'Sin agrupar', value: SIN_AGRUPAR },
-              ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
-            ]"
-            value-key="value"
-            size="sm"
-            class="w-44"
-          />
+        <USelect
+          v-model="filtroAgrupacionId"
+          :items="[
+            { label: 'Toda agrupación', value: null },
+            { label: 'Sin agrupar', value: SIN_AGRUPAR },
+            ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
+          ]"
+          value-key="value"
+          size="sm"
+          class="w-44"
+        />
 
-          <USelect
-            v-model="filtroUsoPredioId"
-            :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
-            value-key="value"
-            size="sm"
-            class="w-44"
-          />
+        <USelect
+          v-model="filtroUsoPredioId"
+          :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
+          value-key="value"
+          size="sm"
+          class="w-44"
+        />
 
-          <USelect
-            v-model="filtroHabitabilidadId"
-            :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
-            value-key="value"
-            size="sm"
-            class="w-44"
-          />
+        <USelect
+          v-model="filtroHabitabilidadId"
+          :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
+          value-key="value"
+          size="sm"
+          class="w-44"
+        />
 
-          <UButton
-            v-if="hayFiltrosActivos"
-            size="sm"
-            variant="ghost"
-            icon="i-lucide-x"
-            title="Limpiar filtros"
-            @click="limpiarFiltros"
-          />
-        </div>
-
+        <UButton
+          v-if="hayFiltrosActivos"
+          size="sm"
+          variant="ghost"
+          icon="i-lucide-x"
+          title="Limpiar filtros"
+          @click="limpiarFiltros"
+        />
       </div>
 
       <!-- ── barra de selección ───────────────────────────────────────── -->

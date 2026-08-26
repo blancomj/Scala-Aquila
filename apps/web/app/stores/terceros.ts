@@ -350,24 +350,32 @@ export const useTercerosStore = defineStore('terceros', () => {
   }
 
   /** Asociación de propietario en lote — import de inmuebles desde Excel
-   * (onboarding guiado). Deliberadamente NO reusa `asociarTerceroInmueble`:
-   * esa función hace 1 búsqueda + hasta 2 inserts + 1 RPC + 1 recarga POR
-   * llamada, pensada para un formulario de una sola persona; sobre 100+
-   * filas eso son cientos de round-trips secuenciales. Acá son 3 llamadas
-   * en total sin importar cuántas filas: 1 select de terceros existentes
-   * (dedup por documento — varias unidades del mismo dueño no duplican el
-   * tercero), 1 insert de los terceros nuevos, 1 insert de las
-   * asociaciones. Tampoco llama a `fn_cerrar_rol_anterior`/`marcarPagador`:
-   * son inmuebles recién creados en este mismo import, no puede haber un
-   * titular previo que cerrar, y como cada inmueble aparece una sola vez
-   * en el lote, marcar `es_pagador=true` directo no choca con el índice
-   * único parcial (nunca hay dos filas del mismo inmueble en un mismo
-   * insert). Rol fijo "copropietario", 100% de participación — el Excel
-   * solo captura un dueño por unidad, no copropiedad compartida. Cuando el
-   * mismo documento se repite en varias filas (un dueño con varias
-   * unidades) se queda con los datos de la PRIMERA fila — filas
+   * (onboarding guiado), reimportable. Deliberadamente NO reusa
+   * `asociarTerceroInmueble`: esa función hace 1 búsqueda + hasta 2 inserts
+   * + 1 RPC + 1 recarga POR llamada, pensada para un formulario de una sola
+   * persona; sobre 100+ filas eso son cientos de round-trips secuenciales.
+   * Acá son como mucho 5 llamadas en total sin importar cuántas filas: 1
+   * select de terceros existentes (dedup por documento — varias unidades
+   * del mismo dueño no duplican el tercero), 1 insert de los terceros
+   * nuevos, 1 select del copropietario vigente actual de cada inmueble del
+   * lote, 1 update para cerrar los que cambiaron de dueño, 1 insert de las
+   * asociaciones nuevas. Rol fijo "copropietario", 100% de participación —
+   * el Excel solo captura un dueño por unidad, no copropiedad compartida.
+   * Cuando el mismo documento se repite en varias filas (un dueño con
+   * varias unidades) se queda con los datos de la PRIMERA fila — filas
    * posteriores solo necesitan repetir nombre+cédula, no tienen que
-   * repetir email/teléfono también. */
+   * repetir email/teléfono también.
+   *
+   * Nota importante: esto SÍ cierra al copropietario anterior cuando la
+   * reimportación trae un documento distinto para el mismo inmueble —
+   * diverge a propósito de `fn_cerrar_rol_anterior`, que hace no-op para
+   * el rol "copropietario" (única excepción del sistema que admite varios
+   * titulares activos a la vez, pensado para el formulario de ficha donde
+   * un usuario agrega deliberadamente un segundo copropietario). Ese no-op
+   * no aplica acá: esta plantilla solo captura UN dueño al 100%, así que
+   * un documento distinto en una reimportación es una corrección
+   * ("me equivoqué de dueño"), no una copropiedad nueva — sumar un segundo
+   * titular al 100% dejaría el inmueble con 200% de participación. */
   async function asociarPropietariosEnLote(params: {
     tenantId: string
     asociaciones: readonly {
@@ -438,8 +446,46 @@ export const useTercerosStore = defineStore('terceros', () => {
       for (const t of creados) idPorDocumento.set(t.numero_documento, t.id)
     }
 
+    // Idempotencia — el usuario reimporta el mismo archivo (mismo motivo que
+    // el upsert de inmuebles por código): sin esto, cada reimportación
+    // duplicaría la fila de `inmueble_persona_rol`. Se busca el
+    // copropietario VIGENTE actual de cada inmueble del lote; si ya es el
+    // mismo tercero, no-op (nada que hacer); si es uno distinto (cambio de
+    // dueño), se cierra ese rol (`vigente_hasta = hoy`, mismo criterio que
+    // `fn_cerrar_rol_anterior` pero en lote) antes de insertar el nuevo.
+    const inmuebleIds = params.asociaciones.map((a) => a.inmuebleId)
+    const { data: vigentes, error: errorVigentes } = await cliente
+      .from('inmueble_persona_rol')
+      .select('id, inmueble_id, tercero_id')
+      .eq('tenant_id', params.tenantId)
+      .eq('rol_id', rolCopropietario.id)
+      .is('vigente_hasta', null)
+      .in('inmueble_id', inmuebleIds)
+    if (errorVigentes) throw errorVigentes
+    const vigentePorInmueble = new Map(vigentes.map((v) => [v.inmueble_id, v]))
+
     const hoy = new Date().toISOString().slice(0, 10)
-    const filasRol = params.asociaciones.map((a) => ({
+    const aCerrar: string[] = []
+    const aInsertar: (typeof params.asociaciones)[number][] = []
+    for (const a of params.asociaciones) {
+      const tercero_id = idPorDocumento.get(a.numeroDocumento) as string
+      const actual = vigentePorInmueble.get(a.inmuebleId)
+      if (actual?.tercero_id === tercero_id) continue // ya es el dueño correcto
+      if (actual) aCerrar.push(actual.id)
+      aInsertar.push(a)
+    }
+
+    if (aCerrar.length > 0) {
+      const { error: errorCierre } = await cliente
+        .from('inmueble_persona_rol')
+        .update({ vigente_hasta: hoy })
+        .in('id', aCerrar)
+      if (errorCierre) throw errorCierre
+    }
+
+    if (aInsertar.length === 0) return 0
+
+    const filasRol = aInsertar.map((a) => ({
       tenant_id: params.tenantId,
       inmueble_id: a.inmuebleId,
       tercero_id: idPorDocumento.get(a.numeroDocumento) as string,

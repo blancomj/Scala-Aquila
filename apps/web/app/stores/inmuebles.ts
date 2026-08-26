@@ -93,43 +93,50 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     return data
   }
 
-  /** Alta en lote — importación desde plantilla Excel (onboarding guiado,
-   * Doc 3 auditoría externa §Top-10 #1). Un solo INSERT con todas las filas
-   * ya validadas por el componente de importación (código único en el
-   * archivo y contra la BD, tipo_id resuelto contra el catálogo del
-   * tenant); si una fila falla igual acá (carrera con otra alta
-   * concurrente del mismo código) todo el lote se revierte — el usuario
-   * corrige y reintenta, no hay upsert parcial silencioso. */
-  async function crearInmueblesEnLote(
+  /** Alta o actualización en lote por código — importación desde plantilla
+   * Excel (onboarding guiado, Doc 3 auditoría externa §Top-10 #1). Upsert
+   * real por `(tenant_id, codigo)` (el mismo índice único de siempre,
+   * `inmuebles_codigo_unico`): un código nuevo se inserta, uno que ya
+   * existe se actualiza con los valores del archivo — pedido explícito del
+   * usuario para poder reimportar el mismo archivo corregido sin que
+   * truene por duplicado. Cada fila manda TODAS las columnas explícitas
+   * (`null` en vez de omitir): un upsert de varias filas es un solo INSERT
+   * con un único `ON CONFLICT ... DO UPDATE SET` — no hay forma de que
+   * unas filas actualicen una columna y otras la dejen intacta dentro del
+   * mismo lote. Efecto práctico: si el Excel ya no trae un valor que antes
+   * sí tenía (p. ej. se borró la matrícula), la reimportación lo borra
+   * también — el archivo es la fuente de verdad para las filas que trae. */
+  async function upsertInmueblesEnLote(
     tenantId: string,
     filas: readonly {
       codigo: string
       tipoId: number
       estado: Database['public']['Enums']['inmueble_estado_t']
-      areaPrivada?: number
-      areaComun?: number
-      matriculaInmobiliaria?: string
-      referenciaCatastral?: string
+      areaPrivada?: number | null
+      areaComun?: number | null
+      matriculaInmobiliaria?: string | null
+      referenciaCatastral?: string | null
     }[],
   ): Promise<{ id: string; codigo: string }[]> {
     if (filas.length === 0) return []
     const cliente = useSupabaseClient<Database>()
-    const { data, error: errorInsert } = await cliente
+    const { data, error: errorUpsert } = await cliente
       .from('inmuebles')
-      .insert(
+      .upsert(
         filas.map((fila) => ({
           tenant_id: tenantId,
           codigo: fila.codigo,
           tipo_id: fila.tipoId,
           estado: fila.estado,
-          area_privada: fila.areaPrivada,
-          area_comun: fila.areaComun,
-          matricula_inmobiliaria: fila.matriculaInmobiliaria,
-          referencia_catastral: fila.referenciaCatastral,
+          area_privada: fila.areaPrivada ?? null,
+          area_comun: fila.areaComun ?? null,
+          matricula_inmobiliaria: fila.matriculaInmobiliaria ?? null,
+          referencia_catastral: fila.referenciaCatastral ?? null,
         })),
+        { onConflict: 'tenant_id,codigo' },
       )
       .select('id, codigo')
-    if (errorInsert) throw errorInsert
+    if (errorUpsert) throw errorUpsert
     return data
   }
 
@@ -342,7 +349,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     loading,
     cargarInmueble,
     crearInmueble,
-    crearInmueblesEnLote,
+    upsertInmueblesEnLote,
     actualizarInmueble,
     cargarZonasExclusivas,
     cargarCoeficienteVigente,

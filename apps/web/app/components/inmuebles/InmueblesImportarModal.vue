@@ -17,6 +17,16 @@
 // parcialmente: se listan con su motivo, el usuario corrige el archivo y
 // vuelve a subir — evita el estado intermedio "ya importé la mitad, ¿cuál
 // falta?".
+//
+// Reimportable a propósito (pedido del usuario, 2026-08-26, segunda
+// pasada): el código ya no bloquea si existe — se hace upsert
+// (`inmuebles_codigo_unico`), así que corregir el archivo y volver a
+// subirlo actualiza en vez de fallar. El coeficiente (columna opcional)
+// se guarda en un set en estado "borrador" (se crea uno si no hay
+// ninguno) vía `guardarLoteCoeficientes`, el mismo punto de escritura que
+// usa el autoguardado de CoeficientesVersionDrawer — el import nunca
+// activa el set solo, eso sigue siendo una decisión explícita del
+// usuario en /coeficientes.
 import type { Database } from '@aquila/shared'
 
 const props = defineProps<{
@@ -28,6 +38,7 @@ const emit = defineEmits<{ cerrar: []; importado: [cantidad: number] }>()
 
 const inmueblesStore = useInmueblesStore()
 const tercerosStore = useTercerosStore()
+const coeficientesStore = useCoeficientesStore()
 const toast = useToast()
 
 type EstadoInmueble = Database['public']['Enums']['inmueble_estado_t']
@@ -41,6 +52,7 @@ const ENCABEZADOS = [
   'Área común (m²)',
   'Matrícula inmobiliaria',
   'Referencia catastral',
+  'Coeficiente',
   'Propietario (nombre completo)',
   'Propietario (cédula)',
   'Propietario (email)',
@@ -57,10 +69,12 @@ interface FilaValidada {
   areaComun?: number
   matriculaInmobiliaria?: string
   referenciaCatastral?: string
+  coeficiente?: number
   propietarioNombre?: string
   propietarioCedula?: string
   propietarioEmail?: string
   propietarioTelefono?: string
+  yaExiste: boolean
   errores: string[]
 }
 
@@ -104,6 +118,7 @@ async function descargarPlantilla(): Promise<void> {
     0,
     '050-987654',
     '',
+    0.007323,
     'María Fernanda Restrepo Ortiz',
     '45678912',
     'maria.restrepo@ejemplo.com',
@@ -118,6 +133,7 @@ async function descargarPlantilla(): Promise<void> {
     { wch: 16 },
     { wch: 20 },
     { wch: 20 },
+    { wch: 12 },
     { wch: 28 },
     { wch: 16 },
     { wch: 26 },
@@ -138,8 +154,15 @@ async function descargarPlantilla(): Promise<void> {
     ['Activo'],
     ['Inactivo'],
     [],
+    ['Coeficiente: opcional, número entre 0 y 1 (ej. 0.007323). Se guarda en un'],
+    ['set de coeficientes en borrador — no se activa solo, hay que revisarlo y'],
+    ['activarlo después en Coeficientes.'],
+    [],
     ['Propietario: nombre y cédula van juntos — los dos o ninguno. Queda como'],
     ['copropietario con el 100% y como quien recibe la factura.'],
+    [],
+    ['Reimportar el mismo archivo actualiza los inmuebles que ya existen (por'],
+    ['código) en vez de fallar — no crea duplicados.'],
   ])
   hojaValores['!cols'] = [{ wch: 45 }]
   XLSX.utils.book_append_sheet(libro, hojaValores, 'Valores válidos')
@@ -164,13 +187,12 @@ function validarFilas(filasCrudas: Record<string, unknown>[]): FilaValidada[] {
     const errores: string[] = []
 
     const codigo = String(cruda['Código*'] ?? '').trim()
+    let yaExiste = false
     if (!codigo) {
       errores.push('Falta el código.')
     } else {
       const codigoLower = codigo.toLowerCase()
-      if (codigosExistentesLower.has(codigoLower)) {
-        errores.push('Ya existe un inmueble con este código.')
-      }
+      yaExiste = codigosExistentesLower.has(codigoLower)
       const filaPrevia = codigosEnArchivo.get(codigoLower)
       if (filaPrevia !== undefined) {
         errores.push(`Código repetido en la fila ${filaPrevia}.`)
@@ -203,6 +225,13 @@ function validarFilas(filasCrudas: Record<string, unknown>[]): FilaValidada[] {
     const areaComun = numeroOIndefinido(cruda['Área común (m²)'])
     if (areaComun === 'invalido') errores.push('Área común debe ser un número.')
 
+    const coeficiente = numeroOIndefinido(cruda['Coeficiente'])
+    if (coeficiente === 'invalido') {
+      errores.push('Coeficiente debe ser un número.')
+    } else if (coeficiente !== undefined && coeficiente > 1) {
+      errores.push('Coeficiente debe estar entre 0 y 1.')
+    }
+
     const propietarioNombre = String(cruda['Propietario (nombre completo)'] ?? '').trim()
     const propietarioCedula = String(cruda['Propietario (cédula)'] ?? '').trim()
     if (Boolean(propietarioNombre) !== Boolean(propietarioCedula)) {
@@ -219,10 +248,12 @@ function validarFilas(filasCrudas: Record<string, unknown>[]): FilaValidada[] {
       areaComun: areaComun === 'invalido' ? undefined : areaComun,
       matriculaInmobiliaria: String(cruda['Matrícula inmobiliaria'] ?? '').trim() || undefined,
       referenciaCatastral: String(cruda['Referencia catastral'] ?? '').trim() || undefined,
+      coeficiente: coeficiente === 'invalido' ? undefined : coeficiente,
       propietarioNombre: propietarioNombre || undefined,
       propietarioCedula: propietarioCedula || undefined,
       propietarioEmail: String(cruda['Propietario (email)'] ?? '').trim() || undefined,
       propietarioTelefono: String(cruda['Propietario (teléfono)'] ?? '').trim() || undefined,
+      yaExiste,
       errores,
     }
   })
@@ -266,7 +297,10 @@ async function confirmarImportacion(): Promise<void> {
   importando.value = true
   error.value = null
   try {
-    const creados = await inmueblesStore.crearInmueblesEnLote(
+    const nuevos = filasValidas.value.filter((f) => !f.yaExiste).length
+    const actualizados = filasValidas.value.length - nuevos
+
+    const inmuebles = await inmueblesStore.upsertInmueblesEnLote(
       props.tenantId,
       filasValidas.value.map((f) => ({
         codigo: f.codigo,
@@ -278,7 +312,29 @@ async function confirmarImportacion(): Promise<void> {
         referenciaCatastral: f.referenciaCatastral,
       })),
     )
-    const idPorCodigo = new Map(creados.map((i) => [i.codigo, i.id]))
+    const idPorCodigo = new Map(inmuebles.map((i) => [i.codigo, i.id]))
+
+    const conCoeficiente = filasValidas.value.filter((f) => f.coeficiente !== undefined)
+    if (conCoeficiente.length > 0) {
+      await coeficientesStore.cargarCoeficienteSets(props.tenantId)
+      let setBorrador = coeficientesStore.coeficienteSets.find(
+        (s) => s.tenant_id === props.tenantId && s.estado === 'borrador',
+      )
+      if (!setBorrador) {
+        setBorrador = await coeficientesStore.crearSetVacio({
+          tenantId: props.tenantId,
+          vigenteDesde: new Date().toISOString().slice(0, 10),
+        })
+      }
+      await coeficientesStore.guardarLoteCoeficientes({
+        tenantId: props.tenantId,
+        setId: setBorrador.id,
+        valores: conCoeficiente.map((f) => ({
+          inmuebleId: idPorCodigo.get(f.codigo) as string,
+          valor: f.coeficiente as number,
+        })),
+      })
+    }
 
     const conPropietario = filasValidas.value.filter((f) => f.propietarioNombre && f.propietarioCedula)
     let propietarios = 0
@@ -295,12 +351,18 @@ async function confirmarImportacion(): Promise<void> {
       })
     }
 
+    const partes = [
+      actualizados > 0 ? `${actualizados} actualizado(s)` : null,
+      conCoeficiente.length > 0 ? `${conCoeficiente.length} con coeficiente (queda en borrador)` : null,
+      propietarios > 0 ? `${propietarios} con propietario` : null,
+    ].filter((p): p is string => p !== null)
+
     toast.add({
-      title: `${creados.length} inmueble(s) importado(s).`,
-      description: propietarios > 0 ? `${propietarios} con propietario asignado.` : undefined,
+      title: `${nuevos} inmueble(s) nuevo(s).`,
+      description: partes.length > 0 ? partes.join(' · ') + '.' : undefined,
       color: 'success',
     })
-    emit('importado', creados.length)
+    emit('importado', inmuebles.length)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo completar la importación.')
   } finally {
@@ -376,7 +438,12 @@ async function confirmarImportacion(): Promise<void> {
               <tbody>
                 <tr v-for="f in filas" :key="f.fila" :class="f.errores.length > 0 ? 'bg-error/5' : ''">
                   <td class="p-2">{{ f.fila }}</td>
-                  <td class="p-2">{{ f.codigo || '—' }}</td>
+                  <td class="p-2">
+                    {{ f.codigo || '—' }}
+                    <UBadge v-if="f.yaExiste" size="xs" color="warning" variant="subtle" class="ml-1">
+                      actualiza
+                    </UBadge>
+                  </td>
                   <td class="p-2">{{ f.tipoTexto || '—' }}</td>
                   <td class="p-2">{{ ETIQUETA_ESTADO[f.estado] }}</td>
                   <td class="p-2">{{ f.propietarioNombre || '—' }}</td>
