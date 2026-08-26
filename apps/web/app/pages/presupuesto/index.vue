@@ -140,90 +140,94 @@ const sumaFuentesAplicadas = computed(() =>
       </div>
     </div>
 
+    <!-- El texto informa que falta el primer presupuesto, pero la pestaña
+         "Presupuestos" (con su botón "Nuevo presupuesto", siempre visible en
+         PresupuestoTabPresupuestos.vue) tiene que seguir alcanzable — antes
+         vivía dentro de un v-else de este mismo estado vacío, dejando a un
+         tenant nuevo sin ninguna forma de crear el primer presupuesto. -->
     <p v-if="presupuestoStore.presupuestos.length === 0" class="text-gray-500 text-sm">
-      Esta copropiedad todavía no tiene un presupuesto registrado.
+      Esta copropiedad todavía no tiene un presupuesto registrado. Créalo desde la pestaña
+      "Presupuestos" de abajo.
     </p>
 
-    <template v-else>
-      <!-- ── rastreador de ciclo ────────────────────────────────────── -->
-      <div
-        v-if="presupuestoSeleccionado"
-        class="grid grid-cols-1 sm:grid-cols-4 gap-px rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-2"
-      >
-        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
-          <p class="text-[10px] uppercase tracking-wide text-gray-400">1 · Total definido</p>
-          <p class="text-sm font-medium flex items-center gap-1.5">
-            <span class="text-green-600">✓</span>
-            <span class="tabular-nums">{{ formatoMoneda(montoTotal) }}</span>
-          </p>
-        </div>
-        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
-          <p class="text-[10px] uppercase tracking-wide text-gray-400">2 · Rubros asignados</p>
-          <p class="text-sm font-medium flex items-center gap-1.5" :class="rubrosCuadran ? 'text-green-600' : 'text-amber-600'">
-            <span>{{ rubrosCuadran ? '✓' : '…' }}</span>
-            <span class="tabular-nums">{{ formatoMoneda(sumaEgresos) }} de {{ formatoMoneda(montoTotal) }}</span>
-          </p>
-        </div>
-        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
-          <p class="text-[10px] uppercase tracking-wide text-gray-400">3 · Fuentes registradas</p>
-          <p class="text-sm font-medium flex items-center gap-1.5" :class="presupuestoStore.fuentes.length > 0 ? 'text-green-600' : 'text-gray-400'">
-            <span>{{ presupuestoStore.fuentes.length > 0 ? '✓' : '—' }}</span>
-            <span class="tabular-nums">
-              {{ presupuestoStore.fuentes.length }} {{ presupuestoStore.fuentes.length === 1 ? 'fuente' : 'fuentes' }}
-              · {{ formatoMoneda(sumaFuentesAplicadas) }}
-            </span>
-          </p>
-        </div>
-        <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
-          <p class="text-[10px] uppercase tracking-wide text-gray-400">4 · Listo para activar</p>
-          <p
-            class="text-sm font-medium flex items-center gap-1.5"
-            :class="presupuestoSeleccionado.estado !== 'borrador' ? 'text-green-600' : rubrosCuadran ? 'text-amber-600' : 'text-gray-400'"
-          >
-            <span>{{ presupuestoSeleccionado.estado !== 'borrador' ? '✓' : rubrosCuadran ? '…' : '✕' }}</span>
-            <span>
-              <template v-if="presupuestoSeleccionado.estado !== 'borrador'">Ya activado</template>
-              <template v-else-if="rubrosCuadran">Listo — actívalo en "Presupuestos"</template>
-              <template v-else>Faltan rubros por cuadrar</template>
-            </span>
-          </p>
-        </div>
+    <!-- ── rastreador de ciclo ──────────────────────────────────────── -->
+    <div
+      v-if="presupuestoSeleccionado"
+      class="grid grid-cols-1 sm:grid-cols-4 gap-px rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-2"
+    >
+      <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+        <p class="text-[10px] uppercase tracking-wide text-gray-400">1 · Total definido</p>
+        <p class="text-sm font-medium flex items-center gap-1.5">
+          <span class="text-green-600">✓</span>
+          <span class="tabular-nums">{{ formatoMoneda(montoTotal) }}</span>
+        </p>
       </div>
-
-      <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto" role="tablist" aria-label="Secciones de Presupuesto">
-        <button
-          v-for="tab in TABS"
-          :key="tab.id"
-          type="button"
-          role="tab"
-          :aria-selected="tabActiva === tab.id"
-          :tabindex="tabActiva === tab.id ? 0 : -1"
-          class="px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors"
-          :class="
-            tabActiva === tab.id
-              ? 'border-blue-600 text-blue-600 font-medium'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          "
-          @click="tabActiva = tab.id"
+      <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+        <p class="text-[10px] uppercase tracking-wide text-gray-400">2 · Rubros asignados</p>
+        <p class="text-sm font-medium flex items-center gap-1.5" :class="rubrosCuadran ? 'text-green-600' : 'text-amber-600'">
+          <span>{{ rubrosCuadran ? '✓' : '…' }}</span>
+          <span class="tabular-nums">{{ formatoMoneda(sumaEgresos) }} de {{ formatoMoneda(montoTotal) }}</span>
+        </p>
+      </div>
+      <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+        <p class="text-[10px] uppercase tracking-wide text-gray-400">3 · Fuentes registradas</p>
+        <p class="text-sm font-medium flex items-center gap-1.5" :class="presupuestoStore.fuentes.length > 0 ? 'text-green-600' : 'text-gray-400'">
+          <span>{{ presupuestoStore.fuentes.length > 0 ? '✓' : '—' }}</span>
+          <span class="tabular-nums">
+            {{ presupuestoStore.fuentes.length }} {{ presupuestoStore.fuentes.length === 1 ? 'fuente' : 'fuentes' }}
+            · {{ formatoMoneda(sumaFuentesAplicadas) }}
+          </span>
+        </p>
+      </div>
+      <div class="bg-white dark:bg-gray-950 px-4 py-2.5">
+        <p class="text-[10px] uppercase tracking-wide text-gray-400">4 · Listo para activar</p>
+        <p
+          class="text-sm font-medium flex items-center gap-1.5"
+          :class="presupuestoSeleccionado.estado !== 'borrador' ? 'text-green-600' : rubrosCuadran ? 'text-amber-600' : 'text-gray-400'"
         >
-          {{ tab.etiqueta }}
-        </button>
-      </nav>
-
-      <div role="tabpanel">
-        <PresupuestoTabPresupuestos
-          v-if="tabActiva === 'presupuestos'"
-          v-model:presupuesto-id="presupuestoSeleccionadoId"
-        />
-        <PresupuestoTabPlanCuentas v-else-if="tabActiva === 'cuentas'" :presupuesto-id="presupuestoSeleccionadoId" />
-        <PresupuestoTabFuentes v-else-if="tabActiva === 'fuentes'" :presupuesto-id="presupuestoSeleccionadoId" />
-        <PresupuestoTabEjecucion
-          v-else-if="tabActiva === 'ejecucion'"
-          :presupuesto-id="presupuestoSeleccionadoId"
-        />
-        <CoeficientesPanel v-else-if="tabActiva === 'distribucion'" />
-        <PresupuestoTabSimulacion v-else-if="tabActiva === 'simulacion'" :presupuesto-id="presupuestoSeleccionadoId" />
+          <span>{{ presupuestoSeleccionado.estado !== 'borrador' ? '✓' : rubrosCuadran ? '…' : '✕' }}</span>
+          <span>
+            <template v-if="presupuestoSeleccionado.estado !== 'borrador'">Ya activado</template>
+            <template v-else-if="rubrosCuadran">Listo — actívalo en "Presupuestos"</template>
+            <template v-else>Faltan rubros por cuadrar</template>
+          </span>
+        </p>
       </div>
-    </template>
+    </div>
+
+    <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto" role="tablist" aria-label="Secciones de Presupuesto">
+      <button
+        v-for="tab in TABS"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        :aria-selected="tabActiva === tab.id"
+        :tabindex="tabActiva === tab.id ? 0 : -1"
+        class="px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors"
+        :class="
+          tabActiva === tab.id
+            ? 'border-blue-600 text-blue-600 font-medium'
+            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+        "
+        @click="tabActiva = tab.id"
+      >
+        {{ tab.etiqueta }}
+      </button>
+    </nav>
+
+    <div role="tabpanel">
+      <PresupuestoTabPresupuestos
+        v-if="tabActiva === 'presupuestos'"
+        v-model:presupuesto-id="presupuestoSeleccionadoId"
+      />
+      <PresupuestoTabPlanCuentas v-else-if="tabActiva === 'cuentas'" :presupuesto-id="presupuestoSeleccionadoId" />
+      <PresupuestoTabFuentes v-else-if="tabActiva === 'fuentes'" :presupuesto-id="presupuestoSeleccionadoId" />
+      <PresupuestoTabEjecucion
+        v-else-if="tabActiva === 'ejecucion'"
+        :presupuesto-id="presupuestoSeleccionadoId"
+      />
+      <CoeficientesPanel v-else-if="tabActiva === 'distribucion'" />
+      <PresupuestoTabSimulacion v-else-if="tabActiva === 'simulacion'" :presupuesto-id="presupuestoSeleccionadoId" />
+    </div>
   </div>
 </template>
