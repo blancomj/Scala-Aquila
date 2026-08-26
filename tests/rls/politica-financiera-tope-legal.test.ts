@@ -5,8 +5,11 @@
  * Art. 30 Ley 675/2001: el interés de mora no puede exceder multiplicador ×
  * la tasa de referencia (hoy, IBC) vigente; la asamblea puede fijar menos,
  * nunca más. Cubre: rechazo al exceder el tope (PH-C36), aceptación por
- * debajo del tope (PH-C37), y retrocompatibilidad cuando la política no
- * declara tipo_tasa/multiplicador (comportamiento anterior a GAP-CAR-004).
+ * debajo del tope (PH-C37), que una política SIN interés de mora puede
+ * omitir tipo_tasa/multiplicador (nada que topar), y que desde S2
+ * (auditoría 2026-08-26) una política CON interés de mora ya no puede
+ * omitirlos — antes era opt-in sin límite de tiempo, decisión revertida
+ * tras el hallazgo.
  *
  * tasas_referencia es append-only y GLOBAL (sin tenant_id) — la fila de
  * prueba que este archivo inserta NO se puede borrar después y queda
@@ -146,15 +149,29 @@ d('guard_politica_financiera_tope_legal (CAR §3.4, PH-C36/PH-C37)', () => {
     expect(error?.message).toContain('INTERES_EXCEDE_TOPE_LEGAL')
   })
 
-  it('retrocompatible: sin interes_tipo_tasa/multiplicador, cualquier tasa se acepta (GAP-CAR-004)', async () => {
-    const tenant = await tenantDePrueba('retrocompat')
+  it('sin interés de mora (ambos campos null), tipo_tasa/multiplicador también pueden omitirse', async () => {
+    const tenant = await tenantDePrueba('sin-interes')
+    const { error } = await admin.from('politicas_financieras').insert(
+      politicaBase(tenant.id, {
+        // interes_tasa_mensual / interes_tope_mensual / interes_tipo_tasa /
+        // interes_multiplicador: ninguno declarado — política sin mora, nada
+        // que topar.
+      }),
+    )
+    expect(error).toBeNull()
+  })
+
+  it('S2 (auditoría 2026-08-26): declarar interés de mora sin tipo_tasa/multiplicador se rechaza', async () => {
+    const tenant = await tenantDePrueba('sin-tope-declarado')
     const { error } = await admin.from('politicas_financieras').insert(
       politicaBase(tenant.id, {
         interes_tasa_mensual: 0.5, // muy por encima de cualquier tope legal razonable
         interes_tope_mensual: 0.5,
-        // interes_tipo_tasa / interes_multiplicador: no declarados (null)
+        // interes_tipo_tasa / interes_multiplicador: no declarados (null) —
+        // antes de S2 esto se aceptaba en silencio (GAP-CAR-004 original).
       }),
     )
-    expect(error).toBeNull()
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('TOPE_LEGAL_NO_DECLARADO')
   })
 })

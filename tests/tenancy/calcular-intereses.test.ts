@@ -34,6 +34,39 @@ interface RespuestaInteres {
   tope_aplicado: boolean
 }
 
+// S2 (auditoría 2026-08-26, 20260901110000): desde ahora toda política que
+// declare interes_tasa_mensual/interes_tope_mensual exige también declarar
+// interes_tipo_tasa/interes_multiplicador. tasas_referencia es GLOBAL y
+// append-only (sin borrado posible) — se busca una fila que ya cubra
+// 2026-01-01 antes de insertar, para que una segunda corrida de este archivo
+// no choque contra tasas_referencia_sin_solape con la que dejó la primera.
+// valor_mensual=0.05 da un tope de 1.5×0.05=0.075, por encima de cualquier
+// interes_tasa_mensual/interes_tope_mensual que usan las fixtures de este
+// archivo (0.02/0.03/0.05) — no cambia el interés que se está probando.
+async function asegurarTasaReferenciaDePrueba(admin: Cliente): Promise<void> {
+  const { data: existente, error: errSel } = await admin
+    .from('tasas_referencia')
+    .select('id')
+    .eq('tipo_tasa', 'ibc_consumo_ordinario')
+    .lte('vigente_desde', '2026-01-01')
+    .or('vigente_hasta.is.null,vigente_hasta.gte.2026-01-01')
+    .limit(1)
+  if (errSel) throw new Error(`lectura tasas_referencia: ${errSel.message}`)
+  if (existente.length > 0) return
+
+  const { error: errIns } = await admin.from('tasas_referencia').insert({
+    tipo_tasa: 'ibc_consumo_ordinario',
+    vigente_desde: '2026-01-01',
+    vigente_hasta: '2026-12-31',
+    valor_ea: 0.6,
+    valor_mensual: 0.05,
+    resolucion_numero: 'TEST-CALC-INTERESES-2026',
+    resolucion_fecha: '2026-01-01',
+    entidad_fuente: 'Dato de prueba automatizado — no es una tasa real',
+  })
+  if (errIns) throw new Error(`fixture tasas_referencia: ${errIns.message}`)
+}
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -135,6 +168,7 @@ d('calcular-intereses (Edge Function)', () => {
     await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
 
+    await asegurarTasaReferenciaDePrueba(admin)
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({
       tenant_id: tenant.id,
       version: 1,
@@ -148,6 +182,8 @@ d('calcular-intereses (Edge Function)', () => {
       interes_tasa_mensual: 0.03,
       interes_tope_mensual: 0.02,
       interes_dias_gracia: 5,
+      interes_tipo_tasa: 'ibc_consumo_ordinario',
+      interes_multiplicador: 1.5,
     })
     if (errPolitica) throw new Error(`fixture politica: ${errPolitica.message}`)
 
@@ -283,6 +319,7 @@ d('calcular-intereses (Edge Function) — REQ-NOVEDAD-003: descuento_antes_inter
     await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     clienteAgent = await clienteComo(env!, agente)
 
+    await asegurarTasaReferenciaDePrueba(admin)
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({
       tenant_id: tenant.id,
       version: 1,
@@ -297,6 +334,8 @@ d('calcular-intereses (Edge Function) — REQ-NOVEDAD-003: descuento_antes_inter
       interes_tope_mensual: 0.05,
       interes_dias_gracia: 0,
       interes_descuento_orden: 'descuento_antes_interes',
+      interes_tipo_tasa: 'ibc_consumo_ordinario',
+      interes_multiplicador: 1.5,
     })
     if (errPolitica) throw new Error(`fixture politica: ${errPolitica.message}`)
 
