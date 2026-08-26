@@ -146,8 +146,7 @@ export default {
     const { data: politica, error: errorPolitica } = await ctx.supabase
       .from('politicas_financieras')
       .select(
-        'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, ' +
-          'interes_descuento_orden, redondeo_modo, redondeo_escala',
+        'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, interes_descuento_orden, redondeo_modo, redondeo_escala',
       )
       .eq('tenant_id', tenantId)
       .eq('estado', 'vigente')

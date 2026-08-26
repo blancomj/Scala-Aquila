@@ -38,11 +38,12 @@ const opcionesInmueble = computed(() =>
 await useAsyncData('cuenta-corriente-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
-  await Promise.all([
-    cuentaStore.cargarInmuebles(tenantId),
-    conceptoStore.cargarConceptos(tenantId),
-    liquidacionStore.cargarPeriodos(tenantId),
-  ])
+    await Promise.all([
+      cuentaStore.cargarInmuebles(tenantId),
+      cuentaStore.cargarPropietarios(tenantId),
+      conceptoStore.cargarConceptos(tenantId),
+      liquidacionStore.cargarPeriodos(tenantId),
+    ])
   return null
 })
 
@@ -89,6 +90,10 @@ function origenLegible(cargo: { concepto_id: string | null; categoria: string | 
 
 const generandoPdf = ref(false)
 const errorPdf = ref<string | null>(null)
+// Último comprobante generado en esta sesión — objetivo del botón de correo.
+const ultimoComprobanteId = ref<string | null>(null)
+const enviandoCorreo = ref(false)
+const resultadoCorreo = ref<string | null>(null)
 
 async function generarEstadoCuenta(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -98,18 +103,57 @@ async function generarEstadoCuenta(): Promise<void> {
   errorPdf.value = null
   generandoPdf.value = true
   try {
+    // Propietario vigente del inmueble (mapa nombre por inmueble, ya cargado).
+    const propietarioNombre = cuentaStore.propietariosPorInmueble.get(inmueble.id) ?? null
     const id = await cuentaStore.generarEstadoCuenta({
       tenantId,
       inmuebleId: inmueble.id,
       inmuebleCodigo: inmueble.codigo,
       tenantNombre: tenantStore.activeTenant?.name ?? '',
       tenantNit: tenantStore.activeTenant?.nit ?? null,
+      propietarioNombre,
+      etiquetasConcepto: Object.fromEntries(
+        conceptoStore.conceptos.map((c) => [c.id, c.codigo]),
+      ),
     })
+    ultimoComprobanteId.value = id
     window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
     errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante de cuenta.')
   } finally {
     generandoPdf.value = false
+  }
+}
+
+/** D-28: envía el último comprobante generado al correo de los propietarios
+ * vigentes del inmueble (Edge Function enviar-estado-cuenta). El enlace que
+ * recibe el propietario lleva token firmado — nunca montos en la URL. */
+async function enviarPorCorreo(): Promise<void> {
+  if (!ultimoComprobanteId.value) return
+  enviandoCorreo.value = true
+  resultadoCorreo.value = null
+  try {
+    const cliente = useSupabaseClient()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<{
+      enviados: string[]
+      omitidosSinEmail: number
+      enlace: string
+    }>('enviar-estado-cuenta', {
+      body: { estado_cuenta_id: ultimoComprobanteId.value },
+    })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('Respuesta vacía del servidor.')
+    const partes = [
+      `Enviado a ${data.enviados.length} destinatario(s).`,
+      data.omitidosSinEmail > 0
+        ? `${data.omitidosSinEmail} propietario(s) sin correo registrado.`
+        : null,
+    ].filter(Boolean)
+    resultadoCorreo.value = partes.join(' ')
+  } catch (excepcion) {
+    resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo.')
+  } finally {
+    enviandoCorreo.value = false
   }
 }
 </script>
@@ -136,7 +180,17 @@ async function generarEstadoCuenta(): Promise<void> {
         <UButton variant="soft" :loading="generandoPdf" @click="generarEstadoCuenta">
           Generar comprobante de cuenta
         </UButton>
+        <UButton
+          variant="outline"
+          :loading="enviandoCorreo"
+          :disabled="!ultimoComprobanteId"
+          @click="enviarPorCorreo"
+        >
+          Enviar por correo al propietario
+        </UButton>
       </div>
+
+      <UAlert v-if="resultadoCorreo" color="info" variant="soft" :title="resultadoCorreo" />
 
       <UAlert v-if="errorPdf" color="error" variant="soft" :title="errorPdf" />
       <UAlert v-if="error" color="error" variant="soft" :title="error" />

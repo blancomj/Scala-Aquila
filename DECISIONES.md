@@ -1,4 +1,4 @@
-# Registro de decisiones de implementación
+﻿# Registro de decisiones de implementación
 
 Decisiones tomadas durante la construcción que **desvían o completan** los documentos
 canónicos. `21 §38` exige que ningún cambio arquitectónico sea silencioso.
@@ -781,3 +781,79 @@ test falla y señala exactamente qué archivo y qué reemplazo usar — la regla
 en el propio repo, no solo en la cabeza de quien la pidió. `DESIGN_SYSTEM.md`
 (copiado a la raíz del repo, antes vivía fuera de `proyecto-web` y ningún agente
 futuro lo habría encontrado) es la referencia que cita el mensaje de error.
+
+---
+
+## D-27 - Enlace publico del estado de cuenta: token HMAC, 30 dias, rate-limit y auditoria
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | Post-L7  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario  |
+
+**Contexto.** El enlace publico de `ver-estado-cuenta` era un UUID v4 sin firma con
+vigencia de 90 dias, sin rate-limit por IP (gap aceptado explicito) y sin auditoria
+de accesos (hallazgo A2 de Docs/evaluacion/01). El visor se rediseno ademas como
+documento de autenticidad (folio + hash SHA-256 imprimibles).
+
+**Decision.**
+1. El acceso anonimo exige token HMAC firmado (`v1.<exp>.<hmac(id.exp)>`,
+   `_shared/link_token.ts`, clave en ESTADO_CUENTA_LINK_SECRET o derivada del
+   service_role); un miembro autenticado tambien puede abrirlo con su sesion.
+2. Vigencia del documento baja a 30 dias.
+3. Rate-limit por IP (`check_rate_limit`, bucket `edc_ip:<ip>`, 120/hora).
+4. Cada acceso inserta 'estado_cuenta.acceso' en audit_log (best-effort).
+5. La respuesta pasa a sobre `{datos, folio, contenido_hash}` - el visor imprime
+   folio + hash como sello que sobrevive a la impresion.
+
+**Consecuencias aceptadas.**
+
+```text
++ Puerta anonima deja de ser falsificable, queda rastreada y acotada
++ Documento verificable ante terceros (proceso monitorio art. 54 L675)
+- Los enlaces viejos de mas de 30 dias dejan de funcionar (pedir nuevo)
+- Requiere aplicar migracion 20260901100000 y redesplegar funciones
+```
+
+---
+
+## D-28 - Notificacion por correo del estado de cuenta: gatillos, dedupe via audit_log
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | Post-L7  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario  |
+
+**Contexto.** Concepto acordado: correo con resumen minimo + link al documento
+(Docs/evaluacion/13 §G). La infraestructura Brevo ya existia (invitaciones); faltaba
+plantilla, gatillos y destinatarios. `propietarios.email` es nullable, asi que la
+cobertura incompleta esta garantizada y se maneja como dato, no como error.
+
+**Decision.**
+1. Plantilla tablas-inline (max 600px), builder puro testeable
+   (`_shared/email_estado_cuenta.ts`), escape HTML obligatorio de lo interpolado.
+2. Dos gatillos: manual del auxiliar (`enviar-estado-cuenta`) y batch cron
+   (`enviar-estados-cuenta-pendientes`) FUERA de la transaccion de L5 - el cierre
+   contable nunca depende de Brevo.
+3. Deduplicacion SIN columnas mutables: el rastro vive en audit_log
+   ('estado_cuenta.enviado', ventana 12 h) - estados_cuenta_generados permanece
+   append-only. reenviar:true fuerza el reenvio manual (audita igual).
+4. El enlace lleva token HMAC (D-27), nunca montos en parametros; el boton de
+   pago del visor permanece apagado hasta existir pasarelas con intencion
+   server-side (punto 2 del roadmap).
+5. Los snapshots generados desde la app incluyen propietario (nombre +
+   documento enmascarado ****XXXX) y descripcion de cargos enriquecida con el
+   codigo de concepto; fn_emitir_estados_cuenta aun produce la forma base -
+   pendiente alinear ambos productores (documentado en el store).
+
+**Consecuencias aceptadas.**
+
+```text
++ Append-only intacto; dedupe consultable y auditable por diseno
++ Propietarios sin email no bloquean el envio (se reportan, no fallan)
+- Cobertura de correos depende de la calidad de datos de terceros
+- El batch requiere CRON_SECRET configurado + cron externo que lo llame
+```
+

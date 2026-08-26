@@ -207,9 +207,15 @@ export const ERROR_CODES = {
   // ── Ficha de copropiedad: datos básicos del tenant ──────────────────────
   TIPO_DIVISION_INVALIDO: 'TIPO_DIVISION_INVALIDO',
 
-  // ── Estado de cuenta (PLAN_DATOS_REALES.md §3.3) ─────────────────────────
+  // ── Estado de cuenta (PLAN_DATOS_REALES.md §3.3, D-27/D-28) ──────────────
   ESTADO_CUENTA_NO_ENCONTRADO: 'ESTADO_CUENTA_NO_ENCONTRADO',
   ESTADO_CUENTA_VENCIDO: 'ESTADO_CUENTA_VENCIDO',
+  // Enlace público con token HMAC (D-27): firma que no corresponde al id o
+  // formato ajeno — distinto de VENCIDO (firma válida, expiración cumplida).
+  ESTADO_CUENTA_ENLACE_INVALIDO: 'ESTADO_CUENTA_ENLACE_INVALIDO',
+  // Guard anti-doble-envío del correo (D-28): ya existe rastro
+  // 'estado_cuenta.enviado' en audit_log dentro de la ventana de dedupe.
+  ESTADO_CUENTA_YA_NOTIFICADO: 'ESTADO_CUENTA_YA_NOTIFICADO',
 
   // ── Motor de Gestión de Cartera (CAR §7-§8) ──────────────────────────────
   PERIODO_SIN_FECHA_VENCIMIENTO: 'PERIODO_SIN_FECHA_VENCIMIENTO',

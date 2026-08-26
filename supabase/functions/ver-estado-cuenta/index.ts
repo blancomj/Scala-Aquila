@@ -1,28 +1,47 @@
-// Datos del estado de cuenta para un residente sin sesión — PLAN_DATOS_REALES.md
-// §3.3. El propietario/residente no tiene auth.users (AD-26), así que no
-// puede leer estados_cuenta_generados por RLS normal (exige is_member()).
-// Esta función es la única forma de leerlo sin sesión — la barrera es que
-// `id` es un uuid v4 (128 bits, no adivinable), mismo modelo de seguridad
-// que un link de restablecer contraseña.
+// Enlace público del estado de cuenta — D-27 (Docs/evaluacion/13 §A/§B,
+// endurece el hallazgo A2 de Docs/evaluacion/01-evaluacion-seguridad-arquitectura.md).
 //
-// Devuelve JSON (los datos del ledger, no HTML) — el HTML se renderiza en
-// apps/web/app/pages/comprobante-cuenta/[id].vue, servido por nuestro propio
-// Nuxt. No puede servirse desde aquí ni desde Storage: confirmado
-// empíricamente que el gateway de Supabase Edge Functions fuerza
-// `Content-Type: text/plain` + `Content-Security-Policy: sandbox` en
-// cualquier respuesta, sin importar los headers que ponga la función —
-// control anti-XSS de toda la plataforma, no algo que se pueda desactivar
-// desde el código (ver 20260822120000_estados_cuenta_datos_jsonb.sql).
+// El propietario/residente no tiene auth.users (AD-26), así que no puede leer
+// estados_cuenta_generados por RLS normal. Dos formas legítimas de acceso:
 //
-// Sin rate-limit por IP: enforceRateLimit está pensado para un actor
-// autenticado (JWT), no aplica a un visitante anónimo — riesgo aceptado
-// por ahora, anotado como gap conocido, no una omisión silenciosa.
+//   1. TOKEN FIRMADO  — body {id, t}: `t` es un HMAC de {id, exp} (link_token.ts)
+//      que mintió enviar-estado-cuenta al notificar al propietario. Caduca solo
+//      (30 días) y no se puede falsificar ni reutilizar para otro documento.
+//   2. SESIÓN DE MIEMBRO — body {id} con JWT válido: el administrador que abre
+//      el documento desde la app (functions.invoke adjunta su sesión); se
+//      verifica membresía activa en el tenant del documento.
+//
+// Endurecimientos frente a la versión anterior (UUID puro + 90 días):
+//   · Vigencia del DOCUMENTO baja a 30 días.
+//   · Rate-limit por IP (check_rate_limit, bucket edc_ip:<ip>) — antes era un
+//     gap aceptado explícito; ahora está cerrado.
+//   · Cada acceso queda en audit_log ('estado_cuenta.acceso') — antes ninguna
+//     puerta anónima dejaba rastro. Insert best-effort: si auditara fallara no
+//     se bloquea la lectura (el fallo se loguea y se investiga), pero el
+//     intento sí queda en los logs del proceso vía logEvent.
+//   · La respuesta incluye folio y SHA-256 del contenido: el visor público
+//     imprime ambos como sello de autenticidad (papel incluido).
+//
+// Sigue devolviendo JSON, NO HTML: el gateway de Supabase Edge Functions
+// fuerza Content-Type text/plain + CSP sandbox en cualquier respuesta (verificado
+// empíricamente; ver 20260822120000_estados_cuenta_datos_jsonb.sql) — el HTML
+// lo renderiza apps/web/app/pages/comprobante-cuenta/[id].vue sobre nuestro
+// propio Nuxt.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
+import { sha256HexPublico, verificarTokenEnlace } from '../_shared/link_token.ts'
+import { logEvent } from '../_shared/logger.ts'
 
-const VIGENCIA_DIAS = 90
+const VIGENCIA_DIAS = 30
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function ipDelRequest(req: Request): string {
+  // Detrás del proxy/gateway llega en x-forwarded-for (primera salto = cliente).
+  const reenviada = req.headers.get('x-forwarded-for')
+  const primera = reenviada?.split(',')[0]?.trim()
+  return primera && primera.length > 0 ? primera : 'desconocida'
+}
 
 Deno.serve(async (req) => {
   const correlationId = crypto.randomUUID()
@@ -36,9 +55,13 @@ Deno.serve(async (req) => {
   } catch {
     return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON.', undefined, correlationId)
   }
-  const id = (body as { id?: unknown } | null)?.id
+  const cuerpo = body as { id?: unknown; t?: unknown } | null
+  const id = cuerpo?.id
   if (typeof id !== 'string' || !UUID_RE.test(id)) {
     return errorResponse(400, 'INVALID_PAYLOAD', 'id debe ser un uuid válido.', undefined, correlationId)
+  }
+  if (cuerpo?.t !== undefined && typeof cuerpo.t !== 'string') {
+    return errorResponse(400, 'INVALID_PAYLOAD', 't debe ser un string.', undefined, correlationId)
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -48,9 +71,38 @@ Deno.serve(async (req) => {
   }
   const admin = createClient<Database>(supabaseUrl, serviceKey)
 
+  // Rate-limit por IP ANTES de cualquier lectura — primer control anti
+  // enumeración/fuerza bruta sobre esta puerta anónima.
+  const ip = ipDelRequest(req)
+  const { data: permitido, error: errorRateLimit } = await admin.rpc('check_rate_limit', {
+    p_bucket: `edc_ip:${ip}`,
+    p_max_hits: 120,
+    p_window: '1 hour',
+  })
+  if (errorRateLimit) {
+    // Un fallo del rate-limiter no debe dejar la puerta abierta ni cerrada de
+    // golpe: se registra y se degradar a permitir (mismo criterio que otros
+    // callers: el fallo queda visible en logs para investigar).
+    logEvent({
+      level: 'error',
+      action: 'rate_limit.check_failed',
+      correlationId,
+      message: errorRateLimit.message,
+      meta: { funcion: 'ver-estado-cuenta' },
+    })
+  } else if (permitido === false) {
+    return errorResponse(
+      429,
+      'RATE_LIMITED',
+      'Demasiados accesos desde esta dirección. Inténtalo más tarde.',
+      undefined,
+      correlationId,
+    )
+  }
+
   const { data: registro, error: errorRegistro } = await admin
     .from('estados_cuenta_generados')
-    .select('datos, created_at')
+    .select('datos, created_at, folio, tenant_id')
     .eq('id', id)
     .maybeSingle()
   if (errorRegistro) {
@@ -66,17 +118,112 @@ Deno.serve(async (req) => {
     )
   }
 
+  // ── Autorización: token firmado O sesión de miembro activo ──────────────
+  const token = typeof cuerpo?.t === 'string' ? cuerpo.t : null
+  let via: 'token' | 'sesion'
+
+  if (token !== null) {
+    const veredicto = await verificarTokenEnlace(token, id)
+    if (veredicto === 'invalido') {
+      return errorResponse(
+        403,
+        'ESTADO_CUENTA_ENLACE_INVALIDO',
+        'Este enlace no es válido. Píde uno nuevo a la administración.',
+        undefined,
+        correlationId,
+      )
+    }
+    if (veredicto === 'vencido') {
+      return errorResponse(
+        410,
+        'ESTADO_CUENTA_VENCIDO',
+        'Este enlace venció. Pide uno nuevo a la administración.',
+        undefined,
+        correlationId,
+      )
+    }
+    via = 'token'
+  } else {
+    const jwt = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+    if (!jwt) {
+      return errorResponse(
+        401,
+        'UNAUTHENTICATED',
+        'Se requiere enlace firmado o sesión activa en la copropiedad.',
+        undefined,
+        correlationId,
+      )
+    }
+    const { data: userData, error: errorUser } = await admin.auth.getUser(jwt)
+    const userId = userData?.user?.id
+    if (errorUser || !userId) {
+      return errorResponse(401, 'UNAUTHENTICATED', 'Sesión inválida.', undefined, correlationId)
+    }
+    // service_role lee memberships por encima de RLS — solo existe la
+    // membresía si el usuario pertenece ACTIVO a este tenant.
+    const { data: membership } = await admin
+      .from('memberships')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('tenant_id', registro.tenant_id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!membership) {
+      return errorResponse(
+        403,
+        'FORBIDDEN',
+        'No eres miembro de esta copropiedad.',
+        undefined,
+        correlationId,
+      )
+    }
+    via = 'sesion'
+  }
+
+  // Vigencia del documento (independiente de la del token): un snapshot muy
+  // viejo deja de servirse — el propietario pide uno nuevo y el folio nuevo
+  // queda trazado.
   const vigenteHasta = new Date(registro.created_at)
   vigenteHasta.setDate(vigenteHasta.getDate() + VIGENCIA_DIAS)
   if (vigenteHasta.getTime() < Date.now()) {
     return errorResponse(
       410,
       'ESTADO_CUENTA_VENCIDO',
-      'Este enlace venció. Pide uno nuevo a la administración.',
+      'Este comprobante venció. Pide uno actualizado a la administración.',
       undefined,
       correlationId,
     )
   }
 
-  return jsonResponse(registro.datos, 200, correlationId)
+  // Auditoría best-effort: toda puerta anónima deja rastro (cierra la mitad
+  // "sin auditoría" del hallazgo A2). Un fallo aquí no bloquea la lectura.
+  try {
+    await admin.from('audit_log').insert({
+      action: 'estado_cuenta.acceso',
+      entity_type: 'estados_cuenta_generados',
+      entity_id: id,
+      metadata: { via, correlation_id: correlationId },
+      ip,
+      user_agent: req.headers.get('user-agent'),
+    })
+  } catch (errorAuditoria) {
+    logEvent({
+      level: 'warn',
+      action: 'estado_cuenta.auditoria_fallo',
+      correlationId,
+      message: errorAuditoria instanceof Error ? errorAuditoria.message : 'desconocido',
+      meta: { estado_cuenta_id: id },
+    })
+  }
+
+  // Hash de contenido: JSON.stringify sobre el jsonb leído es determinista
+  // (jsonb normaliza claves), así que el mismo registro produce siempre el
+  // mismo hash — es lo que imprime el documento como sello de autenticidad.
+  const contenidoHash = await sha256HexPublico(JSON.stringify(registro.datos))
+
+  return jsonResponse(
+    { datos: registro.datos, folio: registro.folio, contenido_hash: contenidoHash },
+    200,
+    correlationId,
+  )
 })

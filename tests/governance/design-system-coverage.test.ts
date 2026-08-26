@@ -32,7 +32,8 @@ const ARCHIVOS_LEGADO_COLOR_HEX = new Set<string>([
   'components/cartera/DonutAntiguedad.vue', // dataviz — paleta categórica
   'components/cartera/EvolucionChart.vue', // dataviz — paleta categórica
   'pages/cartera/index.vue', // dataviz — paleta categórica (escalones de mora)
-  'pages/comprobante-cuenta/[id].vue', // #fff literal en botón de color
+  // 'pages/comprobante-cuenta/[id].vue' salió del allowlist (D-27/D-28): el
+  // visor público se reescribió solo con tokens — ya no necesita hex.
 ])
 
 /** Congelado al 23-08-2026 (D-26) — 904 usos de gray-* en estos 66 archivos,

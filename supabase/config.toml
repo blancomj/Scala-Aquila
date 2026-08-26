@@ -96,13 +96,31 @@ import_map = "./functions/calcular-intereses/deno.json"
 entrypoint = "./functions/calcular-intereses/index.ts"
 
 # Pública a propósito: el propietario/residente no tiene sesión (AD-26).
-# La única barrera es que `id` es un uuid v4 no adivinable — ver cabecera
-# de ver-estado-cuenta/index.ts.
+# Barrera doble (D-27): token HMAC firmado con expiración en `t`, o sesión de
+# miembro activo; además rate-limit por IP y auditoría de cada acceso — ver
+# cabecera de ver-estado-cuenta/index.ts.
 [functions.ver-estado-cuenta]
 enabled = true
 verify_jwt = false
 import_map = "./functions/ver-estado-cuenta/deno.json"
 entrypoint = "./functions/ver-estado-cuenta/index.ts"
+
+# Gatillo manual del administrador: envía por correo el estado de cuenta al
+# propietario (D-28). Sesión obligatoria + rol auxiliar del tenant.
+[functions.enviar-estado-cuenta]
+enabled = true
+verify_jwt = true
+import_map = "./functions/enviar-estado-cuenta/deno.json"
+entrypoint = "./functions/enviar-estado-cuenta/index.ts"
+
+# Batch cron post-liquidación (D-28): notifica los estados emitidos por L5
+# que aún no tienen rastro 'estado_cuenta.enviado' en audit_log. Sin JWT a
+# propósito — se autentica con CRON_SECRET en el header x-cron-secret.
+[functions.enviar-estados-cuenta-pendientes]
+enabled = true
+verify_jwt = false
+import_map = "./functions/enviar-estados-cuenta-pendientes/deno.json"
+entrypoint = "./functions/enviar-estados-cuenta-pendientes/index.ts"
 
 [functions.probar-formula]
 enabled = true

@@ -19,6 +19,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@eslint/js@^9.17.0",
+        "npm:@playwright/test@^1.62.1",
         "npm:@supabase/supabase-js@^2.112.3",
         "npm:@types/node@^22.10.2",
         "npm:@types/pg@^8.21.0",

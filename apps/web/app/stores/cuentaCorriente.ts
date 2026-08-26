@@ -53,7 +53,12 @@ export interface MovimientoEstadoCuenta {
 }
 
 /** Forma de estados_cuenta_generados.datos — misma estructura que devuelve
- * la Edge Function ver-estado-cuenta (PLAN_DATOS_REALES.md §3.3). */
+ * la Edge Function ver-estado-cuenta (PLAN_DATOS_REALES.md §3.3).
+ *
+ * propietario_* y los campos opcionales posteriores solo los producen los
+ * snapshots generados desde la app (store); fn_emitir_estados_cuenta (L5)
+ * aún produce la forma base — el visor público trata su ausencia con '—'
+ * hasta que el productor SQL alcance la misma forma (pendiente, D-28). */
 export interface EstadoCuentaDatos {
   tenant_nombre: string
   tenant_nit: string | null
@@ -61,6 +66,16 @@ export interface EstadoCuentaDatos {
   movimientos: MovimientoEstadoCuenta[]
   saldo_final: number
   generado_en: string
+  propietario_nombre?: string | null
+  propietario_documento_enmascarado?: string | null
+}
+
+/** Enmascara un documento para documentos reenviables: deja los últimos 4
+ * dígitos (D-27 §A.3 — data minimization en documento público). */
+export function enmascararDocumento(documento: string): string {
+  const limpio = documento.trim()
+  if (limpio.length <= 4) return `****${limpio}`
+  return `****${limpio.slice(-4)}`
 }
 
 export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
@@ -364,24 +379,32 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
 
   /** Calcula el ledger completo (todos los cargos + pagos del inmueble, no
    * solo los abiertos) e inserta un snapshot en estados_cuenta_generados —
-   * directo por RLS (agent), sin Edge Function: no hay privilegio que
+   * directo por RLS (auxiliar), sin Edge Function: no hay privilegio que
    * escalar aquí (PLAN_DATOS_REALES.md §3.3, decisión revisada — el HTML
    * se sirve desde apps/web, no desde Storage/Edge Functions, ver
    * 20260822120000_estados_cuenta_datos_jsonb.sql). Devuelve el id de la
-   * fila — la página pública es /estado-cuenta/{id}. */
+   * fila — la página pública es /comprobante-cuenta/{id}.
+   *
+   * etiquetasConcepto enriquece la descripción de los cargos con el código
+   * del concepto (antes solo decía "Capital" — crítica del análisis UI/UX:
+   * descripción pobre = reclamos). Opcional para no acoplar el store a la
+   * carga previa de conceptos. */
   async function generarEstadoCuenta(params: {
     tenantId: string
     inmuebleId: string
     inmuebleCodigo: string
     tenantNombre: string
     tenantNit: string | null
+    propietarioNombre?: string | null
+    propietarioDocumento?: string | null
+    etiquetasConcepto?: Record<string, string>
   }): Promise<string> {
     const cliente = useSupabaseClient<Database>()
     const [{ data: todosCargos, error: errorCargos }, { data: todosPagos, error: errorPagos }] =
       await Promise.all([
         cliente
           .from('cargos')
-          .select('monto_original, created_at, categoria')
+          .select('monto_original, created_at, categoria, concepto_id')
           .eq('inmueble_id', params.inmuebleId)
           .order('created_at'),
         cliente
@@ -400,14 +423,16 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
       esCargo: boolean
     }
     const eventos: Evento[] = [
-      ...(todosCargos ?? []).map(
-        (c): Evento => ({
+      ...(todosCargos ?? []).map((c): Evento => {
+        const categoria = CATEGORIA_ESTADO_CUENTA_LABEL[c.categoria] ?? c.categoria
+        const concepto = c.concepto_id ? params.etiquetasConcepto?.[c.concepto_id] : undefined
+        return {
           fecha: c.created_at,
-          descripcion: CATEGORIA_ESTADO_CUENTA_LABEL[c.categoria] ?? c.categoria,
+          descripcion: concepto ? `${categoria} · ${concepto}` : categoria,
           monto: Number(c.monto_original),
           esCargo: true,
-        }),
-      ),
+        }
+      }),
       ...(todosPagos ?? []).map(
         (p): Evento => ({
           fecha: p.fecha_pago,
@@ -437,6 +462,10 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
       movimientos,
       saldo_final: saldo,
       generado_en: new Date().toISOString(),
+      propietario_nombre: params.propietarioNombre ?? null,
+      propietario_documento_enmascarado: params.propietarioDocumento
+        ? enmascararDocumento(params.propietarioDocumento)
+        : null,
     }
 
     const { data, error: errorInsert } = await cliente
