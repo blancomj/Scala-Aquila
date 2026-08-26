@@ -53,13 +53,6 @@ function elegirArchivoActa(evento: Event): void {
   archivoActaActivar.value = archivo
 }
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 function vigenciaTexto(desde: string | null, hasta: string | null): string {
   if (!desde && !hasta) return '—'

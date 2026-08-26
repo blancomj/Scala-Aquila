@@ -147,13 +147,6 @@ const conteoDescendientes = computed(() => {
   return conteo
 })
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 const presupuestoSeleccionado = computed(
   () => presupuestoStore.presupuestos.find((p) => p.id === props.presupuestoId) ?? null,

@@ -75,13 +75,6 @@ watch(
   { immediate: true },
 )
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 function origenLegible(cargo: { concepto_id: string | null; categoria: string | null }): string {
   if (cargo.concepto_id) return conceptoPorId.value.get(cargo.concepto_id) ?? cargo.concepto_id
@@ -163,8 +156,7 @@ async function enviarPorCorreo(): Promise<void> {
     <div>
       <h1 class="text-xl font-semibold mb-2">Estado de cuenta</h1>
       <p class="text-sm text-gray-500">
-        Cargos pendientes e historial de pagos del ledger por inmueble
-        (`cargos`/`pagos`/`pago_aplicaciones`).
+        Cargos pendientes e historial de pagos por inmueble.
       </p>
     </div>
 

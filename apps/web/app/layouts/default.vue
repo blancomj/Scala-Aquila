@@ -27,20 +27,17 @@ await useAsyncData('memberships', () => tenantStore.cargarMemberships())
           <span class="font-semibold">Aquila PH</span>
         </div>
         <div class="flex-1 flex items-center gap-4 py-2.5 pr-4 pl-10">
+          <!-- En la misma fila que la búsqueda (2026-08-26): antes vivía en
+          una segunda fila con su propio borde y padding, que doblaba la
+          altura del header. `min-w-0` dentro de NavBreadcrumb le permite
+          truncar en vez de empujar la búsqueda/los iconos de la derecha. -->
+          <NavBreadcrumb v-if="tenantStore.activeTenant" class="min-w-0 shrink" />
           <BusquedaGlobal v-if="tenantStore.activeTenant" />
           <div class="flex items-center gap-2 ml-auto shrink-0">
             <NavTenantSwitcher />
             <NavNotificaciones v-if="tenantStore.activeTenant" />
             <NavUsuarioMenu />
           </div>
-        </div>
-      </div>
-      <!-- Oculto temporalmente (decisión del usuario, 2026-08-18) mientras
-      se define su ubicación definitiva en el header. -->
-      <div v-if="false" class="flex items-center border-t border-gray-100 dark:border-gray-900">
-        <div class="shrink-0" :style="{ width: anchoSidebar }" />
-        <div class="flex-1 py-1.5 pr-4 pl-10">
-          <NavBreadcrumb />
         </div>
       </div>
     </header>

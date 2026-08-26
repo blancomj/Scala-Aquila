@@ -45,13 +45,6 @@ const seExigeReconciliacion = computed(() => {
   return estado === 'aprobado' || estado === 'vigente'
 })
 
-function formatoMoneda(valor: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(valor)
-}
 
 type EstadoCheck = 'ok' | 'error' | 'pendiente' | 'no_aplica'
 

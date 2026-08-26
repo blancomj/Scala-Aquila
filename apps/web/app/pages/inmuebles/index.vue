@@ -12,9 +12,9 @@
 // individual. El saldo por inmueble SÍ se carga siempre (66 unidades es
 // trivial; si la copropiedad crece a miles, ese costo habría que revisarlo,
 // pero no antes).
-definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
-
 import type { OrdenTabla } from '~/components/ui/UiTabla.vue'
+
+definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
@@ -75,10 +75,6 @@ const saldoPorInmueble = computed(() => {
   }
   return mapa
 })
-
-function formatoMoneda(valor: number): string {
-  return `$ ${Math.round(valor).toLocaleString('es-CO')}`
-}
 
 function formatoCoeficiente(valor: number): string {
   return valor.toFixed(6)

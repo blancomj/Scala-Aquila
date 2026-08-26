@@ -96,13 +96,6 @@ const mesesDisponibles = computed(() => {
   return MESES.map((nombre, i) => ({ label: nombre, value: i + 1, disabled: usados.has(i + 1) }))
 })
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 async function crearPeriodo(): Promise<void> {
   errorPeriodo.value = null

@@ -15,8 +15,6 @@
 // despachar varias seguidas. "Rechazar" e "Inhabilitar" viven solo en el
 // detalle: piden un motivo o tienen consecuencias que conviene leer con la
 // novedad completa a la vista, y así no se duplican los modales.
-definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
-
 import {
   COLOR_ESTADO_NOVEDAD,
   DESCRIPCION_ESTADO_NOVEDAD,
@@ -26,6 +24,8 @@ import {
   mesAnioTexto,
   type NovedadTipo,
 } from '~/utils/novedad-labels'
+
+definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
@@ -48,13 +48,6 @@ await useAsyncData('cuenta-corriente-novedades-base', async () => {
   return null
 })
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 type Novedad = (typeof cuentaStore.novedades)[number]
 

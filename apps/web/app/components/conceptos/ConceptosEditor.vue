@@ -128,13 +128,6 @@ function mesAnio(mes: number | null, anio: number | null): string {
   return `${MESES[mes - 1]} de ${anio}`
 }
 
-function formatoMoneda(valor: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(valor)
-}
 
 /** Resumen en lenguaje llano de lo que hará el concepto — ensambla todos los
  * campos en una frase verificable de un vistazo. Devuelve segmentos (no HTML)

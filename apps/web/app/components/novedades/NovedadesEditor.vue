@@ -227,13 +227,6 @@ const motivoNombre = computed(
 )
 
 // ── resumen en vivo ────────────────────────────────────────────────────
-function formatoMoneda(valor: number | string): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 const inmuebleCodigo = computed(
   () => cuentaStore.inmuebles.find((i) => i.id === inmuebleId.value)?.codigo ?? null,

@@ -49,13 +49,6 @@ const {
 
 const datos = computed(() => respuesta.value?.datos ?? null)
 
-function formatoMoneda(valor: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(valor)
-}
 
 function formatoFecha(iso: string): string {
   // Fecha contable del corte/movimiento — UTC fijo, no la zona del cliente.

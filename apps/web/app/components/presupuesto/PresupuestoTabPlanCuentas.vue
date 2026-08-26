@@ -229,13 +229,6 @@ const porcentajeAsignado = computed(() =>
   montoTotal.value === 0 ? 0 : Math.min((sumaEgresos.value / montoTotal.value) * 100, 100),
 )
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 function porcentajeDelTotal(cuentaId: string): string {
   if (montoTotal.value === 0) return '—'

@@ -53,8 +53,7 @@ async function crear(): Promise<void> {
     <div>
       <h1 class="text-xl font-semibold mb-2">Fundamentos normativos</h1>
       <p class="text-sm text-gray-500">
-        Referencias legales reutilizables (Ley, decreto, reglamento PH, decisión de asamblea) —
-        GAP-19.
+        Referencias legales reutilizables (Ley, decreto, reglamento PH, decisión de asamblea).
       </p>
     </div>
 

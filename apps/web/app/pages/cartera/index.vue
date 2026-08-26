@@ -80,13 +80,6 @@ await useAsyncData('cartera-dashboard-inicial', async () => {
 
 watch(fechaCorte, cargar)
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 function formatoPct(valor: number): string {
   return `${valor.toFixed(1)}%`

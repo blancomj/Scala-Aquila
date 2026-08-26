@@ -144,8 +144,7 @@ const personasVinculadasActivas = computed(
         @update:model-value="(v) => irATab(v as Tab, TABS.find((t) => t.id === v)?.deshabilitada)"
       />
       <p class="note" style="margin: 8px 0 0">
-        <strong>Histórico</strong> está pendiente — depende de generalizar <code>v_inmueble_historico</code> a la
-        copropiedad, una decisión de arquitectura sin resolver todavía.
+        <strong>Histórico</strong> todavía no está disponible para la copropiedad completa.
       </p>
 
       <div class="panels">

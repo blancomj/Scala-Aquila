@@ -4,6 +4,13 @@ const cliente = useSupabaseClient()
 const router = useRouter()
 const authStore = useAuthStore()
 const tenantStore = useTenantStore()
+const colorMode = useColorMode()
+
+const TEMA_OPCIONES = [
+  { valor: 'light', etiqueta: 'Claro' },
+  { valor: 'dark', etiqueta: 'Oscuro' },
+  { valor: 'system', etiqueta: 'Sistema' },
+] as const
 
 const ROL_LABEL: Record<string, string> = {
   agent: 'Administrador',
@@ -82,6 +89,27 @@ async function cerrarSesion(): Promise<void> {
         <p class="text-sm font-medium truncate">{{ nombre }}</p>
         <p class="text-xs text-gray-400 truncate">{{ usuario?.email }}</p>
       </div>
+
+      <div class="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800">
+        <p class="text-xs text-gray-400 mb-1.5">Tema</p>
+        <div class="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-gray-800 p-0.5">
+          <button
+            v-for="opcion in TEMA_OPCIONES"
+            :key="opcion.valor"
+            type="button"
+            class="flex-1 rounded px-1.5 py-1 text-xs font-medium transition-colors"
+            :class="
+              colorMode.preference === opcion.valor
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            "
+            @click="colorMode.preference = opcion.valor"
+          >
+            {{ opcion.etiqueta }}
+          </button>
+        </div>
+      </div>
+
       <button
         type="button"
         class="w-full text-left px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"

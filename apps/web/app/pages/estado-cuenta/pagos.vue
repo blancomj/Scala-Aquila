@@ -47,13 +47,6 @@ watch(
   { immediate: true },
 )
 
-function formatoMoneda(valor: string | number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
 
 // ── registrar pago ────────────────────────────────────────────────────
 const monto = ref<number | null>(null)

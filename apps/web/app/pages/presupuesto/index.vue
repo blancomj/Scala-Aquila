@@ -113,13 +113,6 @@ const sumaFuentesAplicadas = computed(() =>
   presupuestoStore.fuentes.reduce((acc, f) => acc + Number(f.valor_aplicado), 0),
 )
 
-function formatoMoneda(valor: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(valor)
-}
 </script>
 
 <template>
