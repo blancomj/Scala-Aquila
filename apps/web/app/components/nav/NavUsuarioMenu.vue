@@ -92,14 +92,24 @@ async function cerrarSesion(): Promise<void> {
 
       <NuxtLink
         to="/perfil"
-        class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
         @click="menuAbierto = null"
       >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 shrink-0">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
         Mi perfil
       </NuxtLink>
 
       <div class="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800">
-        <p class="text-xs text-gray-400 mb-1.5">Tema</p>
+        <p class="flex items-center gap-2.5 text-xs text-gray-400 mb-1.5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-violet-500 shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 18a6 6 0 0 0 0-12v12z" fill="currentColor" stroke="none" />
+          </svg>
+          Tema
+        </p>
         <div class="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-gray-800 p-0.5">
           <button
             v-for="opcion in TEMA_OPCIONES"
@@ -116,7 +126,7 @@ async function cerrarSesion(): Promise<void> {
             "
             @click="colorMode.preference = opcion.valor"
           >
-            <svg v-if="opcion.icono === 'sol'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+            <svg v-if="opcion.icono === 'sol'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-amber-500">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2" />
               <path d="M12 20v2" />
@@ -127,10 +137,10 @@ async function cerrarSesion(): Promise<void> {
               <path d="m6.34 17.66-1.41 1.41" />
               <path d="m19.07 4.93-1.41 1.41" />
             </svg>
-            <svg v-else-if="opcion.icono === 'luna'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+            <svg v-else-if="opcion.icono === 'luna'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-indigo-400">
               <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
             </svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-sky-500">
               <rect width="20" height="14" x="2" y="3" rx="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
@@ -141,9 +151,14 @@ async function cerrarSesion(): Promise<void> {
 
       <button
         type="button"
-        class="w-full text-left px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="w-full flex items-center gap-2.5 text-left px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         @click="cerrarSesion"
       >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-rose-500 shrink-0">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
         Cerrar sesión
       </button>
     </div>
