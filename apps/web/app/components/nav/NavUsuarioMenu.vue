@@ -7,9 +7,9 @@ const tenantStore = useTenantStore()
 const colorMode = useColorMode()
 
 const TEMA_OPCIONES = [
-  { valor: 'light', etiqueta: 'Claro' },
-  { valor: 'dark', etiqueta: 'Oscuro' },
-  { valor: 'system', etiqueta: 'Sistema' },
+  { valor: 'light', etiqueta: 'Claro', icono: 'sol' },
+  { valor: 'dark', etiqueta: 'Oscuro', icono: 'luna' },
+  { valor: 'system', etiqueta: 'Sistema', icono: 'sistema' },
 ] as const
 
 const ROL_LABEL: Record<string, string> = {
@@ -90,6 +90,14 @@ async function cerrarSesion(): Promise<void> {
         <p class="text-xs text-gray-400 truncate">{{ usuario?.email }}</p>
       </div>
 
+      <NuxtLink
+        to="/perfil"
+        class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
+        @click="menuAbierto = null"
+      >
+        Mi perfil
+      </NuxtLink>
+
       <div class="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800">
         <p class="text-xs text-gray-400 mb-1.5">Tema</p>
         <div class="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-gray-800 p-0.5">
@@ -97,7 +105,10 @@ async function cerrarSesion(): Promise<void> {
             v-for="opcion in TEMA_OPCIONES"
             :key="opcion.valor"
             type="button"
-            class="flex-1 rounded px-1.5 py-1 text-xs font-medium transition-colors"
+            :title="opcion.etiqueta"
+            :aria-label="opcion.etiqueta"
+            :aria-pressed="colorMode.preference === opcion.valor"
+            class="flex-1 flex items-center justify-center rounded px-1.5 py-1.5 transition-colors"
             :class="
               colorMode.preference === opcion.valor
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
@@ -105,7 +116,25 @@ async function cerrarSesion(): Promise<void> {
             "
             @click="colorMode.preference = opcion.valor"
           >
-            {{ opcion.etiqueta }}
+            <svg v-if="opcion.icono === 'sol'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2" />
+              <path d="M12 20v2" />
+              <path d="m4.93 4.93 1.41 1.41" />
+              <path d="m17.66 17.66 1.41 1.41" />
+              <path d="M2 12h2" />
+              <path d="M20 12h2" />
+              <path d="m6.34 17.66-1.41 1.41" />
+              <path d="m19.07 4.93-1.41 1.41" />
+            </svg>
+            <svg v-else-if="opcion.icono === 'luna'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <rect width="20" height="14" x="2" y="3" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
           </button>
         </div>
       </div>

@@ -57,9 +57,34 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * "Mi perfil" (menú de usuario, 2026-08-26) — solo las columnas que
+   * profiles_update_propio + guard_privileged_columns dejan auto-editar
+   * (SEC-06): is_platform_admin/status/email quedan fuera por diseño.
+   */
+  async function actualizarPerfil(cambios: {
+    fullName: string | null
+    phone: string | null
+  }): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const {
+      data: { user: usuario },
+    } = await cliente.auth.getUser()
+    if (!usuario) throw new Error('Sesión inválida.')
+
+    const { data, error: errorPerfil } = await cliente
+      .from('profiles')
+      .update({ full_name: cambios.fullName, phone: cambios.phone })
+      .eq('id', usuario.id)
+      .select('*')
+      .single()
+    if (errorPerfil) throw errorPerfil
+    profile.value = data
+  }
+
   function limpiar(): void {
     profile.value = null
   }
 
-  return { profile, loading, isPlatformAdmin, cargarPerfil, limpiar }
+  return { profile, loading, isPlatformAdmin, cargarPerfil, actualizarPerfil, limpiar }
 })
