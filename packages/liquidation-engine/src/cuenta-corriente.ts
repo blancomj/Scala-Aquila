@@ -192,6 +192,11 @@ export interface PoliticaMora {
   readonly diasGracia: number
   readonly dayCount: ConvencionDayCount
   readonly descuentoOrden: OrdenDescuentoInteres
+  /** H3/H4 (auditoría externa 2026-08-26): solo importa cuando descuentoOrden
+   * ==='descuento_antes_interes'. false (default) = solo DISCOUNT compensa
+   * mora (comportamiento histórico). true = CREDIT/REFUND también, mismo
+   * tratamiento que DISCOUNT — los tres son dinero a favor real (AD-30). */
+  readonly compensaCreditos: boolean
 }
 
 function timestampUtc(fechaIso: string): number {
@@ -265,15 +270,56 @@ function tasaDiariaPor(convencion: ConvencionDayCount, tasaMensualEfectiva: stri
   }
 }
 
-/** Σ DISCOUNT (monto negativo, AD-30) por periodoClave — solo cargos categoria='otro'. */
-function totalDescuentoPorPeriodo(cargos: readonly CargoAbierto[]): ReadonlyMap<string, Money> {
-  const mapa = new Map<string, Money>()
-  for (const cargo of cargos) {
-    if (cargo.categoria !== 'otro' || cargo.novedadTipo !== 'DISCOUNT') continue
-    const previo = mapa.get(cargo.periodoClave)
-    mapa.set(cargo.periodoClave, previo ? fos.sumar(previo, cargo.montoPendiente) : cargo.montoPendiente)
+/**
+ * H3/H4 (auditoría externa 2026-08-26): pool de crédito acumulado del
+ * inmueble (DISCOUNT siempre; CREDIT/REFUND si `compensaCreditos`),
+ * consumido cronológicamente contra los capitales en mora — el más antiguo
+ * primero, mismo criterio que la estrategia de imputación
+ * `deuda_mas_antigua`. Un crédito de un periodo puede compensar la mora de
+ * un periodo posterior — antes de esta fase el mecanismo solo miraba el
+ * mismo periodo del capital.
+ *
+ * Devuelve la base YA ajustada (piso cero) por cargoId de capital — solo
+ * para los que el pool alcanzó a tocar. calcularInteresMora usa
+ * `montoPendiente` sin cambios para cualquier capital ausente del mapa.
+ */
+function calcularBasesConPool(
+  cargos: readonly CargoAbierto[],
+  compensaCreditos: boolean,
+): ReadonlyMap<string, Money> {
+  const tiposIncluidos: ReadonlySet<NovedadTipo> = compensaCreditos
+    ? new Set<NovedadTipo>(['DISCOUNT', 'CREDIT', 'REFUND'])
+    : new Set<NovedadTipo>(['DISCOUNT'])
+
+  const creditos = cargos.filter(
+    (c) => c.categoria === 'otro' && c.novedadTipo !== null && tiposIncluidos.has(c.novedadTipo),
+  )
+  const capitalesOrdenados = cargos
+    .filter((c) => c.categoria === 'capital' && !isZeroMoney(c.montoPendiente) && !isNegativeMoney(c.montoPendiente))
+    .slice()
+    .sort((a, b) => (a.periodoClave < b.periodoClave ? -1 : a.periodoClave > b.periodoClave ? 1 : 0))
+  const [primerCapital] = capitalesOrdenados
+  if (creditos.length === 0 || primerCapital === undefined) return new Map()
+
+  const moneda = primerCapital.montoPendiente.currency
+  // Negativo (o cero) — suma de todo el crédito disponible del inmueble (AD-30).
+  let poolRestante = creditos.reduce((acc, c) => fos.sumar(acc, c.montoPendiente), fos.money(0, moneda))
+
+  const bases = new Map<string, Money>()
+  for (const capital of capitalesOrdenados) {
+    if (isZeroMoney(poolRestante)) break
+    const reducida = fos.sumar(capital.montoPendiente, poolRestante)
+    if (isNegativeMoney(reducida)) {
+      // El pool cubre todo este capital (piso cero) y lo que sobra pasa al siguiente.
+      bases.set(capital.id, fos.restar(capital.montoPendiente, capital.montoPendiente))
+      poolRestante = reducida
+    } else {
+      // El pool se agota en este capital (o justo alcanza).
+      bases.set(capital.id, reducida)
+      poolRestante = fos.money(0, moneda)
+    }
   }
-  return mapa
+  return bases
 }
 
 /**
@@ -392,9 +438,9 @@ export function calcularInteresMora(
   }
   const segmentosOrdenados = usaSegmentos ? validarSegmentosOrdenados(segmentos) : null
 
-  const descuentosPorPeriodo =
+  const basesConPool =
     politica.descuentoOrden === 'descuento_antes_interes'
-      ? totalDescuentoPorPeriodo(cargosAbiertos)
+      ? calcularBasesConPool(cargosAbiertos, politica.compensaCreditos)
       : null
 
   const generados: CargoInteresGenerado[] = []
@@ -402,14 +448,9 @@ export function calcularInteresMora(
     if (cargo.categoria !== 'capital') continue
     if (isZeroMoney(cargo.montoPendiente) || isNegativeMoney(cargo.montoPendiente)) continue
 
-    let base = cargo.montoPendiente
-    const descuento = descuentosPorPeriodo?.get(cargo.periodoClave)
-    if (descuento) {
-      // descuento es negativo (AD-30) — sumarlo resta de la base. Piso cero:
-      // un descuento mayor que el capital pendiente no genera interés negativo.
-      const reducida = fos.sumar(base, descuento)
-      base = isNegativeMoney(reducida) ? fos.restar(base, base) : reducida
-    }
+    // calcularBasesConPool ya aplicó el piso cero — un capital ausente del
+    // mapa no fue tocado por el pool, usa su montoPendiente completo.
+    const base = basesConPool?.get(cargo.id) ?? cargo.montoPendiente
     if (isZeroMoney(base)) continue
 
     if (segmentosOrdenados !== null) {

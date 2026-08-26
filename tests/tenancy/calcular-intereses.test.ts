@@ -405,3 +405,123 @@ d('calcular-intereses (Edge Function) — REQ-NOVEDAD-003: descuento_antes_inter
     expect(fila?.monto_generado).toBe('700')
   }, 30_000)
 })
+
+// H3/H4 (auditoría externa 2026-08-26) — tenant/política aparte, mismo
+// criterio que el describe anterior.
+d('calcular-intereses (Edge Function) — H3/H4: compensa_creditos entre periodos', () => {
+  const admin = clienteAdmin(env!)
+  let agente: UsuarioPrueba
+  let tenant: TenantPrueba
+  let clienteAgent: Cliente
+
+  afterAll(async () => {
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, agente.id)
+  })
+
+  it('un CREDIT de enero compensa la mora de un capital vencido en febrero', async () => {
+    agente = await crearUsuario(admin, 'ci-cred-agent')
+    tenant = await crearTenant(admin, 'ci-cred', agente.id)
+    await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
+    clienteAgent = await clienteComo(env!, agente)
+
+    await asegurarTasaReferenciaDePrueba(admin)
+    const { error: errPolitica } = await admin.from('politicas_financieras').insert({
+      tenant_id: tenant.id,
+      version: 1,
+      estado: 'vigente',
+      vigente_desde: '2026-01-01',
+      redondeo_modo: 'half_up',
+      redondeo_escala: 0,
+      residual_metodo: 'mayor_resto',
+      coeficientes_suma_esperada: 1,
+      policy_hash: 'test-fixture-hash-credito',
+      interes_tasa_mensual: 0.03,
+      interes_tope_mensual: 0.05,
+      interes_dias_gracia: 0,
+      interes_descuento_orden: 'descuento_antes_interes',
+      interes_mora_compensa_creditos: true,
+      interes_tipo_tasa: 'ibc_consumo_ordinario',
+      interes_multiplicador: 1.5,
+    })
+    if (errPolitica) throw new Error(`fixture politica: ${errPolitica.message}`)
+
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmueble, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `CI-CRED-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+
+    const { data: periodoEnero, error: errPeriodoEnero } = await admin
+      .from('periodos')
+      .insert({
+        tenant_id: tenant.id,
+        anio: 2026,
+        mes: 1,
+        estado: 'abierto',
+        fecha_vencimiento: '2026-01-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPeriodoEnero) throw new Error(`fixture periodo enero: ${errPeriodoEnero.message}`)
+
+    const { data: periodoFebrero, error: errPeriodoFebrero } = await admin
+      .from('periodos')
+      .insert({
+        tenant_id: tenant.id,
+        anio: 2026,
+        mes: 2,
+        estado: 'abierto',
+        fecha_vencimiento: '2026-02-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errPeriodoFebrero) throw new Error(`fixture periodo febrero: ${errPeriodoFebrero.message}`)
+
+    await crearCargoCapital(admin, tenant.id, inmueble.id, periodoFebrero.id, 100_000)
+
+    // CREDIT de enero — un periodo distinto del capital que causa mora en
+    // febrero. Con el pool acumulado (H3/H4), esto sí compensa; antes de
+    // esta fase el mecanismo solo miraba el mismo periodo del capital.
+    const { data: novedad, error: errNovedad } = await admin
+      .from('novedades')
+      .insert({
+        tenant_id: tenant.id,
+        inmueble_id: inmueble.id,
+        tipo: 'CREDIT',
+        monto: -20_000,
+        descripcion: 'fixture crédito H3/H4',
+        fecha_efectiva: '2026-01-15',
+        estado: 'aprobada',
+        created_by: agente.id,
+        approved_by: agente.id,
+        approved_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errNovedad) throw new Error(`fixture novedad: ${errNovedad.message}`)
+
+    const { error: errCargoCredito } = await admin.from('cargos').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmueble.id,
+      periodo_id: periodoEnero.id,
+      categoria: 'otro',
+      origen_tipo: 'novedad',
+      novedad_id: novedad.id,
+      monto_original: -20_000,
+    })
+    if (errCargoCredito) throw new Error(`fixture cargo crédito: ${errCargoCredito.message}`)
+
+    // días de mora = 10, sin gracia. base = 100_000 - 20_000 (pool de enero) = 80_000.
+    // interes = 80_000 * (0.03/30) * 10 = 800 — sin compensar entre periodos sería 1000.
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaInteres[]>(
+      'calcular-intereses',
+      { body: { tenant_id: tenant.id, fecha_referencia: '2026-02-11' } },
+    )
+    expect(response?.status).toBe(200)
+    const fila = data?.find((f) => f.inmueble_id === inmueble.id)
+    expect(fila?.monto_generado).toBe('800')
+  }, 30_000)
+})

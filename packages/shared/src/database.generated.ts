@@ -4145,6 +4145,7 @@ export type Database = {
           interes_day_count: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia: number
+          interes_mora_compensa_creditos: boolean
           interes_multiplicador: number | null
           interes_tasa_mensual: number | null
           interes_tipo_tasa:
@@ -4179,6 +4180,7 @@ export type Database = {
           interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
+          interes_mora_compensa_creditos?: boolean
           interes_multiplicador?: number | null
           interes_tasa_mensual?: number | null
           interes_tipo_tasa?:
@@ -4213,6 +4215,7 @@ export type Database = {
           interes_day_count?: Database["public"]["Enums"]["interes_day_count_t"]
           interes_descuento_orden?: Database["public"]["Enums"]["interes_descuento_orden_t"]
           interes_dias_gracia?: number
+          interes_mora_compensa_creditos?: boolean
           interes_multiplicador?: number | null
           interes_tasa_mensual?: number | null
           interes_tipo_tasa?:

@@ -112,7 +112,7 @@ export async function obtenerPoliticaMora(
   const { data, error } = await cliente
     .from('politicas_financieras')
     .select(
-      'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, interes_descuento_orden',
+      'interes_tasa_mensual, interes_tope_mensual, interes_dias_gracia, interes_day_count, interes_descuento_orden, interes_mora_compensa_creditos',
     )
     .eq('tenant_id', opciones.tenantId)
     .eq('estado', 'vigente')
@@ -129,6 +129,7 @@ export async function obtenerPoliticaMora(
     diasGracia: data.interes_dias_gracia,
     dayCount: data.interes_day_count,
     descuentoOrden: data.interes_descuento_orden,
+    compensaCreditos: data.interes_mora_compensa_creditos,
   }
 }
 

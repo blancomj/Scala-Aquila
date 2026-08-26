@@ -38,6 +38,7 @@ function politicaMora(over: Partial<PoliticaMora> = {}): PoliticaMora {
     diasGracia: 0,
     dayCount: 'mensual_30_dias_reales',
     descuentoOrden: 'interes_sobre_capital_completo',
+    compensaCreditos: false,
     ...over,
   }
 }
@@ -355,6 +356,117 @@ describe('calcularInteresMora', () => {
       const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
       const [generado] = calcularInteresMora([capital, ajuste], '2027-01-11', politicaConOrden, redondeo)
       expect(generado?.monto.amount.toString()).toBe('1000')
+    })
+  })
+
+  describe('H3/H4 (auditoría externa 2026-08-26) — pool de crédito acumulado', () => {
+    const capital = cargo({
+      id: 'cap-1',
+      categoria: 'capital',
+      periodoClave: '2027-01',
+      fechaVencimiento: '2027-01-01',
+      montoPendiente: money(100_000, 'COP'),
+    })
+
+    it('un crédito de un periodo anterior compensa la mora de un periodo posterior', () => {
+      const descuentoEnero = cargo({
+        id: 'desc-enero',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'DISCOUNT',
+        montoPendiente: money(-20_000, 'COP'),
+      })
+      const capitalFebrero = cargo({
+        id: 'cap-febrero',
+        categoria: 'capital',
+        periodoClave: '2027-02',
+        fechaVencimiento: '2027-02-01',
+        montoPendiente: money(80_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
+      const [generado] = calcularInteresMora(
+        [descuentoEnero, capitalFebrero],
+        '2027-02-11',
+        politicaConOrden,
+        redondeo,
+      )
+      // (80_000 - 20_000) * (0.03/30) * 10 = 600 — sin compensar entre periodos sería 800.
+      expect(generado?.monto.amount.toString()).toBe('600')
+    })
+
+    it('compensaCreditos=false (default): CREDIT/REFUND no reducen la mora aunque descuento_antes_interes esté activo', () => {
+      const credito = cargo({
+        id: 'credito-1',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'CREDIT',
+        montoPendiente: money(-30_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes', compensaCreditos: false })
+      const [generado] = calcularInteresMora(
+        [capital, credito],
+        '2027-01-11',
+        politicaConOrden,
+        redondeo,
+      )
+      expect(generado?.monto.amount.toString()).toBe('1000') // igual que sin ningún descuento.
+    })
+
+    it('compensaCreditos=true: CREDIT y REFUND reducen la mora igual que DISCOUNT', () => {
+      const credito = cargo({
+        id: 'credito-1',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'CREDIT',
+        montoPendiente: money(-30_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes', compensaCreditos: true })
+      const [generado] = calcularInteresMora(
+        [capital, credito],
+        '2027-01-11',
+        politicaConOrden,
+        redondeo,
+      )
+      // (100_000 - 30_000) * (0.03/30) * 10 = 700 — mismo cálculo que DISCOUNT.
+      expect(generado?.monto.amount.toString()).toBe('700')
+    })
+
+    it('pool insuficiente para dos capitales: se consume cronológicamente, el más antiguo primero', () => {
+      const credito = cargo({
+        id: 'credito-1',
+        categoria: 'otro',
+        periodoClave: '2027-01',
+        novedadTipo: 'DISCOUNT',
+        montoPendiente: money(-50_000, 'COP'),
+      })
+      const capitalEnero = cargo({
+        id: 'cap-enero',
+        categoria: 'capital',
+        periodoClave: '2027-01',
+        fechaVencimiento: '2027-01-01',
+        montoPendiente: money(40_000, 'COP'),
+      })
+      const capitalFebrero = cargo({
+        id: 'cap-febrero',
+        categoria: 'capital',
+        periodoClave: '2027-02',
+        fechaVencimiento: '2027-02-01',
+        montoPendiente: money(80_000, 'COP'),
+      })
+      const politicaConOrden = politicaMora({ descuentoOrden: 'descuento_antes_interes' })
+      const generados = calcularInteresMora(
+        // Orden de entrada deliberadamente invertido (febrero antes que enero)
+        // — el pool debe consumirse por periodoClave, no por orden de llegada.
+        [capitalFebrero, credito, capitalEnero],
+        '2027-02-11',
+        politicaConOrden,
+        redondeo,
+      )
+      const porCargo = new Map(generados.map((g) => [g.cargoCapitalOrigenId, g.monto.amount.toString()]))
+      // Pool de 50_000: cubre TODO capitalEnero (40_000) y le sobran 10_000 para capitalFebrero.
+      expect(porCargo.has('cap-enero')).toBe(false) // piso cero: sin interés generado.
+      // capitalFebrero: (80_000 - 10_000) * (0.03/30) * 10 días de mora = 700.
+      expect(porCargo.get('cap-febrero')).toBe('700')
     })
   })
 })
