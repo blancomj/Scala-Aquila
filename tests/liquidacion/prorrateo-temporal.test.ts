@@ -65,7 +65,8 @@ d('Prorrateo temporal por inmueble (H2)', () => {
   it('setup: 3 unidades iguales, una se activa el día 15 de un mes de 31 días', async () => {
     auxiliar = await crearUsuario(admin, 'h2prorrateo')
     tenant = await crearTenant(admin, 'h2', auxiliar.id)
-    await crearMembership(admin, tenant.id, auxiliar.id, 'auxiliar')
+    const tenantId = tenant.id
+    await crearMembership(admin, tenantId, auxiliar.id, 'auxiliar')
     cAux = await clienteComo(env!, auxiliar)
 
     const tipoId = await tipoApartamentoId(admin)
@@ -73,7 +74,7 @@ d('Prorrateo temporal por inmueble (H2)', () => {
       .from('inmuebles')
       .insert(
         Array.from({ length: 3 }, (_, i) => ({
-          tenant_id: tenant.id,
+          tenant_id: tenantId,
           codigo: `H2-${String(i + 1).padStart(3, '0')}`,
           tipo_id: tipoId,
         })),
@@ -95,7 +96,7 @@ d('Prorrateo temporal por inmueble (H2)', () => {
     const { data: set, error: errSet } = await admin
       .from('coeficiente_sets')
       .insert({
-        tenant_id: tenant.id,
+        tenant_id: tenantId,
         version: 1,
         vigente_desde: '2031-01-01',
         estado: 'borrador',
@@ -107,7 +108,7 @@ d('Prorrateo temporal por inmueble (H2)', () => {
 
     const { error: errCoef } = await admin.from('coeficientes').insert(
       inmuebles.map((i) => ({
-        tenant_id: tenant.id,
+        tenant_id: tenantId,
         set_id: set.id,
         inmueble_id: i.id,
         valor: 0.333333,
@@ -117,7 +118,7 @@ d('Prorrateo temporal por inmueble (H2)', () => {
     await admin.from('coeficiente_sets').update({ estado: 'vigente' }).eq('id', set.id)
 
     const { error: errPol } = await admin.from('politicas_financieras').insert({
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       version: 1,
       estado: 'vigente',
       vigente_desde: '2031-01-01',
@@ -132,14 +133,14 @@ d('Prorrateo temporal por inmueble (H2)', () => {
     // Marzo 2031: 31 días. Activo desde el 15 → 17 días (15..31) de 31.
     const { data: per, error: errPer } = await admin
       .from('periodos')
-      .insert({ tenant_id: tenant.id, anio: 2031, mes: 3, fecha_vencimiento: '2031-03-10' })
+      .insert({ tenant_id: tenantId, anio: 2031, mes: 3, fecha_vencimiento: '2031-03-10' })
       .select('id')
       .single<{ id: string }>()
     if (errPer) throw new Error(`fixture periodo: ${errPer.message}`)
     periodo = per.id
 
     const { error: errCon } = await admin.from('conceptos').insert({
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       codigo: 'CUOTA_H2',
       nombre: 'Cuota de prueba prorrateo',
       modo_calculo: 'distribucion',
