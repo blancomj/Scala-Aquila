@@ -8,6 +8,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const fundamentoStore = useFundamentoNormativoStore()
+const toast = useToast()
 
 const tipo = ref<'ley' | 'decreto' | 'reglamento_ph' | 'decision_asamblea' | 'otra'>(
   'reglamento_ph',
@@ -24,7 +25,10 @@ await useAsyncData('fundamentos-normativos', () => fundamentoStore.cargarFundame
 async function crear(): Promise<void> {
   error.value = null
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !norma.value) return
+  if (!tenantId || !norma.value) {
+    toast.add({ title: 'Falta la norma.', description: 'Es un campo obligatorio.', color: 'warning' })
+    return
+  }
 
   cargando.value = true
   try {
@@ -40,6 +44,7 @@ async function crear(): Promise<void> {
     articulo.value = ''
     descripcion.value = ''
     referencia.value = ''
+    toast.add({ title: 'Fundamento normativo creado.', color: 'success' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo crear el fundamento normativo.')
   } finally {

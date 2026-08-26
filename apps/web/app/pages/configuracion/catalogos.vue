@@ -16,6 +16,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'se
 
 const tenantStore = useTenantStore()
 const catalogosStore = useCatalogosStore()
+const toast = useToast()
 
 const error = ref<string | null>(null)
 const guardando = ref(false)
@@ -90,6 +91,7 @@ async function guardar(): Promise<void> {
 
   error.value = null
   guardando.value = true
+  const creando = !valorEditando.value
   try {
     if (valorEditando.value) {
       await catalogosStore.actualizarValor(valorEditando.value.id, tenantId, {
@@ -107,6 +109,7 @@ async function guardar(): Promise<void> {
       })
     }
     modalAbierto.value = false
+    toast.add({ title: creando ? 'Valor creado.' : 'Valor actualizado.', color: 'success' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo guardar el valor.')
   } finally {

@@ -118,8 +118,13 @@ const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | '
           ]"
           :filas="periodosDelAnio"
           :clave-fila="(fila) => fila.id"
-          :vacio="cargando ? 'Cargando…' : 'Sin periodos para este año todavía.'"
+          vacio="Sin periodos para este año todavía."
         >
+          <template v-if="cargando" #vacio>
+            <div class="space-y-2">
+              <USkeleton v-for="i in 5" :key="i" class="h-8 w-full" />
+            </div>
+          </template>
           <template #celda-periodo="{ fila }"
             >{{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}</template
           >

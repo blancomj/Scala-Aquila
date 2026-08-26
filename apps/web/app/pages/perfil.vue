@@ -13,12 +13,12 @@ const authStore = useAuthStore()
 const tenantStore = useTenantStore()
 const cliente = useSupabaseClient()
 const router = useRouter()
+const toast = useToast()
 
 const fullName = ref('')
 const phone = ref('')
 const guardando = ref(false)
 const error = ref<string | null>(null)
-const guardado = ref(false)
 
 function poblarDesdePerfil(): void {
   fullName.value = authStore.profile?.full_name ?? ''
@@ -39,14 +39,13 @@ const iniciales = computed(() => {
 
 async function guardar(): Promise<void> {
   error.value = null
-  guardado.value = false
   guardando.value = true
   try {
     await authStore.actualizarPerfil({
       fullName: fullName.value.trim() || null,
       phone: phone.value.trim() || null,
     })
-    guardado.value = true
+    toast.add({ title: 'Guardado.', color: 'success' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo guardar el perfil.')
   } finally {
@@ -82,6 +81,7 @@ async function subirAvatar(): Promise<void> {
   try {
     await authStore.subirAvatar(archivoAvatar.value)
     archivoAvatar.value = null
+    toast.add({ title: 'Foto actualizada.', color: 'success' })
   } catch (excepcion) {
     errorAvatar.value = mensajeError(excepcion, 'No se pudo subir la foto.')
   } finally {
@@ -96,11 +96,9 @@ const nuevaPassword = ref('')
 const confirmarPassword = ref('')
 const cambiandoPassword = ref(false)
 const errorPassword = ref<string | null>(null)
-const passwordCambiada = ref(false)
 
 async function cambiarPassword(): Promise<void> {
   errorPassword.value = null
-  passwordCambiada.value = false
   if (nuevaPassword.value.length < 8) {
     errorPassword.value = 'La contraseña debe tener al menos 8 caracteres.'
     return
@@ -118,7 +116,7 @@ async function cambiarPassword(): Promise<void> {
     }
     nuevaPassword.value = ''
     confirmarPassword.value = ''
-    passwordCambiada.value = true
+    toast.add({ title: 'Contraseña actualizada.', color: 'success' })
   } finally {
     cambiandoPassword.value = false
   }
@@ -214,6 +212,7 @@ async function verificarInscripcionMfa(): Promise<void> {
     inscripcion.value = null
     codigoVerificacion.value = ''
     await cargarFactores()
+    toast.add({ title: 'Autenticación en dos pasos activada.', color: 'success' })
   } catch (excepcion) {
     errorMfa.value = mensajeError(excepcion, 'Código incorrecto o expirado.')
   } finally {
@@ -229,6 +228,7 @@ async function desactivarMfa(): Promise<void> {
     const { error: errorUnenroll } = await cliente.auth.mfa.unenroll({ factorId: factorActivo.value.id })
     if (errorUnenroll) throw errorUnenroll
     factorActivo.value = null
+    toast.add({ title: 'Autenticación en dos pasos desactivada.', color: 'success' })
   } catch (excepcion) {
     errorMfa.value = mensajeError(excepcion, 'No se pudo desactivar 2FA.')
   } finally {
@@ -300,7 +300,6 @@ const membresias = computed(() =>
       </UFormField>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
-      <UAlert v-if="guardado" color="success" variant="soft" title="Guardado." />
 
       <UButton type="submit" :loading="guardando">Guardar cambios</UButton>
     </form>
@@ -343,7 +342,6 @@ const membresias = computed(() =>
           </UFormField>
 
           <UAlert v-if="errorPassword" color="error" variant="soft" :title="errorPassword" />
-          <UAlert v-if="passwordCambiada" color="success" variant="soft" title="Contraseña actualizada." />
 
           <UButton type="submit" size="sm" :loading="cambiandoPassword">Cambiar contraseña</UButton>
         </form>
@@ -361,7 +359,7 @@ const membresias = computed(() =>
           Pide un código de tu app de autenticación (Google Authenticator, Authy, etc.) al iniciar sesión.
         </p>
 
-        <div v-if="cargandoFactores" class="text-sm text-muted">Cargando…</div>
+        <USkeleton v-if="cargandoFactores" class="h-9 w-32" />
 
         <template v-else-if="factorActivo">
           <div class="flex items-center gap-2 mb-3">

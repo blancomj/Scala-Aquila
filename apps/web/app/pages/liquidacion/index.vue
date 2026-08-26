@@ -13,6 +13,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const liquidacionStore = useLiquidacionStore()
+const toast = useToast()
 
 const periodoSeleccionadoId = ref<string | null>(null)
 const mostrarCrear = ref(false)
@@ -114,6 +115,7 @@ async function crearPeriodo(): Promise<void> {
     nuevoMes.value = undefined
     nuevaFechaVencimiento.value = ''
     mostrarCrear.value = false
+    toast.add({ title: 'Periodo creado.', color: 'success' })
   } catch (excepcion) {
     errorPeriodo.value = mensajeError(excepcion, 'No se pudo crear el periodo.')
   } finally {

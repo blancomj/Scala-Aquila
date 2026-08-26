@@ -460,7 +460,11 @@ const resumenGuardado = computed<string | null>(() => {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-if="cargando" class="text-sm text-gray-500">Cargando…</p>
+    <div v-if="cargando" class="space-y-3">
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+    </div>
     <p v-else-if="soloLectura && !novedad" class="text-sm text-gray-500">
       No se encontró esta novedad.
     </p>

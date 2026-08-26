@@ -5,6 +5,7 @@
 definePageMeta({ layout: 'auth' })
 
 const tenantStore = useTenantStore()
+const toast = useToast()
 
 const nombre = ref('')
 const slug = ref('')
@@ -54,6 +55,7 @@ async function crear(): Promise<void> {
   cargando.value = true
   try {
     await tenantStore.crearTenant(nombre.value, slug.value)
+    toast.add({ title: 'Copropiedad creada.', color: 'success' })
     await navigateTo('/dashboard')
   } catch (excepcion) {
     error.value = mensajeDeError(excepcion)

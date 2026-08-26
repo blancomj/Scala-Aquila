@@ -13,6 +13,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'se
 const tenantStore = useTenantStore()
 const zonasStore = useZonasComunesStore()
 const cuentaStore = useCuentaCorrienteStore()
+const toast = useToast()
 
 const error = ref<string | null>(null)
 
@@ -124,6 +125,7 @@ async function guardar(): Promise<void> {
 
   error.value = null
   guardando.value = true
+  const creando = !editandoId.value
   try {
     if (editandoId.value) {
       await zonasStore.actualizarZonaComun({
@@ -154,6 +156,7 @@ async function guardar(): Promise<void> {
       })
     }
     modalAbierto.value = false
+    toast.add({ title: creando ? 'Zona común creada.' : 'Zona común actualizada.', color: 'success' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo guardar la zona común.')
   } finally {

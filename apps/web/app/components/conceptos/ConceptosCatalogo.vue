@@ -159,9 +159,9 @@ async function confirmarArchivar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-if="cargando && conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">
-      Cargando…
-    </p>
+    <div v-if="cargando && conceptoStore.conceptos.length === 0" class="space-y-2">
+      <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
+    </div>
     <p v-else-if="conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">
       Esta copropiedad todavía no tiene conceptos registrados.
     </p>

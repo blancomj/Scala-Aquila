@@ -101,6 +101,41 @@ Layout (sidebar, topbar, grids) stays plain Tailwind utility classes (`flex`, `g
 > - **Tablas**: nunca `<UTable>` directo — usar `<UiTabla>` (`apps/web/app/components/ui/UiTabla.vue`), el wrapper que ya usan las 36 tablas de la app.
 > - **Selects buscables / catálogos largos**: nunca `<USelectMenu>` — usar `<UiSelectorBuscable>` (`apps/web/app/components/ui/UiSelectorBuscable.vue`), construido a propósito porque `USelectMenu` no tiene theming propio en este repo (ver su comentario de cabecera). `<USelect>` crudo sigue bien para listas cortas sin necesidad de búsqueda.
 
+## Feedback (toasts) y loading states (skeletons)
+
+**Auditoría externa 2026-08-26 (Docs/evaluacion/03):** casi ninguna acción de éxito
+tenía confirmación visible ("clickea Registrar y no pasa nada"), y todo estado de
+carga era texto plano "Cargando…" — layout shift y percepción de lentitud. Fijado
+2026-08-26.
+
+**Éxito de una acción (crear/actualizar/eliminar):** `useToast()` — ya funciona sin
+configuración adicional, `<UApp>` en `app.vue` ya lo provee.
+```ts
+const toast = useToast()
+// ...
+toast.add({ title: 'Zona común creada.', color: 'success' })
+// aviso/validación (no bloqueante, distinto de un UAlert de error inline):
+toast.add({ title: 'Falta la norma.', description: 'Es un campo obligatorio.', color: 'warning' })
+```
+Un `UAlert` inline de error junto al campo/formulario sigue siendo correcto para
+errores que el usuario necesita leer con calma (no se cierra solo) — el toast es
+para confirmar que algo SÍ funcionó, no para reemplazar el manejo de errores.
+No uses toast para cada micro-acción: un toggle inline (activar/ocultar una fila)
+que ya cambia visualmente en la misma fila no necesita confirmación aparte — resérvalo
+para acciones de formulario donde el resultado no es obvio de inmediato (el modal/
+drawer se cierra, o navega a otra página).
+
+**Estado de carga con forma conocida (tarjeta KPI, fila de tabla, campo de texto):**
+`USkeleton`, nunca texto "Cargando…" ni un `div` con `animate-pulse` a mano.
+```html
+<USkeleton v-if="cargando" class="h-8 w-24" />
+<span v-else class="text-2xl font-display font-semibold">{{ valor }}</span>
+```
+El tamaño del skeleton debe aproximar el tamaño real del contenido que reemplaza
+(evita el salto de layout cuando llega el dato) — no un skeleton genérico de una
+sola talla para todo. Para una lista/tabla completa sin cargar, varios `USkeleton`
+apilados o `UiTabla`'s propio estado vacío/cargando si el componente ya lo expone.
+
 ## Accessibility
 
 - Prefer Nuxt UI components: they already manage focus-visible rings and ARIA roles correctly. Don't strip that with `focus:outline-none` or custom resets.

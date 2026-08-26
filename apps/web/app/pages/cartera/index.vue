@@ -259,7 +259,20 @@ const alertas = computed(() => {
 
     <UAlert v-if="errorCarga" color="error" variant="soft" :title="errorCarga" />
 
-    <div v-else-if="carteraStore.loading && !tarjetas" class="text-sm text-gray-500">Cargando…</div>
+    <div v-else-if="carteraStore.loading && !tarjetas" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+      >
+        <div class="space-y-2">
+          <USkeleton class="h-4 w-24" />
+          <USkeleton class="h-7 w-32" />
+          <USkeleton class="h-3 w-16" />
+        </div>
+        <USkeleton class="h-10 w-10 shrink-0 rounded-full" />
+      </div>
+    </div>
 
     <template v-else-if="tarjetas">
       <!-- Tarjetas principales -->
@@ -303,7 +316,7 @@ const alertas = computed(() => {
                 Desde {{ carteraStore.recaudo.fechaDesde }}
               </p>
             </template>
-            <p v-else class="text-lg font-medium text-gray-400">Cargando…</p>
+            <USkeleton v-else class="h-7 w-32" />
           </div>
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400">
             <UIcon name="i-lucide-circle-dollar-sign" class="h-5 w-5" />
@@ -333,7 +346,7 @@ const alertas = computed(() => {
               <span v-if="carteraStore.recaudo" class="font-semibold">
                 {{ formatoPctONull(carteraStore.recaudo.collectionEffectiveness) }}
               </span>
-              <span v-else class="text-xs italic text-gray-400">Cargando…</span>
+              <USkeleton v-else class="h-4 w-12" />
             </li>
             <li class="flex items-center justify-between">
               <span class="text-gray-500">Días promedio de mora</span>

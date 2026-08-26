@@ -83,8 +83,11 @@ async function cerrarDrawer(): Promise<void> {
         Un set por versión, con un coeficiente por inmueble activo.
       </p>
 
-      <p v-if="coeficientesStore.coeficienteSets.length === 0" class="text-gray-500 text-sm">
-        {{ cargando ? 'Cargando…' : 'Esta copropiedad todavía no tiene un set de coeficientes.' }}
+      <div v-if="cargando && coeficientesStore.coeficienteSets.length === 0" class="space-y-2">
+        <USkeleton v-for="i in 3" :key="i" class="h-10 w-full" />
+      </div>
+      <p v-else-if="coeficientesStore.coeficienteSets.length === 0" class="text-gray-500 text-sm">
+        Esta copropiedad todavía no tiene un set de coeficientes.
       </p>
       <UiTabla
         v-else

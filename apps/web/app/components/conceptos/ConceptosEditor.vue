@@ -851,7 +851,11 @@ async function probar(): Promise<void> {
       ← Volver a Conceptos
     </button>
 
-    <p v-if="cargando" class="text-gray-500 text-sm">Cargando…</p>
+    <div v-if="cargando" class="space-y-3">
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+    </div>
     <UAlert
       v-else-if="noEncontrado"
       color="error"
