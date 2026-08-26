@@ -349,6 +349,114 @@ export const useTercerosStore = defineStore('terceros', () => {
     return asociacion as TerceroAsociado
   }
 
+  /** Asociación de propietario en lote — import de inmuebles desde Excel
+   * (onboarding guiado). Deliberadamente NO reusa `asociarTerceroInmueble`:
+   * esa función hace 1 búsqueda + hasta 2 inserts + 1 RPC + 1 recarga POR
+   * llamada, pensada para un formulario de una sola persona; sobre 100+
+   * filas eso son cientos de round-trips secuenciales. Acá son 3 llamadas
+   * en total sin importar cuántas filas: 1 select de terceros existentes
+   * (dedup por documento — varias unidades del mismo dueño no duplican el
+   * tercero), 1 insert de los terceros nuevos, 1 insert de las
+   * asociaciones. Tampoco llama a `fn_cerrar_rol_anterior`/`marcarPagador`:
+   * son inmuebles recién creados en este mismo import, no puede haber un
+   * titular previo que cerrar, y como cada inmueble aparece una sola vez
+   * en el lote, marcar `es_pagador=true` directo no choca con el índice
+   * único parcial (nunca hay dos filas del mismo inmueble en un mismo
+   * insert). Rol fijo "copropietario", 100% de participación — el Excel
+   * solo captura un dueño por unidad, no copropiedad compartida. Cuando el
+   * mismo documento se repite en varias filas (un dueño con varias
+   * unidades) se queda con los datos de la PRIMERA fila — filas
+   * posteriores solo necesitan repetir nombre+cédula, no tienen que
+   * repetir email/teléfono también. */
+  async function asociarPropietariosEnLote(params: {
+    tenantId: string
+    asociaciones: readonly {
+      inmuebleId: string
+      nombre: string
+      numeroDocumento: string
+      email?: string
+      telefono?: string
+    }[]
+  }): Promise<number> {
+    if (params.asociaciones.length === 0) return 0
+    const cliente = useSupabaseClient<Database>()
+
+    const [tiposIdent, rolesPredio, estados] = await Promise.all([
+      cargarListaTipos(params.tenantId, 'TIPO_IDENTIFICACION'),
+      cargarListaTipos(params.tenantId, 'PERSONA_PREDIO'),
+      cargarListaTipos(params.tenantId, 'ESTADO_TERCERO'),
+    ])
+    const tipoIdentificacion = tiposIdent.find((t) => t.codigo === 'cedula')
+    if (!tipoIdentificacion) throw new Error('Catálogo TIPO_IDENTIFICACION sin código "cedula".')
+    const rolCopropietario = rolesPredio.find((r) => r.codigo === 'copropietario')
+    if (!rolCopropietario) throw new Error('Catálogo PERSONA_PREDIO sin código "copropietario".')
+    const estadoActivo = estados.find((e) => e.codigo === 'activo')
+    if (!estadoActivo) throw new Error('Catálogo ESTADO_TERCERO sin código "activo".')
+
+    const porDocumento = new Map<string, (typeof params.asociaciones)[number]>()
+    for (const a of params.asociaciones) {
+      if (!porDocumento.has(a.numeroDocumento)) porDocumento.set(a.numeroDocumento, a)
+    }
+
+    const { data: existentes, error: errorExistentes } = await cliente
+      .from('terceros')
+      .select('id, numero_documento')
+      .eq('tenant_id', params.tenantId)
+      .eq('tipo_identificacion_id', tipoIdentificacion.id)
+      .in('numero_documento', [...porDocumento.keys()])
+    if (errorExistentes) throw errorExistentes
+
+    const idPorDocumento = new Map(existentes.map((t) => [t.numero_documento, t.id]))
+    const nuevos = [...porDocumento.values()].filter((a) => !idPorDocumento.has(a.numeroDocumento))
+
+    if (nuevos.length > 0) {
+      const filasNuevas = nuevos.map((a) => {
+        const palabras = a.nombre.trim().split(/\s+/)
+        const primerNombre = palabras[0] ?? a.nombre
+        const primerApellido =
+          palabras.length > 1 ? (palabras[palabras.length - 1] ?? primerNombre) : primerNombre
+        const segundoNombre =
+          palabras.length > 2 ? palabras.slice(1, palabras.length - 1).join(' ') : null
+        return {
+          tenant_id: params.tenantId,
+          tipo_persona: 'natural' as const,
+          tipo_identificacion_id: tipoIdentificacion.id,
+          numero_documento: a.numeroDocumento,
+          primer_nombre: primerNombre,
+          segundo_nombre: segundoNombre,
+          primer_apellido: primerApellido,
+          email: a.email ?? null,
+          telefono: a.telefono ?? null,
+          estado_id: estadoActivo.id,
+        }
+      })
+      const { data: creados, error: errorCrear } = await cliente
+        .from('terceros')
+        .insert(filasNuevas)
+        .select('id, numero_documento')
+      if (errorCrear) throw errorCrear
+      for (const t of creados) idPorDocumento.set(t.numero_documento, t.id)
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10)
+    const filasRol = params.asociaciones.map((a) => ({
+      tenant_id: params.tenantId,
+      inmueble_id: a.inmuebleId,
+      tercero_id: idPorDocumento.get(a.numeroDocumento) as string,
+      rol_id: rolCopropietario.id,
+      porcentaje: 100,
+      es_pagador: true,
+      recibe_notificaciones: true,
+      vigente_desde: hoy,
+    }))
+    const { data: insertadas, error: errorRol } = await cliente
+      .from('inmueble_persona_rol')
+      .insert(filasRol)
+      .select('id')
+    if (errorRol) throw errorRol
+    return insertadas.length
+  }
+
   async function actualizarAsociacion(params: {
     id: string
     tenantId: string
@@ -490,6 +598,7 @@ export const useTercerosStore = defineStore('terceros', () => {
     cargarRolesPersonaPredio,
     cargarTercerosAsociados,
     asociarTerceroInmueble,
+    asociarPropietariosEnLote,
     actualizarAsociacion,
     marcarPagador,
     cargarPersonasTenant,

@@ -111,8 +111,8 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
       matriculaInmobiliaria?: string
       referenciaCatastral?: string
     }[],
-  ): Promise<number> {
-    if (filas.length === 0) return 0
+  ): Promise<{ id: string; codigo: string }[]> {
+    if (filas.length === 0) return []
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
       .from('inmuebles')
@@ -128,9 +128,9 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
           referencia_catastral: fila.referenciaCatastral,
         })),
       )
-      .select('id')
+      .select('id, codigo')
     if (errorInsert) throw errorInsert
-    return data.length
+    return data
   }
 
   async function actualizarInmueble(params: {

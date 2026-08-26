@@ -27,6 +27,7 @@ const props = defineProps<{
 const emit = defineEmits<{ cerrar: []; importado: [cantidad: number] }>()
 
 const inmueblesStore = useInmueblesStore()
+const tercerosStore = useTercerosStore()
 const toast = useToast()
 
 type EstadoInmueble = Database['public']['Enums']['inmueble_estado_t']
@@ -40,6 +41,10 @@ const ENCABEZADOS = [
   'Área común (m²)',
   'Matrícula inmobiliaria',
   'Referencia catastral',
+  'Propietario (nombre completo)',
+  'Propietario (cédula)',
+  'Propietario (email)',
+  'Propietario (teléfono)',
 ] as const
 
 interface FilaValidada {
@@ -52,6 +57,10 @@ interface FilaValidada {
   areaComun?: number
   matriculaInmobiliaria?: string
   referenciaCatastral?: string
+  propietarioNombre?: string
+  propietarioCedula?: string
+  propietarioEmail?: string
+  propietarioTelefono?: string
   errores: string[]
 }
 
@@ -87,7 +96,19 @@ const hayFilas = computed(() => filas.value.length > 0)
 async function descargarPlantilla(): Promise<void> {
   const XLSX = await import('xlsx')
   const ejemploTipo = tipos.value[0]?.nombre ?? 'Apartamento'
-  const filaEjemplo = ['A-101', ejemploTipo, 'Activo', 45, 0, '050-987654', '']
+  const filaEjemplo = [
+    'A-101',
+    ejemploTipo,
+    'Activo',
+    45,
+    0,
+    '050-987654',
+    '',
+    'María Fernanda Restrepo Ortiz',
+    '45678912',
+    'maria.restrepo@ejemplo.com',
+    '3004567890',
+  ]
   const hoja = XLSX.utils.aoa_to_sheet([[...ENCABEZADOS], filaEjemplo])
   hoja['!cols'] = [
     { wch: 14 },
@@ -97,6 +118,10 @@ async function descargarPlantilla(): Promise<void> {
     { wch: 16 },
     { wch: 20 },
     { wch: 20 },
+    { wch: 28 },
+    { wch: 16 },
+    { wch: 26 },
+    { wch: 16 },
   ]
   const libro = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(libro, hoja, 'Inmuebles')
@@ -112,6 +137,9 @@ async function descargarPlantilla(): Promise<void> {
     ['Estado (opcional, "Activo" si se deja en blanco)'],
     ['Activo'],
     ['Inactivo'],
+    [],
+    ['Propietario: nombre y cédula van juntos — los dos o ninguno. Queda como'],
+    ['copropietario con el 100% y como quien recibe la factura.'],
   ])
   hojaValores['!cols'] = [{ wch: 45 }]
   XLSX.utils.book_append_sheet(libro, hojaValores, 'Valores válidos')
@@ -175,6 +203,12 @@ function validarFilas(filasCrudas: Record<string, unknown>[]): FilaValidada[] {
     const areaComun = numeroOIndefinido(cruda['Área común (m²)'])
     if (areaComun === 'invalido') errores.push('Área común debe ser un número.')
 
+    const propietarioNombre = String(cruda['Propietario (nombre completo)'] ?? '').trim()
+    const propietarioCedula = String(cruda['Propietario (cédula)'] ?? '').trim()
+    if (Boolean(propietarioNombre) !== Boolean(propietarioCedula)) {
+      errores.push('El propietario necesita nombre Y cédula, o déjalos los dos en blanco.')
+    }
+
     return {
       fila: numeroFila,
       codigo,
@@ -185,6 +219,10 @@ function validarFilas(filasCrudas: Record<string, unknown>[]): FilaValidada[] {
       areaComun: areaComun === 'invalido' ? undefined : areaComun,
       matriculaInmobiliaria: String(cruda['Matrícula inmobiliaria'] ?? '').trim() || undefined,
       referenciaCatastral: String(cruda['Referencia catastral'] ?? '').trim() || undefined,
+      propietarioNombre: propietarioNombre || undefined,
+      propietarioCedula: propietarioCedula || undefined,
+      propietarioEmail: String(cruda['Propietario (email)'] ?? '').trim() || undefined,
+      propietarioTelefono: String(cruda['Propietario (teléfono)'] ?? '').trim() || undefined,
       errores,
     }
   })
@@ -228,7 +266,7 @@ async function confirmarImportacion(): Promise<void> {
   importando.value = true
   error.value = null
   try {
-    const cantidad = await inmueblesStore.crearInmueblesEnLote(
+    const creados = await inmueblesStore.crearInmueblesEnLote(
       props.tenantId,
       filasValidas.value.map((f) => ({
         codigo: f.codigo,
@@ -240,8 +278,29 @@ async function confirmarImportacion(): Promise<void> {
         referenciaCatastral: f.referenciaCatastral,
       })),
     )
-    toast.add({ title: `${cantidad} inmueble(s) importado(s).`, color: 'success' })
-    emit('importado', cantidad)
+    const idPorCodigo = new Map(creados.map((i) => [i.codigo, i.id]))
+
+    const conPropietario = filasValidas.value.filter((f) => f.propietarioNombre && f.propietarioCedula)
+    let propietarios = 0
+    if (conPropietario.length > 0) {
+      propietarios = await tercerosStore.asociarPropietariosEnLote({
+        tenantId: props.tenantId,
+        asociaciones: conPropietario.map((f) => ({
+          inmuebleId: idPorCodigo.get(f.codigo) as string,
+          nombre: f.propietarioNombre as string,
+          numeroDocumento: f.propietarioCedula as string,
+          email: f.propietarioEmail,
+          telefono: f.propietarioTelefono,
+        })),
+      })
+    }
+
+    toast.add({
+      title: `${creados.length} inmueble(s) importado(s).`,
+      description: propietarios > 0 ? `${propietarios} con propietario asignado.` : undefined,
+      color: 'success',
+    })
+    emit('importado', creados.length)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo completar la importación.')
   } finally {
@@ -310,6 +369,7 @@ async function confirmarImportacion(): Promise<void> {
                   <th class="text-left p-2">Código</th>
                   <th class="text-left p-2">Tipo</th>
                   <th class="text-left p-2">Estado</th>
+                  <th class="text-left p-2">Propietario</th>
                   <th class="text-left p-2">Problema</th>
                 </tr>
               </thead>
@@ -319,6 +379,7 @@ async function confirmarImportacion(): Promise<void> {
                   <td class="p-2">{{ f.codigo || '—' }}</td>
                   <td class="p-2">{{ f.tipoTexto || '—' }}</td>
                   <td class="p-2">{{ ETIQUETA_ESTADO[f.estado] }}</td>
+                  <td class="p-2">{{ f.propietarioNombre || '—' }}</td>
                   <td class="p-2">
                     <span v-if="f.errores.length === 0" class="text-success">Listo</span>
                     <span v-else class="text-error">{{ f.errores.join(' ') }}</span>
