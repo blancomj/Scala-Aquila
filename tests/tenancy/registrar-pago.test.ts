@@ -45,6 +45,18 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
   return data.id
 }
 
+async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', tipo)
+    .eq('codigo', codigo)
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture lista_tipos ${tipo}.${codigo}: ${error.message}`)
+  return data.id
+}
+
 /** Política vigente + inmueble, con la estrategia de imputación indicada. */
 async function armarTenant(
   admin: Cliente,
@@ -337,6 +349,63 @@ d('registrar-pago (Edge Function)', () => {
       .eq('monto', 50_000)
     expect(error).toBeNull()
     expect(pagos).toHaveLength(1)
+  }, 30_000)
+
+  it('con pagador marcado pero sin plantilla activa, el pago igual responde 200 (SMS es mejor esfuerzo)', async () => {
+    // Deliberadamente SIN activar la plantilla: BREVO_API_KEY/BREVO_SMS_SENDER
+    // son credenciales REALES en este proyecto de desarrollo (verificado con
+    // `supabase secrets list`), no un mock — mismo motivo que
+    // tests/plantillas-sms/plantillas-sms.test.ts prueba solo hasta la capa
+    // de RPC y nunca invoca la Edge Function que sí envía: un test
+    // automatizado no debe poder disparar un SMS real. Este caso llega hasta
+    // el JOIN inmueble_persona_rol→terceros (ejercita esa consulta de
+    // verdad) y se detiene en "sin plantilla activa", antes de sendSms().
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmuebleSms, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `PAGO-SMS-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+
+    const tipoIdentCedula = await listaTipoId(admin, 'TIPO_IDENTIFICACION', 'cedula')
+    const estadoActivo = await listaTipoId(admin, 'ESTADO_TERCERO', 'activo')
+    const { data: tercero, error: errTercero } = await admin
+      .from('terceros')
+      .insert({
+        tenant_id: tenant.id,
+        tipo_identificacion_id: tipoIdentCedula,
+        numero_documento: `RP-SMS-${String(Date.now())}`,
+        tipo_persona: 'natural',
+        primer_nombre: 'Laura',
+        primer_apellido: 'Pérez',
+        telefono: '+573001234567',
+        estado_id: estadoActivo,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errTercero) throw new Error(`fixture tercero: ${errTercero.message}`)
+
+    const rolCopropietario = await listaTipoId(admin, 'PERSONA_PREDIO', 'copropietario')
+    const { error: errRol } = await admin.from('inmueble_persona_rol').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmuebleSms.id,
+      tercero_id: tercero.id,
+      rol_id: rolCopropietario,
+      vigente_desde: '2026-01-01',
+      es_pagador: true,
+      recibe_notificaciones: true,
+    })
+    if (errRol) throw new Error(`fixture inmueble_persona_rol: ${errRol.message}`)
+
+    const periodoSmsId = await crearPeriodo(admin, tenant.id, 2027, 2, '2027-02-05')
+    const capitalId = await crearCargoCapital(admin, tenant.id, inmuebleSms.id, periodoSmsId, 30_000)
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>('registrar-pago', {
+      body: { inmueble_id: inmuebleSms.id, monto: 30_000, fecha_pago: '2027-02-06' },
+    })
+    expect(response?.status).toBe(200)
+    expect(data?.aplicaciones).toEqual([{ cargo_id: capitalId, monto: '30000' }])
   }, 30_000)
 })
 

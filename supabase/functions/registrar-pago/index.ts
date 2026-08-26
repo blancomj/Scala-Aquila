@@ -19,10 +19,102 @@ import {
   obtenerPoliticaImputacion,
   registrarPago,
 } from '../../../packages/liquidation-engine/dist/index.js'
+import { esTelefonoValido, renderSmsTemplate } from '../../../packages/shared/src/sms.ts'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
+import { sendSms } from '../_shared/sms_provider.ts'
+
+const EVENT_TYPE_PAGO_CONFIRMADO = 'cartera_pago_confirmado'
+
+function formatearMoneda(valor: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(valor)
+}
+
+function formatearFecha(fechaIso: string): string {
+  // fechaIso es YYYY-MM-DD (ya validado por zod) — se parsea como fecha
+  // local, no UTC, para que no se corra un día según la zona del runtime.
+  const [anio, mes, dia] = fechaIso.split('-').map(Number)
+  return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long' }).format(
+    new Date(anio as number, (mes as number) - 1, dia),
+  )
+}
+
+/**
+ * SMS de confirmación de pago — mejor esfuerzo, nunca bloquea la respuesta:
+ * el pago ya quedó registrado antes de llegar aquí, así que un fallo en la
+ * notificación (sin pagador marcado, sin plantilla activa, Brevo caído) se
+ * loguea y ya. `es_pagador`/`recibe_notificaciones` (20260820100000) son la
+ * única resolución "destinatario de un inmueble" sin ambigüedad que existe
+ * hoy en el esquema — el catálogo PERSONA_PREDIO no tiene un rol
+ * "residente" genérico, así que no se inventa uno aquí.
+ */
+async function notificarPagoConfirmado(
+  cliente: Parameters<typeof obtenerCargosAbiertos>[0],
+  params: {
+    tenantId: string
+    inmuebleId: string
+    inmuebleCodigo: string
+    monto: number
+    fechaPago: string
+  },
+  correlationId: string,
+): Promise<void> {
+  try {
+    const { data: pagador, error: errorPagador } = await cliente
+      .from('inmueble_persona_rol')
+      .select('tercero:terceros(telefono, nombre_completo)')
+      .eq('tenant_id', params.tenantId)
+      .eq('inmueble_id', params.inmuebleId)
+      .eq('es_pagador', true)
+      .eq('recibe_notificaciones', true)
+      .is('vigente_hasta', null)
+      .maybeSingle()
+    if (errorPagador || !pagador?.tercero) return
+
+    const telefono = pagador.tercero.telefono
+    if (!telefono || !esTelefonoValido(telefono)) return
+
+    const { data: plantilla, error: errorPlantilla } = await cliente
+      .from('plantillas_sms')
+      .select('cuerpo')
+      .eq('tenant_id', params.tenantId)
+      .eq('event_type', EVENT_TYPE_PAGO_CONFIRMADO)
+      .eq('activo', true)
+      .maybeSingle()
+    if (errorPlantilla || !plantilla) return
+
+    const texto = renderSmsTemplate(plantilla.cuerpo, {
+      nombreResidente: pagador.tercero.nombre_completo ?? '',
+      inmueble: params.inmuebleCodigo,
+      montoPagado: formatearMoneda(params.monto),
+      fechaPago: formatearFecha(params.fechaPago),
+    })
+
+    const resultado = await sendSms({ to: telefono, body: texto, reference: params.inmuebleId })
+    logEvent({
+      level: resultado.success ? 'info' : 'warn',
+      action: 'registrar_pago.sms_confirmacion',
+      correlationId,
+      tenantId: params.tenantId,
+      meta: { inmuebleId: params.inmuebleId, enviado: resultado.success },
+      message: resultado.success ? undefined : resultado.errorMessage,
+    })
+  } catch (excepcion) {
+    logEvent({
+      level: 'warn',
+      action: 'registrar_pago.sms_confirmacion_fallida',
+      correlationId,
+      tenantId: params.tenantId,
+      message: excepcion instanceof Error ? excepcion.message : 'Error inesperado.',
+    })
+  }
+}
 
 const RATE_LIMIT_MAX_HITS = 30
 const RATE_LIMIT_VENTANA = '1 hour'
@@ -91,7 +183,7 @@ export default {
     // de ese tenant — nunca se confía en un tenant_id enviado por el cliente.
     const { data: inmueble, error: errorInmueble } = await ctx.supabase
       .from('inmuebles')
-      .select('id, tenant_id')
+      .select('id, tenant_id, codigo')
       .eq('id', datos.inmueble_id)
       .maybeSingle()
     if (errorInmueble) {
@@ -220,6 +312,18 @@ export default {
       tenantId: inmueble.tenant_id,
       meta: { pagoId, aplicaciones: plan.aplicaciones.length },
     })
+
+    await notificarPagoConfirmado(
+      ctx.supabase,
+      {
+        tenantId: inmueble.tenant_id,
+        inmuebleId: datos.inmueble_id,
+        inmuebleCodigo: inmueble.codigo,
+        monto: datos.monto,
+        fechaPago: datos.fecha_pago,
+      },
+      correlationId,
+    )
 
     return jsonResponse(
       {
