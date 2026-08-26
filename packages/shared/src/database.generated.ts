@@ -1,3 +1,7 @@
+/**
+ * GENERADO — no editar a mano (Fase I §3.3, DB-first).
+ * Regenerar con: pnpm db:types
+ */
 export type Json =
   | string
   | number
@@ -10,7 +14,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -2184,6 +2188,7 @@ export type Database = {
         Row: {
           created_at: string
           datos: Json
+          folio: string | null
           generado_por: string | null
           id: string
           inmueble_id: string
@@ -2194,6 +2199,7 @@ export type Database = {
         Insert: {
           created_at?: string
           datos: Json
+          folio?: string | null
           generado_por?: string | null
           id?: string
           inmueble_id: string
@@ -2204,6 +2210,7 @@ export type Database = {
         Update: {
           created_at?: string
           datos?: Json
+          folio?: string | null
           generado_por?: string | null
           id?: string
           inmueble_id?: string
@@ -2829,6 +2836,7 @@ export type Database = {
       }
       inmuebles: {
         Row: {
+          activo_desde: string | null
           agrupacion_id: string | null
           area_comun: number | null
           area_privada: number | null
@@ -2841,6 +2849,7 @@ export type Database = {
           gravamen_tipo_id: number | null
           habitabilidad_id: number | null
           id: string
+          inactivo_desde: string | null
           matricula_inmobiliaria: string | null
           referencia_catastral: string | null
           tenant_id: string
@@ -2849,6 +2858,7 @@ export type Database = {
           uso_predio_id: number | null
         }
         Insert: {
+          activo_desde?: string | null
           agrupacion_id?: string | null
           area_comun?: number | null
           area_privada?: number | null
@@ -2861,6 +2871,7 @@ export type Database = {
           gravamen_tipo_id?: number | null
           habitabilidad_id?: number | null
           id?: string
+          inactivo_desde?: string | null
           matricula_inmobiliaria?: string | null
           referencia_catastral?: string | null
           tenant_id: string
@@ -2869,6 +2880,7 @@ export type Database = {
           uso_predio_id?: number | null
         }
         Update: {
+          activo_desde?: string | null
           agrupacion_id?: string | null
           area_comun?: number | null
           area_privada?: number | null
@@ -2881,6 +2893,7 @@ export type Database = {
           gravamen_tipo_id?: number | null
           habitabilidad_id?: number | null
           id?: string
+          inactivo_desde?: string | null
           matricula_inmobiliaria?: string | null
           referencia_catastral?: string | null
           tenant_id?: string
@@ -6325,6 +6338,7 @@ export type Database = {
         Returns: boolean
       }
       purge_audit_log_antiguo: { Args: never; Returns: undefined }
+      purge_rate_limit_hits_antiguo: { Args: never; Returns: undefined }
       resend_invitation: {
         Args: {
           p_expires_at: string

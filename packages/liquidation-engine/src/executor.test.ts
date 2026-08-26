@@ -43,8 +43,8 @@ function snapshotBase(conceptos: readonly SnapshotConcepto[]): DataSnapshot {
     periodo,
     periodosDelAnio: [periodo],
     inmuebles: [
-      { id: 'inm-1', codigo: 'INM-1', coeficiente: '0.6000000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-2', codigo: 'INM-2', coeficiente: '0.4000000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-1', codigo: 'INM-1', coeficiente: '0.6000000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-2', codigo: 'INM-2', coeficiente: '0.4000000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
     ],
     conceptos,
     presupuestoVigente: null,
@@ -111,5 +111,61 @@ describe('ejecutarPlan — modo_valor fijo', () => {
     expect(() => ejecutarPlan(snapshotBase([concepto]), [concepto])).toThrow(
       ConceptoFijoSinValorError,
     )
+  })
+})
+
+describe('ejecutarPlan — H2 prorrateo temporal (auditoría externa 2026-08-26)', () => {
+  /** inm-2 activo solo la mitad del periodo — inm-1 sigue completo. */
+  function snapshotConProrrateo(conceptos: readonly SnapshotConcepto[]): DataSnapshot {
+    const base = snapshotBase(conceptos)
+    return {
+      ...base,
+      inmuebles: [
+        base.inmuebles[0]!,
+        { ...base.inmuebles[1]!, fraccionActiva: '0.5' },
+      ],
+    }
+  }
+
+  it('directo: el monto se multiplica por la fracción de días activos de cada inmueble', () => {
+    const concepto: SnapshotConcepto = {
+      id: 'c4',
+      codigo: 'CUOTA_PRORRATEADA',
+      modoCalculo: 'directo',
+      modoValor: 'fijo',
+      formulaAel: '',
+      valorFijo: '50000',
+      prioridad: 0,
+      ...RECURRENTE_SIEMPRE,
+    }
+    const [resultado] = ejecutarPlan(snapshotConProrrateo([concepto]), [concepto])
+
+    const porInmueble = new Map(resultado?.lineas.map((l) => [l.inmuebleId, l.monto.amount.toString()]))
+    expect(porInmueble.get('inm-1')).toBe('50000') // fracción 1: sin cambio.
+    expect(porInmueble.get('inm-2')).toBe('25000') // fracción 0.5: la mitad.
+  })
+
+  it('distribución: el inmueble prorrateado paga menos y los demás absorben la diferencia — Σ=fuente exacta', () => {
+    const concepto: SnapshotConcepto = {
+      id: 'c5',
+      codigo: 'CUOTA_DIST_PRORRATEADA',
+      modoCalculo: 'distribucion',
+      modoValor: 'fijo',
+      formulaAel: '',
+      valorFijo: '100000',
+      prioridad: 0,
+      ...RECURRENTE_SIEMPRE,
+    }
+    const [resultado] = ejecutarPlan(snapshotConProrrateo([concepto]), [concepto])
+
+    const porInmueble = new Map(resultado?.lineas.map((l) => [l.inmuebleId, l.monto.amount.toNumber()]))
+    const inm1 = porInmueble.get('inm-1')!
+    const inm2 = porInmueble.get('inm-2')!
+
+    // coeficiente 0.6/0.4 iguales a los de snapshotBase; basis efectivo
+    // 0.6×1=0.6 vs 0.4×0.5=0.2 → inm-1 se lleva 3/4 de la cuota, no 3/5.
+    expect(inm1).toBeGreaterThan(60000) // más de lo que se llevaría sin prorrateo.
+    expect(inm2).toBeLessThan(40000) // menos de lo que se llevaría sin prorrateo.
+    expect(inm1 + inm2).toBe(100000) // nada se pierde: se redistribuye, no se descuenta.
   })
 })

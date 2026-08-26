@@ -19,6 +19,15 @@ export interface SnapshotInmueble {
   readonly codigo: string
   /** Coeficiente vigente de este inmueble en el set activo del tenant (16 §82: valor real, no se asume 1.0). */
   readonly coeficiente: string
+  /** H2 (auditoría externa 2026-08-26): fracción de días del periodo en que el
+   * inmueble estuvo activo — "1" si estuvo activo todo el periodo (comportamiento
+   * anterior a esta fase, la inmensa mayoría de los casos). executor.ts la aplica
+   * en ambos caminos: ejecutarDirecto multiplica el monto del inmueble por ella;
+   * ejecutarDistribucion pondera el basis del reparto (coeficiente × fracción),
+   * así que allocate() sigue reconciliando exacto Σ=fuente — la porción no
+   * cobrada se redistribuye entre los demás inmuebles según su propio coeficiente,
+   * no queda déficit. */
+  readonly fraccionActiva: string
   /** Fase 5 (alcance.ts): atributos que un concepto alcance='calculado' puede
    * condicionar. Siempre presente — un campo individual ausente es null
    * dentro de AtributosInmueble, no el objeto completo. */

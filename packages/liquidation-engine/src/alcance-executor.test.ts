@@ -20,10 +20,10 @@ const ATRIBUTOS_VACIOS = {
 } as const
 
 const INMUEBLES: readonly SnapshotInmueble[] = [
-  { id: 'r1', codigo: 'R1', coeficiente: '0.3000000000', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'residencial' } },
-  { id: 'r2', codigo: 'R2', coeficiente: '0.3000000000', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'residencial' } },
-  { id: 'c1', codigo: 'C1', coeficiente: '0.2000000000', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'comercial' } },
-  { id: 'c2', codigo: 'C2', coeficiente: '0.2000000000', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'comercial' } },
+  { id: 'r1', codigo: 'R1', coeficiente: '0.3000000000', fraccionActiva: '1', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'residencial' } },
+  { id: 'r2', codigo: 'R2', coeficiente: '0.3000000000', fraccionActiva: '1', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'residencial' } },
+  { id: 'c1', codigo: 'C1', coeficiente: '0.2000000000', fraccionActiva: '1', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'comercial' } },
+  { id: 'c2', codigo: 'C2', coeficiente: '0.2000000000', fraccionActiva: '1', atributos: { ...ATRIBUTOS_VACIOS, usoPredio: 'comercial' } },
 ]
 
 const CONDICION_COMERCIAL = { campo: 'uso_predio', operador: 'eq', valor: 'comercial' } as const

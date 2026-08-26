@@ -28,6 +28,7 @@
 import type { AquilaClient } from '@aquila/shared'
 import {
   crearDecimal,
+  dividirDecimales,
   money,
   sumarDecimales,
   type Decimal,
@@ -49,6 +50,50 @@ function mapearModoRedondeo(modo: 'half_up' | 'half_even' | 'down' | 'up'): Modo
     case 'up':
       return 'UP'
   }
+}
+
+/** Último día del mes (`mes` 1-12) — day=0 de JS Date retrocede al último
+ * día del mes anterior, y JS Date interpreta `month` 0-indexado, así que
+ * pasar `mes` tal cual ya apunta al mes siguiente. UTC explícito: evita que
+ * la zona horaria del runtime (Deno Edge Function) mueva el resultado. */
+function diasDelMes(anio: number, mes: number): number {
+  return new Date(Date.UTC(anio, mes, 0)).getUTCDate()
+}
+
+/** Día del mes de `fechaIso` (YYYY-MM-DD) si cae dentro de anio/mes — null
+ * si la fecha es de otro periodo (incluye null de entrada). */
+function diaSiCaeEnPeriodo(fechaIso: string | null, anio: number, mes: number): number | null {
+  if (fechaIso === null) return null
+  const partes = fechaIso.split('-').map(Number)
+  const [a, m, d] = partes
+  if (a === undefined || m === undefined || d === undefined || a !== anio || m !== mes) return null
+  return d
+}
+
+/**
+ * H2 (auditoría externa 2026-08-26): fracción de días del periodo en que el
+ * inmueble estuvo activo. "1" (atajo, sin pasar por Decimal) cuando no hubo
+ * transición este periodo — el caso inmensamente más común, y el
+ * comportamiento exacto de antes de esta fase.
+ */
+export function calcularFraccionActiva(
+  anio: number,
+  mes: number,
+  activoDesde: string | null,
+  inactivoDesde: string | null,
+): string {
+  const totalDias = diasDelMes(anio, mes)
+  const inicioTransicion = diaSiCaeEnPeriodo(activoDesde, anio, mes)
+  const finTransicion = diaSiCaeEnPeriodo(inactivoDesde, anio, mes)
+  if (inicioTransicion === null && finTransicion === null) return '1'
+
+  const inicioEfectivo = inicioTransicion ?? 1
+  // inactivo_desde es el primer día YA inactivo — el último día activo es el anterior.
+  const finEfectivo = finTransicion !== null ? finTransicion - 1 : totalDias
+  if (finEfectivo < inicioEfectivo) return '0'
+
+  const diasActivos = finEfectivo - inicioEfectivo + 1
+  return diasActivos === totalDias ? '1' : dividirDecimales(diasActivos, totalDias).toString()
 }
 
 interface FilaInmuebleAtributos {
@@ -230,18 +275,28 @@ export async function construirSnapshotDesdeSupabase(
     )
   }
 
-  const { data: inmueblesFilas, error: errorInmuebles } = await cliente
-    .from('inmuebles')
-    .select('id, codigo, area_privada, area_comun, estado_legal_id, habitabilidad_id, uso_predio_id')
-    .eq('tenant_id', tenantId)
-    .eq('estado', 'activo')
-  if (errorInmuebles)
-    throw new Error(`No se pudieron leer los inmuebles: ${errorInmuebles.message}`)
-
   // Fase 5 (alcance.ts): fecha de referencia para "rol vigente" — primer
   // día del mes que se está liquidando, mismo criterio que "vigente en la
   // fecha del periodo" del plan original.
   const fechaReferencia = `${String(anio).padStart(4, '0')}-${String(mes).padStart(2, '0')}-01`
+  const ultimoDiaPeriodo = `${String(anio).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(diasDelMes(anio, mes)).padStart(2, '0')}`
+
+  // H2 (auditoría externa 2026-08-26): estado='activo' ya no basta — un
+  // inmueble que se retiró DENTRO de este periodo también debe entrar (se
+  // prorratea, no se excluye de golpe). inactivo_desde fuera de [fecha
+  // Referencia, ultimoDiaPeriodo] significa que llevaba inactivo desde
+  // antes de este periodo — ese sí se excluye, comportamiento de siempre.
+  const { data: inmueblesFilas, error: errorInmuebles } = await cliente
+    .from('inmuebles')
+    .select(
+      'id, codigo, area_privada, area_comun, estado_legal_id, habitabilidad_id, uso_predio_id, estado, activo_desde, inactivo_desde',
+    )
+    .eq('tenant_id', tenantId)
+    .or(
+      `estado.eq.activo,and(estado.eq.inactivo,inactivo_desde.gte.${fechaReferencia},inactivo_desde.lte.${ultimoDiaPeriodo})`,
+    )
+  if (errorInmuebles)
+    throw new Error(`No se pudieron leer los inmuebles: ${errorInmuebles.message}`)
   const atributosPorInmueble = await resolverAtributosInmueble(
     cliente,
     tenantId,
@@ -279,6 +334,7 @@ export async function construirSnapshotDesdeSupabase(
       id: inmueble.id,
       codigo: inmueble.codigo,
       coeficiente: String(coeficiente),
+      fraccionActiva: calcularFraccionActiva(anio, mes, inmueble.activo_desde, inmueble.inactivo_desde),
       atributos: {
         estadoLegal: atributosExtra?.estadoLegal ?? null,
         habitabilidad: atributosExtra?.habitabilidad ?? null,

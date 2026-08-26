@@ -5,7 +5,14 @@
  */
 import { analizar, parsear } from '@aquila/ael-language'
 import { dinero, evaluar, type TypedValue } from '@aquila/ael-runtime'
-import { allocate, money, type Money, type RoundingPolicy } from '@aquila/financial-kernel'
+import {
+  allocate,
+  money,
+  multiplicar,
+  multiplicarDecimales,
+  type Money,
+  type RoundingPolicy,
+} from '@aquila/financial-kernel'
 import { inmuebleCumpleCondiciones } from './alcance.js'
 import { crearContexto, catalogoDesde } from './context.js'
 import {
@@ -117,7 +124,12 @@ function ejecutarDirecto(
 ): ResultadoConcepto {
   const lineas = inmueblesQueAplican(concepto, snapshot).map((inmueble): LineaLiquidacion => {
     const valor = valorDeConcepto(concepto, snapshot, resultadosPrevios, inmueble.id)
-    return { inmuebleId: inmueble.id, conceptoCodigo: concepto.codigo, monto: dinero(valor).valor }
+    // H2 (auditoría externa 2026-08-26): sin total compartido que reconciliar
+    // aquí (cada inmueble calcula el suyo de forma independiente) — se
+    // multiplica directo, sin redondear todavía (redondeo único al final,
+    // igual que el resto del kernel).
+    const monto = multiplicar(dinero(valor).valor, inmueble.fraccionActiva)
+    return { inmuebleId: inmueble.id, conceptoCodigo: concepto.codigo, monto }
   })
   return { conceptoCodigo: concepto.codigo, valorAgregado: null, cuotaPeriodo: null, lineas }
 }
@@ -161,10 +173,18 @@ function ejecutarDistribucion(
     return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas: [] }
   }
 
+  // H2 (auditoría externa 2026-08-26): coeficiente efectivo = coeficiente ×
+  // fracción de días activos — allocate() sigue repartiendo exactamente
+  // cuotaPeriodo (Σ=fuente intacta), así que lo que un inmueble prorrateado
+  // deja de pagar lo absorben los demás según su propio coeficiente, no
+  // queda déficit de recaudo (decisión del usuario, 2026-08-26).
   const paso2 = allocate({
     basisType: 'coefficient',
     sourceAmount: cuotaPeriodo,
-    targets: inmueblesAplican.map((i) => ({ id: i.codigo, basis: i.coeficiente })),
+    targets: inmueblesAplican.map((i) => ({
+      id: i.codigo,
+      basis: multiplicarDecimales(i.coeficiente, i.fraccionActiva),
+    })),
     policy,
   })
 

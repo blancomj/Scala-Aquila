@@ -43,12 +43,12 @@ function snapshotGC001(mes: number): DataSnapshot {
     periodo: periodosDelAnio[mes - 1]!,
     periodosDelAnio,
     inmuebles: [
-      { id: 'inm-101', codigo: 'INM-101', coeficiente: '0.1500000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-102', codigo: 'INM-102', coeficiente: '0.1500000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-201', codigo: 'INM-201', coeficiente: '0.1650000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-202', codigo: 'INM-202', coeficiente: '0.1650000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-301', codigo: 'INM-301', coeficiente: '0.1850000000', atributos: ATRIBUTOS_VACIOS },
-      { id: 'inm-302', codigo: 'INM-302', coeficiente: '0.1850000000', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-101', codigo: 'INM-101', coeficiente: '0.1500000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-102', codigo: 'INM-102', coeficiente: '0.1500000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-201', codigo: 'INM-201', coeficiente: '0.1650000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-202', codigo: 'INM-202', coeficiente: '0.1650000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-301', codigo: 'INM-301', coeficiente: '0.1850000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
+      { id: 'inm-302', codigo: 'INM-302', coeficiente: '0.1850000000', fraccionActiva: '1', atributos: ATRIBUTOS_VACIOS },
     ],
     conceptos: [
       {
