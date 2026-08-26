@@ -459,40 +459,51 @@ async function confirmarEliminar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
+    <!-- ── acciones (siempre visibles — con 0 agrupaciones no había forma de
+         crear la primera, el texto de estado vacío no traía ningún botón
+         propio) ──────────────────────────────────────────────────────── -->
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <UInput
+        v-if="agrupacionesStore.arbolPlano.length > 0"
+        v-model="busqueda"
+        size="sm"
+        icon="i-lucide-search"
+        placeholder="Buscar por nombre, tipo o descripción…"
+        class="w-72"
+      >
+        <template v-if="busqueda" #trailing>
+          <UButton
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-x"
+            title="Limpiar búsqueda"
+            @click="busqueda = ''"
+          />
+        </template>
+      </UInput>
+      <div v-else />
+
+      <div class="flex items-center gap-2">
+        <UButton
+          v-if="sinAgrupar > 0 && agrupacionesStore.arbolPlano.length > 0"
+          size="sm"
+          variant="soft"
+          @click="abrirAsignacionMasiva"
+        >
+          Asignar no agrupados
+        </UButton>
+        <UButton size="sm" variant="soft" @click="abrirPlantilla()">Plantilla rápida</UButton>
+        <UButton size="sm" @click="abrirNueva()">Nueva agrupación</UButton>
+      </div>
+    </div>
+
     <p v-if="agrupacionesStore.arbolPlano.length === 0" class="text-neutral-500 text-sm">
-      Todavía no hay agrupaciones. Crea la primera — por ejemplo un Edificio, una Manzana o una
-      Zona — y después podrás colgar niveles debajo.
+      Todavía no hay agrupaciones. Crea la primera con los botones de arriba — por ejemplo un
+      Edificio, una Manzana o una Zona — o usa "Plantilla rápida" para crear varias de una vez
+      (por ejemplo, "Torre 1" a "Torre 3").
     </p>
 
     <template v-else>
-      <div class="flex items-center justify-between gap-4 flex-wrap">
-        <UInput
-          v-model="busqueda"
-          size="sm"
-          icon="i-lucide-search"
-          placeholder="Buscar por nombre, tipo o descripción…"
-          class="w-72"
-        >
-          <template v-if="busqueda" #trailing>
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-x"
-              title="Limpiar búsqueda"
-              @click="busqueda = ''"
-            />
-          </template>
-        </UInput>
-
-        <div class="flex items-center gap-2">
-          <UButton v-if="sinAgrupar > 0" size="sm" variant="soft" @click="abrirAsignacionMasiva">
-            Asignar no agrupados
-          </UButton>
-          <UButton size="sm" variant="soft" @click="abrirPlantilla()">Plantilla rápida</UButton>
-          <UButton size="sm" @click="abrirNueva()">Nueva agrupación</UButton>
-        </div>
-      </div>
-
       <p v-if="!setVigente" class="text-xs text-neutral-400">
         No hay un set de coeficientes vigente — la columna Σ Coeficiente se ve vacía. Actívalo
         desde <NuxtLink to="/coeficientes" class="underline">Coeficientes</NuxtLink>.
