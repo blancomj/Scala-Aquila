@@ -371,7 +371,7 @@ async function alImportar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   importarAbierto.value = false
   if (!tenantId) return
-  await cuentaStore.cargarInmuebles(tenantId)
+  await Promise.all([cuentaStore.cargarInmuebles(tenantId), cuentaStore.cargarPropietarios(tenantId)])
 }
 
 // ── exportar CSV (lo que está filtrado en pantalla) ────────────────────────
