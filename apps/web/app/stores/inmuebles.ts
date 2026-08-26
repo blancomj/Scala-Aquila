@@ -93,6 +93,46 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     return data
   }
 
+  /** Alta en lote — importación desde plantilla Excel (onboarding guiado,
+   * Doc 3 auditoría externa §Top-10 #1). Un solo INSERT con todas las filas
+   * ya validadas por el componente de importación (código único en el
+   * archivo y contra la BD, tipo_id resuelto contra el catálogo del
+   * tenant); si una fila falla igual acá (carrera con otra alta
+   * concurrente del mismo código) todo el lote se revierte — el usuario
+   * corrige y reintenta, no hay upsert parcial silencioso. */
+  async function crearInmueblesEnLote(
+    tenantId: string,
+    filas: readonly {
+      codigo: string
+      tipoId: number
+      estado: Database['public']['Enums']['inmueble_estado_t']
+      areaPrivada?: number
+      areaComun?: number
+      matriculaInmobiliaria?: string
+      referenciaCatastral?: string
+    }[],
+  ): Promise<number> {
+    if (filas.length === 0) return 0
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorInsert } = await cliente
+      .from('inmuebles')
+      .insert(
+        filas.map((fila) => ({
+          tenant_id: tenantId,
+          codigo: fila.codigo,
+          tipo_id: fila.tipoId,
+          estado: fila.estado,
+          area_privada: fila.areaPrivada,
+          area_comun: fila.areaComun,
+          matricula_inmobiliaria: fila.matriculaInmobiliaria,
+          referencia_catastral: fila.referenciaCatastral,
+        })),
+      )
+      .select('id')
+    if (errorInsert) throw errorInsert
+    return data.length
+  }
+
   async function actualizarInmueble(params: {
     id: string
     codigo: string
@@ -302,6 +342,7 @@ export const useInmueblesStore = defineStore('inmuebles', () => {
     loading,
     cargarInmueble,
     crearInmueble,
+    crearInmueblesEnLote,
     actualizarInmueble,
     cargarZonasExclusivas,
     cargarCoeficienteVigente,

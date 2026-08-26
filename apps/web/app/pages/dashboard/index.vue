@@ -10,6 +10,7 @@ const authStore = useAuthStore()
 const tenantStore = useTenantStore()
 const membersStore = useMembersStore()
 const auditStore = useAuditStore()
+const onboardingStore = useOnboardingStore()
 
 await useAsyncData('perfil', () => authStore.cargarPerfil())
 await useAsyncData('memberships', () => tenantStore.cargarMemberships())
@@ -20,6 +21,10 @@ await useAsyncData('miembros-activos', () => {
 await useAsyncData('auditoria-reciente', () => {
   const tenantId = tenantStore.activeTenant?.id
   return tenantId ? auditStore.cargarEventos(tenantId, 5) : Promise.resolve([])
+})
+await useAsyncData('onboarding-checklist', () => {
+  const tenantId = tenantStore.activeTenant?.id
+  return tenantId ? onboardingStore.cargarEstado(tenantId) : Promise.resolve()
 })
 </script>
 
@@ -35,6 +40,8 @@ await useAsyncData('auditoria-reciente', () => {
         Copropiedad activa: {{ tenantStore.activeTenant.name }} ({{ tenantStore.role }})
       </p>
     </div>
+
+    <DashboardOnboardingChecklist />
 
     <div class="grid grid-cols-2 gap-4 max-w-md">
       <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4">

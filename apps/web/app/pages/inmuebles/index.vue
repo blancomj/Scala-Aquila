@@ -364,6 +364,16 @@ async function confirmarAsignar(): Promise<void> {
   }
 }
 
+// ── importar desde Excel (onboarding guiado, Doc 3 auditoría #1) ──────────
+const importarAbierto = ref(false)
+
+async function alImportar(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  importarAbierto.value = false
+  if (!tenantId) return
+  await cuentaStore.cargarInmuebles(tenantId)
+}
+
 // ── exportar CSV (lo que está filtrado en pantalla) ────────────────────────
 function exportarCSV(): void {
   const encabezados = ['Código', 'Tipo', 'Propietario', 'Agrupación', 'Coeficiente', 'Saldo', 'Estado']
@@ -517,6 +527,9 @@ function exportarCSV(): void {
         <div class="flex items-center gap-2">
           <UButton size="sm" variant="soft" icon="i-lucide-download" @click="exportarCSV">
             Exportar
+          </UButton>
+          <UButton size="sm" variant="soft" icon="i-lucide-upload" @click="importarAbierto = true">
+            Importar desde Excel
           </UButton>
           <UButton size="sm" to="/inmuebles/nuevo">Nuevo inmueble</UButton>
         </div>
@@ -707,5 +720,14 @@ function exportarCSV(): void {
         </div>
       </template>
     </UModal>
+
+    <InmueblesImportarModal
+      v-if="tenantStore.activeTenant"
+      :abierto="importarAbierto"
+      :tenant-id="tenantStore.activeTenant.id"
+      :codigos-existentes="cuentaStore.inmuebles.map((i) => i.codigo)"
+      @cerrar="importarAbierto = false"
+      @importado="alImportar"
+    />
   </div>
 </template>
