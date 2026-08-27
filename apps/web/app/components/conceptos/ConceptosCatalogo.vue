@@ -99,6 +99,10 @@ function nuevo(): void {
 }
 
 function esArchivable(concepto: Concepto): boolean {
+  // El concepto tipo_recurrencia='novedad' es el singleton que NovedadesEditor exige para
+  // novedades permanentes/prorrateables — guard_concepto_transicion rechaza archivarlo a nivel
+  // de base de datos (CONCEPTO_NOVEDAD_PROTEGIDO); esto solo evita mostrar un botón que fallaría.
+  if (concepto.tipo_recurrencia === 'novedad') return false
   return concepto.estado === 'borrador' || concepto.estado === 'activo' || concepto.estado === 'en_revision'
 }
 
@@ -236,6 +240,12 @@ async function confirmarArchivar(): Promise<void> {
             aria-label="Archivar"
             :loading="cambiandoEstadoId === fila.id"
             @click="pedirConfirmacionArchivar(fila)"
+          />
+          <UIcon
+            v-else-if="fila.tipo_recurrencia === 'novedad'"
+            name="i-lucide-shield-check"
+            class="size-4 text-gray-400 shrink-0"
+            title="Protegido: es el concepto que exige NovedadesEditor para novedades permanentes o prorrateables — no se puede archivar."
           />
         </div>
       </template>
