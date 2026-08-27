@@ -17,8 +17,10 @@
  * puede editar en `borrador` — `guard_concepto_transicion()` rechaza
  * cualquier otro caso con `CONCEPTO_INMUTABLE`. La transición
  * `en_revision→activo` falla con `SELF_APPROVAL` si el aprobador es quien
- * envió la solicitud — ambos errores llegan tal cual en `error.message`,
- * sin traducir (mismo criterio que `APPEND_ONLY` en otras tablas).
+ * envió la solicitud — excepto si tiene rol `administrador` en el tenant
+ * (20260902110000), el único rol que puede aprobar sus propios borradores.
+ * Ambos errores llegan tal cual en `error.message`, sin traducir (mismo
+ * criterio que `APPEND_ONLY` en otras tablas).
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'

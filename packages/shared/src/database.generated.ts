@@ -1581,6 +1581,105 @@ export type Database = {
           },
         ]
       }
+      conceptos_plantilla: {
+        Row: {
+          codigo: string
+          created_at: string
+          formula_ael: string | null
+          id: string
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          modo_valor: Database["public"]["Enums"]["concepto_modo_valor_t"]
+          nombre: string
+          periodicidad:
+            | Database["public"]["Enums"]["concepto_periodicidad_t"]
+            | null
+          presupuesto_cuenta_codigo: string | null
+          prioridad: number
+          tipo_recurrencia: Database["public"]["Enums"]["concepto_tipo_recurrencia_t"]
+          valor_fijo: number | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          formula_ael?: string | null
+          id?: string
+          modo_calculo: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          modo_valor: Database["public"]["Enums"]["concepto_modo_valor_t"]
+          nombre: string
+          periodicidad?:
+            | Database["public"]["Enums"]["concepto_periodicidad_t"]
+            | null
+          presupuesto_cuenta_codigo?: string | null
+          prioridad?: number
+          tipo_recurrencia: Database["public"]["Enums"]["concepto_tipo_recurrencia_t"]
+          valor_fijo?: number | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          formula_ael?: string | null
+          id?: string
+          modo_calculo?: Database["public"]["Enums"]["concepto_modo_calculo_t"]
+          modo_valor?: Database["public"]["Enums"]["concepto_modo_valor_t"]
+          nombre?: string
+          periodicidad?:
+            | Database["public"]["Enums"]["concepto_periodicidad_t"]
+            | null
+          presupuesto_cuenta_codigo?: string | null
+          prioridad?: number
+          tipo_recurrencia?: Database["public"]["Enums"]["concepto_tipo_recurrencia_t"]
+          valor_fijo?: number | null
+        }
+        Relationships: []
+      }
+      consecutivos_documento: {
+        Row: {
+          created_at: string
+          digitos: number
+          id: string
+          prefijo: string
+          siguiente_numero: number
+          tenant_id: string
+          tipo_documento: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          digitos?: number
+          id?: string
+          prefijo?: string
+          siguiente_numero?: number
+          tenant_id: string
+          tipo_documento: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          digitos?: number
+          id?: string
+          prefijo?: string
+          siguiente_numero?: number
+          tenant_id?: string
+          tipo_documento?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consecutivos_documento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consecutivos_documento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contable_codigo_retirado: {
         Row: {
           codigo: string
@@ -2685,14 +2784,19 @@ export type Database = {
       }
       fundamento_normativo: {
         Row: {
+          aprobado_por: string | null
           articulo: string | null
           created_at: string
           descripcion: string | null
+          estado: Database["public"]["Enums"]["fundamento_estado_t"]
           fecha_validacion: string | null
           fecha_vigencia: string | null
           fuente_url: string | null
           id: number
           norma: string
+          propuesto_at: string | null
+          propuesto_por: string | null
+          rechazado_motivo: string | null
           referencia: string | null
           tenant_id: string | null
           tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
@@ -2700,14 +2804,19 @@ export type Database = {
           validado_por: string | null
         }
         Insert: {
+          aprobado_por?: string | null
           articulo?: string | null
           created_at?: string
           descripcion?: string | null
+          estado?: Database["public"]["Enums"]["fundamento_estado_t"]
           fecha_validacion?: string | null
           fecha_vigencia?: string | null
           fuente_url?: string | null
           id?: never
           norma: string
+          propuesto_at?: string | null
+          propuesto_por?: string | null
+          rechazado_motivo?: string | null
           referencia?: string | null
           tenant_id?: string | null
           tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
@@ -2715,14 +2824,19 @@ export type Database = {
           validado_por?: string | null
         }
         Update: {
+          aprobado_por?: string | null
           articulo?: string | null
           created_at?: string
           descripcion?: string | null
+          estado?: Database["public"]["Enums"]["fundamento_estado_t"]
           fecha_validacion?: string | null
           fecha_vigencia?: string | null
           fuente_url?: string | null
           id?: never
           norma?: string
+          propuesto_at?: string | null
+          propuesto_por?: string | null
+          rechazado_motivo?: string | null
           referencia?: string | null
           tenant_id?: string | null
           tipo?: Database["public"]["Enums"]["fundamento_tipo_t"]
@@ -2730,6 +2844,13 @@ export type Database = {
           validado_por?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fundamento_normativo_propuesto_por_fkey"
+            columns: ["propuesto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fundamento_normativo_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2739,6 +2860,89 @@ export type Database = {
           },
           {
             foreignKeyName: "fundamento_normativo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fundamento_propuesta: {
+        Row: {
+          articulo: string | null
+          creado_at: string
+          creado_por: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["propuesta_estado_t"]
+          fuente_url: string | null
+          fundamento_original_id: number
+          id: number
+          norma: string
+          rechazado_motivo: string | null
+          referencia: string | null
+          revisado_at: string | null
+          revisado_por: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
+        }
+        Insert: {
+          articulo?: string | null
+          creado_at?: string
+          creado_por: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["propuesta_estado_t"]
+          fuente_url?: string | null
+          fundamento_original_id: number
+          id?: never
+          norma: string
+          rechazado_motivo?: string | null
+          referencia?: string | null
+          revisado_at?: string | null
+          revisado_por?: string | null
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["fundamento_tipo_t"]
+        }
+        Update: {
+          articulo?: string | null
+          creado_at?: string
+          creado_por?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["propuesta_estado_t"]
+          fuente_url?: string | null
+          fundamento_original_id?: number
+          id?: never
+          norma?: string
+          rechazado_motivo?: string | null
+          referencia?: string | null
+          revisado_at?: string | null
+          revisado_por?: string | null
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["fundamento_tipo_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fundamento_propuesta_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fundamento_propuesta_fundamento_original_id_fkey"
+            columns: ["fundamento_original_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fundamento_propuesta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fundamento_propuesta_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3734,6 +3938,7 @@ export type Database = {
       }
       pago_aplicaciones: {
         Row: {
+          aplicacion_original_id: string | null
           cargo_id: string
           created_at: string
           id: string
@@ -3742,6 +3947,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          aplicacion_original_id?: string | null
           cargo_id: string
           created_at?: string
           id?: string
@@ -3750,6 +3956,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          aplicacion_original_id?: string | null
           cargo_id?: string
           created_at?: string
           id?: string
@@ -3758,6 +3965,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pago_aplicaciones_aplicacion_original_id_fkey"
+            columns: ["aplicacion_original_id"]
+            isOneToOne: false
+            referencedRelation: "pago_aplicaciones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pago_aplicaciones_cargo_id_fkey"
             columns: ["cargo_id"]
@@ -3798,33 +4012,54 @@ export type Database = {
       pagos: {
         Row: {
           acuerdo_cuota_id: string | null
+          anulado_motivo: string | null
           created_at: string
+          cuenta_bancaria_id: string | null
           fecha_pago: string
+          fecha_registro: string
+          forma_pago_id: number
           id: string
           inmueble_id: string
           monto: number
+          pagador_nombre: string | null
+          pagador_tercero_id: string | null
+          pago_original_id: string | null
           referencia: string | null
           registrado_por: string | null
           tenant_id: string
         }
         Insert: {
           acuerdo_cuota_id?: string | null
+          anulado_motivo?: string | null
           created_at?: string
+          cuenta_bancaria_id?: string | null
           fecha_pago: string
+          fecha_registro?: string
+          forma_pago_id: number
           id?: string
           inmueble_id: string
           monto: number
+          pagador_nombre?: string | null
+          pagador_tercero_id?: string | null
+          pago_original_id?: string | null
           referencia?: string | null
           registrado_por?: string | null
           tenant_id: string
         }
         Update: {
           acuerdo_cuota_id?: string | null
+          anulado_motivo?: string | null
           created_at?: string
+          cuenta_bancaria_id?: string | null
           fecha_pago?: string
+          fecha_registro?: string
+          forma_pago_id?: number
           id?: string
           inmueble_id?: string
           monto?: number
+          pagador_nombre?: string | null
+          pagador_tercero_id?: string | null
+          pago_original_id?: string | null
           referencia?: string | null
           registrado_por?: string | null
           tenant_id?: string
@@ -3835,6 +4070,20 @@ export type Database = {
             columns: ["acuerdo_cuota_id"]
             isOneToOne: false
             referencedRelation: "acuerdo_pago_cuotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_forma_pago_id_fkey"
+            columns: ["forma_pago_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
           {
@@ -3849,6 +4098,20 @@ export type Database = {
             columns: ["inmueble_id"]
             isOneToOne: false
             referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_pagador_tercero_id_fkey"
+            columns: ["pagador_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_pago_original_id_fkey"
+            columns: ["pago_original_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
             referencedColumns: ["id"]
           },
           {
@@ -3883,6 +4146,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento: string | null
           id: string
+          mensaje_divulgacion: string | null
           mes: number
           tenant_id: string
           updated_at: string | null
@@ -3895,6 +4159,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
           id?: string
+          mensaje_divulgacion?: string | null
           mes: number
           tenant_id: string
           updated_at?: string | null
@@ -3907,6 +4172,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
           id?: string
+          mensaje_divulgacion?: string | null
           mes?: number
           tenant_id?: string
           updated_at?: string | null
@@ -4935,6 +5201,82 @@ export type Database = {
         }
         Relationships: []
       }
+      recibos_caja: {
+        Row: {
+          created_at: string
+          datos: Json
+          folio: string
+          generado_por: string | null
+          id: string
+          inmueble_id: string
+          pago_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          datos: Json
+          folio: string
+          generado_por?: string | null
+          id?: string
+          inmueble_id: string
+          pago_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          datos?: Json
+          folio?: string
+          generado_por?: string | null
+          id?: string
+          inmueble_id?: string
+          pago_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recibos_caja_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_caja_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_caja_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_caja_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: true
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_caja_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_caja_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rol_funcional_modulo: {
         Row: {
           lista_tipos_id: number
@@ -5877,6 +6219,14 @@ export type Database = {
         Args: { p_liquidacion_id: string; p_motivo: string }
         Returns: Json
       }
+      fn_anular_pago: {
+        Args: { p_actor_id: string; p_motivo: string; p_pago_id: string }
+        Returns: string
+      }
+      fn_aplicar_anticipos: {
+        Args: { p_inmueble_id: string; p_tenant_id: string }
+        Returns: number
+      }
       fn_aplicar_descuento_pronto_pago: {
         Args: { p_pago_id: string }
         Returns: number
@@ -5986,6 +6336,7 @@ export type Database = {
         Args: { p_liquidacion_id: string }
         Returns: number
       }
+      fn_emitir_recibo_caja: { Args: { p_pago_id: string }; Returns: string }
       fn_evolucion_cartera_vencida: {
         Args: { p_fecha_hasta: string; p_meses?: number; p_tenant_id: string }
         Returns: {
@@ -6110,6 +6461,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_instanciar_conceptos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          creadas: number
+          existentes: number
+        }[]
+      }
+      fn_instanciar_cuentas_default: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          creadas: number
+          existentes: number
+        }[]
+      }
       fn_instanciar_plan_contable: {
         Args: {
           p_incluir_opcionales?: boolean
@@ -6126,6 +6491,13 @@ export type Database = {
         Returns: {
           creadas: number
           existentes: number
+        }[]
+      }
+      fn_instanciar_puentes_presupuesto: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          mapeadas: number
+          sin_mapear: number
         }[]
       }
       fn_liquidacion_prevuelo: {
@@ -6252,6 +6624,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fn_siguiente_consecutivo: {
+        Args: { p_tenant_id: string; p_tipo_documento: string }
+        Returns: string
       }
       fn_tipo_division_default: { Args: never; Returns: number }
       fn_toggle_plantilla_sms: {
@@ -6495,6 +6871,7 @@ export type Database = {
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_movimiento_tipo_t: "aporte" | "uso"
       fondo_tipo_t: "imprevistos" | "otro"
+      fundamento_estado_t: "activo" | "propuesto" | "rechazado"
       fundamento_tipo_t:
         | "ley"
         | "decreto"
@@ -6537,6 +6914,7 @@ export type Database = {
       presupuesto_cuenta_naturaleza_t: "ingreso" | "egreso"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
       presupuesto_reconocimiento_ingreso_t: "causacion" | "caja"
+      propuesta_estado_t: "pendiente" | "aprobada" | "rechazada"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       residual_metodo_t: "mayor_resto"
       resultado_accion_cobranza_t:
@@ -6831,6 +7209,7 @@ export const Constants = {
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_movimiento_tipo_t: ["aporte", "uso"],
       fondo_tipo_t: ["imprevistos", "otro"],
+      fundamento_estado_t: ["activo", "propuesto", "rechazado"],
       fundamento_tipo_t: [
         "ley",
         "decreto",
@@ -6878,6 +7257,7 @@ export const Constants = {
       presupuesto_cuenta_naturaleza_t: ["ingreso", "egreso"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
       presupuesto_reconocimiento_ingreso_t: ["causacion", "caja"],
+      propuesta_estado_t: ["pendiente", "aprobada", "rechazada"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       residual_metodo_t: ["mayor_resto"],
       resultado_accion_cobranza_t: [

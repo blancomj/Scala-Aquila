@@ -89,6 +89,12 @@ verify_jwt = true
 import_map = "./functions/registrar-pago/deno.json"
 entrypoint = "./functions/registrar-pago/index.ts"
 
+[functions.anular-pago]
+enabled = true
+verify_jwt = true
+import_map = "./functions/anular-pago/deno.json"
+entrypoint = "./functions/anular-pago/index.ts"
+
 [functions.calcular-intereses]
 enabled = true
 verify_jwt = true
@@ -106,12 +112,29 @@ import_map = "./functions/ver-estado-cuenta/deno.json"
 entrypoint = "./functions/ver-estado-cuenta/index.ts"
 
 # Gatillo manual del administrador: envía por correo el estado de cuenta al
-# propietario (D-28). Sesión obligatoria + rol auxiliar del tenant.
+# propietario (D-28). Sesión obligatoria + rol auxiliar del tenant — pero la
+# valida el propio código (const jwt = req.headers.get('authorization')...),
+# no el gateway: verify_jwt=true en el gateway intercepta hasta el preflight
+# OPTIONS (que nunca lleva Authorization) con un 401 sin cabeceras CORS,
+# bloqueando la función ENTERA desde cualquier navegador — mismo patrón ya
+# resuelto así en ver-estado-cuenta/enviar-estados-cuenta-pendientes.
 [functions.enviar-estado-cuenta]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/enviar-estado-cuenta/deno.json"
 entrypoint = "./functions/enviar-estado-cuenta/index.ts"
+
+[functions.ver-recibo-caja]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ver-recibo-caja/deno.json"
+entrypoint = "./functions/ver-recibo-caja/index.ts"
+
+[functions.enviar-recibo-caja]
+enabled = true
+verify_jwt = false
+import_map = "./functions/enviar-recibo-caja/deno.json"
+entrypoint = "./functions/enviar-recibo-caja/index.ts"
 
 # Batch cron post-liquidación (D-28): notifica los estados emitidos por L5
 # que aún no tienen rastro 'estado_cuenta.enviado' en audit_log. Sin JWT a

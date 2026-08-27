@@ -124,6 +124,17 @@ const payloadSchema = z.object({
   monto: z.number().positive(),
   fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha_pago debe ser YYYY-MM-DD.'),
   referencia: z.string().trim().min(1).optional(),
+  // RC-0 — cómo, dónde y de quién entró el dinero. `forma_pago` viaja como
+  // CÓDIGO ('efectivo', 'cheque'...) y no como id: el id de lista_tipos es un
+  // detalle de la base que el cliente no tiene por qué conocer ni cachear.
+  forma_pago: z.string().trim().min(1),
+  cuenta_bancaria_id: z.string().uuid().nullish(),
+  fecha_registro: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha_registro debe ser YYYY-MM-DD.')
+    .optional(),
+  pagador_tercero_id: z.string().uuid().nullish(),
+  pagador_nombre: z.string().trim().min(1).nullish(),
 })
 
 // Espejo local de AplicacionPago (packages/liquidation-engine/src/cuenta-corriente.ts)
@@ -225,6 +236,51 @@ export default {
       return errorResponse(500, 'INTERNAL_ERROR', errorTenant.message, undefined, correlationId)
     }
 
+    // ── RC-0 · medio de recaudo ────────────────────────────────────────
+    // El código se resuelve contra el catálogo: una forma global (tenant_id
+    // null) o una propia de esta copropiedad. guard_pago_medio_recaudo
+    // revalida en la base — esto es para devolver un 400 legible en vez de
+    // un 500 con el texto del guard.
+    const { data: formaPago, error: errorForma } = await ctx.supabase
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'FORMA_PAGO')
+      .eq('codigo', datos.forma_pago)
+      .eq('activo', true)
+      .or(`tenant_id.is.null,tenant_id.eq.${inmueble.tenant_id}`)
+      .maybeSingle()
+    if (errorForma) {
+      return errorResponse(500, 'INTERNAL_ERROR', errorForma.message, undefined, correlationId)
+    }
+    if (!formaPago) {
+      return errorResponse(
+        400,
+        'FORMA_PAGO_INVALIDA',
+        `La forma de pago "${datos.forma_pago}" no existe o no está activa.`,
+        undefined,
+        correlationId,
+      )
+    }
+
+    // Efectivo nunca lleva cuenta bancaria; el resto, si no la indican, cae a
+    // la cuenta de recaudo vigente — que es donde de hecho entró el dinero.
+    // Así la contabilidad debita la cuenta correcta sin obligar al auxiliar a
+    // elegirla en cada registro.
+    const esEfectivo = datos.forma_pago === 'efectivo'
+    let cuentaBancariaId: string | null = datos.cuenta_bancaria_id ?? null
+    if (esEfectivo) {
+      cuentaBancariaId = null
+    } else if (cuentaBancariaId === null) {
+      const { data: cuentaRecaudo } = await ctx.supabase
+        .from('cuentas_bancarias')
+        .select('id')
+        .eq('tenant_id', inmueble.tenant_id)
+        .eq('es_recaudo', true)
+        .eq('activa', true)
+        .maybeSingle()
+      cuentaBancariaId = cuentaRecaudo?.id ?? null
+    }
+
     let cargosAbiertos
     let politicaImputacion
     try {
@@ -289,6 +345,11 @@ export default {
           fechaPago: datos.fecha_pago,
           referencia: datos.referencia,
           registradoPor: actorId,
+          formaPagoId: formaPago.id,
+          cuentaBancariaId,
+          fechaRegistro: datos.fecha_registro,
+          pagadorTerceroId: datos.pagador_tercero_id ?? null,
+          pagadorNombre: datos.pagador_nombre ?? null,
         },
         plan,
       )

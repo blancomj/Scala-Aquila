@@ -17,6 +17,8 @@ const props = defineProps<{ inmuebleId?: string }>()
 const tenantStore = useTenantStore()
 const inmueblesStore = useInmueblesStore()
 const tercerosStore = useTercerosStore()
+const cuentaStore = useCuentaCorrienteStore()
+const recaudoStore = useRecaudoStore()
 
 const esCreacion = computed(() => !props.inmuebleId)
 const inmueble = computed(() => inmueblesStore.inmuebleActivo)
@@ -62,6 +64,33 @@ const datosBaseRef = ref<{ guardar: () => Promise<string>; alternarEdicion: () =
 function editarFicha(): void {
   tabActiva.value = 'base'
   datosBaseRef.value?.alternarEdicion()
+}
+
+// ── Registrar pago — modal propio (2026-08-27): antes el botón del
+// masthead solo saltaba a la pestaña Cartera, que tenía el formulario
+// embebido al final (había que hacer scroll para verlo). Ahora abre
+// directo la ventana específica, sin importar en qué pestaña esté el
+// usuario ni si la pestaña Cartera está montada.
+const modalPagoAbierto = ref(false)
+
+function abrirRegistrarPago(): void {
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) cuentaStore.cargarFormasPago(tenantId)
+  modalPagoAbierto.value = true
+}
+
+// La pestaña Cartera lee cuentaStore/recaudoStore directo (sin copia local),
+// así que recargarlos aquí la refresca sola si el usuario la tiene abierta
+// o vuelve a ella — no hace falta coordinarse con InmuebleCartera.vue.
+async function alRegistrarPago(): Promise<void> {
+  modalPagoAbierto.value = false
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !props.inmuebleId) return
+  await Promise.all([
+    cuentaStore.cargarCargosAbiertos(tenantId, props.inmuebleId),
+    cuentaStore.cargarPagos(tenantId, props.inmuebleId),
+    recaudoStore.cargarRecaudo(tenantId, { inmuebleId: props.inmuebleId }),
+  ])
 }
 
 async function cargarTodo(id: string): Promise<void> {
@@ -162,7 +191,7 @@ const tabItems = computed(() =>
           <UButton v-if="inmuebleId" variant="outline" color="neutral" :to="`/novedades/nueva?inmuebleId=${inmuebleId}`">
             Nueva novedad
           </UButton>
-          <UButton variant="outline" color="neutral" @click="irATab('cartera')">Registrar pago</UButton>
+          <UButton variant="outline" color="neutral" @click="abrirRegistrarPago">Registrar pago</UButton>
           <UButton @click="editarFicha">Editar ficha</UButton>
           <UDropdownMenu :items="menuInmueble">
             <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" aria-label="Más acciones" />
@@ -252,5 +281,16 @@ const tabItems = computed(() =>
         </section>
       </div>
     </div>
+
+    <UModal
+      v-if="inmuebleId"
+      :open="modalPagoAbierto"
+      title="Registrar pago"
+      @update:open="(abierto) => { if (!abierto) modalPagoAbierto = false }"
+    >
+      <template #body>
+        <PagosRegistrarPagoForm :inmueble-id="inmuebleId" @registrado="alRegistrarPago" />
+      </template>
+    </UModal>
   </div>
 </template>

@@ -128,6 +128,24 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     return data
   }
 
+  /** UPDATE directo por RLS (periodos_update_agent) — sin Edge Function,
+   * mismo criterio que crearPeriodo. guard_periodo_transicion no reacciona:
+   * solo dispara su lógica cuando `estado` cambia, y aquí no cambia.
+   * Mensaje vacío se guarda como null (mismo criterio que nota_solicitud). */
+  async function actualizarMensajeDivulgacion(
+    periodoId: string,
+    tenantId: string,
+    mensaje: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente
+      .from('periodos')
+      .update({ mensaje_divulgacion: mensaje.trim() || null })
+      .eq('id', periodoId)
+    if (error) throw error
+    await cargarPeriodos(tenantId)
+  }
+
   async function cargarLiquidaciones(tenantId: string): Promise<LiquidacionRow[]> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorLiquidaciones } = await cliente
@@ -278,6 +296,7 @@ export const useLiquidacionStore = defineStore('liquidacion', () => {
     loading,
     cargarPeriodos,
     crearPeriodo,
+    actualizarMensajeDivulgacion,
     cargarLiquidaciones,
     cargarLineasPorInmueble,
     cargarLineasDeLiquidacion,

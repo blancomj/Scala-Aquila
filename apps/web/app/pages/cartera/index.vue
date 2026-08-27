@@ -35,6 +35,8 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const carteraStore = useCarteraStore()
+const cuentaStore = useCuentaCorrienteStore()
+const toast = useToast()
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -203,6 +205,49 @@ const actividadReciente = computed(() =>
   })),
 )
 
+// ── calcular intereses de mora ──────────────────────────────────────
+// Movido acá desde /estado-cuenta/pagos.vue (retirada, 2026-08-27): es una
+// operación de mantenimiento de TODA la copropiedad, no de un pago
+// puntual — no pertenece a "Registrar pago" ni a Recaudo. Vive en un modal
+// para no romper el carácter de solo-lectura del dashboard.
+const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
+const modalInteresesAbierto = ref(false)
+const fechaReferencia = ref(hoyISO())
+const calculando = ref(false)
+const errorIntereses = ref<string | null>(null)
+const resultadoIntereses = ref<Awaited<ReturnType<typeof cuentaStore.calcularIntereses>> | null>(
+  null,
+)
+
+async function abrirCalcularIntereses(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) await cuentaStore.cargarInmuebles(tenantId)
+  resultadoIntereses.value = null
+  errorIntereses.value = null
+  modalInteresesAbierto.value = true
+}
+
+async function calcularIntereses(): Promise<void> {
+  errorIntereses.value = null
+  resultadoIntereses.value = null
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+
+  calculando.value = true
+  try {
+    resultadoIntereses.value = await cuentaStore.calcularIntereses({
+      tenantId,
+      fechaReferencia: fechaReferencia.value,
+    })
+    toast.add({ title: 'Cálculo de intereses completado.', color: 'success' })
+    await cargar()
+  } catch (excepcion) {
+    errorIntereses.value = mensajeError(excepcion, 'No se pudo calcular el interés de mora.')
+  } finally {
+    calculando.value = false
+  }
+}
+
 const alertas = computed(() => {
   const a = carteraStore.alertas
   return [
@@ -252,9 +297,14 @@ const alertas = computed(() => {
         <h1 class="text-xl font-semibold mb-1">Dashboard de Cartera</h1>
         <p class="text-sm text-gray-500">Vista general del estado de la cartera a la fecha de corte.</p>
       </div>
-      <UFormField label="Corte de análisis">
-        <UInput v-model="fechaCorte" type="date" class="w-48" />
-      </UFormField>
+      <div class="flex items-end gap-3">
+        <UFormField label="Corte de análisis">
+          <UInput v-model="fechaCorte" type="date" class="w-48" />
+        </UFormField>
+        <UButton variant="outline" color="neutral" icon="i-lucide-percent" @click="abrirCalcularIntereses">
+          Calcular intereses de mora
+        </UButton>
+      </div>
     </div>
 
     <UAlert v-if="errorCarga" color="error" variant="soft" :title="errorCarga" />
@@ -414,5 +464,43 @@ const alertas = computed(() => {
         </div>
       </div>
     </template>
+
+    <UModal
+      :open="modalInteresesAbierto"
+      title="Calcular intereses de mora"
+      @update:open="(abierto) => { if (!abierto) modalInteresesAbierto = false }"
+    >
+      <template #body>
+        <div class="space-y-4 text-sm">
+          <p class="text-gray-500">
+            Genera el cargo de interés de mora para todos los inmuebles de la copropiedad con
+            capital vencido, según la política financiera vigente. Idempotente entre corridas.
+          </p>
+          <form class="flex items-end gap-4" @submit.prevent="calcularIntereses">
+            <UFormField label="Fecha de referencia" name="fecha_referencia">
+              <UInput v-model="fechaReferencia" type="date" required class="w-48" />
+            </UFormField>
+            <UButton type="submit" :loading="calculando">Calcular</UButton>
+          </form>
+          <UAlert v-if="errorIntereses" color="error" variant="soft" :title="errorIntereses" />
+
+          <UiTabla
+            v-if="resultadoIntereses"
+            :columnas="[
+              { clave: 'inmueble', etiqueta: 'Inmueble' },
+              { clave: 'montoGenerado', etiqueta: 'Monto generado' },
+              { clave: 'topeAplicado', etiqueta: 'Tope aplicado' },
+            ]"
+            :filas="resultadoIntereses"
+            :clave-fila="(fila) => fila.inmueble_id"
+            vacio="Ningún inmueble generó interés de mora para esta fecha."
+          >
+            <template #celda-inmueble="{ fila }">{{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}</template>
+            <template #celda-montoGenerado="{ fila }">{{ formatoMoneda(fila.monto_generado) }}</template>
+            <template #celda-topeAplicado="{ fila }"><span class="text-gray-500">{{ fila.tope_aplicado ? 'Sí' : 'No' }}</span></template>
+          </UiTabla>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

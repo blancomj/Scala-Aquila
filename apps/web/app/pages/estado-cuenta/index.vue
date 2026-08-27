@@ -9,6 +9,8 @@ const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
 const conceptoStore = useConceptoStore()
 const liquidacionStore = useLiquidacionStore()
+const inmueblesStore = useInmueblesStore()
+const copropiedadStore = useCopropiedadStore()
 
 const error = ref<string | null>(null)
 const inmuebleSeleccionadoId = ref<string | null>(null)
@@ -67,6 +69,7 @@ watch(
       await Promise.all([
         cuentaStore.cargarCargosAbiertos(tenantId, id),
         cuentaStore.cargarPagos(tenantId, id),
+        cuentaStore.cargarComprobantesEmitidos(tenantId, id),
       ])
     } catch (excepcion) {
       error.value = mensajeError(excepcion, 'No se pudo cargar la cuenta.')
@@ -74,6 +77,13 @@ watch(
   },
   { immediate: true },
 )
+
+/** Etiqueta de periodo para el historial de comprobantes — "A hoy" cuando se
+ * generó a mano desde la ficha (sin periodo, ver ComprobanteEmitido). */
+function etiquetaPeriodoComprobante(periodoId: string | null): string {
+  if (!periodoId) return 'A hoy'
+  return periodoPorId.value.get(periodoId) ?? '—'
+}
 
 
 function origenLegible(cargo: { concepto_id: string | null; categoria: string | null }): string {
@@ -83,9 +93,10 @@ function origenLegible(cargo: { concepto_id: string | null; categoria: string | 
 
 const generandoPdf = ref(false)
 const errorPdf = ref<string | null>(null)
-// Último comprobante generado en esta sesión — objetivo del botón de correo.
+// Último comprobante generado en esta sesión — objetivo del botón de correo
+// de arriba. El historial de abajo reenvía cualquier comprobante por su id.
 const ultimoComprobanteId = ref<string | null>(null)
-const enviandoCorreo = ref(false)
+const enviandoId = ref<string | null>(null)
 const resultadoCorreo = ref<string | null>(null)
 
 async function generarEstadoCuenta(): Promise<void> {
@@ -98,18 +109,40 @@ async function generarEstadoCuenta(): Promise<void> {
   try {
     // Propietario vigente del inmueble (mapa nombre por inmueble, ya cargado).
     const propietarioNombre = cuentaStore.propietariosPorInmueble.get(inmueble.id) ?? null
+    const [coeficienteVigente, cuentasBancarias, entidadesFinancieras] = await Promise.all([
+      inmueblesStore.cargarCoeficienteVigente(tenantId, inmueble.id),
+      copropiedadStore.cargarCuentasBancarias(tenantId),
+      copropiedadStore.cargarEntidadesFinancieras(tenantId),
+    ])
+    // cuentas_bancarias.banco (texto) se reemplazó por entidad_financiera_id
+    // (FK a lista_tipos, 20260822170000) — el nombre sale de ese catálogo.
+    const nombrePorEntidad = new Map(entidadesFinancieras.map((e) => [e.id, e.nombre]))
+    const tenant = tenantStore.activeTenant
     const id = await cuentaStore.generarEstadoCuenta({
       tenantId,
       inmuebleId: inmueble.id,
       inmuebleCodigo: inmueble.codigo,
-      tenantNombre: tenantStore.activeTenant?.name ?? '',
-      tenantNit: tenantStore.activeTenant?.nit ?? null,
+      tenantNombre: tenant?.name ?? '',
+      tenantNit: tenant?.nit ?? null,
+      tenantDireccion: tenant?.direccion ?? null,
+      tenantCiudad: tenant?.ciudad ?? null,
+      tenantTelefono: tenant?.telefono_1 ?? null,
+      tenantEmail: tenant?.email ?? null,
+      coeficiente: coeficienteVigente ? Number(coeficienteVigente.valor) : null,
+      canalesPago: cuentasBancarias
+        .filter((c) => c.es_recaudo && c.activa)
+        .map((c) => ({
+          banco: nombrePorEntidad.get(c.entidad_financiera_id) ?? '—',
+          tipo_cuenta: c.tipo_cuenta,
+          numero_cuenta: c.numero_cuenta,
+        })),
       propietarioNombre,
       etiquetasConcepto: Object.fromEntries(
         conceptoStore.conceptos.map((c) => [c.id, c.codigo]),
       ),
     })
     ultimoComprobanteId.value = id
+    await cuentaStore.cargarComprobantesEmitidos(tenantId, inmueble.id)
     window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
     errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante de cuenta.')
@@ -118,12 +151,18 @@ async function generarEstadoCuenta(): Promise<void> {
   }
 }
 
-/** D-28: envía el último comprobante generado al correo de los propietarios
- * vigentes del inmueble (Edge Function enviar-estado-cuenta). El enlace que
- * recibe el propietario lleva token firmado — nunca montos en la URL. */
-async function enviarPorCorreo(): Promise<void> {
-  if (!ultimoComprobanteId.value) return
-  enviandoCorreo.value = true
+/** D-28: envía un comprobante por correo a los propietarios vigentes del
+ * inmueble (Edge Function enviar-estado-cuenta). El enlace que recibe el
+ * propietario lleva un token firmado NUEVO cada vez — nunca montos en la
+ * URL — pero apunta al MISMO documento sellado (mismo folio/hash/datos):
+ * reenviar desde el historial no genera uno distinto, reabre el original.
+ *
+ * `reenviar: true` para las filas del historial — es una acción explícita
+ * de quien la pide, así que se salta el guard anti-doble-envío de <12h que
+ * sí aplica al botón de arriba (ese es el flujo rutinario recién generado). */
+async function enviarPorCorreo(id: string | null, reenviar = false): Promise<void> {
+  if (!id) return
+  enviandoId.value = id
   resultadoCorreo.value = null
   try {
     const cliente = useSupabaseClient()
@@ -132,7 +171,7 @@ async function enviarPorCorreo(): Promise<void> {
       omitidosSinEmail: number
       enlace: string
     }>('enviar-estado-cuenta', {
-      body: { estado_cuenta_id: ultimoComprobanteId.value },
+      body: { estado_cuenta_id: id, reenviar },
     })
     if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
     if (!data) throw new Error('Respuesta vacía del servidor.')
@@ -146,7 +185,7 @@ async function enviarPorCorreo(): Promise<void> {
   } catch (excepcion) {
     resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo.')
   } finally {
-    enviandoCorreo.value = false
+    enviandoId.value = null
   }
 }
 </script>
@@ -174,9 +213,9 @@ async function enviarPorCorreo(): Promise<void> {
         </UButton>
         <UButton
           variant="outline"
-          :loading="enviandoCorreo"
+          :loading="enviandoId === ultimoComprobanteId && enviandoId !== null"
           :disabled="!ultimoComprobanteId"
-          @click="enviarPorCorreo"
+          @click="enviarPorCorreo(ultimoComprobanteId)"
         >
           Enviar por correo al propietario
         </UButton>
@@ -186,6 +225,59 @@ async function enviarPorCorreo(): Promise<void> {
 
       <UAlert v-if="errorPdf" color="error" variant="soft" :title="errorPdf" />
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
+        </div>
+        <p class="text-xs text-gray-500 mb-2">
+          El historial oficial — cada uno tiene su folio y hash propios y no cambia. Para
+          reenviar exactamente lo que ya se envió, usa "Reenviar" aquí en vez de generar uno
+          nuevo arriba.
+        </p>
+        <UiTabla
+          :columnas="[
+            { clave: 'folio', etiqueta: 'Folio' },
+            { clave: 'periodo', etiqueta: 'Periodo' },
+            { clave: 'generado', etiqueta: 'Generado' },
+            { clave: 'acciones', etiqueta: '' },
+          ]"
+          :filas="cuentaStore.comprobantesEmitidos"
+          :clave-fila="(c) => c.id"
+          vacio="Todavía no se ha emitido ningún comprobante para este inmueble."
+        >
+          <template #celda-folio="{ fila }">
+            <span class="font-mono text-xs">{{ fila.folio ?? '—' }}</span>
+          </template>
+          <template #celda-periodo="{ fila }">
+            <span class="text-gray-500">{{ etiquetaPeriodoComprobante(fila.periodo_id) }}</span>
+          </template>
+          <template #celda-generado="{ fila }">
+            <span class="text-gray-500">{{ new Date(fila.created_at).toLocaleString('es-CO') }}</span>
+          </template>
+          <template #celda-acciones="{ fila }">
+            <div class="flex justify-end gap-2">
+              <UButton
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-external-link"
+                :to="`/comprobante-cuenta/${fila.id}`"
+                target="_blank"
+              >
+                Ver
+              </UButton>
+              <UButton
+                size="xs"
+                variant="ghost"
+                :loading="enviandoId === fila.id"
+                @click="enviarPorCorreo(fila.id, true)"
+              >
+                Reenviar
+              </UButton>
+            </div>
+          </template>
+        </UiTabla>
+      </div>
 
       <div>
         <div class="flex items-center justify-between mb-2">

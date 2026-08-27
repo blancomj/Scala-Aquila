@@ -169,6 +169,21 @@ export interface DatosPago {
   readonly fechaPago: string
   readonly referencia?: string
   readonly registradoPor: string
+  /** lista_tipos FORMA_PAGO — obligatorio desde RC-0: es lo que decide si la
+   * contabilidad debita caja o bancos. Lo resuelve quien llama, a partir del
+   * código ('efectivo', 'cheque'...), nunca se adivina aquí. */
+  readonly formaPagoId: number
+  /** A qué cuenta bancaria entró. Null/ausente en efectivo (lo exige
+   * guard_pago_medio_recaudo) y también cuando no se identificó la cuenta. */
+  readonly cuentaBancariaId?: string | null
+  /** Fecha valor vs. fecha de registro (GAP-CAR-003, Doc 19 §135). Ausente =
+   * hoy, que es el caso normal; se envía distinta solo al cargar pagos
+   * retroactivos, y entonces queda auditable. */
+  readonly fechaRegistro?: string
+  /** Quién pagó, cuando es un tercero del sistema y puede no ser el propietario. */
+  readonly pagadorTerceroId?: string | null
+  /** Nombre libre de quien pagó, si no es un tercero registrado. */
+  readonly pagadorNombre?: string | null
 }
 
 export async function registrarPago(
@@ -185,6 +200,13 @@ export async function registrarPago(
       fecha_pago: datos.fechaPago,
       referencia: datos.referencia ?? null,
       registrado_por: datos.registradoPor,
+      forma_pago_id: datos.formaPagoId,
+      cuenta_bancaria_id: datos.cuentaBancariaId ?? null,
+      // Omitido a propósito cuando no viene: el default de la columna
+      // (current_date) es el caso normal y lo resuelve la base, no el cliente.
+      ...(datos.fechaRegistro === undefined ? {} : { fecha_registro: datos.fechaRegistro }),
+      pagador_tercero_id: datos.pagadorTerceroId ?? null,
+      pagador_nombre: datos.pagadorNombre ?? null,
     })
     .select('id')
     .single()

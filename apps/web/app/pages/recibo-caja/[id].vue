@@ -1,22 +1,46 @@
 <script setup lang="ts">
-// Visor público del estado de cuenta — D-27/D-28 (Docs/evaluacion/13).
-// Sin sesión por defecto (AD-26): el acceso anónimo exige el token HMAC `t`
-// que mintió enviar-estado-cuenta; un miembro autenticado también puede
-// abrirlo sin t (ver-estado-cuenta valida su membresía). Por eso
-// `publico: true` (auth.global.ts lo exime) y layout 'blank'.
-//
-// La respuesta es un sobre { datos, folio, contenido_hash }:
-//   · datos      — snapshot sellado a la fecha de corte (nunca datos vivos).
-//   · folio      — identidad pública del documento (EDC-YYYYMM-NNNNNN).
-//   · contenido_hash — SHA-256 del snapshot; se imprime como sello junto al
-//     folio: cualquier tercero puede confirmar que este documento es
-//     exactamente el expedido (papel incluido — sobrevive a @media print).
-//
-// El botón de pago permanece APAGADO hasta que existan pasarelas (punto 2):
-// cuando llegue, será intención de pago server-side con token propio —
-// jamás un monto en la URL (crítico §A.1 de la evaluación 13). Mientras,
-// las notas apuntan a los canales tradicionales.
+// Visor público del recibo de caja — RC-4, clon de comprobante-cuenta/[id].vue
+// (D-27/D-28 aplicados al recaudo). Sin sesión por defecto (AD-26): el
+// acceso anónimo exige el token HMAC `t` que mintió enviar-recibo-caja; un
+// miembro autenticado también puede abrirlo sin t.
 definePageMeta({ layout: 'blank', publico: true })
+
+import { montoEnLetras } from '@aquila/shared'
+
+interface ConceptoRecibo {
+  descripcion: string
+  monto: number
+}
+
+interface ReciboCajaDatos {
+  tenant_nombre: string
+  tenant_nit: string | null
+  tenant_direccion: string | null
+  tenant_ciudad: string | null
+  tenant_telefono: string | null
+  tenant_email: string | null
+  inmueble_codigo: string
+  recibi_de_nombre: string | null
+  recibi_de_documento_tipo: string | null
+  recibi_de_documento_numero: string | null
+  monto: number
+  fecha_pago: string
+  forma_pago: string | null
+  referencia: string | null
+  conceptos: ConceptoRecibo[]
+  anticipo: number
+  saldo_pendiente_despues: number
+  generado_en: string
+}
+
+interface RespuestaReciboCaja {
+  datos: ReciboCajaDatos
+  folio: string | null
+  contenido_hash: string | null
+  anulado: boolean
+  anulado_motivo: string | null
+  anulado_fecha: string | null
+}
 
 const route = useRoute()
 const id = route.params.id as string
@@ -27,88 +51,39 @@ const tokenEnlace = computed(() => {
 
 const cliente = useSupabaseClient()
 
-interface RespuestaEstadoCuenta {
-  datos: EstadoCuentaDatos
-  folio: string | null
-  contenido_hash: string | null
-}
-
 const {
   data: respuesta,
   error: errorCarga,
   pending,
-} = await useAsyncData(`estado-cuenta-${id}`, async () => {
-  const { data, error: errorFuncion } = await cliente.functions.invoke<RespuestaEstadoCuenta>(
-    'ver-estado-cuenta',
+} = await useAsyncData(`recibo-caja-${id}`, async () => {
+  const { data, error: errorFuncion } = await cliente.functions.invoke<RespuestaReciboCaja>(
+    'ver-recibo-caja',
     { body: tokenEnlace.value ? { id, t: tokenEnlace.value } : { id } },
   )
   if (errorFuncion) {
-    // createError(), no `new Error()` a secas: useAsyncData corre en SSR y un
-    // Error normal pierde `.message` (propiedad no enumerable) al serializarse
-    // en el payload hacia el cliente — el visor quedaba mostrando siempre el
-    // mensaje genérico. NuxtError sí sobrevive esa frontera intacto.
     const err = await extraerErrorFuncion(errorFuncion)
     throw createError({ message: err.message, fatal: false })
   }
-  if (!data) throw createError({ message: 'No se encontró el comprobante de cuenta.', fatal: false })
+  if (!data) throw createError({ message: 'No se encontró el recibo de caja.', fatal: false })
   return data
 })
 
 const datos = computed(() => respuesta.value?.datos ?? null)
-
+const anulado = computed(() => respuesta.value?.anulado ?? false)
 
 function formatoFecha(iso: string): string {
-  // Fecha contable del corte/movimiento — UTC fijo, no la zona del cliente.
-  const d = new Date(iso)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
+  const [anio, mes, dia] = iso.slice(0, 10).split('-')
+  return `${dia}/${mes}/${anio}`
 }
 
-const totales = computed(() => {
-  const movimientos = datos.value?.movimientos ?? []
-  let cargos = 0
-  let abonos = 0
-  for (const m of movimientos) {
-    cargos += m.cargo ?? 0
-    abonos += m.abono ?? 0
-  }
-  return { cargos, abonos }
-})
+const montoLetras = computed(() => (datos.value ? montoEnLetras(datos.value.monto) : ''))
 
-const saldoPendiente = computed(() => (datos.value?.saldo_final ?? 0) > 0)
-
-// Solo presente en estados emitidos por liquidación (periodo concreto) — los
-// generados a mano desde la ficha ("a hoy") no tienen periodo que mostrar.
-const saldoAnterior = computed(() => datos.value?.saldo_anterior ?? 0)
-
-const periodoTexto = computed(() => {
+const recibiDocumento = computed(() => {
   const d = datos.value
-  if (!d?.periodo_inicio || !d?.periodo_fin) return null
-  return `${formatoFecha(d.periodo_inicio)} – ${formatoFecha(d.periodo_fin)}`
-})
-
-const fechaLimiteTexto = computed(() =>
-  datos.value?.periodo_fecha_limite_pago ? formatoFecha(datos.value.periodo_fecha_limite_pago) : null,
-)
-
-const coeficienteTexto = computed(() => {
-  const valor = datos.value?.inmueble_coeficiente
-  return valor != null ? `${(valor * 100).toFixed(4)}%` : null
-})
-
-const ETIQUETA_TIPO_CUENTA: Record<string, string> = {
-  ahorros: 'Cuenta de ahorros',
-  corriente: 'Cuenta corriente',
-  billetera: 'Billetera digital',
-}
-
-const canalesPagoTexto = computed(() => {
-  const canales = datos.value?.canales_pago ?? []
-  if (canales.length === 0) return null
-  return canales
-    .map((c) => `${ETIQUETA_TIPO_CUENTA[c.tipo_cuenta] ?? c.tipo_cuenta} No. ${c.numero_cuenta} — ${c.banco}`)
-    .join('; ')
+  if (!d?.recibi_de_documento_numero) return null
+  return d.recibi_de_documento_tipo
+    ? `${d.recibi_de_documento_tipo} ${d.recibi_de_documento_numero}`
+    : d.recibi_de_documento_numero
 })
 
 const contactoPartes = computed(() => {
@@ -127,14 +102,12 @@ function imprimir(): void {
   window.print()
 }
 
-// ── Compartir ────────────────────────────────────────────────────────────────
-// Texto genérico a propósito: NUNCA incluye el saldo (el documento se
-// reenvía; el saldo es del destinatario, no de todo el chat).
 const textoCompartir = computed(
   () =>
-    `Estado de cuenta — ${datos.value?.tenant_nombre ?? ''}, inmueble ${datos.value?.inmueble_codigo ?? ''}, corte ${datos.value ? formatoFecha(datos.value.generado_en) : ''}`,
+    `Recibo de caja ${respuesta.value?.folio ?? ''} — ${datos.value?.tenant_nombre ?? ''}, inmueble ${datos.value?.inmueble_codigo ?? ''}`,
 )
 const toastVisible = ref(false)
+const toastMensaje = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
 async function compartir(): Promise<void> {
@@ -161,12 +134,10 @@ function mostrarToast(mensaje: string): void {
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => (toastVisible.value = false), 2600)
 }
-
-const toastMensaje = ref('')
 </script>
 
 <template>
-  <div class="estado-cuenta">
+  <div class="recibo">
     <div class="acciones">
       <button type="button" @click="compartir">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
@@ -180,15 +151,22 @@ const toastMensaje = ref('')
 
     <main class="hoja">
       <template v-if="pending">
-        <p class="mensaje">Cargando estado de cuenta…</p>
+        <p class="mensaje">Cargando recibo de caja…</p>
       </template>
       <template v-else-if="errorCarga || !datos">
         <p class="mensaje">
-          {{ mensajeError(errorCarga, 'No se pudo cargar el estado de cuenta.') }}
+          {{ mensajeError(errorCarga, 'No se pudo cargar el recibo de caja.') }}
         </p>
       </template>
       <template v-else>
-        <!-- ENCABEZADO -->
+        <div
+          v-if="anulado"
+          class="bg-error-600 text-white text-center text-xs font-bold tracking-wide py-2 px-4"
+        >
+          RECIBO ANULADO — {{ respuesta?.anulado_motivo ?? 'sin motivo registrado' }}
+          <template v-if="respuesta?.anulado_fecha"> · {{ formatoFecha(respuesta.anulado_fecha) }}</template>
+        </div>
+
         <header class="cabecera">
           <div class="marca">
             <span class="monograma" aria-hidden="true">{{
@@ -204,129 +182,91 @@ const toastMensaje = ref('')
           </div>
         </header>
 
-        <!-- TÍTULO -->
         <div class="titulo">
           <div>
-            <h1>Estado de cuenta</h1>
-            <p>Liquidación de cuotas de administración</p>
+            <h1>Recibo de caja</h1>
+            <p>Soporte de pago recibido</p>
           </div>
-          <span class="corte-tag">CORTE {{ formatoFecha(datos.generado_en) }}</span>
+          <span class="corte-tag">No. {{ respuesta?.folio ?? 'PREVIO-A-FOLIO' }}</span>
         </div>
 
-        <!-- DATOS -->
         <section class="info">
           <dl>
             <div class="fila">
-              <dt>Propietario / Residente</dt>
-              <dd>{{ datos.propietario_nombre ?? '—' }}</dd>
+              <dt>Recibí de</dt>
+              <dd>{{ datos.recibi_de_nombre ?? '—' }}</dd>
             </div>
-            <div class="fila mono">
+            <div v-if="recibiDocumento" class="fila mono">
               <dt>Identificación</dt>
-              <dd>{{ datos.propietario_documento_enmascarado ?? '—' }}</dd>
+              <dd>{{ recibiDocumento }}</dd>
             </div>
             <div class="fila">
               <dt>Inmueble</dt>
               <dd>{{ datos.inmueble_codigo }}</dd>
             </div>
-            <div v-if="coeficienteTexto" class="fila mono">
-              <dt>Coeficiente</dt>
-              <dd>{{ coeficienteTexto }}</dd>
-            </div>
           </dl>
           <dl>
             <div class="fila mono">
-              <dt>Folio del documento</dt>
-              <dd>{{ respuesta?.folio ?? 'PREVIO-A-FOLIO' }}</dd>
+              <dt>Fecha de pago</dt>
+              <dd>{{ formatoFecha(datos.fecha_pago) }}</dd>
             </div>
-            <div class="fila mono">
-              <dt>{{ periodoTexto ? 'Periodo facturado' : 'Expedición' }}</dt>
-              <dd>{{ periodoTexto ?? formatoFecha(datos.generado_en) }}</dd>
+            <div class="fila">
+              <dt>Forma de pago</dt>
+              <dd>{{ datos.forma_pago ?? '—' }}</dd>
             </div>
-            <div v-if="fechaLimiteTexto" class="fila mono">
-              <dt>Fecha límite de pago</dt>
-              <dd>{{ fechaLimiteTexto }}</dd>
-            </div>
-            <div class="fila mono">
-              <dt>No. de cuenta</dt>
-              <dd>{{ datos.inmueble_codigo }}</dd>
+            <div v-if="datos.referencia" class="fila mono">
+              <dt>Referencia</dt>
+              <dd>{{ datos.referencia }}</dd>
             </div>
           </dl>
         </section>
 
-        <!-- AVISO DE LA ADMINISTRACIÓN -->
-        <div v-if="datos.mensaje_divulgacion" class="aviso">
-          <p class="aviso-titulo">Aviso de la administración</p>
-          <p class="aviso-cuerpo">{{ datos.mensaje_divulgacion }}</p>
+        <div class="monto-caja">
+          <div class="monto-caja-etiqueta">La suma de</div>
+          <div class="monto-caja-letras">{{ montoLetras }}</div>
+          <div class="monto-caja-cifra">{{ formatoMoneda(datos.monto) }}</div>
         </div>
 
-        <!-- RESUMEN -->
-        <h2 class="etiqueta-seccion">Resumen del periodo</h2>
-        <div class="resumen">
-          <div class="resumen-fila">
-            <span>Saldo anterior</span>
-            <span class="monto">{{ formatoMoneda(saldoAnterior) }}</span>
-          </div>
-          <div class="resumen-fila">
-            <span>(+) Cargos del periodo<span class="pista">Cuotas, intereses y multas facturadas</span></span>
-            <span class="monto">{{ formatoMoneda(totales.cargos) }}</span>
-          </div>
-          <div class="resumen-fila">
-            <span>(–) Abonos y pagos recibidos<span class="pista">Pagos aplicados durante el periodo</span></span>
-            <span class="monto">{{ formatoMoneda(totales.abonos) }}</span>
-          </div>
-          <div class="resumen-total">
-            <span>{{ saldoPendiente ? 'Saldo pendiente a la fecha de corte' : 'Sin saldo pendiente' }}<template v-if="(datos.saldo_final ?? 0) < 0"> · Saldo a tu favor</template></span>
-            <span class="total-monto">{{ formatoMoneda(datos.saldo_final) }}</span>
-          </div>
-        </div>
-
-        <!-- MOVIMIENTOS -->
-        <h2 class="etiqueta-seccion">Detalle de movimientos</h2>
+        <h2 class="etiqueta-seccion">Por concepto de</h2>
         <div class="tabla-marco">
           <div class="scroll-x">
             <table>
               <caption class="visualmente-oculto">
-                Movimientos de cuenta corriente del inmueble {{ datos.inmueble_codigo }}
+                Conceptos cubiertos por este pago
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Fecha</th>
                   <th scope="col">Concepto</th>
-                  <th scope="col">Documento</th>
-                  <th scope="col" class="num">Cargo</th>
-                  <th scope="col" class="num">Abono</th>
-                  <th scope="col" class="num">Saldo</th>
+                  <th scope="col" class="num">Monto</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(m, i) in datos.movimientos" :key="i">
-                  <td class="fecha">{{ formatoFecha(m.fecha) }}</td>
-                  <td class="concepto">{{ m.descripcion }}</td>
-                  <td class="documento">{{ m.documento ?? '—' }}</td>
-                  <td class="num cargo">{{ m.cargo !== null ? formatoMoneda(m.cargo) : '—' }}</td>
-                  <td class="num abono">{{ m.abono !== null ? formatoMoneda(m.abono) : '—' }}</td>
-                  <td class="num saldo-col">{{ formatoMoneda(m.saldo) }}</td>
+                <tr v-for="(c, i) in datos.conceptos" :key="i">
+                  <td class="concepto">{{ c.descripcion }}</td>
+                  <td class="num">{{ formatoMoneda(c.monto) }}</td>
+                </tr>
+                <tr v-if="datos.anticipo > 0">
+                  <td class="concepto">Anticipo — sin aplicar a ningún cargo todavía</td>
+                  <td class="num">{{ formatoMoneda(datos.anticipo) }}</td>
+                </tr>
+                <tr v-if="datos.conceptos.length === 0 && datos.anticipo <= 0">
+                  <td colspan="2" class="concepto">Sin conceptos asociados.</td>
                 </tr>
               </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="3">Totales del periodo</td>
-                  <td class="num">{{ formatoMoneda(totales.cargos) }}</td>
-                  <td class="num">{{ formatoMoneda(totales.abonos) }}</td>
-                  <td class="num">{{ formatoMoneda(datos.saldo_final) }}</td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
 
-        <!-- NOTAS -->
+        <div class="resumen">
+          <div class="resumen-total">
+            <span>Saldo pendiente después de este pago</span>
+            <span class="total-monto">{{ formatoMoneda(datos.saldo_pendiente_despues) }}</span>
+          </div>
+        </div>
+
         <aside class="notas">
           <ol>
-            <li><b>Origen.</b> Liquidación conforme al reglamento de propiedad horizontal y al presupuesto aprobado por la asamblea.</li>
-            <li><b>Canales de pago.</b> {{ canalesPagoTexto ?? 'Los canales vigentes los publica la administración; conserva tu soporte de pago.' }}</li>
-            <li><b>Intereses de mora.</b> Los pagos posteriores al vencimiento se liquidan a la tasa máxima legal certificada por la Superintendencia Financiera.</li>
-            <li><b>Reclamaciones.</b> Repórtalas dentro de los 5 días hábiles siguientes a la expedición, adjuntando el soporte de pago si aplica.</li>
+            <li><b>Soporte.</b> Este recibo es soporte de pago; no reemplaza la factura o el recibo de caja tributario si aplica.</li>
             <li><b>Verificación.</b> Este documento corresponde al folio {{ respuesta?.folio ?? 'sin folio' }} con huella SHA-256 <span class="mono">{{ hashCorto || '(no disponible)' }}</span>. La administración puede confirmar su autenticidad.</li>
             <li><b>Nota.</b> Documento informativo; las cuotas de administración no requieren factura electrónica (Concepto DIAN 106/2022).</li>
           </ol>
@@ -335,11 +275,11 @@ const toastMensaje = ref('')
         <div class="firmas">
           <div class="firma">
             <div class="linea-firma"></div>
-            <div class="rol-firma">Administrador(a)</div>
+            <div class="rol-firma">Recibido por — Administración</div>
           </div>
           <div class="firma">
             <div class="linea-firma"></div>
-            <div class="rol-firma">Revisor Fiscal / Contador (si aplica)</div>
+            <div class="rol-firma">Entregado por — Propietario / Residente</div>
           </div>
         </div>
 
@@ -357,11 +297,9 @@ const toastMensaje = ref('')
 </template>
 
 <style scoped>
-/* Paleta exclusivamente vía tokens.css (D-26) — este archivo ya no necesita
- * estar en el allowlist de hex del test-guardia. Tipografía: Inter /
- * Inter Tight (self-hosted). Sin fuentes externas: el documento renderiza
- * igual offline/impresso y no filtra aperturas a terceros. */
-.estado-cuenta {
+/* Paleta exclusivamente vía tokens.css (D-26) — mismos tokens que
+ * comprobante-cuenta/[id].vue, del que este visor es un clon deliberado. */
+.recibo {
   font-family: var(--font-sans);
   color: var(--color-neutral-900);
   background: var(--color-neutral-100);
@@ -369,7 +307,7 @@ const toastMensaje = ref('')
   padding: 40px 16px 72px;
 }
 .acciones {
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto 16px;
   display: flex;
   justify-content: flex-end;
@@ -398,7 +336,7 @@ const toastMensaje = ref('')
   outline-offset: 2px;
 }
 .hoja {
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto;
   background: var(--color-neutral-50);
   border-radius: var(--radius-xl);
@@ -411,7 +349,6 @@ const toastMensaje = ref('')
   font-size: 14px;
 }
 
-/* Cabecera */
 .cabecera {
   background: var(--color-brand-800);
   color: var(--color-neutral-50);
@@ -463,7 +400,6 @@ const toastMensaje = ref('')
   color: var(--color-neutral-400);
 }
 
-/* Título */
 .titulo {
   padding: 20px 34px 16px;
   border-bottom: 1px solid var(--color-neutral-200);
@@ -495,7 +431,6 @@ const toastMensaje = ref('')
   white-space: nowrap;
 }
 
-/* Datos */
 .info {
   padding: 22px 34px 6px;
   display: grid;
@@ -529,31 +464,35 @@ const toastMensaje = ref('')
   letter-spacing: 0.01em;
 }
 
-/* Aviso de la administración */
-.aviso {
+.monto-caja {
   margin: 20px 34px 0;
-  padding: 14px 18px;
+  padding: 18px;
   background: var(--color-brand-50);
   border: 1px solid var(--color-brand-200);
   border-radius: var(--radius-lg);
+  text-align: center;
 }
-.aviso-titulo {
-  margin: 0 0 4px;
+.monto-caja-etiqueta {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-brand-800);
+  color: var(--color-brand-700);
+  margin-bottom: 6px;
 }
-.aviso-cuerpo {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
+.monto-caja-letras {
+  font-size: 14px;
   color: var(--color-brand-900);
-  white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+.monto-caja-cifra {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--color-brand-800);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Secciones */
 .etiqueta-seccion {
   margin: 26px 34px 10px;
   font-family: var(--font-sans);
@@ -564,50 +503,6 @@ const toastMensaje = ref('')
   color: var(--color-brand-700);
 }
 
-/* Resumen */
-.resumen {
-  margin: 0 34px;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-.resumen-fila {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 18px;
-  font-size: 13px;
-  border-bottom: 1px solid var(--color-neutral-200);
-}
-.monto {
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-}
-.pista {
-  display: block;
-  font-size: 11px;
-  color: var(--color-neutral-400);
-  font-weight: 400;
-  margin-top: 2px;
-}
-.resumen-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 18px;
-  background: var(--color-brand-50);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-brand-800);
-}
-.total-monto {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Tabla */
 .tabla-marco {
   margin: 0 34px;
   border: 1px solid var(--color-neutral-200);
@@ -621,7 +516,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  min-width: 560px;
+  min-width: 400px;
 }
 .visualmente-oculto {
   position: absolute;
@@ -652,17 +547,6 @@ tbody td {
 tbody tr:nth-child(even) td {
   background: var(--color-neutral-100);
 }
-.fecha {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-neutral-500);
-}
-.documento {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: var(--color-neutral-500);
-}
 .concepto {
   font-weight: 500;
 }
@@ -671,27 +555,30 @@ td.num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-td.cargo {
+
+.resumen {
+  margin: 16px 34px 0;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.resumen-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  background: var(--color-brand-50);
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-brand-800);
 }
-td.abono {
-  color: var(--color-neutral-600);
-}
-td.saldo-col {
-  font-weight: 600;
-}
-tfoot td {
-  padding: 11px 14px;
-  background: var(--color-neutral-100);
-  border-top: 2px solid var(--color-brand-300);
+.total-monto {
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-tfoot td.num {
-  text-align: right;
-}
 
-/* Notas */
 .notas {
   margin: 22px 34px 0;
   padding: 15px 18px;
@@ -719,7 +606,6 @@ tfoot td.num {
   font-variant-numeric: tabular-nums;
 }
 
-/* Firmas */
 .firmas {
   display: flex;
   gap: 40px;
@@ -738,7 +624,6 @@ tfoot td.num {
   color: var(--color-neutral-500);
 }
 
-/* Pie */
 .pie {
   margin-top: 24px;
   padding: 14px 34px 24px;
@@ -755,7 +640,6 @@ tfoot td.num {
   font-style: italic;
 }
 
-/* Toast */
 .toast {
   position: fixed;
   left: 50%;
@@ -777,7 +661,7 @@ tfoot td.num {
 }
 
 @media (max-width: 600px) {
-  .estado-cuenta {
+  .recibo {
     padding: 20px 8px 48px;
   }
   .cabecera,
@@ -794,7 +678,7 @@ tfoot td.num {
   }
   .resumen,
   .tabla-marco,
-  .aviso {
+  .monto-caja {
     margin-left: 20px;
     margin-right: 20px;
   }
@@ -810,12 +694,12 @@ tfoot td.num {
     justify-content: center;
   }
   .total-monto {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 
 @media print {
-  .estado-cuenta {
+  .recibo {
     background: white;
     padding: 0;
     min-height: auto;
@@ -829,6 +713,5 @@ tfoot td.num {
     border-radius: 0;
     max-width: 100%;
   }
-  /* Folio y hash SÍ se imprimen — son el sello de autenticidad del papel. */
 }
 </style>

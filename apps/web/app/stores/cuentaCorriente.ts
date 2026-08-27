@@ -25,7 +25,7 @@ type NovedadCuotaRow = Database['public']['Tables']['novedad_cuotas']['Row']
 type NovedadTipoCuentaRow = Database['public']['Tables']['novedad_tipo_cuenta']['Row']
 type JsonColumnaEstadoCuenta = Database['public']['Tables']['estados_cuenta_generados']['Row']['datos']
 
-interface ResultadoPago {
+export interface ResultadoPago {
   pago_id: string
   aplicado: string
   no_aplicado: string
@@ -47,27 +47,59 @@ const CATEGORIA_ESTADO_CUENTA_LABEL: Record<string, string> = {
 export interface MovimientoEstadoCuenta {
   fecha: string
   descripcion: string
+  documento: string | null
   cargo: number | null
   abono: number | null
   saldo: number
 }
 
+export interface CanalPagoEstadoCuenta {
+  banco: string
+  tipo_cuenta: string
+  numero_cuenta: string
+}
+
 /** Forma de estados_cuenta_generados.datos — misma estructura que devuelve
- * la Edge Function ver-estado-cuenta (PLAN_DATOS_REALES.md §3.3).
+ * la Edge Function ver-estado-cuenta (PLAN_DATOS_REALES.md §3.3), y desde
+ * 20260902120000 la misma que produce fn_emitir_estados_cuenta (L5) — el
+ * gap D-28 (SQL sin propietario_*) queda cerrado.
  *
- * propietario_* y los campos opcionales posteriores solo los producen los
- * snapshots generados desde la app (store); fn_emitir_estados_cuenta (L5)
- * aún produce la forma base — el visor público trata su ausencia con '—'
- * hasta que el productor SQL alcance la misma forma (pendiente, D-28). */
+ * saldo_anterior/periodo_* quedan `undefined` en los snapshots generados a
+ * mano desde la ficha del inmueble (esta función): esos son "a hoy", sin
+ * periodo — el historial completo hace de saldo_anterior=0 implícito. El
+ * emisor por lote sí los llena siempre, porque nace de una liquidación con
+ * periodo concreto. */
 export interface EstadoCuentaDatos {
   tenant_nombre: string
   tenant_nit: string | null
+  tenant_direccion?: string | null
+  tenant_ciudad?: string | null
+  tenant_telefono?: string | null
+  tenant_email?: string | null
+  canales_pago?: CanalPagoEstadoCuenta[]
   inmueble_codigo: string
+  inmueble_coeficiente?: number | null
   movimientos: MovimientoEstadoCuenta[]
+  saldo_anterior?: number
   saldo_final: number
   generado_en: string
+  periodo_inicio?: string | null
+  periodo_fin?: string | null
+  periodo_fecha_limite_pago?: string | null
+  mensaje_divulgacion?: string | null
   propietario_nombre?: string | null
   propietario_documento_enmascarado?: string | null
+}
+
+/** Fila del historial de comprobantes ya emitidos (para reabrir/reenviar el
+ * documento ORIGINAL en vez de generar uno nuevo — ver comprobante-cuenta
+ * más abajo). `periodo_id` null = generado a mano desde la ficha ("a hoy");
+ * no null = emitido por una liquidación real (fn_emitir_estados_cuenta). */
+export interface ComprobanteEmitido {
+  id: string
+  folio: string | null
+  created_at: string
+  periodo_id: string | null
 }
 
 /** Enmascara un documento para documentos reenviables: deja los últimos 4
@@ -87,6 +119,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
   const novedadCuotas = shallowRef<NovedadCuotaRow[]>([])
   const novedadTipoCuenta = shallowRef<NovedadTipoCuentaRow[]>([])
   const propietariosPorInmueble = shallowRef<Map<string, string>>(new Map())
+  const comprobantesEmitidos = shallowRef<ComprobanteEmitido[]>([])
+  const formasPago = shallowRef<ListaTipoRow[]>([])
   const loading = ref(false)
 
   async function cargarInmuebles(tenantId: string): Promise<InmuebleRow[]> {
@@ -205,6 +239,27 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     return propietariosPorInmueble.value
   }
 
+  /** Historial de comprobantes YA emitidos para un inmueble — para reabrir o
+   * reenviar el documento oficial (folio, hash, mensaje de divulgación
+   * incluidos) en vez de generar uno nuevo y distinto con "Generar
+   * comprobante de cuenta". SELECT directo por RLS
+   * (estados_cuenta_generados_select_miembro, cualquier miembro del tenant). */
+  async function cargarComprobantesEmitidos(
+    tenantId: string,
+    inmuebleId: string,
+  ): Promise<ComprobanteEmitido[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorComprobantes } = await cliente
+      .from('estados_cuenta_generados')
+      .select('id, folio, created_at, periodo_id')
+      .eq('tenant_id', tenantId)
+      .eq('inmueble_id', inmuebleId)
+      .order('created_at', { ascending: false })
+    if (errorComprobantes) throw errorComprobantes
+    comprobantesEmitidos.value = data ?? []
+    return comprobantesEmitidos.value
+  }
+
   /** Mapa motivo -> cuenta de ingreso (20260830240000). Lo aplica el trigger
    * `aplicar_novedad_cuenta_por_tipo` al insertar la novedad; aquí solo se lee
    * para configurarlo y para poder mostrar en el resumen bajo qué cuenta va a
@@ -252,12 +307,37 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     await cargarNovedadTipoCuenta(params.tenantId)
   }
 
+  /** Formas de pago disponibles: las globales de la plataforma más las
+   * propias de esta copropiedad (RC-0). Solo activas — una forma retirada
+   * deja de ofrecerse sin invalidar los pagos que ya la usaron. */
+  async function cargarFormasPago(tenantId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('lista_tipos')
+      .select('*')
+      .eq('tipo', 'FORMA_PAGO')
+      .eq('activo', true)
+      .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
+      .order('orden')
+    if (error) throw error
+    formasPago.value = data ?? []
+  }
+
   async function registrarPago(params: {
     inmuebleId: string
     tenantId: string
     monto: number
     fechaPago: string
     referencia?: string
+    /** Código de lista_tipos FORMA_PAGO ('efectivo', 'transferencia_bancaria',
+     * 'cheque'...). Obligatorio desde RC-0: decide si la contabilidad debita
+     * caja o bancos. */
+    formaPago: string
+    /** A qué cuenta bancaria entró. Omitir cae a la cuenta de recaudo vigente;
+     * se ignora cuando la forma de pago es efectivo. */
+    cuentaBancariaId?: string | null
+    pagadorTerceroId?: string | null
+    pagadorNombre?: string | null
   }): Promise<ResultadoPago> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoPago>(
@@ -268,11 +348,38 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
           monto: params.monto,
           fecha_pago: params.fechaPago,
           referencia: params.referencia,
+          forma_pago: params.formaPago,
+          cuenta_bancaria_id: params.cuentaBancariaId ?? null,
+          pagador_tercero_id: params.pagadorTerceroId ?? null,
+          pagador_nombre: params.pagadorNombre ?? null,
         },
       },
     )
     if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
     if (!data) throw new Error('registrar-pago no devolvió datos.')
+
+    await Promise.all([
+      cargarCargosAbiertos(params.tenantId, params.inmuebleId),
+      cargarPagos(params.tenantId, params.inmuebleId),
+    ])
+    return data
+  }
+
+  /** RC-2 — anula un pago (reversa append-only vía fn_anular_pago). Solo
+   * total: no admite anular parte de un pago. */
+  async function anularPago(params: {
+    pagoId: string
+    motivo: string
+    tenantId: string
+    inmuebleId: string
+  }): Promise<{ reversa_id: string }> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<{ reversa_id: string }>(
+      'anular-pago',
+      { body: { pago_id: params.pagoId, motivo: params.motivo } },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('anular-pago no devolvió datos.')
 
     await Promise.all([
       cargarCargosAbiertos(params.tenantId, params.inmuebleId),
@@ -395,6 +502,12 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     inmuebleCodigo: string
     tenantNombre: string
     tenantNit: string | null
+    tenantDireccion?: string | null
+    tenantCiudad?: string | null
+    tenantTelefono?: string | null
+    tenantEmail?: string | null
+    coeficiente?: number | null
+    canalesPago?: CanalPagoEstadoCuenta[]
     propietarioNombre?: string | null
     propietarioDocumento?: string | null
     etiquetasConcepto?: Record<string, string>
@@ -404,7 +517,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
       await Promise.all([
         cliente
           .from('cargos')
-          .select('monto_original, created_at, categoria, concepto_id')
+          .select('monto_original, created_at, categoria, concepto_id, novedad_id')
           .eq('inmueble_id', params.inmuebleId)
           .order('created_at'),
         cliente
@@ -416,19 +529,37 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     if (errorCargos) throw errorCargos
     if (errorPagos) throw errorPagos
 
+    // Cargos de categoria='otro' vienen de una novedad — su descripcion real
+    // ("Sanción por ruido nocturno") es mucho más útil que la etiqueta
+    // genérica "Otro" que mostraba antes (mismo criterio que
+    // fn_emitir_estados_cuenta, 20260902150000).
+    const idsNovedad = [...new Set((todosCargos ?? []).map((c) => c.novedad_id).filter((id): id is string => id !== null))]
+    const descripcionesNovedad = new Map<string, string>()
+    if (idsNovedad.length > 0) {
+      const { data: novedades, error: errorNovedades } = await cliente
+        .from('novedades')
+        .select('id, descripcion')
+        .in('id', idsNovedad)
+      if (errorNovedades) throw errorNovedades
+      for (const n of novedades ?? []) descripcionesNovedad.set(n.id, n.descripcion)
+    }
+
     interface Evento {
       fecha: string
       descripcion: string
+      documento: string | null
       monto: number
       esCargo: boolean
     }
     const eventos: Evento[] = [
       ...(todosCargos ?? []).map((c): Evento => {
         const categoria = CATEGORIA_ESTADO_CUENTA_LABEL[c.categoria] ?? c.categoria
+        const descripcionNovedad = c.novedad_id ? descripcionesNovedad.get(c.novedad_id) : undefined
         const concepto = c.concepto_id ? params.etiquetasConcepto?.[c.concepto_id] : undefined
         return {
           fecha: c.created_at,
-          descripcion: concepto ? `${categoria} · ${concepto}` : categoria,
+          descripcion: descripcionNovedad ?? (concepto ? `${categoria} · ${concepto}` : categoria),
+          documento: null,
           monto: Number(c.monto_original),
           esCargo: true,
         }
@@ -437,6 +568,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
         (p): Evento => ({
           fecha: p.fecha_pago,
           descripcion: p.referencia ? `Pago — ${p.referencia}` : 'Pago',
+          documento: p.referencia,
           monto: Number(p.monto),
           esCargo: false,
         }),
@@ -449,6 +581,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
       return {
         fecha: e.fecha,
         descripcion: e.descripcion,
+        documento: e.documento,
         cargo: e.esCargo ? e.monto : null,
         abono: e.esCargo ? null : e.monto,
         saldo,
@@ -458,7 +591,13 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     const datos: EstadoCuentaDatos = {
       tenant_nombre: params.tenantNombre,
       tenant_nit: params.tenantNit,
+      tenant_direccion: params.tenantDireccion ?? null,
+      tenant_ciudad: params.tenantCiudad ?? null,
+      tenant_telefono: params.tenantTelefono ?? null,
+      tenant_email: params.tenantEmail ?? null,
+      canales_pago: params.canalesPago ?? [],
       inmueble_codigo: params.inmuebleCodigo,
+      inmueble_coeficiente: params.coeficiente ?? null,
       movimientos,
       saldo_final: saldo,
       generado_en: new Date().toISOString(),
@@ -490,6 +629,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     novedadCuotas.value = []
     novedadTipoCuenta.value = []
     propietariosPorInmueble.value = new Map()
+    comprobantesEmitidos.value = []
   }
 
   return {
@@ -497,6 +637,10 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     cargosAbiertos,
     pagos,
     novedades,
+    comprobantesEmitidos,
+    cargarComprobantesEmitidos,
+    formasPago,
+    cargarFormasPago,
     tiposNovedad,
     novedadCuotas,
     novedadTipoCuenta,
@@ -512,6 +656,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     cargarPropietarios,
     cargarNovedadCuotas,
     registrarPago,
+    anularPago,
     calcularIntereses,
     crearNovedad,
     aprobarNovedad,

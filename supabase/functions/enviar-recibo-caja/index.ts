@@ -1,19 +1,15 @@
-// Gatillo MANUAL: el administrador envía por correo el estado de cuenta al
-// propietario desde /estado-cuenta — D-28 (Docs/evaluacion/13 §G).
+// Gatillo MANUAL: el administrador/auxiliar envía por correo el recibo de
+// caja al propietario desde /recaudo o la ficha del inmueble — RC-4, clon de
+// enviar-estado-cuenta (D-28).
 //
-// Rol exigido: auxiliar (mismo rol que registra pagos y sube documentos; el
-// auditor es solo lectura y no dispara comunicaciones). El enlace devuelto
-// lleva token HMAC firmado (D-27) — se retorna también en la respuesta para
-// que el administrador pueda copiarlo y compartirlo manualmente (WhatsApp),
-// caso de uso real hoy.
-//
-// Idempotencia: si el documento ya fue notificado hace <12h responde 409
-// ESTADO_CUENTA_YA_NOTIFICADO; reenviar:true lo fuerza (audita igual).
+// Rol exigido: auxiliar o administrador (has_role, administrador ⊇
+// auxiliar). Idempotencia: si el documento ya fue notificado hace <12h
+// responde 409 RECIBO_CAJA_YA_NOTIFICADO; reenviar:true lo fuerza.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, parsearErrorRpc, respuestaPreflight } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
-import { enviarEstadoCuentaPorId, comoAdmin } from '../_shared/envio_estado_cuenta.ts'
+import { comoAdminRecibo, enviarReciboCajaPorId } from '../_shared/envio_recibo_caja.ts'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -29,10 +25,10 @@ export default {
     if (!supabaseUrl || !serviceKey) {
       return errorResponse(500, 'INTERNAL_ERROR', 'Configuración incompleta.', undefined, correlationId)
     }
-    // Sesión obligatoria — validada aquí, no por el gateway: verify_jwt=false
-    // en config.toml a propósito, porque verify_jwt=true intercepta hasta el
-    // preflight OPTIONS (que nunca lleva Authorization) con un 401 propio,
-    // rompiendo CORS desde cualquier navegador antes de llegar a este código.
+    // verify_jwt=false a propósito (config.toml) — mismo motivo que
+    // enviar-estado-cuenta: con verify_jwt=true el preflight OPTIONS (que
+    // nunca lleva Authorization) lo intercepta el gateway con un 401 propio
+    // antes de llegar aquí, rompiendo CORS desde cualquier navegador.
     const jwt = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
     if (!jwt) {
       return errorResponse(401, 'UNAUTHENTICATED', 'Sesión requerida.', undefined, correlationId)
@@ -54,13 +50,13 @@ export default {
     } catch {
       return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON.', undefined, correlationId)
     }
-    const cuerpo = body as { estado_cuenta_id?: unknown; reenviar?: unknown } | null
-    const id = cuerpo?.estado_cuenta_id
+    const cuerpo = body as { recibo_caja_id?: unknown; reenviar?: unknown } | null
+    const id = cuerpo?.recibo_caja_id
     if (typeof id !== 'string' || !UUID_RE.test(id)) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'estado_cuenta_id debe ser un uuid válido.',
+        'recibo_caja_id debe ser un uuid válido.',
         undefined,
         correlationId,
       )
@@ -69,25 +65,19 @@ export default {
       return errorResponse(400, 'INVALID_PAYLOAD', 'reenviar debe ser booleano.', undefined, correlationId)
     }
 
-    // Rate limit por actor antes de efectos secundarios (patrón E7 §15.1).
-    const bloqueo = await enforceRateLimit(admin, `enviar_edc:${actorId}`, 20, '1 hour', correlationId)
+    const bloqueo = await enforceRateLimit(admin, `enviar_recibo:${actorId}`, 20, '1 hour', correlationId)
     if (bloqueo) return bloqueo
 
-    // Rol: auxiliar o administrador activo del tenant del documento (el
-    // auditor no notifica). Administrador ⊇ auxiliar en todo el resto de la
-    // app (has_role(), 20260830100000) — este chequeo vivía con .eq('role',
-    // 'auxiliar') exacto, que en la práctica le negaba el envío a cualquier
-    // Administrador; corregido para que respete el mismo criterio.
     const { data: fila } = await admin
-      .from('estados_cuenta_generados')
+      .from('recibos_caja')
       .select('tenant_id')
       .eq('id', id)
       .maybeSingle()
     if (!fila) {
       return errorResponse(
         404,
-        'ESTADO_CUENTA_NO_ENCONTRADO',
-        'No existe ese estado de cuenta.',
+        'RECIBO_CAJA_NO_ENCONTRADO',
+        'No existe ese recibo de caja.',
         undefined,
         correlationId,
       )
@@ -104,14 +94,14 @@ export default {
       return errorResponse(
         403,
         'FORBIDDEN',
-        'Solo un auxiliar o administrador de esta copropiedad puede enviar el estado de cuenta.',
+        'Solo un auxiliar o administrador de esta copropiedad puede enviar el recibo de caja.',
         undefined,
         correlationId,
       )
     }
 
     try {
-      const resultado = await enviarEstadoCuentaPorId(comoAdmin(admin), id, {
+      const resultado = await enviarReciboCajaPorId(comoAdminRecibo(admin), id, {
         reenviar: cuerpo?.reenviar === true,
         actorId,
       })
@@ -121,9 +111,9 @@ export default {
         excepcion instanceof Error ? excepcion.message : 'INTERNAL_ERROR',
       )
       const status =
-        code === 'ESTADO_CUENTA_YA_NOTIFICADO'
+        code === 'RECIBO_CAJA_YA_NOTIFICADO'
           ? 409
-          : code === 'ESTADO_CUENTA_NO_ENCONTRADO'
+          : code === 'RECIBO_CAJA_NO_ENCONTRADO'
             ? 404
             : code === 'CONFIG_INCOMPLETA'
               ? 500

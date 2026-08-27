@@ -174,6 +174,20 @@ export const ERROR_CODES = {
   POLITICA_MORA_NO_CONFIGURADA: 'POLITICA_MORA_NO_CONFIGURADA',
   TENANT_NO_ENCONTRADO: 'TENANT_NO_ENCONTRADO',
 
+  // ── Recaudo: medio de pago y recibo de caja (RC-0..RC-6) ────────────────
+  FORMA_PAGO_INVALIDA: 'FORMA_PAGO_INVALIDA',
+  PAGO_FECHA_INCOHERENTE: 'PAGO_FECHA_INCOHERENTE',
+  PAGO_MEDIO_INCOHERENTE: 'PAGO_MEDIO_INCOHERENTE',
+  ANULACION_NO_REVERSABLE: 'ANULACION_NO_REVERSABLE',
+  PAGO_ANULACION_SIN_MOTIVO: 'PAGO_ANULACION_SIN_MOTIVO',
+  PAGO_MONTO_INVALIDO: 'PAGO_MONTO_INVALIDO',
+  PAGO_NO_ENCONTRADO: 'PAGO_NO_ENCONTRADO',
+  PAGO_YA_ANULADO: 'PAGO_YA_ANULADO',
+  RECIBO_CAJA_NO_ENCONTRADO: 'RECIBO_CAJA_NO_ENCONTRADO',
+  RECIBO_CAJA_ENLACE_INVALIDO: 'RECIBO_CAJA_ENLACE_INVALIDO',
+  RECIBO_CAJA_VENCIDO: 'RECIBO_CAJA_VENCIDO',
+  RECIBO_CAJA_YA_NOTIFICADO: 'RECIBO_CAJA_YA_NOTIFICADO',
+
   // ── Novedades (E4) ───────────────────────────────────────────────────────
   ADJUSTMENT_ZERO_AMOUNT: 'ADJUSTMENT_ZERO_AMOUNT',
   NOVEDAD_NO_ENCONTRADA: 'NOVEDAD_NO_ENCONTRADA',
@@ -216,6 +230,14 @@ export const ERROR_CODES = {
   // Guard anti-doble-envío del correo (D-28): ya existe rastro
   // 'estado_cuenta.enviado' en audit_log dentro de la ventana de dedupe.
   ESTADO_CUENTA_YA_NOTIFICADO: 'ESTADO_CUENTA_YA_NOTIFICADO',
+
+  // ── Motor de Presupuestal / Conceptos ────────────────────────────────
+  // Tope legal de intereses (Art. 30 Ley 675): la tasa de mora no puede
+  // superar la bancario corriente certificada por la Superfinanciera.
+  TOPE_LEGAL_NO_DECLARADO: 'TOPE_LEGAL_NO_DECLARADO',
+  // Protección de conceptos de plantilla: impide modificar conceptos que
+  // provienen de la semilla del sistema (is_plantilla = true).
+  CONCEPTO_NOVEDAD_PROTEGIDO: 'CONCEPTO_NOVEDAD_PROTEGIDO',
 
   // ── Motor de Gestión de Cartera (CAR §7-§8) ──────────────────────────────
   PERIODO_SIN_FECHA_VENCIMIENTO: 'PERIODO_SIN_FECHA_VENCIMIENTO',

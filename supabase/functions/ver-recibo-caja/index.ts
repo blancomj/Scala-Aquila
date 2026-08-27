@@ -1,32 +1,16 @@
-// Enlace público del estado de cuenta — D-27 (Docs/evaluacion/13 §A/§B,
-// endurece el hallazgo A2 de Docs/evaluacion/01-evaluacion-seguridad-arquitectura.md).
+// Enlace público del recibo de caja — RC-4, clon deliberado de
+// ver-estado-cuenta (D-27): mismo problema (el propietario/residente no
+// tiene auth.users, AD-26), misma solución de dos puertas.
 //
-// El propietario/residente no tiene auth.users (AD-26), así que no puede leer
-// estados_cuenta_generados por RLS normal. Dos formas legítimas de acceso:
+//   1. TOKEN FIRMADO — body {id, t}: `t` es un HMAC de {id, exp}
+//      (_shared/link_token.ts, genérico — el mismo módulo que ya usa
+//      ver-estado-cuenta, sin cambios) que mintió enviar-recibo-caja.
+//   2. SESIÓN DE MIEMBRO — body {id} con JWT válido: el administrador que
+//      abre el documento desde la app.
 //
-//   1. TOKEN FIRMADO  — body {id, t}: `t` es un HMAC de {id, exp} (link_token.ts)
-//      que mintió enviar-estado-cuenta al notificar al propietario. Caduca solo
-//      (30 días) y no se puede falsificar ni reutilizar para otro documento.
-//   2. SESIÓN DE MIEMBRO — body {id} con JWT válido: el administrador que abre
-//      el documento desde la app (functions.invoke adjunta su sesión); se
-//      verifica membresía activa en el tenant del documento.
-//
-// Endurecimientos frente a la versión anterior (UUID puro + 90 días):
-//   · Vigencia del DOCUMENTO baja a 30 días.
-//   · Rate-limit por IP (check_rate_limit, bucket edc_ip:<ip>) — antes era un
-//     gap aceptado explícito; ahora está cerrado.
-//   · Cada acceso queda en audit_log ('estado_cuenta.acceso') — antes ninguna
-//     puerta anónima dejaba rastro. Insert best-effort: si auditara fallara no
-//     se bloquea la lectura (el fallo se loguea y se investiga), pero el
-//     intento sí queda en los logs del proceso vía logEvent.
-//   · La respuesta incluye folio y SHA-256 del contenido: el visor público
-//     imprime ambos como sello de autenticidad (papel incluido).
-//
-// Sigue devolviendo JSON, NO HTML: el gateway de Supabase Edge Functions
-// fuerza Content-Type text/plain + CSP sandbox en cualquier respuesta (verificado
-// empíricamente; ver 20260822120000_estados_cuenta_datos_jsonb.sql) — el HTML
-// lo renderiza apps/web/app/pages/comprobante-cuenta/[id].vue sobre nuestro
-// propio Nuxt.
+// Sigue devolviendo JSON, no HTML — el gateway de Supabase Edge Functions
+// fuerza Content-Type text/plain en cualquier respuesta; el HTML lo
+// renderiza apps/web/app/pages/recibo-caja/[id].vue sobre nuestro Nuxt.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
@@ -37,7 +21,6 @@ const VIGENCIA_DIAS = 30
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function ipDelRequest(req: Request): string {
-  // Detrás del proxy/gateway llega en x-forwarded-for (primera salto = cliente).
   const reenviada = req.headers.get('x-forwarded-for')
   const primera = reenviada?.split(',')[0]?.trim()
   return primera && primera.length > 0 ? primera : 'desconocida'
@@ -74,24 +57,19 @@ Deno.serve(async (req) => {
   }
   const admin = createClient<Database>(supabaseUrl, serviceKey)
 
-  // Rate-limit por IP ANTES de cualquier lectura — primer control anti
-  // enumeración/fuerza bruta sobre esta puerta anónima.
   const ip = ipDelRequest(req)
   const { data: permitido, error: errorRateLimit } = await admin.rpc('check_rate_limit', {
-    p_bucket: `edc_ip:${ip}`,
+    p_bucket: `rc_ip:${ip}`,
     p_max_hits: 120,
     p_window: '1 hour',
   })
   if (errorRateLimit) {
-    // Un fallo del rate-limiter no debe dejar la puerta abierta ni cerrada de
-    // golpe: se registra y se degradar a permitir (mismo criterio que otros
-    // callers: el fallo queda visible en logs para investigar).
     logEvent({
       level: 'error',
       action: 'rate_limit.check_failed',
       correlationId,
       message: errorRateLimit.message,
-      meta: { funcion: 'ver-estado-cuenta' },
+      meta: { funcion: 'ver-recibo-caja' },
     })
   } else if (permitido === false) {
     return errorResponse(
@@ -104,8 +82,8 @@ Deno.serve(async (req) => {
   }
 
   const { data: registro, error: errorRegistro } = await admin
-    .from('estados_cuenta_generados')
-    .select('datos, created_at, folio, tenant_id')
+    .from('recibos_caja')
+    .select('datos, created_at, folio, tenant_id, pago_id')
     .eq('id', id)
     .maybeSingle()
   if (errorRegistro) {
@@ -114,14 +92,13 @@ Deno.serve(async (req) => {
   if (!registro) {
     return errorResponse(
       404,
-      'ESTADO_CUENTA_NO_ENCONTRADO',
-      'Este comprobante de cuenta no existe.',
+      'RECIBO_CAJA_NO_ENCONTRADO',
+      'Este recibo de caja no existe.',
       undefined,
       correlationId,
     )
   }
 
-  // ── Autorización: token firmado O sesión de miembro activo ──────────────
   const token = typeof cuerpo?.t === 'string' ? cuerpo.t : null
   let via: 'token' | 'sesion'
 
@@ -130,8 +107,8 @@ Deno.serve(async (req) => {
     if (veredicto === 'invalido') {
       return errorResponse(
         403,
-        'ESTADO_CUENTA_ENLACE_INVALIDO',
-        'Este enlace no es válido. Píde uno nuevo a la administración.',
+        'RECIBO_CAJA_ENLACE_INVALIDO',
+        'Este enlace no es válido. Pide uno nuevo a la administración.',
         undefined,
         correlationId,
       )
@@ -139,7 +116,7 @@ Deno.serve(async (req) => {
     if (veredicto === 'vencido') {
       return errorResponse(
         410,
-        'ESTADO_CUENTA_VENCIDO',
+        'RECIBO_CAJA_VENCIDO',
         'Este enlace venció. Pide uno nuevo a la administración.',
         undefined,
         correlationId,
@@ -162,8 +139,6 @@ Deno.serve(async (req) => {
     if (errorUser || !userId) {
       return errorResponse(401, 'UNAUTHENTICATED', 'Sesión inválida.', undefined, correlationId)
     }
-    // service_role lee memberships por encima de RLS — solo existe la
-    // membresía si el usuario pertenece ACTIVO a este tenant.
     const { data: membership } = await admin
       .from('memberships')
       .select('id')
@@ -183,27 +158,22 @@ Deno.serve(async (req) => {
     via = 'sesion'
   }
 
-  // Vigencia del documento (independiente de la del token): un snapshot muy
-  // viejo deja de servirse — el propietario pide uno nuevo y el folio nuevo
-  // queda trazado.
   const vigenteHasta = new Date(registro.created_at)
   vigenteHasta.setDate(vigenteHasta.getDate() + VIGENCIA_DIAS)
   if (vigenteHasta.getTime() < Date.now()) {
     return errorResponse(
       410,
-      'ESTADO_CUENTA_VENCIDO',
-      'Este comprobante venció. Pide uno actualizado a la administración.',
+      'RECIBO_CAJA_VENCIDO',
+      'Este recibo venció. Pide uno actualizado a la administración.',
       undefined,
       correlationId,
     )
   }
 
-  // Auditoría best-effort: toda puerta anónima deja rastro (cierra la mitad
-  // "sin auditoría" del hallazgo A2). Un fallo aquí no bloquea la lectura.
   try {
     await admin.from('audit_log').insert({
-      action: 'estado_cuenta.acceso',
-      entity_type: 'estados_cuenta_generados',
+      action: 'recibo_caja.acceso',
+      entity_type: 'recibos_caja',
       entity_id: id,
       metadata: { via, correlation_id: correlationId },
       ip,
@@ -212,20 +182,33 @@ Deno.serve(async (req) => {
   } catch (errorAuditoria) {
     logEvent({
       level: 'warn',
-      action: 'estado_cuenta.auditoria_fallo',
+      action: 'recibo_caja.auditoria_fallo',
       correlationId,
       message: errorAuditoria instanceof Error ? errorAuditoria.message : 'desconocido',
-      meta: { estado_cuenta_id: id },
+      meta: { recibo_caja_id: id },
     })
   }
 
-  // Hash de contenido: JSON.stringify sobre el jsonb leído es determinista
-  // (jsonb normaliza claves), así que el mismo registro produce siempre el
-  // mismo hash — es lo que imprime el documento como sello de autenticidad.
+  // ¿Está anulado? Se DERIVA aquí, no se persiste (mismo principio que el
+  // resto del ledger, ver cabecera de 20260903160000_recibos_caja.sql): un
+  // recibo cuyo pago tiene una reversa registrada se muestra como anulado.
+  const { data: reversa } = await admin
+    .from('pagos')
+    .select('id, fecha_pago, anulado_motivo')
+    .eq('pago_original_id', registro.pago_id)
+    .maybeSingle()
+
   const contenidoHash = await sha256HexPublico(JSON.stringify(registro.datos))
 
   return jsonResponse(
-    { datos: registro.datos, folio: registro.folio, contenido_hash: contenidoHash },
+    {
+      datos: registro.datos,
+      folio: registro.folio,
+      contenido_hash: contenidoHash,
+      anulado: reversa !== null,
+      anulado_motivo: reversa?.anulado_motivo ?? null,
+      anulado_fecha: reversa?.fecha_pago ?? null,
+    },
     200,
     correlationId,
   )

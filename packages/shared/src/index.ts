@@ -18,6 +18,7 @@ export {
   validateSmsTemplateBody,
   SmsValidationError,
 } from './sms.js'
+export { numeroEnteroALetras, montoEnLetras } from './numero-a-letras.js'
 export {
   EMAIL_FIELD_REGISTRY,
   EMAIL_ACTIVE_EVENT_TYPES,

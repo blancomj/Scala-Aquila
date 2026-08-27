@@ -1,128 +1,338 @@
 <script setup lang="ts">
-// GAP-19 — fundamentos normativos reutilizables (Ley, decreto, reglamento
-// PH, decisión de asamblea) asociables a fuente_financiacion /
-// presupuesto_rubros (E-16 §7). Pantalla pequeña y aislada: crear/listar,
-// sin decisiones de diseño pendientes — mismo criterio de UI mínima que
-// presupuesto/index.vue.
+// Fundamentos normativos — listado principal con drawer de detalle/edición.
+// D-29: platform admin escribe globales; tenant solo ve + propone.
+// D-30: propuestas vía fundamento_propuesta.
+//
+// Reconstruida para seguir los mismos componentes que el resto de la app (UiTabla, USelect,
+// UBadge, UiDrawer vía components/fundamentos/FundamentosDrawer.vue) — antes tenía su propio
+// sistema de estilos
+// (var(--c-*), <table>/<select> a mano, iconos i-heroicons-*) que no se usaba en ningún otro
+// lugar del proyecto, y un UDrawer suelto sin botón de cierre visible en modo solo lectura.
+// /fundamentos/[id].vue (duplicado exacto del formulario, sin ningún enlace hacia él) se borró.
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
-const tenantStore = useTenantStore()
+import {
+  COLOR_ESTADO_PROPUESTA,
+  COLOR_TIPO_FUNDAMENTO,
+  ETIQUETA_ESTADO_PROPUESTA,
+  ETIQUETA_TIPO_FUNDAMENTO,
+  TIPO_FUNDAMENTO,
+} from '~/utils/fundamento-labels'
+
+const authStore = useAuthStore()
 const fundamentoStore = useFundamentoNormativoStore()
 const toast = useToast()
 
-const tipo = ref<'ley' | 'decreto' | 'reglamento_ph' | 'decision_asamblea' | 'otra'>(
-  'reglamento_ph',
-)
-const norma = ref('')
-const articulo = ref('')
-const descripcion = ref('')
-const referencia = ref('')
-const cargando = ref(false)
-const error = ref<string | null>(null)
+const esPlataforma = computed(() => authStore.isPlatformAdmin)
 
-await useAsyncData('fundamentos-normativos', () => fundamentoStore.cargarFundamentos())
-
-async function crear(): Promise<void> {
-  error.value = null
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !norma.value) {
-    toast.add({ title: 'Falta la norma.', description: 'Es un campo obligatorio.', color: 'warning' })
-    return
+// ── Descripciones expandidas (click para toggle) ──
+const descripcionesExpandidas = reactive(new Set<number>())
+function toggleDescripcion(id: number): void {
+  if (descripcionesExpandidas.has(id)) {
+    descripcionesExpandidas.delete(id)
+  } else {
+    descripcionesExpandidas.add(id)
   }
+}
 
-  cargando.value = true
+// ── Drawer de detalle/edición ──
+const fundamentoSeleccionadoId = ref<number | null>(null)
+
+function alEditarFundamento(): void {
+  fundamentoSeleccionadoId.value = null
+  toast.add({ title: 'Fundamento actualizado.', color: 'success' })
+}
+
+// ── Propuesta de cambio (modal inline) ──
+const propuestaAbierta = ref(false)
+const propuestaOriginal = ref<{ id: number; norma: string; tipo: string; articulo: string | null; descripcion: string | null; referencia: string | null; fuente_url: string | null } | null>(null)
+const propTipo = ref<string>('ley')
+const propNorma = ref('')
+const propArticulo = ref('')
+const propDescripcion = ref('')
+const propReferencia = ref('')
+const propFuenteUrl = ref('')
+const propEnviando = ref(false)
+
+// ── Rechazo (modal inline) ──
+const propuestaRechazoId = ref<number | null>(null)
+const propuestaRechazoMotivo = ref('')
+
+// USelect no acepta '' como value de un item (lo reserva para "sin selección" / placeholder) —
+// se usa el sentinel 'todos' y se traduce a '' al leer/escribir el filtro del store.
+const SENTINEL_TODOS = 'todos'
+const filtroTipoItems = [{ value: SENTINEL_TODOS, label: 'Todos' }, ...TIPO_FUNDAMENTO]
+const filtroEstadoItems = [
+  { value: SENTINEL_TODOS, label: 'Todos' },
+  { value: 'activo', label: 'Activo' },
+  { value: 'propuesto', label: 'Propuesto' },
+  { value: 'rechazado', label: 'Rechazado' },
+]
+const filtroTipoModelo = computed({
+  get: () => fundamentoStore.filtroTipo || SENTINEL_TODOS,
+  set: (v: string) => { fundamentoStore.filtroTipo = (v === SENTINEL_TODOS ? '' : v) as never },
+})
+const filtroEstadoModelo = computed({
+  get: () => fundamentoStore.filtroEstado || SENTINEL_TODOS,
+  set: (v: string) => { fundamentoStore.filtroEstado = v === SENTINEL_TODOS ? '' : v },
+})
+
+const columnasCatalogo = [
+  { clave: 'tipo', etiqueta: 'Tipo' },
+  { clave: 'norma', etiqueta: 'Norma' },
+  { clave: 'articulo', etiqueta: 'Artículo' },
+  { clave: 'descripcion', etiqueta: 'Descripción' },
+  { clave: 'fuente', etiqueta: 'Fuente' },
+  { clave: 'accion', etiqueta: '' },
+]
+
+const columnasPropuestas = [
+  { clave: 'norma', etiqueta: 'Norma propuesta' },
+  { clave: 'articulo', etiqueta: 'Artículo' },
+  { clave: 'estado', etiqueta: 'Estado' },
+  { clave: 'fecha', etiqueta: 'Fecha' },
+  { clave: 'acciones', etiqueta: '' },
+]
+
+await useAsyncData('fundamentos-normativos', async () => {
+  await fundamentoStore.cargarFundamentos()
+  if (esPlataforma.value) {
+    await fundamentoStore.cargarPropuestas()
+  }
+})
+
+function abrirPropuesta(fundamento: { id: number; norma: string; tipo: string; articulo: string | null; descripcion: string | null; referencia: string | null; fuente_url: string | null }): void {
+  propuestaOriginal.value = fundamento
+  propTipo.value = fundamento.tipo
+  propNorma.value = fundamento.norma
+  propArticulo.value = fundamento.articulo ?? ''
+  propDescripcion.value = fundamento.descripcion ?? ''
+  propReferencia.value = fundamento.referencia ?? ''
+  propFuenteUrl.value = fundamento.fuente_url ?? ''
+  propuestaAbierta.value = true
+}
+
+function cerrarPropuesta(): void {
+  propuestaAbierta.value = false
+  propuestaOriginal.value = null
+}
+
+async function enviarPropuesta(): Promise<void> {
+  const tenantId = useTenantStore().activeTenant?.id
+  if (!tenantId || !propuestaOriginal.value || !propNorma.value) return
+  propEnviando.value = true
   try {
-    await fundamentoStore.crearFundamento({
+    await fundamentoStore.crearPropuesta({
+      fundamentoOriginalId: propuestaOriginal.value.id,
       tenantId,
-      tipo: tipo.value,
-      norma: norma.value,
-      articulo: articulo.value || undefined,
-      descripcion: descripcion.value || undefined,
-      referencia: referencia.value || undefined,
+      tipo: propTipo.value as never,
+      norma: propNorma.value,
+      articulo: propArticulo.value || undefined,
+      descripcion: propDescripcion.value || undefined,
+      referencia: propReferencia.value || undefined,
+      fuenteUrl: propFuenteUrl.value || undefined,
     })
-    norma.value = ''
-    articulo.value = ''
-    descripcion.value = ''
-    referencia.value = ''
-    toast.add({ title: 'Fundamento normativo creado.', color: 'success' })
+    cerrarPropuesta()
+    toast.add({ title: 'Propuesta enviada. Esperando revisión del administrador.', color: 'success' })
   } catch (excepcion) {
-    error.value = mensajeError(excepcion, 'No se pudo crear el fundamento normativo.')
+    toast.add({ title: 'Error al enviar propuesta.', description: mensajeError(excepcion, 'No se pudo enviar la propuesta.'), color: 'error' })
   } finally {
-    cargando.value = false
+    propEnviando.value = false
+  }
+}
+
+async function aprobar(propuestaId: number): Promise<void> {
+  try {
+    await fundamentoStore.aprobarPropuesta(propuestaId)
+    toast.add({ title: 'Propuesta aprobada y agregada al catálogo.', color: 'success' })
+  } catch (excepcion) {
+    toast.add({ title: 'Error al aprobar.', description: mensajeError(excepcion, 'No se pudo aprobar la propuesta.'), color: 'error' })
+  }
+}
+
+function abrirRechazo(propuestaId: number): void {
+  propuestaRechazoId.value = propuestaId
+  propuestaRechazoMotivo.value = ''
+}
+
+async function confirmarRechazo(): Promise<void> {
+  if (!propuestaRechazoId.value || !propuestaRechazoMotivo.value) return
+  try {
+    await fundamentoStore.rechazarPropuesta(propuestaRechazoId.value, propuestaRechazoMotivo.value)
+    propuestaRechazoId.value = null
+    toast.add({ title: 'Propuesta rechazada.', color: 'warning' })
+  } catch (excepcion) {
+    toast.add({ title: 'Error al rechazar.', description: mensajeError(excepcion, 'No se pudo rechazar la propuesta.'), color: 'error' })
   }
 }
 </script>
 
 <template>
   <div class="space-y-8">
+    <!-- Encabezado -->
     <div>
-      <h1 class="text-xl font-semibold mb-2">Fundamentos normativos</h1>
-      <p class="text-sm text-gray-500">
-        Referencias legales reutilizables (Ley, decreto, reglamento PH, decisión de asamblea).
+      <h1 class="text-xl font-semibold mb-1">Fundamentos normativos</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        Referencias legales reutilizables asociables a reglas del sistema.
       </p>
     </div>
 
-    <div>
-      <h2 class="text-lg font-semibold mb-2">Registrados</h2>
-      <p v-if="fundamentoStore.fundamentos.length === 0" class="text-gray-500 text-sm">
-        Ninguno todavía.
-      </p>
-      <UiTabla
-        v-else
-        :columnas="[
-          { clave: 'tipo', etiqueta: 'Tipo' },
-          { clave: 'norma', etiqueta: 'Norma' },
-          { clave: 'articulo', etiqueta: 'Artículo' },
-          { clave: 'origen', etiqueta: 'Origen' },
-        ]"
-        :filas="fundamentoStore.fundamentos"
-        :clave-fila="(fundamento) => fundamento.id"
-      >
-        <template #celda-tipo="{ fila }">{{ fila.tipo }}</template>
-        <template #celda-norma="{ fila }">{{ fila.norma }}</template>
-        <template #celda-articulo="{ fila }"><span class="text-gray-500">{{ fila.articulo ?? '—' }}</span></template>
-        <template #celda-origen="{ fila }">
-          <span class="text-gray-500">{{ fila.tenant_id === null ? 'Plataforma' : 'Esta copropiedad' }}</span>
-        </template>
-      </UiTabla>
+    <!-- Búsqueda, filtros y acción -->
+    <div class="flex flex-wrap gap-3 items-end">
+      <UFormField label="Buscar" name="busqueda" class="flex-1 min-w-[160px]">
+        <UInput
+          v-model="fundamentoStore.busqueda"
+          placeholder="Norma, artículo, descripción..."
+          icon="i-lucide-search"
+          class="w-full"
+        >
+          <template v-if="fundamentoStore.busqueda" #trailing>
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-x"
+              title="Limpiar búsqueda"
+              @click="fundamentoStore.busqueda = ''"
+            />
+          </template>
+        </UInput>
+      </UFormField>
+      <UFormField label="Tipo" name="filtroTipo">
+        <USelect v-model="filtroTipoModelo" :items="filtroTipoItems" value-key="value" class="w-48" />
+      </UFormField>
+      <UFormField v-if="esPlataforma" label="Estado" name="filtroEstado">
+        <USelect v-model="filtroEstadoModelo" :items="filtroEstadoItems" value-key="value" class="w-40" />
+      </UFormField>
+      <UButton to="/fundamentos/nuevo" class="shrink-0">Nuevo fundamento</UButton>
     </div>
 
-    <div>
-      <h2 class="text-lg font-semibold mb-2">Registrar fundamento normativo</h2>
-      <form class="space-y-4 max-w-sm" @submit.prevent="crear">
-        <UFormField label="Tipo" name="tipo">
-          <select
-            v-model="tipo"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-          >
-            <option value="ley">Ley</option>
-            <option value="decreto">Decreto</option>
-            <option value="reglamento_ph">Reglamento PH</option>
-            <option value="decision_asamblea">Decisión de asamblea</option>
-            <option value="otra">Otra</option>
-          </select>
-        </UFormField>
-
-        <UFormField label="Norma" name="norma">
-          <UInput v-model="norma" required class="w-full" />
-        </UFormField>
-
-        <UFormField label="Artículo" name="articulo">
-          <UInput v-model="articulo" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Descripción" name="descripcion">
-          <UInput v-model="descripcion" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Referencia" name="referencia">
-          <UInput v-model="referencia" class="w-full" />
-        </UFormField>
-
-        <UAlert v-if="error" color="error" variant="soft" :title="error" />
-
-        <UButton type="submit" :loading="cargando">Registrar</UButton>
-      </form>
+    <div v-if="fundamentoStore.loading" class="space-y-2">
+      <USkeleton v-for="i in 6" :key="i" class="h-10 w-full" />
     </div>
+
+    <template v-else>
+      <section>
+        <div class="flex items-center gap-2 mb-3">
+          <h2 class="text-lg font-semibold">Fundamentos</h2>
+          <UBadge color="neutral" variant="subtle">{{ fundamentoStore.fundamentosFiltrados.length }}</UBadge>
+        </div>
+        <UiTabla
+          :columnas="columnasCatalogo"
+          :filas="fundamentoStore.fundamentosFiltrados"
+          :clave-fila="(f) => f.id"
+          :vacio="fundamentoStore.busqueda || fundamentoStore.filtroTipo ? 'Sin resultados.' : 'Ningún fundamento registrado.'"
+        >
+          <template #celda-tipo="{ fila }">
+            <UBadge :color="COLOR_TIPO_FUNDAMENTO[fila.tipo] ?? 'neutral'" variant="subtle">
+              {{ ETIQUETA_TIPO_FUNDAMENTO[fila.tipo] ?? fila.tipo }}
+            </UBadge>
+          </template>
+          <template #celda-norma="{ fila }">
+            <span class="font-medium cursor-pointer hover:underline" @click="fundamentoSeleccionadoId = fila.id">
+              {{ fila.norma }}
+            </span>
+          </template>
+          <template #celda-articulo="{ fila }">
+            <span class="text-gray-500 dark:text-gray-400">{{ fila.articulo ?? '—' }}</span>
+          </template>
+          <template #celda-descripcion="{ fila }">
+            <div
+              class="max-w-xs cursor-pointer hover:underline text-gray-800 dark:text-gray-200"
+              @click="toggleDescripcion(fila.id)"
+            >
+              <span v-if="!descripcionesExpandidas.has(fila.id)" class="truncate block">{{ fila.descripcion ?? '—' }}</span>
+              <span v-else class="whitespace-pre-wrap">{{ fila.descripcion ?? '—' }}</span>
+            </div>
+          </template>
+          <template #celda-fuente="{ fila }">
+            <UTooltip v-if="fila.fuente_url" :text="fila.fuente_url">
+              <UButton size="xs" variant="ghost" icon="i-lucide-link" :to="fila.fuente_url" target="_blank" rel="noopener noreferrer" />
+            </UTooltip>
+            <span v-else class="text-gray-500 dark:text-gray-400">—</span>
+          </template>
+          <template #celda-accion="{ fila }">
+            <UTooltip v-if="!fila._es_plataforma" text="Ver detalle / Editar">
+              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="fundamentoSeleccionadoId = fila.id" />
+            </UTooltip>
+            <UTooltip v-else-if="!esPlataforma" text="Proponer cambio a este fundamento">
+              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="abrirPropuesta(fila)" />
+            </UTooltip>
+          </template>
+        </UiTabla>
+      </section>
+
+      <!-- Propuestas pendientes (solo platform admin) -->
+      <section v-if="esPlataforma && fundamentoStore.propuestas.length > 0">
+        <h2 class="text-lg font-semibold mb-3">Propuestas pendientes</h2>
+        <UiTabla :columnas="columnasPropuestas" :filas="fundamentoStore.propuestas" :clave-fila="(p) => p.id">
+          <template #celda-norma="{ fila }">
+            <span class="font-medium">{{ fila.norma }}</span>
+          </template>
+          <template #celda-articulo="{ fila }">
+            <span class="text-gray-500 dark:text-gray-400">{{ fila.articulo ?? '—' }}</span>
+          </template>
+          <template #celda-estado="{ fila }">
+            <UBadge :color="COLOR_ESTADO_PROPUESTA[fila.estado] ?? 'neutral'" variant="subtle">
+              {{ ETIQUETA_ESTADO_PROPUESTA[fila.estado] ?? fila.estado }}
+            </UBadge>
+          </template>
+          <template #celda-fecha="{ fila }">
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ new Date(fila.creado_at).toLocaleDateString('es-CO') }}</span>
+          </template>
+          <template #celda-acciones="{ fila }">
+            <div v-if="fila.estado === 'pendiente'" class="flex justify-end gap-2">
+              <UButton size="xs" color="success" @click="aprobar(fila.id)">Aprobar</UButton>
+              <UButton size="xs" color="error" variant="soft" @click="abrirRechazo(fila.id)">Rechazar</UButton>
+            </div>
+          </template>
+        </UiTabla>
+      </section>
+    </template>
+
+    <!-- Drawer detalle/edición -->
+    <FundamentosDrawer
+      v-if="fundamentoSeleccionadoId !== null"
+      :fundamento-id="fundamentoSeleccionadoId"
+      :es-plataforma-admin="esPlataforma"
+      @cerrar="fundamentoSeleccionadoId = null"
+      @editado="alEditarFundamento"
+    />
+
+    <!-- Modal propuesta -->
+    <UModal v-model:open="propuestaAbierta" title="Proponer cambio">
+      <template #body>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Propones un cambio al fundamento: <strong>{{ propuestaOriginal?.norma }}</strong>
+          {{ propuestaOriginal?.articulo ? `(${propuestaOriginal.articulo})` : '' }}
+        </p>
+        <form class="space-y-3" @submit.prevent="enviarPropuesta">
+          <UFormField label="Tipo" name="propTipo">
+            <USelect v-model="propTipo" :items="TIPO_FUNDAMENTO" value-key="value" class="w-full" />
+          </UFormField>
+          <UFormField label="Norma" name="propNorma"><UInput v-model="propNorma" required class="w-full" /></UFormField>
+          <UFormField label="Artículo" name="propArticulo"><UInput v-model="propArticulo" class="w-full" /></UFormField>
+          <UFormField label="Descripción" name="propDescripcion"><UTextarea v-model="propDescripcion" class="w-full" :rows="5" autoresize :maxrows="14" /></UFormField>
+          <UFormField label="Referencia" name="propReferencia"><UInput v-model="propReferencia" class="w-full" /></UFormField>
+          <UFormField label="Fuente URL" name="propFuenteUrl"><UInput v-model="propFuenteUrl" class="w-full" placeholder="https://..." /></UFormField>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton variant="soft" @click="cerrarPropuesta">Cancelar</UButton>
+            <UButton type="submit" :loading="propEnviando">Enviar propuesta</UButton>
+          </div>
+        </form>
+      </template>
+    </UModal>
+
+    <!-- Modal rechazo -->
+    <UModal title="Rechazar propuesta" :open="propuestaRechazoId !== null" @update:open="(v: boolean) => { if (!v) propuestaRechazoId = null }">
+      <template #body>
+        <UFormField label="Motivo del rechazo" name="motivo">
+          <UInput v-model="propuestaRechazoMotivo" class="w-full" placeholder="Indica por qué se rechaza..." />
+        </UFormField>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton variant="soft" @click="propuestaRechazoId = null">Cancelar</UButton>
+          <UButton color="error" :disabled="!propuestaRechazoMotivo" @click="confirmarRechazo">Rechazar</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

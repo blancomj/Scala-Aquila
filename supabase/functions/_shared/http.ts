@@ -16,13 +16,39 @@ const HEADERS_SEGURIDAD = {
   'Cache-Control': 'no-store',
 } as const
 
+// CORS: las funciones escritas con Deno.serve()/export default {fetch} crudo
+// (a diferencia de las que usan @supabase/server::withSupabase, que ya trae
+// su propio manejo) no reciben CORS gratis del runtime — el navegador exige
+// que TANTO el preflight (OPTIONS) COMO la respuesta real lleven
+// Access-Control-Allow-Origin, o bloquea la lectura aunque el request haya
+// llegado bien. Sin esto, cualquier función invocada con
+// `cliente.functions.invoke()` desde el navegador (no desde SSR) falla con
+// "Failed to fetch" — así se detectó en enviar-estado-cuenta (2026-08-27):
+// el propio código devolvía 401/405 para el preflight, que Chrome interpreta
+// como "preflight sin status ok" y descarta el request entero.
+export const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+} as const
+
+/** Respuesta al preflight — SIEMPRE antes de cualquier otro chequeo (auth,
+ * método, body): un OPTIONS nunca lleva Authorization, así que si el
+ * primer check de la función es "¿hay jwt?" o "¿es POST?", el preflight
+ * cae ahí con un 401/405 sin CORS y el navegador bloquea todo. */
+export function respuestaPreflight(req: Request): Response | null {
+  if (req.method !== 'OPTIONS') return null
+  return new Response(null, { status: 204, headers: CORS_HEADERS })
+}
+
 // correlationId (E7 · observabilidad, §11.2): se devuelve en el header de
 // TODA respuesta — éxito o error — para poder rastrear un request puntual
 // en los logs sin exponer nada sensible en la respuesta misma.
 function headersConCorrelacion(correlationId?: string): Record<string, string> {
   return correlationId
-    ? { ...HEADERS_SEGURIDAD, 'X-Correlation-Id': correlationId }
-    : { ...HEADERS_SEGURIDAD }
+    ? { ...HEADERS_SEGURIDAD, ...CORS_HEADERS, 'X-Correlation-Id': correlationId }
+    : { ...HEADERS_SEGURIDAD, ...CORS_HEADERS }
 }
 
 export function jsonResponse(data: unknown, status = 200, correlationId?: string): Response {

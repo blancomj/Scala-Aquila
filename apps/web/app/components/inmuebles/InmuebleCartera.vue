@@ -1,18 +1,16 @@
 <script setup lang="ts">
-// Tab Cartera — saldo, cargos pendientes, pagos recientes
+// Tab Cartera — saldo, cargos pendientes, pagos recientes y recibos de caja
 // (PROMPT_FICHA_INMUEBLE.md §1.1 I5). Reutiliza cuentaCorriente.ts tal
-// cual, sin lógica nueva — solo lectura filtrada por inmueble + el
-// formulario de registrar pago que ya existía en estado-cuenta/pagos.vue.
+// cual, sin lógica nueva. El formulario de registrar pago YA NO vive acá
+// (pedido del usuario, 2026-08-27): el botón "Registrar pago" del masthead
+// de InmuebleFicha.vue abre un modal propio con PagosRegistrarPagoForm.vue
+// — esta pestaña solo lee, ya no escribe.
 const props = defineProps<{ inmuebleId: string }>()
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
-
-const monto = ref<number | null>(null)
-const fechaPago = ref(new Date().toISOString().slice(0, 10))
-const referencia = ref('')
-const registrando = ref(false)
-const error = ref<string | null>(null)
+const recaudoStore = useRecaudoStore()
+const toast = useToast()
 
 const saldoTotal = computed(() =>
   cuentaStore.cargosAbiertos.reduce((acc, c) => acc + Number(c.monto_pendiente), 0),
@@ -34,32 +32,67 @@ async function cargar(): Promise<void> {
   await Promise.all([
     cuentaStore.cargarCargosAbiertos(tenantId, props.inmuebleId),
     cuentaStore.cargarPagos(tenantId, props.inmuebleId),
+    recaudoStore.cargarRecaudo(tenantId, { inmuebleId: props.inmuebleId }),
   ])
 }
 
-async function registrarPago(): Promise<void> {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !monto.value || !fechaPago.value) return
-  error.value = null
-  registrando.value = true
+watchEffect(cargar)
+
+function irARecibo(reciboId: string): void {
+  navigateTo(`/recibo-caja/${reciboId}`, { open: { target: '_blank' } })
+}
+
+const reenviando = ref<string | null>(null)
+async function reenviar(reciboId: string): Promise<void> {
+  reenviando.value = reciboId
   try {
-    await cuentaStore.registrarPago({
-      inmuebleId: props.inmuebleId,
-      tenantId,
-      monto: monto.value,
-      fechaPago: fechaPago.value,
-      referencia: referencia.value.trim() || undefined,
+    const resultado = await recaudoStore.reenviarRecibo(reciboId)
+    toast.add({
+      title: resultado.enviados.length > 0 ? `Reenviado a ${resultado.enviados.length} destinatario(s).` : 'Sin destinatarios con correo.',
+      color: resultado.enviados.length > 0 ? 'success' : 'warning',
     })
-    monto.value = null
-    referencia.value = ''
   } catch (excepcion) {
-    error.value = mensajeError(excepcion, 'No se pudo registrar el pago.')
+    toast.add({ title: mensajeError(excepcion, 'No se pudo reenviar el recibo.'), color: 'error' })
   } finally {
-    registrando.value = false
+    reenviando.value = null
   }
 }
 
-watchEffect(cargar)
+// ── anular ───────────────────────────────────────────────────────────
+const modalAnularAbierto = ref(false)
+const pagoAnulando = ref<(typeof recaudoStore.pagos)[number] | null>(null)
+const motivoAnulacion = ref('')
+const anulando = ref(false)
+const errorAnulacion = ref<string | null>(null)
+
+function abrirAnular(pago: (typeof recaudoStore.pagos)[number]): void {
+  pagoAnulando.value = pago
+  motivoAnulacion.value = ''
+  errorAnulacion.value = null
+  modalAnularAbierto.value = true
+}
+
+async function confirmarAnular(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !pagoAnulando.value || !motivoAnulacion.value.trim()) return
+  errorAnulacion.value = null
+  anulando.value = true
+  try {
+    await cuentaStore.anularPago({
+      pagoId: pagoAnulando.value.id,
+      motivo: motivoAnulacion.value.trim(),
+      tenantId,
+      inmuebleId: props.inmuebleId,
+    })
+    modalAnularAbierto.value = false
+    toast.add({ title: 'Pago anulado.', color: 'success' })
+    await cargar()
+  } catch (excepcion) {
+    errorAnulacion.value = mensajeError(excepcion, 'No se pudo anular el pago.')
+  } finally {
+    anulando.value = false
+  }
+}
 </script>
 
 <template>
@@ -97,39 +130,90 @@ watchEffect(cargar)
       <template #celda-desde="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
     </UiTabla>
 
-    <div class="section-title"><h2>Pagos recientes</h2></div>
+    <div class="section-title"><h2>Pagos y recibos de caja</h2></div>
     <UiTabla
       :columnas="[
-        { clave: 'fecha', etiqueta: 'Fecha', claseCelda: 'mono' },
+        { clave: 'fecha_pago', etiqueta: 'Fecha', claseCelda: 'mono' },
         { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
-        { clave: 'referencia', etiqueta: 'Referencia', claseCelda: 'mono' },
+        { clave: 'forma_pago_nombre', etiqueta: 'Forma de pago' },
+        { clave: 'recibo_folio', etiqueta: 'Recibo' },
+        { clave: 'estado', etiqueta: 'Estado' },
+        { clave: 'acciones', etiqueta: '' },
       ]"
-      :filas="cuentaStore.pagos"
+      :filas="recaudoStore.pagos"
       :clave-fila="(p) => p.id"
       vacio="Sin pagos registrados."
     >
-      <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
-      <template #celda-monto="{ fila }">$ {{ Number(fila.monto).toLocaleString('es-CO') }}</template>
-      <template #celda-referencia="{ fila }">{{ fila.referencia ?? '—' }}</template>
+      <template #celda-monto="{ fila }">
+        <span :class="{ 'text-error-600': fila.es_reversa }">$ {{ fila.monto.toLocaleString('es-CO') }}</span>
+      </template>
+      <template #celda-recibo_folio="{ fila }">
+        <span v-if="fila.recibo_folio" class="font-mono text-xs">{{ fila.recibo_folio }}</span>
+        <span v-else class="text-neutral-400 text-xs">—</span>
+      </template>
+      <template #celda-estado="{ fila }">
+        <UBadge v-if="fila.es_reversa" color="error" variant="subtle" size="sm">Reversa</UBadge>
+        <UBadge v-else-if="fila.esta_anulado" color="warning" variant="subtle" size="sm">Anulado</UBadge>
+        <UBadge v-else color="success" variant="subtle" size="sm">Vigente</UBadge>
+      </template>
+      <template #celda-acciones="{ fila }">
+        <div class="flex justify-end gap-1">
+          <UButton
+            v-if="fila.recibo_id"
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-file-text"
+            title="Ver recibo"
+            @click="irARecibo(fila.recibo_id)"
+          />
+          <UButton
+            v-if="fila.recibo_id"
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-send"
+            title="Reenviar recibo por correo"
+            :loading="reenviando === fila.recibo_id"
+            @click="reenviar(fila.recibo_id)"
+          />
+          <UButton
+            v-if="!fila.es_reversa && !fila.esta_anulado"
+            size="xs"
+            variant="ghost"
+            color="error"
+            icon="i-lucide-ban"
+            title="Anular pago"
+            @click="abrirAnular(fila)"
+          />
+        </div>
+      </template>
     </UiTabla>
 
-    <div class="section-title"><h2>Registrar pago</h2></div>
-    <div class="space-y-4 text-sm max-w-md">
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Monto" name="monto">
-          <UInput v-model.number="monto" type="number" min="0" step="0.01" placeholder="420000" class="w-full" />
-        </UFormField>
-        <UFormField label="Fecha de pago" name="fecha_pago">
-          <UInput v-model="fechaPago" type="date" class="w-full" />
-        </UFormField>
-      </div>
-      <UFormField label="Referencia (opcional)" name="referencia">
-        <UInput v-model="referencia" type="text" placeholder="Transferencia · 88213" class="w-full" />
-      </UFormField>
-    </div>
-    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3 max-w-md" />
-    <UButton class="mt-3" :loading="registrando" :disabled="!monto" @click="registrarPago">
-      Registrar pago
-    </UButton>
+    <UModal
+      :open="modalAnularAbierto"
+      title="Anular pago"
+      @update:open="(abierto) => { if (!abierto) modalAnularAbierto = false }"
+    >
+      <template #body>
+        <div class="space-y-4 text-sm">
+          <p v-if="pagoAnulando" class="text-neutral-600">
+            Vas a anular el pago de <strong>$ {{ pagoAnulando.monto.toLocaleString('es-CO') }}</strong>
+            del {{ pagoAnulando.fecha_pago }}. Se registrará como una reversa — el pago original
+            no se borra.
+          </p>
+          <UFormField label="Motivo" name="motivo" required>
+            <UTextarea v-model="motivoAnulacion" :rows="2" autoresize placeholder="ej. Cheque devuelto por el banco" class="w-full" />
+          </UFormField>
+          <UAlert v-if="errorAnulacion" color="error" variant="soft" :title="errorAnulacion" />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" @click="modalAnularAbierto = false">Cancelar</UButton>
+          <UButton color="error" :loading="anulando" :disabled="!motivoAnulacion.trim()" @click="confirmarAnular">
+            Anular pago
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

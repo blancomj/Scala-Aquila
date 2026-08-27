@@ -94,8 +94,8 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.resumenCuenta,
       },
       {
-        label: 'Pagos',
-        to: '/estado-cuenta/pagos',
+        label: 'Recaudo',
+        to: '/recaudo',
         permiso: 'data:create',
         modulo: 'estado_cuenta',
         icono: NAV_ICONOS.pagos,
@@ -228,6 +228,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/configuracion/catalogos',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Consecutivos de documento',
+        to: '/configuracion/consecutivos',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.pagos,
       },
       {
         label: 'Plantillas SMS',

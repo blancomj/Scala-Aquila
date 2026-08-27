@@ -28,6 +28,7 @@ const emit = defineEmits<{ cambio: [] }>()
 
 const tenantStore = useTenantStore()
 const liquidacionStore = useLiquidacionStore()
+const toast = useToast()
 
 const esAdministrador = computed(() => tenantStore.role === 'administrador')
 
@@ -41,6 +42,16 @@ const lineas = ref<Awaited<ReturnType<typeof liquidacionStore.cargarLineasDeLiqu
 const dialogo = ref<'aplicar' | 'anular' | 'solicitar' | 'rechazar' | null>(null)
 const notaSolicitud = ref('')
 const motivoRechazo = ref('')
+
+// Mensaje de divulgación — llega a todos los destinatarios en el estado de
+// cuenta de este periodo (20260902130000). Editable solo mientras el
+// periodo esté abierto: una vez liquidado, los documentos ya emitidos
+// quedan sellados con lo que tenían al momento de aplicar.
+const mensajeDivulgacion = ref(props.periodo.mensaje_divulgacion ?? '')
+const guardandoMensaje = ref(false)
+const mensajeDivulgacionCambio = computed(
+  () => mensajeDivulgacion.value.trim() !== (props.periodo.mensaje_divulgacion ?? '').trim(),
+)
 
 const etiquetaPeriodo = computed(
   () => `${MESES[props.periodo.mes - 1]} ${props.periodo.anio}`,
@@ -209,6 +220,25 @@ function anular(motivo: string): void {
   })
 }
 
+async function guardarMensajeDivulgacion(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  guardandoMensaje.value = true
+  try {
+    await liquidacionStore.actualizarMensajeDivulgacion(
+      props.periodo.id,
+      tenantId,
+      mensajeDivulgacion.value,
+    )
+    toast.add({ title: 'Mensaje de divulgación guardado.', color: 'success' })
+    emit('cambio')
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo guardar el mensaje de divulgación.')
+  } finally {
+    guardandoMensaje.value = false
+  }
+}
+
 function descartar(): void {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || !props.liquidacion) return
@@ -353,6 +383,42 @@ function descartar(): void {
       title="Periodo liquidado"
       :description="`Los cargos existen y el periodo está cerrado. Solo puede anularse mientras ningún cargo tenga pagos imputados.`"
     />
+
+    <!-- ── mensaje de divulgación ───────────────────────────────────── -->
+    <div class="rounded-md border border-default p-4 space-y-2">
+      <div class="flex items-center justify-between gap-2">
+        <label class="text-xs font-semibold uppercase tracking-wide text-muted">
+          Mensaje de divulgación
+        </label>
+        <UBadge v-if="periodo.estado !== 'abierto'" color="neutral" variant="subtle" size="xs">
+          Solo lectura
+        </UBadge>
+      </div>
+      <p class="text-xs text-muted">
+        Llega a todos los propietarios en su estado de cuenta de este periodo — convocatorias,
+        cambios de tarifa, avisos de la asamblea, etc.
+      </p>
+      <UTextarea
+        v-model="mensajeDivulgacion"
+        :disabled="periodo.estado !== 'abierto' || guardandoMensaje"
+        :rows="3"
+        autoresize
+        :maxrows="8"
+        placeholder="Ej: La cuota de parqueadero de visitantes sube a $15.000 desde septiembre, aprobado en asamblea del 20/08."
+        class="w-full"
+      />
+      <div v-if="periodo.estado === 'abierto'" class="flex justify-end">
+        <UButton
+          size="xs"
+          variant="soft"
+          :disabled="!mensajeDivulgacionCambio"
+          :loading="guardandoMensaje"
+          @click="guardarMensajeDivulgacion"
+        >
+          Guardar mensaje
+        </UButton>
+      </div>
+    </div>
 
     <!-- ── cifras ───────────────────────────────────────────────────── -->
     <div v-if="liquidacion" class="grid grid-cols-2 sm:grid-cols-4 gap-3">

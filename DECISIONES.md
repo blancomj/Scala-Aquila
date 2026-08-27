@@ -857,3 +857,70 @@ cobertura incompleta esta garantizada y se maneja como dato, no como error.
 - El batch requiere CRON_SECRET configurado + cron externo que lo llame
 ```
 
+## D-29 — Fundamentos normativos: catálogo global de solo lectura + flujo de propuestas
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | Post-L7  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario  |
+
+**Contexto.** El módulo de fundamentos normativos existía como CRUD mínimo
+(sin separación global/tenant, sin búsqueda, sin campos de validación PC-7).
+El usuario pide un catálogo masivo de ~50 fundamentos Colombia PH + datos
+personales, de solo lectura para tenants, con opción de "proponer cambio"
+para que tenants sugieran actualizaciones.
+
+**Decision.**
+1. `fundamento_normativo` se extiende con columnas `estado`, `propuesto_por`,
+   `propuesto_at`, `aprobado_por`, `rechazado_motivo` para lifecycle.
+2. Nueva tabla `fundamento_propuesta` para cambios de tenants sobre globales
+   (no muta el catálogo directamente).
+3. RLS: `is_platform_admin()` como gate de escritura para globales (tenant_id
+   null). Tenant solo puede INSERT en sus propias filas.
+4. Semilla: ~50 fundamentos organizados por sección (Ley 675, E.T., CGP,
+   Código Civil, Ley 1480, Ley 1581, Decreto 1377, CTCP, Superfinanciera,
+   Constitución, Ley 2213, NIF, DIAN, SIC).
+5. Cada registro incluye `fuente_url` oficial + `fecha_validacion` + `validado_por`
+   (sesión de agente, pendiente de contador matriculado) — estándar PC-7.
+
+**Consecuencias aceptadas.**
+
+```text
++ Catálogo masivo listo para nuevos tenants sin arrancar de cero
++ Separación clara: plataforma dicta, tenants proponen, admin revisa
+- Los ~50 fundamentos son de primer nivel; la validación contra fuente
+  primaria queda pendiente de contador matriculado (Ley 43/1990)
+```
+
+## D-30 — Fundamentos normativos: tabla de propuestas separada del catálogo
+
+|            |          |
+| ---------- | -------- |
+| **Fase**   | Post-L7  |
+| **Estado** | Aceptada |
+| **Decide** | Usuario  |
+
+**Contexto.** Se evaluaron tres enfoques para el flujo "proponer cambio"
+sobre fundamentos globales: (a) modificar la fila original directamente,
+(b) agregar columnas de estado a `fundamento_normativo`, (c) tabla separada.
+El enfoque (c) sigue el patrón de conceptos (maker-checker) y mantiene
+el catálogo limpio.
+
+**Decision.**
+1. `fundamento_propuesta` almacena la propuesta del tenant con relación
+   al `fundamento_original_id`.
+2. Estados: `pendiente` → `aprobada` (inserta en catálogo global) o
+   `rechazada` (con motivo).
+3. RLS: SELECT para el tenant que creó + platform admin; INSERT para
+   cualquier miembro autenticado; UPDATE solo platform admin.
+4. Platform admin aprueba/rechaza desde la página de fundamentos.
+
+**Consecuencias aceptadas.**
+
+```text
++ El catálogo global nunca se contamina con filas pendientes de revisión
++ Flujo similar a conceptos (maker-checker) — consistencia arquitectónica
+- Requiere que platform admin revise propuestas (proceso manual)
+```
+
