@@ -8,6 +8,8 @@ import {
   type EntradaJobCarteraInmueble,
   type PromesaPendiente,
 } from './cartera-job.js'
+import type { EstrategiaCobranza } from './cartera-cobranza.js'
+import type { RelacionInmueblePersona } from './cartera-destinatarios.js'
 import type { PoliticaClasificacion } from './cartera.js'
 
 const politica: PoliticaClasificacion = {
@@ -31,11 +33,17 @@ function entrada(over: Partial<EntradaJobCarteraInmueble> = {}): EntradaJobCarte
     tieneAcuerdoVigente: false,
     tieneCasoJuridicoAbierto: false,
     tieneCertificacionVigente: false,
+    accionesAcreditadas: 1,
     promesasPendientes: [],
     cuotasPendientesOParciales: [],
     acuerdoVigenteId: null,
     fechaCorte: '2026-08-17',
     toleranciaDiasPromesa: 0,
+    estrategias: [],
+    historialAcciones: [],
+    relaciones: [],
+    diasEnTramoActual: 0,
+    deudaTotal: '0',
     ...over,
   }
 }
@@ -137,5 +145,121 @@ describe('calcularResultadoJobHash', () => {
     const planA = evaluarJobCarteraInmueble(entrada({ inmuebleId: 'inm-a' }))
     const planAConMora = evaluarJobCarteraInmueble(entrada({ inmuebleId: 'inm-a', diasMoraMaximo: 5, saldoVencido: 1000 }))
     expect(calcularResultadoJobHash([planA])).not.toBe(calcularResultadoJobHash([planAConMora]))
+  })
+})
+
+// ── §18.2 pasos 14-16: el job ya no se detiene antes de crear acciones ──
+
+const estrategiaEmail: EstrategiaCobranza = {
+  id: 'est-1',
+  tramoCodigo: 'MORA_TEMPRANA',
+  tipoAccion: 'email',
+  canal: 'email',
+  diasDesdeClasificacion: 0,
+  frecuenciaDias: null,
+  maxIntentos: 1,
+  montoMinimoDeuda: null,
+  activa: true,
+  requiereAprobacion: false,
+}
+
+const propietario: RelacionInmueblePersona = {
+  terceroId: 'ter-1',
+  rolCodigo: 'copropietario',
+  porcentaje: 100,
+  esPagador: true,
+  recibeNotificaciones: true,
+  vigenteDesde: '2020-01-01',
+  vigenteHasta: null,
+  email: 'due@example.test',
+  telefono: '3001112233',
+  direccion: 'Calle 1 # 2-3',
+  municipio: 'Barranquilla',
+  direccionVerificadaAt: null,
+}
+
+describe('evaluarJobCarteraInmueble — acciones con destinatario', () => {
+  it('propone la acción con su destinatario resuelto', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 500_000,
+        deudaTotal: '500000',
+        estrategias: [estrategiaEmail],
+        relaciones: [propietario],
+      }),
+    )
+
+    expect(plan.accionesPropuestas).toHaveLength(1)
+    expect(plan.accionesPropuestas[0]?.canal).toBe('email')
+    expect(plan.accionesPropuestas[0]?.destinatarios).toHaveLength(1)
+    expect(plan.accionesPropuestas[0]?.destinatarios[0]?.contacto).toBe('due@example.test')
+    expect(plan.accionesBloqueadas).toHaveLength(0)
+  })
+
+  it('reporta la acción bloqueada en vez de callarla cuando falta el contacto', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 500_000,
+        deudaTotal: '500000',
+        estrategias: [estrategiaEmail],
+        relaciones: [{ ...propietario, email: null }],
+      }),
+    )
+
+    expect(plan.accionesPropuestas).toHaveLength(0)
+    expect(plan.accionesBloqueadas).toHaveLength(1)
+    expect(plan.accionesBloqueadas[0]?.causa).toBe('contacto_faltante')
+  })
+
+  it('reporta bloqueo cuando el inmueble no tiene relaciones vigentes', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 500_000,
+        deudaTotal: '500000',
+        estrategias: [estrategiaEmail],
+        relaciones: [],
+      }),
+    )
+
+    expect(plan.accionesBloqueadas[0]?.causa).toBe('sin_destinatario')
+  })
+
+  it('produce una entrada por copropietario: una evidencia por persona (R2)', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 500_000,
+        deudaTotal: '500000',
+        estrategias: [{ ...estrategiaEmail, tipoAccion: 'requerimiento_formal' }],
+        relaciones: [
+          { ...propietario, terceroId: 'ter-1', porcentaje: 50, esPagador: false },
+          { ...propietario, terceroId: 'ter-2', porcentaje: 50, esPagador: false, email: 'dos@example.test' },
+        ],
+      }),
+    )
+
+    expect(plan.accionesPropuestas[0]?.destinatarios.map((d) => d.terceroId)).toEqual([
+      'ter-1',
+      'ter-2',
+    ])
+  })
+
+  it('no propone nada con un acuerdo de pago vigente (§12.5)', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 500_000,
+        deudaTotal: '500000',
+        estrategias: [estrategiaEmail],
+        relaciones: [propietario],
+        tieneAcuerdoVigente: true,
+      }),
+    )
+
+    expect(plan.accionesPropuestas).toHaveLength(0)
+    expect(plan.accionesBloqueadas).toHaveLength(0)
   })
 })

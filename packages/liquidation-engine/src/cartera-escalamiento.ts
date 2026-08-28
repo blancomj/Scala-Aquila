@@ -77,6 +77,19 @@ export interface ContextoEscalamiento {
   readonly tieneCasoJuridicoAbierto: boolean
   /** CAR §11.3/PH-C20 — exige certificación de deuda vigente (art. 48) para prejuridica→juridica. Sin certificaciones_deuda (F7) esto siempre es false. */
   readonly tieneCertificacionVigente: boolean
+  /**
+   * CAR §34.2 I-C23 — cuántas acciones del inmueble están ACREDITADAS por
+   * acuse técnico del proveedor (fn_contar_acciones_acreditadas). Las
+   * constancias humanas —llamada, visita, acuse manual— no cuentan: prueban
+   * gestión, no notificación (REC-CAR-017). Sin al menos una no se escala a
+   * prejurídica ni a jurídica: 'ejecutada' significa despachada, no recibida
+   * (REC-CAR-016), y una etapa prejurídica montada sobre envíos que nadie
+   * sabe si llegaron se cae en el primer juzgado.
+   *
+   * Obligatorio a propósito, no opcional con default permisivo: un llamador
+   * que olvide pasarlo escalaría sin prueba, que es justo lo que I-C23 evita.
+   */
+  readonly accionesAcreditadas: number
 }
 
 export type DecisionEscalamiento =
@@ -128,6 +141,13 @@ export function evaluarEscalamiento(ctx: ContextoEscalamiento): DecisionEscalami
 
     if (siguiente === 'prejuridica' && !accionesAdministrativasAgotadas(ctx.accionesEjecutadasEnEtapa)) {
       return { tipo: 'bloqueado', requisitoFaltante: 'Acciones administrativas sin agotar (CAR §11.3)' }
+    }
+    if ((siguiente === 'prejuridica' || siguiente === 'juridica') && ctx.accionesAcreditadas <= 0) {
+      return {
+        tipo: 'bloqueado',
+        requisitoFaltante:
+          'Ninguna acción acreditada por canal con acuse técnico (CAR §34.2, REC-CAR-017, I-C23)',
+      }
     }
     if (siguiente === 'juridica' && !ctx.tieneCertificacionVigente) {
       return {

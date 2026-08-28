@@ -10,13 +10,19 @@
 // sistema empiece a enviar requerimientos sin haber visto antes qué va a
 // enviar"). modo:'ejecucion' persiste.
 //
-// Alcance deliberadamente acotado (ver cabecera de cartera-job.ts): NO
-// crea acciones_cobranza (destinatario sin resolver, pieza aparte) ni
-// compara contra el snapshot de ayer para CARTERA_CLASIFICACION_CAMBIO
-// (cambiosClasificacion queda en 0 — requiere leer el snapshot anterior,
-// diferido). Tampoco está agendada por pg_cron todavía: se invoca a mano,
-// por un administrador — mismo criterio de "un humano aprieta el botón"
-// que el resto del bloque de cobranza.
+// Desde 2026-08-28 SÍ crea acciones_cobranza (§18.2 pasos 14-16): el
+// destinatario se resuelve con resolverDestinatarios() según las cuatro
+// reglas de negocio decididas ese día — el obligado del art. 29 es el
+// copropietario, se notifica a todos los vigentes uno por uno, el opt-out
+// no bloquea lo obligatorio y el apoderado acompaña sin reemplazar. Las
+// hermanas de un mismo disparo se unen con grupo_envio_id (20260905110000)
+// conservando evidencia por persona.
+//
+// Sigue acotado en dos puntos: no compara contra el snapshot de ayer para
+// CARTERA_CLASIFICACION_CAMBIO (cambiosClasificacion queda en 0, requiere
+// leer el snapshot anterior — diferido), y no está agendada por pg_cron:
+// se invoca a mano, por un administrador — mismo criterio de "un humano
+// aprieta el botón" que el resto del bloque de cobranza.
 //
 // Idempotencia (PH-C33): las escrituras de estado (cartera_etapas,
 // promesas_pago, acuerdo_pago_cuotas, acuerdos_pago) son idempotentes por
@@ -284,6 +290,9 @@ export default {
     // ── modo: ejecución — persistir ─────────────────────────────────────
     let cambiosEtapa = 0
     let candidatosEscalamiento = 0
+    let accionesCreadasTotal = 0
+    let accionesOmitidasTotal = 0
+    let accionesBloqueadasTotal = 0
     let promesasIncumplidasTotal = 0
     let acuerdosIncumplidosTotal = 0
     const alertas: Alerta[] = []
@@ -460,6 +469,55 @@ export default {
           dedup_key: `ACUERDO_INCUMPLIDO:${plan.inmuebleId}:${fechaCorte}:${plan.acuerdoIncumplido.acuerdoId}`,
         })
       }
+      // ── §18.2 pasos 14-16: crear las acciones ──────────────────────────
+      // Lo que faltaba para que el job dejara de ser solo cálculo. La
+      // anti-duplicación (§10.4) ya la aplicó evaluarAccionesAplicables()
+      // sobre el historial real, así que una segunda corrida del mismo día
+      // no vuelve a proponer lo ya creado (IDEM-02).
+      accionesOmitidasTotal += plan.accionesOmitidas.length
+      accionesBloqueadasTotal += plan.accionesBloqueadas.length
+
+      for (const propuesta of plan.accionesPropuestas) {
+        // Un grupo solo tiene sentido cuando hay hermanas que unir; con un
+        // único destinatario la acción es suelta y grupo_envio_id queda null
+        // (ver 20260905110000).
+        const grupoEnvioId =
+          propuesta.destinatarios.length > 1 ? crypto.randomUUID() : null
+
+        const filas = propuesta.destinatarios.map((d) => ({
+          tenant_id: tenantId,
+          inmueble_id: plan.inmuebleId,
+          estrategia_id: propuesta.estrategiaId,
+          tipo_accion: propuesta.tipoAccion,
+          canal: propuesta.canal,
+          fecha_programada: fechaCorte,
+          // Foto del momento — REC-CAR-012, nunca se recalcula después.
+          clasificacion_codigo: plan.clasificacion.codigo,
+          politica_clasificacion_id: plan.clasificacion.politicaId,
+          politica_version: plan.clasificacion.politicaVersion,
+          dias_mora_al_momento: fila.dias_mora_maximo ?? 0,
+          deuda_total_al_momento: Number(fila.deuda_total),
+          destinatario_tercero_id: d.terceroId,
+          destinatario_rol_codigo: d.rolCodigo,
+          destinatario_contacto: d.contacto,
+          grupo_envio_id: grupoEnvioId,
+          intento_numero: propuesta.intentoNumero,
+          // Maker-checker (20260822280000): lo de alto impacto nace esperando
+          // aprobación humana, nunca listo para disparar.
+          estado: propuesta.requiereAprobacion ? 'pendiente_aprobacion' : 'programada',
+          creada_por: 'job' as const,
+        }))
+
+        const { error: errorAcciones } = await ctx.supabaseAdmin
+          .from('acciones_cobranza')
+          .insert(filas)
+        if (errorAcciones) {
+          errores.push(`acciones ${plan.inmuebleId}: ${errorAcciones.message}`)
+          continue
+        }
+        accionesCreadasTotal += filas.length
+      }
+
       if (eventos.length > 0) {
         const { error: errorEventos } = await ctx.supabaseAdmin
           .from('eventos_cartera')
@@ -479,6 +537,9 @@ export default {
         modo,
         inmueblesEvaluados: planes.length,
         cambiosEtapa,
+        accionesCreadas: accionesCreadasTotal,
+        accionesOmitidas: accionesOmitidasTotal,
+        accionesBloqueadas: accionesBloqueadasTotal,
         candidatosEscalamiento,
         promesasIncumplidas: promesasIncumplidasTotal,
         acuerdosIncumplidos: acuerdosIncumplidosTotal,
@@ -505,8 +566,9 @@ export default {
         inmueblesEvaluados: planes.length,
         cambiosClasificacion: 0, // diferido — requiere comparar contra el snapshot de ayer (ver cabecera).
         cambiosEtapa,
-        accionesCreadas: 0, // diferido — destinatario sin resolver (ver cabecera).
-        accionesOmitidas: 0,
+        accionesCreadas: accionesCreadasTotal,
+        accionesOmitidas: accionesOmitidasTotal,
+        accionesBloqueadas: accionesBloqueadasTotal,
         promesasIncumplidas: promesasIncumplidasTotal,
         acuerdosIncumplidos: acuerdosIncumplidosTotal,
         candidatosEscalamiento,

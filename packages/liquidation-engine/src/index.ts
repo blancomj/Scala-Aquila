@@ -147,6 +147,19 @@ export {
 } from './cartera-job-supabase.js'
 
 export {
+  resolverDestinatarios,
+  esAccionAltoImpacto,
+  type CanalCobranza,
+  type RelacionInmueblePersona,
+  type MotivoDestinatario,
+  type DestinatarioResuelto,
+  type ResolucionDestinatarios,
+  type EntradaResolucionDestinatarios,
+} from './cartera-destinatarios.js'
+
+export { obtenerRelacionesInmueble } from './cartera-destinatarios-supabase.js'
+
+export {
   calcularDashboardCartera,
   calcularTopInmueblesCartera,
   type FilaDashboardCartera,

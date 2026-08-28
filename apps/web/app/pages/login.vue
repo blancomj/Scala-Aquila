@@ -2,10 +2,7 @@
 definePageMeta({ layout: 'auth', publico: true })
 
 const cliente = useSupabaseClient()
-const usuario = useSupabaseUser()
 const route = useRoute()
-const authStore = useAuthStore()
-const tenantStore = useTenantStore()
 
 // Mismo aviso que register.vue: si ya tenías cuenta pero con un correo
 // distinto al invitado, iniciar sesión aquí no arregla nada — hay que
@@ -19,16 +16,26 @@ const password = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 
-async function esperarSesion(): Promise<void> {
-  if (usuario.value) return
-  await new Promise<void>((resolve) => {
-    const detener = watch(usuario, (valor) => {
-      if (valor) {
-        detener()
-        resolve()
-      }
-    })
-  })
+// Nunca navegar a lo que venga en la query sin validar: sin esto, un enlace
+// tipo /login?redirect=https://evil.test lo aceptaría window.location.href
+// tal cual (a diferencia de navigateTo(), que por defecto rechaza URLs
+// externas). Se resuelve con new URL(), no comparando el string a mano
+// (p. ej. "empieza con / y no con //"): algunos navegadores normalizan "\"
+// a "/" al parsear una URL relativa, así que "/\evil.test" pasaría ese
+// chequeo de texto y terminaría igual saliendo del origin — new URL() ya
+// aplica esa misma normalización antes de comparar, así que no hay bypass
+// que valga.
+function destinoSeguro(bruto: unknown): string {
+  if (typeof bruto !== 'string') return '/dashboard'
+  try {
+    const resuelto = new URL(bruto, window.location.origin)
+    if (resuelto.origin === window.location.origin) {
+      return `${resuelto.pathname}${resuelto.search}${resuelto.hash}`
+    }
+  } catch {
+    // bruto no era una URL válida ni siquiera relativa al origin — cae al default.
+  }
+  return '/dashboard'
 }
 
 async function iniciarSesion(): Promise<void> {
@@ -43,25 +50,18 @@ async function iniciarSesion(): Promise<void> {
       error.value = errorAuth.message
       return
     }
-    // authStore.cargarPerfil() cachea profile.value y NO vuelve a consultar
-    // si ya hay algo cargado (solo lo hace con { forzar: true }) — sin este
-    // reset, iniciar sesión con OTRA cuenta en la misma pestaña sin pasar
-    // antes por "cerrar sesión" (NavUsuarioMenu.vue/perfil.vue, que sí
-    // limpian) deja corriendo el active_tenant_id/memberships del usuario
-    // ANTERIOR. Bug real 2026-08-28: una cuenta con copropiedades de sobra
-    // terminaba en /onboarding/create-tenant porque el active_tenant_id
-    // null de la sesión previa seguía en caché.
-    authStore.limpiar()
-    tenantStore.limpiar()
-    useCookie<boolean>('copropiedad-confirmada-sesion').value = false
-    // Espera a que useSupabaseUser() refleje la sesión recién iniciada antes
-    // de navegar — si se navega en el mismo tick, auth.global puede
-    // ejecutarse con el estado reactivo todavía sin actualizar y rebotar a
-    // /login (visto en pruebas manuales: la cookie de sesión ya existe, el
-    // ref reactivo aún no).
-    await esperarSesion()
-    const destino = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
-    await navigateTo(destino)
+    // Recarga completa, no navigateTo() — mismo motivo que
+    // NavTenantSwitcher.vue/copropiedades/index.vue al cambiar de
+    // copropiedad: justo después de signInWithPassword() hay una ventana de
+    // carrera real donde el ref reactivo de sesión ya está listo pero el
+    // resto del cliente (el que usan las consultas de authStore/tenantStore)
+    // todavía no — visto en vivo el 2026-08-28: middleware/tenant.ts leía
+    // memberships=0 en el primer intento (mandaba a crear copropiedad
+    // aunque la cuenta tuviera varias) y solo se veía bien al navegar de
+    // nuevo. Una recarga completa parte de cero: sin cachés viejos de otra
+    // cuenta en la misma pestaña, sin condición de carrera con el cliente
+    // recién autenticado.
+    window.location.href = destinoSeguro(route.query.redirect)
   } finally {
     cargando.value = false
   }

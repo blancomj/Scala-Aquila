@@ -24,6 +24,7 @@ function contexto(over: Partial<ContextoEscalamiento> = {}): ContextoEscalamient
     tieneAcuerdoVigente: false,
     tieneCasoJuridicoAbierto: false,
     tieneCertificacionVigente: false,
+    accionesAcreditadas: 1,
     ...over,
   }
 }
@@ -168,5 +169,54 @@ describe('evaluarEscalamiento', () => {
       }),
     )
     expect(resultado.tipo).toBe('congelar')
+  })
+
+  it('PH-C42 / I-C23 — administrativa→prejuridica bloqueada si solo hay constancias humanas', () => {
+    const resultado = evaluarEscalamiento(
+      contexto({
+        etapaActual: 'administrativa',
+        clasificacion: clasificacion({ codigo: 'MORA_AVANZADA', etapaCobranza: 'prejuridica' }),
+        // Tres llamadas registradas y agotadas: la estrategia se cumplió,
+        // pero ninguna dejó acuse técnico.
+        accionesEjecutadasEnEtapa: [accion({ estrategiaId: 'e1', agotada: true })],
+        accionesAcreditadas: 0,
+      }),
+    )
+    expect(resultado).toEqual({
+      tipo: 'bloqueado',
+      requisitoFaltante: 'Ninguna acción acreditada por canal con acuse técnico (CAR §34.2, REC-CAR-017, I-C23)',
+    })
+  })
+
+  it('I-C23 — con una acción acreditada, el mismo caso sí escala a prejuridica', () => {
+    const resultado = evaluarEscalamiento(
+      contexto({
+        etapaActual: 'administrativa',
+        clasificacion: clasificacion({ codigo: 'MORA_AVANZADA', etapaCobranza: 'prejuridica' }),
+        accionesEjecutadasEnEtapa: [accion({ estrategiaId: 'e1', agotada: true })],
+        accionesAcreditadas: 1,
+      }),
+    )
+    expect(resultado).toMatchObject({ tipo: 'escalar', hacia: 'prejuridica', requiereAprobacion: true })
+  })
+
+  it('I-C23 — prejuridica→juridica también exige notificación probada, antes que la certificación', () => {
+    const resultado = evaluarEscalamiento(
+      contexto({
+        etapaActual: 'prejuridica',
+        clasificacion: clasificacion({ codigo: 'MORA_CRITICA', etapaCobranza: 'juridica' }),
+        tieneCertificacionVigente: true,
+        accionesAcreditadas: 0,
+      }),
+    )
+    expect(resultado.tipo).toBe('bloqueado')
+    expect(resultado).toMatchObject({ requisitoFaltante: expect.stringContaining('I-C23') })
+  })
+
+  it('I-C23 no estorba el des-escalamiento: sin evidencia igual se vuelve a preventiva con saldo cero', () => {
+    const resultado = evaluarEscalamiento(
+      contexto({ etapaActual: 'prejuridica', saldoVencido: 0, accionesAcreditadas: 0 }),
+    )
+    expect(resultado).toMatchObject({ tipo: 'desescalar', hacia: 'preventiva' })
   })
 })

@@ -1,7 +1,5 @@
 {
   "imports": {
-    "@supabase/server": "npm:@supabase/server@^1",
-    "zod": "npm:zod@^3",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2"
   }
 }

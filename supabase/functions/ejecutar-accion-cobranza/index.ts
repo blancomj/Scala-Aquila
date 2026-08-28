@@ -1,64 +1,46 @@
-// CAR F4 — worker de ejecución, alcance SOLO SMS (decisión explícita del
-// usuario, 2026-08-17: email/whatsapp quedan fuera hasta generalizar sus
-// respectivos proveedores). Toma UNA acciones_cobranza ya decidida
-// (evaluarAccionesAplicables() + registrarAccionCobranza(), y aprobada si
-// correspondía — 20260822280000) y la envía de verdad vía sendSms()
-// (Brevo Transactional SMS, ya en uso real por probar-plantilla-sms).
+// CAR F4 — worker de ejecución de UNA acción de cobranza. Alcance SOLO SMS
+// (decisión explícita del usuario, 2026-08-17: email/whatsapp quedan fuera
+// hasta generalizar sus respectivos proveedores).
 //
-// Alcance deliberadamente angosto: SOLO el event_type 'cartera_pago_vencido'
-// (packages/shared/src/sms.ts) — es el único cuyos campos
-// (nombreResidente/inmueble/diasMora/saldoPendiente) se derivan sin
-// ambigüedad de las columnas "foto del momento" de acciones_cobranza
-// (dias_mora_al_momento, deuda_total_al_momento). 'cartera_recordatorio_pago'
-// necesita una fechaVencimiento que una acción de COBRANZA (que por
-// definición ya está en mora) no tiene de forma unívoca — no se inventa un
-// origen para ese campo aquí.
+// Desde 2026-08-28 esta función es una CÁSCARA HTTP: valida método, payload,
+// rate limit y rol, y delega el despacho en _shared/despacho_cobranza.ts,
+// que comparte con cartera-ejecutar-lote. La lógica vivía aquí dentro;
+// duplicarla en el worker por lotes habría garantizado que las dos versiones
+// se separaran con el tiempo, y la evidencia probatoria no admite dos
+// respuestas a "qué fue lo que se envió".
 //
-// No orquesta lotes: procesa una accion_id por invocación. La orquestación
-// diaria (CAR §18.1 "modo simulación") es una pieza aparte, todavía sin
-// construir.
+// El despacho registra además la evidencia del envío (§34.3) y emite el
+// evento de dominio (§18.4 paso 6). Sin lo primero, el sistema podía enviar
+// mil SMS y no poder probar ninguno.
+//
+// No orquesta lotes: procesa una accion_id por invocación. Para la corrida
+// diaria está cartera-ejecutar-lote.
+import { createClient } from '@supabase/supabase-js'
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
-import {
-  esTelefonoValido,
-  renderSmsTemplate,
-  SMS_FIELD_REGISTRY,
-} from '../../../packages/shared/src/sms.ts'
+import { despacharAccionCobranza } from '../_shared/despacho_cobranza.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
-import { sendSms } from '../_shared/sms_provider.ts'
 
 // "Dinero real gastado por cada llamada" (mismo criterio que
 // probar-plantilla-sms), pero este endpoint sí necesita soportar volumen de
 // lote real (una copropiedad puede tener decenas de acciones vencidas el
-// mismo día) — 200/hora hasta que exista una orquestación por lotes que
-// sustituya la invocación una-por-una.
+// mismo día) — 200/hora.
 const RATE_LIMIT_MAX_HITS = 200
 const RATE_LIMIT_VENTANA = '1 hour'
-
-const EVENT_TYPE_SOPORTADO = 'cartera_pago_vencido'
 
 const payloadSchema = z.object({
   tenant_id: z.string().uuid(),
   accion_id: z.string().uuid(),
 })
 
-function formatearMoneda(valor: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(valor)
-}
-
-async function calcularContenidoHash(texto: string): Promise<string> {
-  const bytes = new TextEncoder().encode(texto)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+/** Un requisito que falta no es un error del servidor. */
+function statusDeCodigo(codigo: string): number {
+  if (codigo === 'INTERNAL_ERROR') return 500
+  if (codigo === 'ACCION_COBRANZA_NO_ENCONTRADA') return 404
+  return 422
 }
 
 export default {
@@ -106,179 +88,72 @@ export default {
       return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
     }
     if (!tieneRol) {
-      return errorResponse(403, 'FORBIDDEN', 'Se requiere rol agent en esta copropiedad.', undefined, correlationId)
+      return errorResponse(403, 'FORBIDDEN', 'Se requiere rol auxiliar en esta copropiedad.', undefined, correlationId)
     }
 
-    const { data: accion, error: errorAccion } = await ctx.supabase
-      .from('acciones_cobranza')
-      .select(
-        'id, estado, canal, estrategia_id, dias_mora_al_momento, deuda_total_al_momento, destinatario_tercero_id, inmueble_id',
-      )
-      .eq('tenant_id', tenantId)
-      .eq('id', accionId)
-      .maybeSingle()
-    if (errorAccion) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorAccion.message, undefined, correlationId)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !serviceKey) {
+      return errorResponse(500, 'INTERNAL_ERROR', 'Configuración incompleta.', undefined, correlationId)
     }
-    if (!accion) {
-      return errorResponse(404, 'ACCION_COBRANZA_NO_ENCONTRADA', `No existe la acción ${accionId}.`, undefined, correlationId)
-    }
+    const admin = createClient<Database>(supabaseUrl, serviceKey)
 
-    if (accion.canal !== 'sms') {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_CANAL_NO_SOPORTADO',
-        `Este worker solo ejecuta canal='sms' — la acción ${accionId} usa '${accion.canal}'.`,
-        undefined,
-        correlationId,
-      )
-    }
-    if (accion.estado !== 'programada' && accion.estado !== 'aprobada') {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_ESTADO_NO_EJECUTABLE',
-        `La acción ${accionId} está en estado '${accion.estado}', no en programada/aprobada.`,
-        undefined,
-        correlationId,
-      )
-    }
-
-    if (!accion.estrategia_id) {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_SIN_PLANTILLA',
-        `La acción ${accionId} no tiene estrategia asociada (creada_por='manual' sin plantilla_codigo).`,
-        undefined,
-        correlationId,
-      )
-    }
-    const { data: estrategia, error: errorEstrategia } = await ctx.supabase
-      .from('estrategias_cobranza')
-      .select('plantilla_codigo')
-      .eq('id', accion.estrategia_id)
-      .maybeSingle()
-    if (errorEstrategia) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorEstrategia.message, undefined, correlationId)
-    }
-    const eventType = estrategia?.plantilla_codigo ?? null
-    if (!eventType) {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_SIN_PLANTILLA',
-        `La estrategia ${accion.estrategia_id} no tiene plantilla_codigo configurado.`,
-        undefined,
-        correlationId,
-      )
-    }
-    if (eventType !== EVENT_TYPE_SOPORTADO) {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_EVENTO_NO_SOPORTADO',
-        `Este worker solo soporta el evento '${EVENT_TYPE_SOPORTADO}' — la estrategia usa '${eventType}'.`,
-        undefined,
-        correlationId,
-      )
-    }
-
-    const { data: plantilla, error: errorPlantilla } = await ctx.supabase
-      .from('plantillas_sms')
-      .select('cuerpo')
-      .eq('tenant_id', tenantId)
-      .eq('event_type', eventType)
-      .eq('activo', true)
-      .maybeSingle()
-    if (errorPlantilla) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorPlantilla.message, undefined, correlationId)
-    }
-    if (!plantilla) {
-      return errorResponse(
-        422,
-        'SMS_TEMPLATE_NOT_FOUND',
-        `No hay una plantilla activa para el evento '${eventType}' en este tenant.`,
-        undefined,
-        correlationId,
-      )
-    }
-
-    const [{ data: tercero, error: errorTercero }, { data: inmueble, error: errorInmueble }] = await Promise.all([
-      ctx.supabase
-        .from('terceros')
-        .select('telefono, nombre_completo')
-        .eq('id', accion.destinatario_tercero_id)
-        .maybeSingle(),
-      ctx.supabase.from('inmuebles').select('codigo').eq('id', accion.inmueble_id).maybeSingle(),
-    ])
-    if (errorTercero) return errorResponse(500, 'INTERNAL_ERROR', errorTercero.message, undefined, correlationId)
-    if (errorInmueble) return errorResponse(500, 'INTERNAL_ERROR', errorInmueble.message, undefined, correlationId)
-    if (!tercero || !inmueble) {
-      return errorResponse(500, 'INTERNAL_ERROR', 'Destinatario o inmueble inconsistente.', undefined, correlationId)
-    }
-    if (!tercero.telefono || !esTelefonoValido(tercero.telefono)) {
-      return errorResponse(
-        422,
-        'ACCION_COBRANZA_DESTINATARIO_SIN_TELEFONO',
-        `El tercero ${accion.destinatario_tercero_id} no tiene un teléfono válido registrado.`,
-        undefined,
-        correlationId,
-      )
-    }
-
-    const campos = SMS_FIELD_REGISTRY[eventType] ?? []
-    const params: Record<string, string> = {}
-    for (const campo of campos) {
-      if (campo.field === 'nombreResidente') params[campo.field] = tercero.nombre_completo ?? ''
-      else if (campo.field === 'inmueble') params[campo.field] = inmueble.codigo
-      else if (campo.field === 'diasMora') params[campo.field] = String(accion.dias_mora_al_momento)
-      else if (campo.field === 'saldoPendiente') params[campo.field] = formatearMoneda(accion.deuda_total_al_momento)
-    }
-    const textoRenderizado = renderSmsTemplate(plantilla.cuerpo, params)
-
-    const { error: errorEjecutando } = await ctx.supabase
-      .from('acciones_cobranza')
-      .update({ estado: 'ejecutando' })
-      .eq('id', accionId)
-    if (errorEjecutando) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorEjecutando.message, undefined, correlationId)
-    }
-
-    const resultadoEnvio = await sendSms({
-      to: tercero.telefono,
-      body: textoRenderizado,
-      reference: accionId,
+    const resultado = await despacharAccionCobranza(admin, {
+      tenantId,
+      accionId,
+      actorId,
+      modo: 'ejecucion',
     })
-    const contenidoHash = await calcularContenidoHash(textoRenderizado)
 
-    const { error: errorFinal } = await ctx.supabase
-      .from('acciones_cobranza')
-      .update({
-        estado: resultadoEnvio.success ? 'ejecutada' : 'fallida',
-        fecha_ejecucion: new Date().toISOString(),
-        contenido_hash: contenidoHash,
-        referencia_externa: resultadoEnvio.providerMessageId ?? null,
-        destinatario_contacto: tercero.telefono,
-        notas: resultadoEnvio.success ? null : resultadoEnvio.errorMessage,
-        ejecutada_por: actorId,
+    if (resultado.tipo === 'no_ejecutable') {
+      return errorResponse(
+        statusDeCodigo(resultado.codigo),
+        resultado.codigo,
+        resultado.mensaje,
+        undefined,
+        correlationId,
+      )
+    }
+    // 'simulada' no puede darse: arriba se pide modo 'ejecucion'.
+    if (resultado.tipo !== 'despachada') {
+      return errorResponse(500, 'INTERNAL_ERROR', 'Resultado de despacho inesperado.', undefined, correlationId)
+    }
+
+    if (resultado.evidenciaError) {
+      logEvent({
+        level: 'error',
+        action: 'ejecutar_accion_cobranza.evidencia_no_registrada',
+        correlationId,
+        actorId,
+        tenantId,
+        message: resultado.evidenciaError,
+        meta: { accionId, envioId: resultado.envioId },
       })
-      .eq('id', accionId)
-    if (errorFinal) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorFinal.message, undefined, correlationId)
     }
 
     logEvent({
-      level: resultadoEnvio.success ? 'info' : 'error',
+      level: resultado.estado === 'ejecutada' ? 'info' : 'error',
       action: 'ejecutar_accion_cobranza.completada',
       correlationId,
       actorId,
       tenantId,
-      meta: { accionId, eventType, success: resultadoEnvio.success, segmentsUsed: resultadoEnvio.segmentsUsed },
+      meta: {
+        accionId,
+        estado: resultado.estado,
+        segmentsUsed: resultado.segmentsUsed,
+      },
     })
 
     return jsonResponse(
       {
-        success: resultadoEnvio.success,
-        estado: resultadoEnvio.success ? 'ejecutada' : 'fallida',
-        segmentsUsed: resultadoEnvio.segmentsUsed,
-        errorMessage: resultadoEnvio.errorMessage,
+        success: resultado.estado === 'ejecutada',
+        estado: resultado.estado,
+        segmentsUsed: resultado.segmentsUsed,
+        errorMessage: resultado.errorMessage,
+        // §34: despachar y poder probarlo son dos cosas distintas, y el
+        // llamador debe poder distinguirlas.
+        envioId: resultado.envioId,
+        evidenciaRegistrada: resultado.evidenciaRegistrada,
       },
       200,
       correlationId,

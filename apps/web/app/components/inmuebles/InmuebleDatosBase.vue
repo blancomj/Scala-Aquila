@@ -554,9 +554,14 @@ watchEffect(async () => {
           Agregar otra persona
         </UButton>
       </div>
-      <div v-if="mostrarFormPersona" class="w-1/2">
+      <UiDrawer
+        :abierto="mostrarFormPersona"
+        titulo="Agregar persona"
+        subtitulo="Asocia una persona natural o jurídica a este inmueble."
+        @cerrar="mostrarFormPersona = false"
+      >
         <InmueblesInmueblePersonaForm :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
-      </div>
+      </UiDrawer>
       <UiTabla
         :columnas="[
           { clave: 'nombre', etiqueta: 'Persona' },

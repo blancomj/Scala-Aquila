@@ -168,6 +168,7 @@ export default tseslint.config(
       'packages/liquidation-engine/src/cartera-evolucion-supabase.ts',
       'packages/liquidation-engine/src/cartera-alertas-supabase.ts',
       'packages/liquidation-engine/src/cartera-actividad-reciente-supabase.ts',
+      'packages/liquidation-engine/src/cartera-destinatarios-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

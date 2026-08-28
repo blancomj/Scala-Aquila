@@ -4,11 +4,8 @@
 definePageMeta({ layout: 'auth', publico: true })
 
 const cliente = useSupabaseClient()
-const usuario = useSupabaseUser()
 const route = useRoute()
 const config = useRuntimeConfig()
-const authStore = useAuthStore()
-const tenantStore = useTenantStore()
 
 // El enlace de invitación nunca lleva el correo en la URL (deliberado —
 // no exponer PII en query strings/logs, ver email_invitation.ts). Sin esa
@@ -19,13 +16,28 @@ const vieneDeInvitacion = computed(
   () => typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/invite'),
 )
 
+// Nunca navegar (ni construir el emailRedirectTo) con lo que venga en la
+// query sin validar — ver el mismo helper y su motivo en login.vue (new
+// URL() en vez de comparar el string a mano, para no dejar pasar el bypass
+// de "\" que algunos navegadores normalizan a "/").
+function destinoSeguro(bruto: unknown): string {
+  if (typeof bruto !== 'string') return '/dashboard'
+  try {
+    const resuelto = new URL(bruto, window.location.origin)
+    if (resuelto.origin === window.location.origin) {
+      return `${resuelto.pathname}${resuelto.search}${resuelto.hash}`
+    }
+  } catch {
+    // bruto no era una URL válida ni siquiera relativa al origin — cae al default.
+  }
+  return '/dashboard'
+}
+
 // Mismo destino usado dos veces: si signUp() ya deja sesión (confirmación de
 // correo desactivada) se navega aquí mismo; si no, es a donde debe volver el
 // enlace de confirmación (ver signUp() más abajo) — las dos rutas tienen que
 // coincidir o la invitación se pierde en la vuelta.
-const destino = computed(() =>
-  typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard',
-)
+const destino = computed(() => destinoSeguro(route.query.redirect))
 
 const nombreCompleto = ref('')
 const email = ref('')
@@ -33,20 +45,6 @@ const password = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const confirmacionPendiente = ref(false)
-
-// Mismo ajuste que login.vue: esperar a que useSupabaseUser() refleje la
-// sesión antes de navegar, para que auth.global no rebote a /login.
-async function esperarSesion(): Promise<void> {
-  if (usuario.value) return
-  await new Promise<void>((resolve) => {
-    const detener = watch(usuario, (valor) => {
-      if (valor) {
-        detener()
-        resolve()
-      }
-    })
-  })
-}
 
 async function registrar(): Promise<void> {
   error.value = null
@@ -75,14 +73,11 @@ async function registrar(): Promise<void> {
       confirmacionPendiente.value = true
       return
     }
-    // Mismo motivo que login.vue: sin esto, registrarse estando ya
-    // autenticado como otra cuenta en la misma pestaña deja el
-    // active_tenant_id/memberships de la cuenta ANTERIOR en caché.
-    authStore.limpiar()
-    tenantStore.limpiar()
-    useCookie<boolean>('copropiedad-confirmada-sesion').value = false
-    await esperarSesion()
-    await navigateTo(destino.value)
+    // Recarga completa, no navigateTo() — mismo motivo que login.vue: evita
+    // la condición de carrera justo después de autenticar (visto en vivo
+    // 2026-08-28) y cualquier caché de authStore/tenantStore de una cuenta
+    // anterior en la misma pestaña, sin necesidad de limpiarlos a mano.
+    window.location.href = destino.value
   } finally {
     cargando.value = false
   }

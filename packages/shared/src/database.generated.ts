@@ -14,7 +14,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -64,6 +64,7 @@ export type Database = {
           estrategia_id: string | null
           fecha_ejecucion: string | null
           fecha_programada: string
+          grupo_envio_id: string | null
           id: string
           inmueble_id: string
           intento_numero: number
@@ -100,6 +101,7 @@ export type Database = {
           estrategia_id?: string | null
           fecha_ejecucion?: string | null
           fecha_programada: string
+          grupo_envio_id?: string | null
           id?: string
           inmueble_id: string
           intento_numero?: number
@@ -136,6 +138,7 @@ export type Database = {
           estrategia_id?: string | null
           fecha_ejecucion?: string | null
           fecha_programada?: string
+          grupo_envio_id?: string | null
           id?: string
           inmueble_id?: string
           intento_numero?: number
@@ -232,6 +235,190 @@ export type Database = {
           },
           {
             foreignKeyName: "acciones_cobranza_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      acciones_cobranza_acuses: {
+        Row: {
+          created_at: string
+          documento_id: string | null
+          envio_id: string
+          estado: Database["public"]["Enums"]["estado_acuse_t"]
+          id: string
+          motivo: string | null
+          ocurrido_at: string
+          origen: Database["public"]["Enums"]["origen_acuse_t"]
+          payload_crudo: Json | null
+          recibido_at: string
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          documento_id?: string | null
+          envio_id: string
+          estado: Database["public"]["Enums"]["estado_acuse_t"]
+          id?: string
+          motivo?: string | null
+          ocurrido_at: string
+          origen: Database["public"]["Enums"]["origen_acuse_t"]
+          payload_crudo?: Json | null
+          recibido_at?: string
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string | null
+          envio_id?: string
+          estado?: Database["public"]["Enums"]["estado_acuse_t"]
+          id?: string
+          motivo?: string | null
+          ocurrido_at?: string
+          origen?: Database["public"]["Enums"]["origen_acuse_t"]
+          payload_crudo?: Json | null
+          recibido_at?: string
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acciones_cobranza_acuses_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_acuses_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_acuses_envio_id_fkey"
+            columns: ["envio_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza_envios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_acuses_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_acuses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_acuses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      acciones_cobranza_envios: {
+        Row: {
+          accion_id: string
+          asunto: string | null
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          contenido_hash: string
+          contenido_renderizado: string
+          created_at: string
+          destinatario_contacto: string
+          destinatario_tercero_id: string
+          enviado_at: string
+          enviado_por: string | null
+          id: string
+          intento_numero: number
+          plantilla_codigo: string
+          plantilla_version: number
+          proveedor: string
+          referencia_externa: string | null
+          tenant_id: string
+        }
+        Insert: {
+          accion_id: string
+          asunto?: string | null
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          contenido_hash: string
+          contenido_renderizado: string
+          created_at?: string
+          destinatario_contacto: string
+          destinatario_tercero_id: string
+          enviado_at?: string
+          enviado_por?: string | null
+          id?: string
+          intento_numero: number
+          plantilla_codigo: string
+          plantilla_version: number
+          proveedor: string
+          referencia_externa?: string | null
+          tenant_id: string
+        }
+        Update: {
+          accion_id?: string
+          asunto?: string | null
+          canal?: Database["public"]["Enums"]["canal_cobranza_t"]
+          contenido_hash?: string
+          contenido_renderizado?: string
+          created_at?: string
+          destinatario_contacto?: string
+          destinatario_tercero_id?: string
+          enviado_at?: string
+          enviado_por?: string | null
+          id?: string
+          intento_numero?: number
+          plantilla_codigo?: string
+          plantilla_version?: number
+          proveedor?: string
+          referencia_externa?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acciones_cobranza_envios_accion_id_fkey"
+            columns: ["accion_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_envios_destinatario_tercero_id_fkey"
+            columns: ["destinatario_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_envios_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_envios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_cobranza_envios_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -6059,9 +6246,12 @@ export type Database = {
           created_at: string
           digito_verificacion: string | null
           direccion: string | null
+          direccion_verificada_at: string | null
+          direccion_verificada_por: string | null
           email: string | null
           estado_id: number
           id: string
+          municipio: string | null
           nombre_completo: string | null
           numero_documento: string
           pagador_id: string | null
@@ -6082,9 +6272,12 @@ export type Database = {
           created_at?: string
           digito_verificacion?: string | null
           direccion?: string | null
+          direccion_verificada_at?: string | null
+          direccion_verificada_por?: string | null
           email?: string | null
           estado_id: number
           id?: string
+          municipio?: string | null
           nombre_completo?: string | null
           numero_documento: string
           pagador_id?: string | null
@@ -6105,9 +6298,12 @@ export type Database = {
           created_at?: string
           digito_verificacion?: string | null
           direccion?: string | null
+          direccion_verificada_at?: string | null
+          direccion_verificada_por?: string | null
           email?: string | null
           estado_id?: number
           id?: string
+          municipio?: string | null
           nombre_completo?: string | null
           numero_documento?: string
           pagador_id?: string | null
@@ -6124,6 +6320,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "terceros_direccion_verificada_por_fkey"
+            columns: ["direccion_verificada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "terceros_estado_id_fkey"
             columns: ["estado_id"]
@@ -6734,6 +6937,16 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_acreditacion_accion: {
+        Args: { p_accion_id: string; p_tenant_id: string }
+        Returns: {
+          acreditada: boolean
+          envios_acreditados: number
+          envios_total: number
+          ultimo_acuse_at: string
+          ultimo_estado: Database["public"]["Enums"]["estado_acuse_t"]
+        }[]
+      }
       fn_activar_pasarela: {
         Args: { p_config_id: string; p_tenant_id: string }
         Returns: {
@@ -6892,6 +7105,18 @@ export type Database = {
           p_vigente_desde: string
         }
         Returns: undefined
+      }
+      fn_compilar_expediente: {
+        Args: {
+          p_fecha_corte: string
+          p_inmueble_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_contar_acciones_acreditadas: {
+        Args: { p_inmueble_id: string; p_tenant_id: string }
+        Returns: number
       }
       fn_crear_preliquidacion: {
         Args: {
@@ -7480,6 +7705,13 @@ export type Database = {
         | "cumplido"
         | "incumplido"
         | "cancelado"
+      estado_acuse_t:
+        | "encolado"
+        | "entregado"
+        | "leido"
+        | "rebotado"
+        | "fallido"
+        | "no_entregable"
       estado_caso_juridico_t:
         | "remitido"
         | "documentacion"
@@ -7561,6 +7793,7 @@ export type Database = {
         | "CREDIT"
         | "DEBIT"
       origen_accion_cobranza_t: "job" | "manual"
+      origen_acuse_t: "proveedor" | "manual"
       origen_evento_t: "job" | "usuario" | "sistema" | "integracion"
       pasarela_modo_t: "sandbox" | "produccion"
       pasarela_proveedor_t: "wompi" | "payu" | "epayco" | "bold"
@@ -7830,6 +8063,14 @@ export const Constants = {
         "incumplido",
         "cancelado",
       ],
+      estado_acuse_t: [
+        "encolado",
+        "entregado",
+        "leido",
+        "rebotado",
+        "fallido",
+        "no_entregable",
+      ],
       estado_caso_juridico_t: [
         "remitido",
         "documentacion",
@@ -7921,6 +8162,7 @@ export const Constants = {
         "DEBIT",
       ],
       origen_accion_cobranza_t: ["job", "manual"],
+      origen_acuse_t: ["proveedor", "manual"],
       origen_evento_t: ["job", "usuario", "sistema", "integracion"],
       pasarela_modo_t: ["sandbox", "produccion"],
       pasarela_proveedor_t: ["wompi", "payu", "epayco", "bold"],

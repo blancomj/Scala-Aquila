@@ -29,6 +29,9 @@ export type TipoAccionCobranza =
   | 'propuesta_acuerdo'
   | 'revision_manual'
 
+/** canal_cobranza_t (20260822270000). Vive aquí, con sus hermanos del mismo dominio. */
+export type CanalCobranza = 'email' | 'sms' | 'whatsapp' | 'telefono' | 'fisico' | 'interno'
+
 export type EstadoAccionCobranza =
   | 'programada'
   | 'pendiente_aprobacion'
@@ -44,6 +47,13 @@ export interface EstrategiaCobranza {
   readonly id: string
   readonly tramoCodigo: string
   readonly tipoAccion: TipoAccionCobranza
+  /**
+   * canal_cobranza_t. Lo necesita la resolución de destinatario para saber
+   * qué dato de contacto exigir (cartera-destinatarios.ts): un mismo tipo
+   * de acción puede ir por correo o por físico y el destinatario válido no
+   * es el mismo si a uno le falta la dirección.
+   */
+  readonly canal: CanalCobranza
   readonly diasDesdeClasificacion: number
   /** null = una sola vez, nunca se repite. */
   readonly frecuenciaDias: number | null

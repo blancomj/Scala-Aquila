@@ -15,6 +15,9 @@
  */
 import type { AquilaClient } from '@aquila/shared'
 import type { EstrategiaCobranza } from './cartera-cobranza.js'
+import { obtenerHistorialAccionesCobranza } from './cartera-cobranza-supabase.js'
+import { obtenerRelacionesInmueble } from './cartera-destinatarios-supabase.js'
+import { diasCalendario } from './cuenta-corriente.js'
 import type { ResumenAccion } from './cartera-escalamiento.js'
 import type { CuotaPendiente, EntradaJobCarteraInmueble, PromesaPendiente } from './cartera-job.js'
 import type { PoliticaClasificacion } from './cartera.js'
@@ -115,6 +118,25 @@ async function tieneCertificacionVigente(
   return data !== null
 }
 
+/**
+ * CAR §34.2 I-C23. El conteo vive en SQL (fn_contar_acciones_acreditadas)
+ * y no aquí: derivar la acreditación exige el último acuse de cada envío,
+ * y traerse todos los acuses del inmueble para contarlos en TypeScript
+ * sería una consulta N+1 disfrazada.
+ */
+async function contarAccionesAcreditadas(
+  cliente: AquilaClient,
+  tenantId: string,
+  inmuebleId: string,
+): Promise<number> {
+  const { data, error } = await cliente.rpc('fn_contar_acciones_acreditadas', {
+    p_tenant_id: tenantId,
+    p_inmueble_id: inmuebleId,
+  })
+  if (error) throw new Error(`No se pudieron contar las acciones acreditadas del inmueble ${inmuebleId}: ${error.message}`)
+  return data
+}
+
 async function obtenerPromesasPendientes(
   cliente: AquilaClient,
   tenantId: string,
@@ -212,7 +234,14 @@ export async function cargarEntradaJobCarteraInmueble(
     )
   }
 
-  const [acuerdo, casoAbierto, certificacionVigente, promesasPendientes, accionesEjecutadasEnEtapa] = await Promise.all([
+  const [
+    acuerdo,
+    casoAbierto,
+    certificacionVigente,
+    promesasPendientes,
+    accionesEjecutadasEnEtapa,
+    accionesAcreditadas,
+  ] = await Promise.all([
     tieneAcuerdoVigente(cliente, opciones.tenantId, opciones.inmuebleId),
     tieneCasoJuridicoAbierto(cliente, opciones.tenantId, opciones.inmuebleId),
     tieneCertificacionVigente(cliente, opciones.tenantId, opciones.inmuebleId),
@@ -224,11 +253,33 @@ export async function cargarEntradaJobCarteraInmueble(
       tramoCodigo: opciones.clasificacionCodigo,
       estrategias: opciones.estrategias,
     }),
+    contarAccionesAcreditadas(cliente, opciones.tenantId, opciones.inmuebleId),
   ])
 
   const cuotasPendientesOParciales = acuerdo.vigente && acuerdo.acuerdoId
     ? await obtenerCuotasDelAcuerdo(cliente, acuerdo.acuerdoId)
     : []
+
+  const historialAcciones = await obtenerHistorialAccionesCobranza(cliente, {
+    tenantId: opciones.tenantId,
+    inmuebleId: opciones.inmuebleId,
+  })
+
+  const diasEnTramoActual = await obtenerDiasEnTramoActual(cliente, {
+    tenantId: opciones.tenantId,
+    inmuebleId: opciones.inmuebleId,
+    clasificacionCodigo: opciones.clasificacionCodigo,
+    fechaCorte: opciones.fechaCorte,
+  })
+
+  // Relaciones persona-predio para resolver el destinatario (CAR §10.2).
+  // Se leen SIN filtrar vigencia: quien decide con la fecha de corte es
+  // resolverDestinatarios(), para que una corrida con fecha pasada dé el
+  // mismo resultado que dio ese día (REC-CAR-008 / AD-32).
+  const relaciones = await obtenerRelacionesInmueble(cliente, {
+    tenantId: opciones.tenantId,
+    inmuebleId: opciones.inmuebleId,
+  })
 
   return {
     inmuebleId: opciones.inmuebleId,
@@ -240,10 +291,69 @@ export async function cargarEntradaJobCarteraInmueble(
     tieneAcuerdoVigente: acuerdo.vigente,
     tieneCasoJuridicoAbierto: casoAbierto,
     tieneCertificacionVigente: certificacionVigente,
+    accionesAcreditadas,
     promesasPendientes,
     cuotasPendientesOParciales,
     acuerdoVigenteId: acuerdo.acuerdoId,
     fechaCorte: opciones.fechaCorte,
     toleranciaDiasPromesa: opciones.toleranciaDiasPromesa,
+    estrategias: opciones.estrategias,
+    historialAcciones,
+    relaciones,
+    diasEnTramoActual,
+    // El mínimo de CAR §9.3 ("no gastar una llamada en una deuda de
+    // $2.000") se compara contra la deuda VENCIDA, no contra la total:
+    // un inmueble al día con una cuota del próximo mes no debe disparar
+    // gestión de cobro por el tamaño de esa cuota.
+    deudaTotal: opciones.saldoVencido,
   }
+}
+
+/**
+ * Días que el inmueble lleva en su clasificación actual, derivados de
+ * `posiciones_cartera_snapshot` — que existe exactamente para esto
+ * (CAR §6.3: "para BI, roll-rate y auditoría se necesita la foto de cada
+ * día"). No hay columna de "fecha de ingreso al tramo" en el esquema y no
+ * se inventa una: se cuenta hacia atrás la racha continua de snapshots con
+ * la misma clasificación.
+ *
+ * Sin snapshots previos devuelve 0, que es la lectura correcta y no un
+ * relleno: si nunca se fotografió este inmueble, hoy es el primer día del
+ * que hay constancia en ese tramo. La consecuencia práctica —que en la
+ * primera corrida solo disparen las estrategias con
+ * `dias_desde_clasificacion = 0`— es deliberada: es preferible a fabricar
+ * una antigüedad de tramo que nadie observó y disparar por ella un
+ * requerimiento.
+ */
+async function obtenerDiasEnTramoActual(
+  cliente: AquilaClient,
+  opciones: {
+    tenantId: string
+    inmuebleId: string
+    clasificacionCodigo: string
+    fechaCorte: string
+  },
+): Promise<number> {
+  const { data, error } = await cliente
+    .from('posiciones_cartera_snapshot')
+    .select('fecha_corte, clasificacion_codigo')
+    .eq('tenant_id', opciones.tenantId)
+    .eq('inmueble_id', opciones.inmuebleId)
+    .lte('fecha_corte', opciones.fechaCorte)
+    .order('fecha_corte', { ascending: false })
+
+  if (error) {
+    throw new Error(
+      `No se pudo leer el histórico de clasificación del inmueble ${opciones.inmuebleId}: ${error.message}`,
+    )
+  }
+
+  let inicioRacha: string | null = null
+  for (const fila of data) {
+    if (fila.clasificacion_codigo !== opciones.clasificacionCodigo) break
+    inicioRacha = fila.fecha_corte
+  }
+
+  if (inicioRacha === null) return 0
+  return diasCalendario(inicioRacha, opciones.fechaCorte)
 }

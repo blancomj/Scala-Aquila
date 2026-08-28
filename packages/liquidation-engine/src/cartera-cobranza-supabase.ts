@@ -20,7 +20,7 @@ export async function obtenerEstrategiasCobranzaVigentes(
   const { data: estrategias, error } = await cliente
     .from('estrategias_cobranza')
     .select(
-      'id, tramo_id, tipo_accion, dias_desde_clasificacion, frecuencia_dias, max_intentos, monto_minimo_deuda, activa, requiere_aprobacion',
+      'id, tramo_id, tipo_accion, canal, dias_desde_clasificacion, frecuencia_dias, max_intentos, monto_minimo_deuda, activa, requiere_aprobacion',
     )
     .eq('tenant_id', opciones.tenantId)
     .eq('politica_id', opciones.politicaId)
@@ -50,6 +50,7 @@ export async function obtenerEstrategiasCobranzaVigentes(
       id: e.id,
       tramoCodigo,
       tipoAccion: e.tipo_accion,
+      canal: e.canal,
       diasDesdeClasificacion: e.dias_desde_clasificacion,
       frecuenciaDias: e.frecuencia_dias,
       maxIntentos: e.max_intentos,

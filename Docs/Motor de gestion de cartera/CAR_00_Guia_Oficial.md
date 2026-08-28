@@ -129,6 +129,10 @@ CAR_03_Diccionario_Datos.md         ← pendiente (F0)
 CAR_04_Matriz_Legal_Extendida.md    ← con conceptos VER-CAR-* resueltos
 CAR_05_Plan_Migracion.md            ← pendiente (F0)
 CAR_06_Plan_Pruebas.md              ← pendiente (F0)
+CAR_07_Enmiendas_Propuestas.md      ← integrado 2026-08-28 (ENM-CAR-01..04)
+CAR_08_Roadmap_Pendiente.md         ← inventario de lo que falta (28 bloques)
+CAR_09_Revision_Mockups.md          ← los 70 mockups, en tres cajones
+CAR_10_Consulta_Juridica.md         ← consulta unica al abogado (CJ-1..CJ-8)
 ```
 
 ---
@@ -310,10 +314,14 @@ Actualizar el valor mensual es TAREA OPERATIVA, no despliegue de código.
 | `VER-CAR-02` | ¿Los intereses de mora en PH admiten capitalización (anatocismo)? La doctrina mayoritaria dice **no**. | Concepto jurídico + reglamento de PH. | **SÍ** |
 | `VER-CAR-03` | ¿Puede la copropiedad cobrar "gastos de cobranza prejurídica" y bajo qué límite? No hay porcentaje legal universal. | Reglamento de PH + acta de asamblea + concepto. | **SÍ** — ver §19 |
 | `VER-CAR-04` | Publicación de morosos vs. Habeas Data (Ley 1581/2012). Qué datos, dónde, por cuánto tiempo. | Concepto de protección de datos. | **SÍ** para esa acción |
-| `VER-CAR-05` | Prescripción de la obligación por expensas comunes. | Régimen civil aplicable. Afecta indicadores y castigo de cartera. | No (afecta BI) |
+| `VER-CAR-05` | Prescripción de la obligación por expensas comunes: término, cómputo y **actos que la interrumpen**. | Régimen civil aplicable. Afecta indicadores, castigo de cartera, la alerta operativa de riesgo de prescripción y la política de retención de evidencia (§34.6). | **SÍ** — recalificado por `ENM-CAR-04`. Era "No (afecta BI)": correcto para un módulo supervisado por un abogado, incorrecto cuando se retira al abogado del seguimiento permanente y nadie vigila la prescripción. |
+| `VER-CAR-07` | ¿Las expensas comunes son obligación a plazo con mora automática? ¿Alguna comunicación del administrador es requisito para causar intereses? | Concepto jurídico. Impacta el **texto de las plantillas** de requerimiento, que hoy podrían afirmar ante el deudor algo jurídicamente falso. | No para construir. **Sí** para el texto de las plantillas. Ver §9.2. |
+| `VER-CAR-08` | Valor probatorio de WhatsApp como canal de notificación de cobro, y habeas data cuando el número se obtuvo para otra finalidad. | Concepto jurídico + protección de datos. | **SÍ** para usar WhatsApp en `requerimiento_formal` o `aviso_prejuridico`. Ver §34.2. |
 | `VER-CAR-06` | Efecto de la transferencia de dominio sobre la deuda anterior (solidaridad del adquirente). | Art. 29 L675 + jurisprudencia. Afecta `PH-C24`/`PH-C25`. | **SÍ** para transferencias |
 
 **Regla:** mientras un `VER-CAR-*` bloqueante esté abierto, la funcionalidad que depende de él queda en estado `BLOCKED` y **no se implementa con un valor por defecto inventado**.
+
+`[ARQ]` **Consulta redactada.** `CAR_10_Consulta_Juridica.md` lleva los ocho puntos abiertos al abogado en un solo envío: `CJ-1..CJ-5` son los cinco de `ENM-CAR-04` (`VER-CAR-01`, `02`, `05`, `07`, `08`) y `CJ-6..CJ-8` suman los tres que ya estaban bloqueantes (`VER-CAR-03`, `04`, `06`). El §5 de ese documento es el registro de respuestas: cerrar un `VER-CAR-*` exige editar esta tabla **y** dejar el rastro allí.
 
 ---
 
@@ -415,8 +423,9 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 | ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17), verificado end-to-end.** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — desplegado, `BREVO_SMS_SENDER` configurado como secreto del proyecto, SMS real enviado y confirmado recibido en un teléfono real por el usuario. **email/WhatsApp siguen sin resolver para el canal de cobranza**: existe un sistema de plantillas de correo generalizado (`email_templates` + `guardar-plantilla-email`/`sincronizar-plantilla-email`/`probar-plantilla-email` + panel `apps/web/app/pages/configuracion/plantillas-email.vue`, 2026-08-17, ver `PROMPT_PLANTILLAS_EMAIL.md`) que reutiliza los 4 `event_type` de cartera, pero **ningún worker dispara correo real todavía** (el worker de F4 solo dispara SMS) y la sincronización contra Brevo está bloqueada por un problema de verificación de remitente en la cuenta (`Sender is invalid / inactive`), aplazado por el usuario. `invite-user/index.ts` sigue aparte, con HTML inline, sin migrar a este sistema. WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
 | ~~`GAP-CAR-007`~~ | ✅ **VERIFICADO RESUELTO (2026-08-17) — no bloqueaba.** Ya existía `documentos` (generalizada en `20260822130000`, antes `documentos_inmueble`), el bucket `documentos-inmueble` y la Edge Function `subir-documento` con upload+rollback reales, probados (`tests/tenancy/subir-documento.test.ts`). F7 la generalizó una vez más con `caso_juridico_id` nullable en vez de crear `caso_juridico_documentos` como tabla paralela (REC-CAR-004). `subir-documento` todavía no acepta ese campo — extensión de la Edge Function/frontend pendiente. | Ya no bloquea F7. | — |
-| ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('agent','auditor','administrador')` — `administrador` hereda los permisos de `agent` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
+| ~~`GAP-CAR-009`~~ | ✅ **RESUELTO parcialmente (2026-08-17).** `tenant_role_t` ahora tiene `('auxiliar','auditor','administrador')` (`agent` renombrado a `auxiliar` en `20260830100000`) — `administrador` hereda los permisos de `auxiliar` vía `has_role()` ampliado, sin reescribir las 88 policies existentes. Rol `residente` sigue sin existir (no bloquea F1-F9). Ver §21.2. | Ya no bloquea la separación proponer/aprobar de F4 ni la certificación del art. 48. | F4 |
 | **`GAP-CAR-010`** | No existe vínculo `usuario ↔ inmueble`, y **`AD-26` lo prohíbe explícitamente** (propietario = dato de dominio, sin FK a `auth.users`). | ⤴ **Escalado fuera del bloque.** `PH-C35`/`REQ-CAR-025` quedan diferidos; **no bloquea F1-F9**. Ver §21.4. | — |
+| **`GAP-CAR-012`** | (Nuevo, 2026-08-28) **El canal físico no puede producir una guía postal despachable.** `terceros.direccion` **sí existe** (añadida en `20260821100000`, la generalización desde `propietarios`) — el gap se **reduce**, como pasó con `GAP-CAR-001`: no falta la dirección, faltan (a) el **municipio de destino**, sin el cual ningún operador postal admite una guía, y (b) la **constancia de verificación** de esa dirección. Una notificación enviada a una dirección nunca verificada es la primera que ataca la defensa. | **Acotado.** Bloquea el canal físico en `carta`, `requerimiento_formal` y `aviso_prejuridico` — las acciones de mayor peso probatorio (§34.2). Se resuelve con dos columnas aditivas + `PRQ-CAR-020`. | §34 |
 | **`GAP-CAR-011`** | (Nuevo, 2026-08-17) El esquema no distingue una cuota extraordinaria (`fuente_financiacion.cuota_extraordinaria` es del presupuesto, no del cargo) ni una sanción (`TIPO_NOVEDAD` en `lista_tipos` existe sembrado pero ningún código lo referencia) a nivel de `cargos`. `fn_certificar_deuda` no puede discriminar esos 2 de los 4 rubros del art. 48 con certeza — decisión explícita del usuario: quedan siempre en 0, documentado, no inventado. | Certificaciones de deuda (F7) tienen `monto_expensas_extraordinarias`/`monto_sanciones` siempre en 0. No bloquea F7 (el total y los otros 3 rubros son exactos). | F7 |
 
 ### `GAP-CAR-001` — resolución (verificada contra el esquema)
@@ -859,7 +868,11 @@ create type public.tipo_accion_cobranza_t as enum (
   'whatsapp',
   'llamada',                -- gestión telefónica, resultado manual
   'carta',                  -- comunicación física
-  'requerimiento_formal',   -- comunicación con efectos de constitución en mora
+  'requerimiento_formal',   -- [NEGOCIO] comunicación formal con valor
+                            -- probatorio reforzado, previa al escalamiento
+                            -- prejurídico. NO constituye en mora: en obligación
+                            -- a plazo la mora opera por el solo vencimiento
+                            -- (ENM-CAR-03, ver VER-CAR-07).
   'aviso_prejuridico',      -- último aviso antes de remisión
   'publicacion_morosos',    -- art. 30 par. L675  [VERIFICAR VER-CAR-04]
   'restriccion_servicios',  -- [VERIFICAR] limitado por ley y reglamento
@@ -1018,6 +1031,8 @@ create index on public.acciones_cobranza (tenant_id, estado) where estado in ('p
 `[ARQ]` **`REC-CAR-012`** — Los campos `clasificacion_codigo`, `politica_version`, `dias_mora_al_momento`, `deuda_total_al_momento` se **escriben una vez y nunca se actualizan**. Son la respuesta a "¿por qué se envió este requerimiento?" seis meses después, cuando el inmueble ya está al día y la política ya cambió de versión.
 
 Sin esto, es imposible defender una actuación de cobro ante un juez o ante la asamblea. Es el mismo principio de `snapshotHash`/`policy_hash` del motor de liquidación aplicado a la gestión.
+
+`[ARQ]` **`contenido_hash` no es prueba por sí solo** (`ENM-CAR-01`). Un hash acredita integridad únicamente si se conserva el original con el cual compararlo; ante un juez se aporta el texto que se envió, no su huella. El contenido renderizado, la versión de plantilla y el acuse de recibo viven en **§34**, en `acciones_cobranza_envios` / `acciones_cobranza_acuses`. Esta sección responde "por qué se envió"; §34 responde "y acredítelo".
 
 ## 10.4 Regla de no duplicación
 
@@ -1881,6 +1896,13 @@ resultados del motor de liquidación (Docs 20 §69 RESULT IMMUTABILITY).
 
 ## 18.4 Worker de ejecución de acciones
 
+`[ARQ]` **Estado 2026-08-28 — construido.** El despacho vive en `supabase/functions/_shared/despacho_cobranza.ts`, compartido por `ejecutar-accion-cobranza` (una acción) y `cartera-ejecutar-lote` (la corrida). Pasos 2-7 completos para canal SMS: evidencia §34.3, evento de dominio (paso 6, antes no se emitía) y tope de `max_intentos` contado sobre los ENVÍOS reales, no sobre un contador en la acción (paso 7).
+
+`[NEGOCIO]` **El lote simula por defecto.** Pedir `modo: 'ejecucion'` es explícito, y exige rol administrador; simular basta con auxiliar. Cada acción despachada es un SMS facturado: la diferencia entre una corrida de prueba y una factura inesperada no puede depender de acordarse de un parámetro. La simulación recorre las mismas validaciones y devuelve el mensaje renderizado exacto — que es lo que §17/bloque 17 necesita para la pantalla de simulación previa.
+
+`[ARQ]` El lote es **secuencial**: el proveedor tiene límites de tasa y el orden de los envíos es parte de la evidencia. Cincuenta SMS en paralelo se ganan un 429 y dejan media cartera sin notificar.
+
+
 `[ARQ]` Separado del job de cálculo, por tres razones: las notificaciones fallan y hay que reintentar; el cálculo debe poder correrse sin enviar nada (`modo: 'simulacion'`); y el volumen de envío tiene límites de proveedor.
 
 ```text
@@ -1891,9 +1913,15 @@ WORKER_ACCIONES_COBRANZA
   2. Resolver destinatario y contacto vigente.
   3. Renderizar plantilla → contenido_hash.
   4. Enviar por el canal → referencia_externa.
+     ↳ §34: registrar acciones_cobranza_envios con el contenido
+       RENDERIZADO, la versión de plantilla y el destinatario resuelto.
   5. estado = 'ejecutada' | 'fallida'.
+     ↳ 'ejecutada' = DESPACHADA al proveedor, no recibida (REC-CAR-016).
+       La entrega llega después, por webhook, a
+       acciones_cobranza_acuses. La acreditación se DERIVA (§34.4).
   6. Evento COBRANZA_ACCION_EJECUTADA | COBRANZA_ACCION_FALLIDA.
   7. Reintentos con backoff, hasta max_intentos.
+     ↳ Cada reintento es un envío nuevo, con su propio intento_numero.
 ```
 
 ---
@@ -2089,7 +2117,10 @@ Sin excepción, salvo `tasas_referencia` (§13.3), que es global y debe document
 ```sql
 -- 20260813190000_extensions_and_enums.sql
 --   + 20260822250000_rol_administrador_enum.sql
-create type public.tenant_role_t as enum ('agent', 'auditor', 'administrador');
+create type public.tenant_role_t as enum ('auxiliar', 'auditor', 'administrador');
+-- 'agent' se renombró a 'auxiliar' en 20260830100000. El documento decía
+-- 'agent' hasta el 2026-08-28, cuando un test de integración chocó contra
+-- el enum real (invalid input value for enum tenant_role_t: "agent").
 
 -- helpers disponibles (20260813190200_helper_functions.sql)
 --   + 20260822260000_rol_administrador_permisos.sql (has_role, guard_last_agent)
@@ -2102,7 +2133,7 @@ public.is_platform_admin()
 
 **Decisión tomada (2026-08-17): Opción A** de las tres evaluadas — extender `tenant_role_t` en vez de una capa de permisos separada (Opción B) o un campo de "cargo" (Opción C). Razón: el proyecto ya tiene un único eje de rol (`tenant_role_t`) consumido por 88 sitios vía `has_role()`; una capa paralela habría sido un segundo mecanismo de permisos sin precedente en el repo.
 
-**Cómo se resolvió sin reescribir las 88 policies existentes:** todas pasan por `has_role()`, así que se amplió esa única función en vez de cada policy — `administrador` satisface cualquier chequeo `array['agent', ...]` (administrador ⊇ agent), y además puede satisfacer chequeos que pidan `'administrador'` explícitamente (los de aprobación de F4, que un `agent` simple NO debe poder satisfacer). `guard_last_agent()` (SEC-07) se amplió en el mismo commit: protegía solo `role = 'agent'` directo (sin pasar por `has_role()`); ahora protege "≥1 `agent` o `administrador` activo", para que una copropiedad nunca quede con un administrador desprotegido y cero agents. Probado en `tests/rls/rol-administrador.test.ts` (4 tests, DB real): herencia de permisos, no-herencia accidental de `auditor`, y el guard ampliado en ambos sentidos.
+**Cómo se resolvió sin reescribir las 88 policies existentes:** todas pasan por `has_role()`, así que se amplió esa única función en vez de cada policy — `administrador` satisface cualquier chequeo `array['auxiliar', ...]` (administrador ⊇ auxiliar), y además puede satisfacer chequeos que pidan `'administrador'` explícitamente (los de aprobación de F4, que un `auxiliar` simple NO debe poder satisfacer). `guard_last_agent()` (SEC-07) se amplió en el mismo commit: protegía solo `role = 'auxiliar'` directo (sin pasar por `has_role()`); ahora protege "≥1 `auxiliar` o `administrador` activo", para que una copropiedad nunca quede con un administrador desprotegido y cero auxiliares. Probado en `tests/rls/rol-administrador.test.ts` (4 tests, DB real): herencia de permisos, no-herencia accidental de `auditor`, y el guard ampliado en ambos sentidos.
 
 Esto resuelve las consecuencias (1) y (2) de la versión anterior de esta sección:
 
@@ -2113,7 +2144,7 @@ Esto resuelve las consecuencias (1) y (2) de la versión anterior de esta secci�
 
 2. RESUELTO a nivel de rol — ya es posible distinguir "puede proponer"
    (agent o administrador) de "puede aprobar" (solo administrador,
-   vía has_role(tenant, ['administrador']) sin incluir 'agent' en el
+   vía has_role(tenant, ['administrador']) sin incluir 'auxiliar' en el
    array). La separación de funciones en las tablas de acciones/
    aprobación de F4 todavía no está construida — esto solo desbloquea
    que se pueda construir correctamente.
@@ -2179,7 +2210,7 @@ create policy posicion_cartera_lectura on public.posiciones_cartera_snapshot
   using (
     tenant_id = public.current_tenant_id()
     and (
-      public.has_role(tenant_id, array['agent','auditor']::public.tenant_role_t[])
+      public.has_role(tenant_id, array['auxiliar','auditor']::public.tenant_role_t[])
       or inmueble_id in (select public.fn_inmuebles_del_usuario(auth.uid()))
     )
   );
@@ -2368,6 +2399,10 @@ Certificaciones por vencer
 | `PRQ-CAR-016` | Conceptos jurídicos `VER-CAR-01..06` | **Externo — jurídico** | ❌ **Abierto** | **Sí, varios** | §3.5 |
 | `PRQ-CAR-017` | Rol de administrador y separación proponer/aprobar | Dominio tenancy | ✅ **Verificado** — rol resuelto (`~~GAP-CAR-009~~`); separación proponer/aprobar construida sobre `acciones_cobranza` (`20260822280000_cartera_cobranza_aprobacion.sql`) | **Sí** para F4 y F7 | Art. 48 exige firmante identificado |
 | `PRQ-CAR-018` | Vínculo usuario ↔ inmueble | **Arquitectura (`AD-26`)** | ⤴ **Diferido** — `GAP-CAR-010` | No para F1-F9 | Solo para acceso del residente |
+| `PRQ-CAR-019` | **Webhooks de acuse** del proveedor de envío | Infraestructura | ❌ **No existe.** Brevo los ofrece; no hay endpoint que los reciba | **Sí** para §34, canales con acuse técnico | Sin acuse no hay notificación acreditable |
+| `PRQ-CAR-020` | **Operador postal** con guía rastreable | Externo — proveedor | ❌ **No existe.** Ningún código lo contempla, pese a que el canal físico se ofrece en la interfaz | **Sí** para §34, canal físico | El envío físico es el de mayor peso probatorio |
+| `PRQ-CAR-021` | **Versionado recuperable de plantillas** | Este bloque + plantillas | ⚠️ **Parcial** — `plantillas_sms` y `email_templates` existen; no se puede recuperar una versión anterior | **Sí** para §34 | Hay que aportar el texto exacto que se envió |
+| `PRQ-CAR-022` | `subir-documento` acepta `envio_id` | Este bloque | ⚠️ **Parcial** — la Edge Function existe (`GAP-CAR-007` resuelto), falta el campo | Sí para canal físico | Cargue del acuse escaneado |
 
 ## 24.2 Regla de bloqueo
 
@@ -2389,6 +2424,15 @@ Se escala el bloqueo al dueño del prerrequisito.
 3. VER-CAR-02  (anatocismo)                    ← confirma el diseño actual
 4. VER-CAR-03  (gastos de cobranza)            ← desbloquea la fase 6
 5. GAP-CAR-007 (storage documental)            ← desbloquea la fase 7
+6. VER-CAR-05  (prescripción)                  ← desbloquea la retención §34.6
+                                                 y la alerta de prescripción
+7. PRQ-CAR-019 (webhooks de acuse)             ← desbloquea §34 acreditación
+8. PRQ-CAR-020 (operador postal)               ← desbloquea §34 canal físico
+
+CONSULTA JURÍDICA ÚNICA (ENM-CAR-04): VER-CAR-01, VER-CAR-02, VER-CAR-05,
+VER-CAR-07 y VER-CAR-08 se llevan al abogado EN UNA SOLA CONSULTA. Es lo
+único de la ruta que no depende del equipo y con el tiempo de respuesta
+más incierto — arrancarla antes que cualquier otra cosa.
 
 RESUELTOS (no requieren más trabajo):
   ✅ GAP-CAR-006  inmueble_persona_rol ya es temporal con porcentaje
@@ -2747,6 +2791,11 @@ PH-C35  RESIDENTE VE SOLO LO SUYO           ⤴ FUERA DE ALCANCE
 | `I-C18` | Ninguna tabla de historia admite `UPDATE` ni `DELETE` | `forbid_mutation()` |
 | `I-C19` | Toda función de cálculo recibe fecha explícita | Revisión de código + lint |
 | `I-C20` | La UI no calcula saldos, antigüedad ni clasificación | Revisión de código |
+| `I-C21` | Un envío conserva el contenido exacto que se despachó | `contenido_renderizado NOT NULL` + `forbid_mutation()` |
+| `I-C22` | Un acuse manual no existe sin documento que lo respalde | `check (origen <> 'manual' or documento_id is not null)` |
+| `I-C23` | Un escalamiento a prejurídica o jurídica exige al menos una acción acreditada por canal con acuse técnico | Función de escalamiento + test |
+| `I-C24` | Un expediente no se compila con certificación anulada o vencida | `fn_compilar_expediente` + test |
+| `I-C25` | La evidencia de cobranza no se purga por antigüedad | Exclusión explícita del job de purga |
 
 `[ARQ]` Los invariantes `I-C11`, `I-C12`, `I-C17`, `I-C18` **se refuerzan en el esquema**, no solo en tests. Un invariante que solo vive en un test se viola el día que alguien escribe SQL a mano.
 
@@ -3713,11 +3762,300 @@ El objetivo es construir el **Motor de Gestión de Cartera de AQUILA_SAAS**:
 - **Reproducible**, capaz de reconstruir cualquier posición histórica.
 - **Preparado para automatización**, sin que la automatización tome decisiones que exigen criterio humano.
 
-La prueba definitiva del bloque es esta pregunta, formulada por un juez o por la asamblea:
+La prueba definitiva del bloque son **dos** preguntas (`ENM-CAR-02`).
+
+La primera la formula la asamblea o un propietario inconforme, y se responde hacia adentro:
 
 > **"¿Por qué le enviaron un requerimiento de cobro a este propietario el 14 de junio, y con base en qué?"**
 
-Si AQUILA no puede responderla con precisión, fecha, política, versión, monto y firma, el bloque no está terminado.
+La segunda la formula un juez, y se responde hacia afuera:
+
+> **"Acredítelo."**
+
+Si AQUILA no puede responder la primera con precisión, fecha, política, versión, monto y firma, el bloque no está terminado. Si no puede responder la segunda con el texto exacto que se envió, el canal, el destinatario y su acuse de recibo, el bloque está terminado como herramienta de gestión pero **no cumple el objetivo del producto** — ver §34.
+
+---
+
+# 34. Expediente probatorio
+
+`[ARQ]` Sección incorporada el 2026-08-28 (`ENM-CAR-01`, `CAR_07_Enmiendas_Propuestas.md`). Cierra la brecha entre la pregunta defensiva de §33.5 y la pregunta ofensiva que formula un juez.
+
+## 34.0 Estado de construcción
+
+`[ARQ]` Corte 2026-08-28. Lo de §34.3 y §34.4 está **construido y verificado contra la base real**; lo de §34.5 en adelante, no.
+
+```text
+✅ 34.3  acciones_cobranza_envios + acciones_cobranza_acuses
+         (20260906100000) — append-only, RLS enable & force, solo
+         service_role escribe. estado_acuse_t y origen_acuse_t con su
+         COMMENT ON TYPE (D-24).
+✅ 34.4  fn_acreditacion_accion() — derivada, sin columna persistida
+✅ I-C23 fn_contar_acciones_acreditadas() (20260906110000) +
+         accionesAcreditadas en ContextoEscalamiento: sin una sola
+         notificación probada NO se escala a prejurídica ni a jurídica.
+         Vive en la función de escalamiento, no en la interfaz.
+✅ Tests tests/tenancy/cartera-expediente-probatorio.test.ts (9) cubre
+         PH-C40, PH-C41, PH-C43, PH-C45, I-C22, append-only y RLS.
+         cartera-escalamiento.test.ts cubre PH-C42.
+
+✅ 34.5  fn_compilar_expediente() (20260906120000) — reúne las siete
+         secciones + caso jurídico. Reproducible: mismo corte, mismo
+         expediente_hash (PH-C44 verificado con pagos y gestiones
+         posteriores ya en la base). Falta SOLO el PDF paginado, que es
+         capa de aplicación y no fuente de verdad.
+✅ 34.2  CANAL SMS COMPLETO Y PROBADO CONTRA BREVO REAL:
+         · ejecutar-accion-cobranza registra el envío + acuse inicial
+           'encolado' (aceptar no es entregar, REC-CAR-016)
+         · webhook-brevo (PRQ-CAR-019) recibe los acuses y los traduce
+           a estado_acuse_t; sirve para SMS y email con el mismo mapa
+         · verificado end-to-end con un SMS real: despacho → evidencia
+           → acuse → acreditada → I-C23 desbloqueado
+⧗ 34.2b Faltan los canales email, whatsapp y postal. El webhook ya
+         sirve a email sin cambios; falta el worker que lo despache.
+⧗ PDF   Materialización paginada con índice y hash al pie (§34.5).
+```
+
+`[ARQ]` **Desviación registrada:** el DDL de §34.3 dice `references public.documentos (id)`; correcto — la tabla nació como `documentos_inmueble` y se generalizó a `documentos` en `20260822130000`.
+
+`[ARQ]` **I-C25 (retención) ya se cumple por construcción:** `forbid_mutation()` solo admite `DELETE` cuando `tg_table_name = 'audit_log'`, así que la purga de 24 meses no puede alcanzar estas tablas. No hacía falta una exclusión explícita; hace falta no escribir nunca una purga que las incluya mientras `VER-CAR-05` siga abierto.
+
+## 34.1 Principio
+
+`[ARQ]` **Una gestión de cobro que no puede acreditarse no ocurrió.**
+
+§9.1 ya separa *acción programada* (intención) de *acción ejecutada* (hecho). Esta sección añade el tercer estado, que es el único que sirve ante un juez:
+
+```text
+acción programada   →   acción ejecutada   →   acción acreditada
+   (intención)            (despachada)          (recibida, con prueba)
+```
+
+`[ARQ]` **`REC-CAR-016`** — El valor `ejecutada` de `estado_accion_cobranza_t` significa **despachada al proveedor**, no recibida. No se renombra (migración costosa sobre datos vivos); se fija su semántica aquí y la acreditación se **deriva** de los acuses, nunca se declara — mismo principio que §6.1 y que la prohibición `AP-01`.
+
+## 34.2 Qué constituye prueba, por canal
+
+`[NEGOCIO]` `[VERIFICAR]` No todos los canales prueban lo mismo:
+
+| Canal | Prueba exigida | Origen del acuse | ¿Acredita por sí solo? |
+|---|---|---|---|
+| `email` | Constancia del proveedor: id de mensaje, fecha, destinatario, estado | Webhook | Sí, con acuse `entregado` |
+| `sms` | Acuse del operador con id y estado | Webhook | Sí, con acuse `entregado` |
+| `whatsapp` | Acuse del proveedor | Webhook | Parcial — ver `VER-CAR-08` |
+| `carta` / físico | Guía rastreable de operador postal + acuse de recibo | Manual (documento) | Sí, con guía y acuse cargados |
+| `llamada` | Registro del gestor: fecha, hora, duración, resultado tipificado | Constancia humana | **No** — es gestión, no notificación |
+| `visita` | Acta de visita firmada o constancia del gestor | Constancia humana | **No** — es gestión, no notificación |
+
+`[ARQ]` **`REC-CAR-017`** — Distinción dura entre **canal con acuse técnico** (el proveedor devuelve un estado verificable) y **canal con constancia humana** (solo existe la palabra del gestor). Un escalamiento a `prejuridica` o `juridica` **no puede sustentarse únicamente en constancias humanas**. Es `I-C23`, y se implementa en la función de escalamiento, no como advertencia de interfaz.
+
+## 34.3 DDL
+
+`[ARQ]` Dos tablas nuevas, append-only, con `tenant_id` + RLS `enable & force` (`REC-CAR-007`). No se modifica `acciones_cobranza`: una acción puede tener varios intentos de envío (§18.4 paso 7), así que el envío es entidad propia.
+
+```sql
+-- ── Envío material de una acción de cobranza ──────────────────────────
+create table public.acciones_cobranza_envios (
+  id                    uuid primary key default gen_random_uuid(),
+  tenant_id             uuid not null references public.tenants (id) on delete cascade,
+  accion_id             uuid not null references public.acciones_cobranza (id),
+
+  intento_numero        int not null,
+  canal                 public.canal_cobranza_t not null,
+
+  -- DESTINATARIO RESUELTO EN EL MOMENTO DEL ENVÍO
+  destinatario_tercero_id uuid not null references public.terceros (id),
+  destinatario_contacto   text not null,     -- correo/teléfono/dirección usados
+
+  -- CONTENIDO — lo que se aporta al proceso, no su huella
+  plantilla_codigo      text not null,
+  plantilla_version     int not null,
+  asunto                text,
+  contenido_renderizado text not null,       -- el texto exacto que se envió
+  contenido_hash        text not null,       -- integridad, no sustituto
+
+  -- PROVEEDOR
+  proveedor             text not null,       -- 'brevo' | 'postal' | 'manual'
+  referencia_externa    text,                -- id del proveedor
+  enviado_at            timestamptz not null default now(),
+  enviado_por           uuid references public.profiles (id),
+
+  created_at            timestamptz not null default now(),
+  constraint envio_intento_unico unique (tenant_id, accion_id, intento_numero)
+);
+
+alter table public.acciones_cobranza_envios enable row level security;
+alter table public.acciones_cobranza_envios force row level security;
+
+create trigger acciones_cobranza_envios_append_only
+  before update or delete on public.acciones_cobranza_envios
+  for each row execute function public.forbid_mutation();
+
+create index on public.acciones_cobranza_envios (tenant_id, accion_id);
+create index on public.acciones_cobranza_envios (tenant_id, referencia_externa);
+```
+
+```sql
+-- ── Acuses recibidos sobre un envío ───────────────────────────────────
+create table public.acciones_cobranza_acuses (
+  id                uuid primary key default gen_random_uuid(),
+  tenant_id         uuid not null references public.tenants (id) on delete cascade,
+  envio_id          uuid not null references public.acciones_cobranza_envios (id),
+
+  estado            public.estado_acuse_t not null,
+  ocurrido_at       timestamptz not null,    -- momento reportado por la fuente
+  recibido_at       timestamptz not null default now(),
+
+  origen            public.origen_acuse_t not null,
+  payload_crudo     jsonb,                   -- respuesta íntegra del proveedor
+  documento_id      uuid references public.documentos (id),  -- acuse escaneado
+  motivo            text,
+  registrado_por    uuid references public.profiles (id),
+
+  created_at        timestamptz not null default now(),
+
+  -- I-C22: un acuse manual sin documento que lo respalde no prueba nada
+  constraint acuse_manual_exige_documento check (
+    origen <> 'manual' or documento_id is not null
+  ),
+  -- IDEM-05: deduplicación de webhooks reenviados
+  constraint acuse_unico unique (tenant_id, envio_id, estado, ocurrido_at)
+);
+
+alter table public.acciones_cobranza_acuses enable row level security;
+alter table public.acciones_cobranza_acuses force row level security;
+
+create trigger acciones_cobranza_acuses_append_only
+  before update or delete on public.acciones_cobranza_acuses
+  for each row execute function public.forbid_mutation();
+```
+
+`[ARQ]` **D-24, obligatorio antes de migrar.** Los dos tipos siguientes son **propuesta de catálogo**, no autorización a crearlos (regla dura de §0.3). Ambos gatillan lógica de transición —el escalamiento consulta el estado de acreditación—, por lo que la evaluación debería resolverse a favor del enum de Postgres **con su `COMMENT ON TYPE`**; pero esa evaluación hay que hacerla explícitamente y `tests/governance/enum-lista-tipos-coverage.test.ts` la exige.
+
+```sql
+create type public.estado_acuse_t as enum (
+  'encolado',      -- aceptado por el proveedor, sin resolución todavía
+  'entregado',     -- el proveedor confirma entrega
+  'leido',         -- confirmación de lectura (no todos los canales)
+  'rebotado',      -- rechazo permanente del destino
+  'fallido',       -- error técnico del envío
+  'no_entregable'  -- imposibilidad acreditada (dirección inexistente, etc.)
+);
+
+create type public.origen_acuse_t as enum (
+  'proveedor',     -- webhook del proveedor de envío
+  'manual'         -- constancia cargada por una persona, exige documento_id
+);
+```
+
+## 34.4 Estado de acreditación — derivado, nunca persistido
+
+`[ARQ]` **`REC-CAR-018`** — No existe columna `esta_acreditada`, igual que no existe `esta_en_mora` (`AP-01`). Se deriva del último acuse de cada envío:
+
+```sql
+create or replace function public.fn_acreditacion_accion(
+  p_tenant_id uuid,
+  p_accion_id uuid
+) returns table (
+  envios_total        int,
+  envios_acreditados  int,
+  ultimo_estado       public.estado_acuse_t,
+  ultimo_acuse_at     timestamptz,
+  acreditada          boolean
+)
+language sql stable
+as $$ ... $$;
+```
+
+```text
+acreditada(accion) =
+    ∃ envio ∈ envios(accion) :
+        ultimo_acuse(envio).estado ∈ ('entregado', 'leido')
+
+'leido' implica 'entregado'.
+'no_entregable' NO acredita la notificación, pero SÍ acredita la
+diligencia — se conserva y se reporta: un intento fallido documentado
+vale ante un juez, y su ausencia no.
+```
+
+## 34.5 Compilación del expediente
+
+`[ARQ]` **`REC-CAR-019`** — Composición sobre datos existentes. No calcula nada nuevo; reúne. Recibe fecha de corte explícita (`REC-CAR-008`).
+
+```sql
+create or replace function public.fn_compilar_expediente(
+  p_tenant_id   uuid,
+  p_inmueble_id uuid,
+  p_fecha_corte date
+) returns jsonb
+language sql stable
+as $$ ... $$;
+```
+
+Contenido obligatorio, en este orden:
+
+```text
+1. Identificación         inmueble, coeficiente, deudor(es) con su rol y
+                          vigencia (inmueble_persona_rol), copropiedad
+2. Título ejecutivo       certificación art. 48 vigente + detalle_cargos
+                          congelado + certificacion_hash
+3. Composición de deuda   cargos vencidos con vencimiento, saldo y antigüedad
+                          a la fecha de corte
+4. Cronología de gestión  toda acción de cobranza con: qué se envió, a quién,
+                          cuándo, por qué canal, con qué plantilla y versión,
+                          el texto íntegro, y su acuse con fecha
+5. Promesas y acuerdos    con su estado, cumplimiento e incumplimiento
+6. Trazabilidad           política de clasificación y versión que sustentó
+                          cada escalamiento, y quién aprobó cada acción de
+                          alto impacto
+7. Intentos fallidos      envíos no entregables con su motivo — acreditan
+                          diligencia
+```
+
+`[ARQ]` **Criterio de terminación de esta sección:** el abogado debe poder radicar con este expediente **sin pedir nada más**. Si tiene que preguntar algo, la sección no está completa.
+
+`[NEGOCIO]` Salida: PDF paginado, numerado, con índice y con el hash del expediente al pie de cada página. El PDF **no es la fuente de verdad**: es una materialización fechada de `fn_compilar_expediente`, reproducible (`PH-C44`).
+
+## 34.6 Retención
+
+`[LEGAL]` `[VERIFICAR]` La evidencia se conserva mientras la obligación sea exigible o esté en discusión, **no según una política de purga genérica**.
+
+```text
+retencion_minima(evidencia) =
+    fecha_extincion_obligacion + termino_prescripcion + margen
+
+Mientras VER-CAR-05 esté abierto, NO se purga ninguna evidencia
+de cobranza.
+```
+
+`[ARQ]` `I-C25` — Esto choca con la purga existente (`20260814190000_purga_audit_log.sql`, 24 meses). Las tablas de §34.3 quedan **explícitamente excluidas** de ese job.
+
+## 34.7 Golden cases
+
+```text
+PH-C40  Email entregado
+        Acción ejecutada → webhook 'entregado' → acreditada = true.
+        El expediente incluye el texto íntegro y la fecha del acuse.
+
+PH-C41  Email rebotado, reintento entregado
+        Intento 1 'rebotado', intento 2 'entregado'. acreditada = true.
+        El expediente muestra AMBOS intentos.
+
+PH-C42  Solo constancias humanas
+        Tres llamadas registradas, cero envíos con acuse técnico.
+        El escalamiento a prejurídica se RECHAZA por I-C23.
+
+PH-C43  No entregable acreditado
+        Dirección inexistente con constancia del operador postal.
+        acreditada = false, pero el expediente lo reporta como
+        diligencia documentada, no como vacío.
+
+PH-C44  Reproducibilidad
+        fn_compilar_expediente con la misma fecha_corte produce el mismo
+        hash dos veces, con datos posteriores en la base.
+
+PH-C45  Webhook duplicado
+        El proveedor reenvía el mismo acuse: acuse_unico lo deduplica
+        sin error visible (IDEM-05).
+```
 
 ---
 

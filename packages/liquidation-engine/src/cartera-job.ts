@@ -33,6 +33,16 @@
  *   de días entre una y otra. No se inventa ese número — 'incumplida'
  *   queda para cuando exista ese criterio.
  */
+import type {
+  AccionHistorica,
+  AccionOmitida,
+  CanalCobranza,
+  EstrategiaCobranza,
+  TipoAccionCobranza,
+} from './cartera-cobranza.js'
+import { evaluarAccionesAplicables } from './cartera-cobranza.js'
+import type { DestinatarioResuelto, RelacionInmueblePersona } from './cartera-destinatarios.js'
+import { resolverDestinatarios } from './cartera-destinatarios.js'
 import type { EtapaCobranza, ResultadoClasificacion } from './cartera.js'
 import { clasificarCartera, type PoliticaClasificacion } from './cartera.js'
 import { evaluarEscalamiento, type ContextoEscalamiento, type DecisionEscalamiento, type ResumenAccion } from './cartera-escalamiento.js'
@@ -99,11 +109,51 @@ export interface EntradaJobCarteraInmueble {
   readonly tieneAcuerdoVigente: boolean
   readonly tieneCasoJuridicoAbierto: boolean
   readonly tieneCertificacionVigente: boolean
+  /** CAR §34.2 I-C23 — acciones del inmueble acreditadas por acuse técnico. Ver ContextoEscalamiento. */
+  readonly accionesAcreditadas: number
   readonly promesasPendientes: readonly PromesaPendiente[]
   readonly cuotasPendientesOParciales: readonly CuotaPendiente[]
   readonly acuerdoVigenteId: string | null
   readonly fechaCorte: string
   readonly toleranciaDiasPromesa: number
+  /** Estrategias vigentes del tenant — CAR §9.3. */
+  readonly estrategias: readonly EstrategiaCobranza[]
+  /** Historial de acciones del inmueble, para la anti-duplicación de §10.4. */
+  readonly historialAcciones: readonly AccionHistorica[]
+  /** Relaciones persona-predio con contacto, para resolver el destinatario. */
+  readonly relaciones: readonly RelacionInmueblePersona[]
+  readonly diasEnTramoActual: number
+  /** Decimal string — la deuda que compara contra monto_minimo_deuda. */
+  readonly deudaTotal: string
+}
+
+/** Acción que corresponde disparar, ya con el "a quién" resuelto. */
+export interface AccionConDestinatarios {
+  readonly estrategiaId: string
+  readonly tipoAccion: TipoAccionCobranza
+  readonly canal: CanalCobranza
+  readonly intentoNumero: number
+  readonly requiereAprobacion: boolean
+  /**
+   * Uno o más. Cada elemento produce una fila de acciones_cobranza; el
+   * llamador las une con un grupo_envio_id para conservar una evidencia
+   * por persona (CAR §34.3, regla R2).
+   */
+  readonly destinatarios: readonly DestinatarioResuelto[]
+}
+
+/**
+ * Correspondía disparar la acción, pero no se pudo resolver a quién.
+ * Se reporta explícitamente en vez de omitirse en silencio: un inmueble
+ * que nunca recibe cobros porque su ficha está incompleta es un problema
+ * que hay que ver, no un vacío en la bandeja.
+ */
+export interface AccionBloqueada {
+  readonly estrategiaId: string
+  readonly tipoAccion: TipoAccionCobranza
+  readonly canal: CanalCobranza
+  readonly causa: 'sin_destinatario' | 'contacto_faltante' | 'no_aplica'
+  readonly motivo: string
 }
 
 export interface PlanJobCarteraInmueble {
@@ -113,6 +163,10 @@ export interface PlanJobCarteraInmueble {
   readonly promesasIncumplidas: readonly CambioPromesa[]
   readonly cuotasVencidas: readonly CambioCuota[]
   readonly acuerdoIncumplido: CambioAcuerdo | null
+  /** §18.2 pasos 14-16 — lo que faltaba para que el job creara acciones. */
+  readonly accionesPropuestas: readonly AccionConDestinatarios[]
+  readonly accionesOmitidas: readonly AccionOmitida[]
+  readonly accionesBloqueadas: readonly AccionBloqueada[]
 }
 
 /**
@@ -132,6 +186,7 @@ export function evaluarJobCarteraInmueble(entrada: EntradaJobCarteraInmueble): P
     tieneAcuerdoVigente: entrada.tieneAcuerdoVigente,
     tieneCasoJuridicoAbierto: entrada.tieneCasoJuridicoAbierto,
     tieneCertificacionVigente: entrada.tieneCertificacionVigente,
+    accionesAcreditadas: entrada.accionesAcreditadas,
   }
   const decisionEscalamiento = evaluarEscalamiento(contextoEscalamiento)
 
@@ -155,6 +210,58 @@ export function evaluarJobCarteraInmueble(entrada: EntradaJobCarteraInmueble): P
       ? { acuerdoId: entrada.acuerdoVigenteId, nuevoEstado: 'incumplido' as const }
       : null
 
+  // §18.2 pasos 14-16. Dos decisiones separadas y en este orden: primero
+  // QUÉ corresponde disparar (evaluarAccionesAplicables, ya existente) y
+  // solo después A QUIÉN (resolverDestinatarios). Invertirlas llevaría a
+  // no disparar una acción debida porque falta un contacto, que es un
+  // problema de datos y no una razón para dejar de cobrar.
+  const evaluacion = evaluarAccionesAplicables({
+    clasificacionCodigo: clasificacion.codigo,
+    diasEnTramoActual: entrada.diasEnTramoActual,
+    deudaTotal: entrada.deudaTotal,
+    estrategias: entrada.estrategias,
+    historialAcciones: entrada.historialAcciones,
+    fechaCorte: entrada.fechaCorte,
+    tieneAcuerdoVigente: entrada.tieneAcuerdoVigente,
+  })
+
+  const accionesPropuestas: AccionConDestinatarios[] = []
+  const accionesBloqueadas: AccionBloqueada[] = []
+
+  for (const propuesta of evaluacion.propuestas) {
+    const estrategia = entrada.estrategias.find((e) => e.id === propuesta.estrategiaId)
+    // No debería ocurrir — la propuesta nace de esa misma lista —, pero
+    // fabricar un canal por defecto aquí sería inventar por dónde se le
+    // cobra a una persona.
+    if (!estrategia) continue
+
+    const resolucion = resolverDestinatarios({
+      relaciones: entrada.relaciones,
+      tipoAccion: propuesta.tipoAccion,
+      canal: estrategia.canal,
+      fechaCorte: entrada.fechaCorte,
+    })
+
+    if (resolucion.tipo === 'resuelto') {
+      accionesPropuestas.push({
+        estrategiaId: propuesta.estrategiaId,
+        tipoAccion: propuesta.tipoAccion,
+        canal: estrategia.canal,
+        intentoNumero: propuesta.intentoNumero,
+        requiereAprobacion: propuesta.requiereAprobacion,
+        destinatarios: resolucion.destinatarios,
+      })
+    } else {
+      accionesBloqueadas.push({
+        estrategiaId: propuesta.estrategiaId,
+        tipoAccion: propuesta.tipoAccion,
+        canal: estrategia.canal,
+        causa: resolucion.tipo,
+        motivo: resolucion.motivo,
+      })
+    }
+  }
+
   return {
     inmuebleId: entrada.inmuebleId,
     clasificacion,
@@ -162,6 +269,9 @@ export function evaluarJobCarteraInmueble(entrada: EntradaJobCarteraInmueble): P
     promesasIncumplidas,
     cuotasVencidas,
     acuerdoIncumplido,
+    accionesPropuestas,
+    accionesOmitidas: evaluacion.omitidas,
+    accionesBloqueadas,
   }
 }
 

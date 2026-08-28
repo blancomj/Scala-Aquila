@@ -169,6 +169,26 @@ verify_jwt = false
 import_map = "./functions/webhook-pasarela/deno.json"
 entrypoint = "./functions/webhook-pasarela/index.ts"
 
+# webhook-brevo: acuses de entrega de SMS y email (CAR §34.2, PRQ-CAR-019).
+# Lo llama Brevo, nunca un usuario. Brevo no firma sus webhooks, así que
+# autoriza el token de la URL (BREVO_WEBHOOK_TOKEN) — mismo criterio de
+# puerta anónima que webhook-pasarela, con menos superficie: solo inserta
+# acuses sobre envíos cuyo message_id ya existe.
+# cartera-ejecutar-lote: worker por lotes de acciones de cobranza (CAR
+# §18.4 paso 1). JWT normal — lo invoca un administrador o el cron con un
+# token de servicio. Su defensa no es la ruta sino el modo: simula salvo
+# que se pida ejecucion explícitamente, y ejecutar exige rol administrador.
+[functions.cartera-ejecutar-lote]
+enabled = true
+import_map = "./functions/cartera-ejecutar-lote/deno.json"
+entrypoint = "./functions/cartera-ejecutar-lote/index.ts"
+
+[functions.webhook-brevo]
+enabled = true
+verify_jwt = false
+import_map = "./functions/webhook-brevo/deno.json"
+entrypoint = "./functions/webhook-brevo/index.ts"
+
 # Pantalla de resultado (§8.2): sondea el estado de una intención por su
 # propio uuid (capability token, ver cabecera del archivo) — sin JWT, mismo
 # motivo que crear-intencion-pago (AD-26).

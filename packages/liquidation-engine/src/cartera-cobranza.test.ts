@@ -9,6 +9,7 @@ function estrategia(over: Partial<EstrategiaCobranza> & { id: string }): Estrate
   return {
     tramoCodigo: 'MORA_TEMPRANA',
     tipoAccion: 'email',
+    canal: 'email',
     diasDesdeClasificacion: 0,
     frecuenciaDias: 7,
     maxIntentos: 3,
