@@ -54,9 +54,11 @@ function activo(to: string): boolean {
 // siempre pasa a blanco sobre el pill sólido, sin importar su color de
 // grupo (la coloración es solo para el estado inactivo).
 const COLOR_ICONO_GRUPO: Record<string, string> = {
-  Cartera: 'text-blue-400',
-  'Estado de cuenta': 'text-emerald-400',
+  Copropiedad: 'text-teal-400',
   Presupuesto: 'text-violet-400',
+  Facturación: 'text-emerald-400',
+  'Recaudo y Cartera': 'text-blue-400',
+  Contabilidad: 'text-orange-400',
   Configuración: 'text-slate-400',
   Seguridad: 'text-amber-400',
 }
@@ -106,7 +108,7 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
           class="w-full flex items-center justify-between px-2 mb-1 group"
           @click="toggleGrupo(grupo.titulo)"
         >
-          <span class="text-[10.5px] uppercase tracking-wide text-slate-500 font-mono">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             {{ grupo.titulo }}
           </span>
           <svg
@@ -130,7 +132,7 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
             v-for="item in grupo.items"
             :key="item.to"
             :to="item.to"
-            class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
+            class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px]"
             :class="
               activo(item.to)
                 ? 'bg-indigo-600 text-white font-medium'

@@ -1,6 +1,9 @@
 // E5 — expone imputarPago()/registrarPago() (packages/liquidation-engine)
 // al agent: registra un pago y lo aplica contra el ledger de cuenta
 // corriente según la estrategia de la política vigente (AD-36).
+// aplicaciones_manuales (opcional, art. 1653 C.C.) reemplaza imputarPago()
+// por construirPlanManual() cuando el auxiliar declaró a qué cargo(s)
+// específico(s) aplica el pago.
 //
 // pagos/pago_aplicaciones no tienen política INSERT para `authenticated`
 // (20260816100000, mismo criterio que liquidaciones) — el rol se verifica
@@ -15,6 +18,7 @@ import { money } from '@aquila/financial-kernel'
 import {
   clavePeriodo,
   imputarPago,
+  construirPlanManual,
   obtenerCargosAbiertos,
   obtenerPoliticaImputacion,
   registrarPago,
@@ -135,6 +139,14 @@ const payloadSchema = z.object({
     .optional(),
   pagador_tercero_id: z.string().uuid().nullish(),
   pagador_nombre: z.string().trim().min(1).nullish(),
+  pagador_documento: z.string().trim().min(1).nullish(),
+  observaciones: z.string().trim().min(1).nullish(),
+  // Imputación manual (art. 1653 C.C.) — opcional: si viene y no está vacío,
+  // reemplaza imputarPago() por construirPlanManual() para ESTE pago.
+  aplicaciones_manuales: z
+    .array(z.object({ cargo_id: z.string().uuid(), monto: z.number().positive() }))
+    .max(50)
+    .optional(),
 })
 
 // Espejo local de AplicacionPago (packages/liquidation-engine/src/cuenta-corriente.ts)
@@ -311,13 +323,28 @@ export default {
 
     let plan
     try {
-      plan = imputarPago(
-        money(datos.monto, tenant.moneda),
-        cargosAbiertos,
-        politicaImputacion.orden,
-        politicaImputacion.estrategia,
-        periodoActualClave,
-      )
+      // Imputación manual (art. 1653 C.C.) — si el cliente eligió cargos
+      // específicos, eso reemplaza la política automática para ESTE pago.
+      // construirPlanManual() valida integridad contra cargosAbiertos (ya
+      // resuelto arriba, sin importar el camino); imputarPago() sigue
+      // siendo el default cuando no hay selección manual.
+      plan =
+        datos.aplicaciones_manuales && datos.aplicaciones_manuales.length > 0
+          ? construirPlanManual(
+              money(datos.monto, tenant.moneda),
+              datos.aplicaciones_manuales.map((a) => ({
+                cargoId: a.cargo_id,
+                monto: money(a.monto, tenant.moneda),
+              })),
+              cargosAbiertos,
+            )
+          : imputarPago(
+              money(datos.monto, tenant.moneda),
+              cargosAbiertos,
+              politicaImputacion.orden,
+              politicaImputacion.estrategia,
+              periodoActualClave,
+            )
     } catch (excepcion) {
       const mensaje =
         excepcion instanceof Error ? excepcion.message : 'No se pudo calcular la imputación.'
@@ -350,6 +377,8 @@ export default {
           fechaRegistro: datos.fecha_registro,
           pagadorTerceroId: datos.pagador_tercero_id ?? null,
           pagadorNombre: datos.pagador_nombre ?? null,
+          pagadorDocumento: datos.pagador_documento ?? null,
+          observaciones: datos.observaciones ?? null,
         },
         plan,
       )

@@ -31,6 +31,7 @@ interface RespuestaEstadoCuenta {
   datos: EstadoCuentaDatos
   folio: string | null
   contenido_hash: string | null
+  pago_habilitado?: boolean
 }
 
 const {
@@ -77,6 +78,42 @@ const totales = computed(() => {
 })
 
 const saldoPendiente = computed(() => (datos.value?.saldo_final ?? 0) > 0)
+
+// ── Pagar ahora (D-32, cierra D-28 punto 4) ─────────────────────────────
+// Se enciende solo cuando el propio servidor (ver-estado-cuenta) confirma
+// que el tenant tiene una pasarela activa — nunca una condición local. El
+// monto NO se decide aquí: crear-intencion-pago lo calcula del lado del
+// servidor a partir del saldo real (§5.3), el mismo criterio de "jamás un
+// monto en la URL" que ya regía este visor.
+const pagoHabilitado = computed(() => respuesta.value?.pago_habilitado === true && saldoPendiente.value)
+const pagando = ref(false)
+const errorPago = ref<string | null>(null)
+
+async function pagarAhora(): Promise<void> {
+  if (!tokenEnlace.value) {
+    errorPago.value = 'Este enlace no tiene la firma necesaria para iniciar un pago. Pide uno nuevo a la administración.'
+    return
+  }
+  pagando.value = true
+  errorPago.value = null
+  try {
+    const { data, error: errorFuncion } = await cliente.functions.invoke<{
+      resultado: { tipo: string; checkoutUrl?: string }
+    }>('crear-intencion-pago', {
+      body: { via: 'token', estado_cuenta_id: id, t: tokenEnlace.value, metodo: 'pse' },
+    })
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (data?.resultado.tipo === 'redirect' && data.resultado.checkoutUrl) {
+      window.location.href = data.resultado.checkoutUrl
+      return
+    }
+    throw new Error('La pasarela no devolvió un enlace de pago.')
+  } catch (excepcion) {
+    errorPago.value = mensajeError(excepcion, 'No se pudo iniciar el pago. Inténtalo de nuevo.')
+  } finally {
+    pagando.value = false
+  }
+}
 
 // Solo presente en estados emitidos por liquidación (periodo concreto) — los
 // generados a mano desde la ficha ("a hoy") no tienen periodo que mostrar.
@@ -277,6 +314,12 @@ const toastMensaje = ref('')
           <div class="resumen-total">
             <span>{{ saldoPendiente ? 'Saldo pendiente a la fecha de corte' : 'Sin saldo pendiente' }}<template v-if="(datos.saldo_final ?? 0) < 0"> · Saldo a tu favor</template></span>
             <span class="total-monto">{{ formatoMoneda(datos.saldo_final) }}</span>
+          </div>
+          <div v-if="pagoHabilitado" class="pagar-fila">
+            <button type="button" class="pagar-boton" :disabled="pagando" @click="pagarAhora">
+              {{ pagando ? 'Abriendo pasarela…' : 'Pagar ahora en línea' }}
+            </button>
+            <p v-if="errorPago" class="pagar-error">{{ errorPago }}</p>
           </div>
         </div>
 
@@ -605,6 +648,39 @@ const toastMensaje = ref('')
   font-size: 24px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.pagar-fila {
+  padding: 14px 18px 18px;
+  background: var(--color-brand-50);
+  border-top: 1px solid var(--color-neutral-200);
+}
+.pagar-boton {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-neutral-50);
+  background: var(--color-brand-700);
+  border: none;
+  padding: 13px 18px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.pagar-boton:hover:not(:disabled) {
+  background: var(--color-brand-800);
+}
+.pagar-boton:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+.pagar-boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.pagar-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--ui-color-error-600);
 }
 
 /* Tabla */

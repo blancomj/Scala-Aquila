@@ -224,8 +224,26 @@ Deno.serve(async (req) => {
   // mismo hash — es lo que imprime el documento como sello de autenticidad.
   const contenidoHash = await sha256HexPublico(JSON.stringify(registro.datos))
 
+  // Fase 2 (D-32, cierra D-28 punto 4): el botón "Pagar" del visor se
+  // enciende solo cuando el tenant tiene una pasarela activa. No hace falta
+  // comprobar verificada_at aparte: fn_activar_pasarela ya lo exige para
+  // activar en modo producción, así que activa=true lo garantiza por
+  // invariante. Dato público (un booleano, ningún secreto) — seguro de
+  // exponer en esta puerta anónima.
+  const { data: pasarelaActiva } = await admin
+    .from('pasarela_config')
+    .select('id')
+    .eq('tenant_id', registro.tenant_id)
+    .eq('activa', true)
+    .maybeSingle()
+
   return jsonResponse(
-    { datos: registro.datos, folio: registro.folio, contenido_hash: contenidoHash },
+    {
+      datos: registro.datos,
+      folio: registro.folio,
+      contenido_hash: contenidoHash,
+      pago_habilitado: !!pasarelaActiva,
+    },
     200,
     correlationId,
   )

@@ -1632,6 +1632,75 @@ export type Database = {
         }
         Relationships: []
       }
+      conciliacion_propuesta: {
+        Row: {
+          created_at: string
+          explicacion: Json
+          id: string
+          inmueble_id: string
+          linea_id: string
+          metodo: Database["public"]["Enums"]["conciliacion_metodo_t"]
+          score: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          explicacion: Json
+          id?: string
+          inmueble_id: string
+          linea_id: string
+          metodo: Database["public"]["Enums"]["conciliacion_metodo_t"]
+          score: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          explicacion?: Json
+          id?: string
+          inmueble_id?: string
+          linea_id?: string
+          metodo?: Database["public"]["Enums"]["conciliacion_metodo_t"]
+          score?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacion_propuesta_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_propuesta_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_propuesta_linea_id_fkey"
+            columns: ["linea_id"]
+            isOneToOne: false
+            referencedRelation: "extracto_linea"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_propuesta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_propuesta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consecutivos_documento: {
         Row: {
           created_at: string
@@ -2126,6 +2195,7 @@ export type Database = {
           id: string
           inmueble_id: string | null
           nombre_archivo: string
+          pago_id: string | null
           storage_path: string
           subido_por: string | null
           tamano_bytes: number | null
@@ -2143,6 +2213,7 @@ export type Database = {
           id?: string
           inmueble_id?: string | null
           nombre_archivo: string
+          pago_id?: string | null
           storage_path: string
           subido_por?: string | null
           tamano_bytes?: number | null
@@ -2160,6 +2231,7 @@ export type Database = {
           id?: string
           inmueble_id?: string | null
           nombre_archivo?: string
+          pago_id?: string | null
           storage_path?: string
           subido_por?: string | null
           tamano_bytes?: number | null
@@ -2194,6 +2266,13 @@ export type Database = {
             columns: ["subido_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
             referencedColumns: ["id"]
           },
           {
@@ -2553,6 +2632,167 @@ export type Database = {
           },
           {
             foreignKeyName: "eventos_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extracto_bancario: {
+        Row: {
+          created_at: string
+          cuenta_bancaria_id: string | null
+          hash_archivo: string
+          id: string
+          importado_por: string | null
+          lineas_totales: number
+          nombre_archivo: string
+          origen: Database["public"]["Enums"]["extracto_origen_t"]
+          periodo_desde: string | null
+          periodo_hasta: string | null
+          storage_path: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          cuenta_bancaria_id?: string | null
+          hash_archivo: string
+          id?: string
+          importado_por?: string | null
+          lineas_totales?: number
+          nombre_archivo: string
+          origen?: Database["public"]["Enums"]["extracto_origen_t"]
+          periodo_desde?: string | null
+          periodo_hasta?: string | null
+          storage_path?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          cuenta_bancaria_id?: string | null
+          hash_archivo?: string
+          id?: string
+          importado_por?: string | null
+          lineas_totales?: number
+          nombre_archivo?: string
+          origen?: Database["public"]["Enums"]["extracto_origen_t"]
+          periodo_desde?: string | null
+          periodo_hasta?: string | null
+          storage_path?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extracto_bancario_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_bancario_importado_por_fkey"
+            columns: ["importado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_bancario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_bancario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extracto_linea: {
+        Row: {
+          created_at: string
+          descartada_motivo: string | null
+          descripcion_banco: string
+          estado: Database["public"]["Enums"]["conciliacion_estado_t"]
+          extracto_id: string
+          fecha_movimiento: string
+          hash_linea: string
+          id: string
+          monto: number
+          pago_id: string | null
+          referencia_banco: string | null
+          resuelta_at: string | null
+          resuelta_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descartada_motivo?: string | null
+          descripcion_banco: string
+          estado?: Database["public"]["Enums"]["conciliacion_estado_t"]
+          extracto_id: string
+          fecha_movimiento: string
+          hash_linea: string
+          id?: string
+          monto: number
+          pago_id?: string | null
+          referencia_banco?: string | null
+          resuelta_at?: string | null
+          resuelta_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descartada_motivo?: string | null
+          descripcion_banco?: string
+          estado?: Database["public"]["Enums"]["conciliacion_estado_t"]
+          extracto_id?: string
+          fecha_movimiento?: string
+          hash_linea?: string
+          id?: string
+          monto?: number
+          pago_id?: string | null
+          referencia_banco?: string | null
+          resuelta_at?: string | null
+          resuelta_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extracto_linea_extracto_id_fkey"
+            columns: ["extracto_id"]
+            isOneToOne: false
+            referencedRelation: "extracto_bancario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_linea_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_linea_resuelta_por_fkey"
+            columns: ["resuelta_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_linea_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracto_linea_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3160,6 +3400,103 @@ export type Database = {
             columns: ["uso_predio_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intenciones_pago: {
+        Row: {
+          creada_por: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["intencion_pago_estado_t"]
+          expira_at: string
+          id: string
+          inmueble_id: string
+          metodo: string | null
+          monto: number
+          pago_id: string | null
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          referencia: string
+          revision_motivo: string | null
+          tenant_id: string
+          transaction_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          creada_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["intencion_pago_estado_t"]
+          expira_at: string
+          id?: string
+          inmueble_id: string
+          metodo?: string | null
+          monto: number
+          pago_id?: string | null
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          referencia: string
+          revision_motivo?: string | null
+          tenant_id: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          creada_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["intencion_pago_estado_t"]
+          expira_at?: string
+          id?: string
+          inmueble_id?: string
+          metodo?: string | null
+          monto?: number
+          pago_id?: string | null
+          proveedor?: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          referencia?: string
+          revision_motivo?: string | null
+          tenant_id?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intenciones_pago_creada_por_fkey"
+            columns: ["creada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intenciones_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intenciones_pago_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intenciones_pago_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intenciones_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intenciones_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -4020,7 +4357,10 @@ export type Database = {
           forma_pago_id: number
           id: string
           inmueble_id: string
+          intencion_pago_id: string | null
           monto: number
+          observaciones: string | null
+          pagador_documento: string | null
           pagador_nombre: string | null
           pagador_tercero_id: string | null
           pago_original_id: string | null
@@ -4038,7 +4378,10 @@ export type Database = {
           forma_pago_id: number
           id?: string
           inmueble_id: string
+          intencion_pago_id?: string | null
           monto: number
+          observaciones?: string | null
+          pagador_documento?: string | null
           pagador_nombre?: string | null
           pagador_tercero_id?: string | null
           pago_original_id?: string | null
@@ -4056,7 +4399,10 @@ export type Database = {
           forma_pago_id?: number
           id?: string
           inmueble_id?: string
+          intencion_pago_id?: string | null
           monto?: number
+          observaciones?: string | null
+          pagador_documento?: string | null
           pagador_nombre?: string | null
           pagador_tercero_id?: string | null
           pago_original_id?: string | null
@@ -4101,6 +4447,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pagos_intencion_pago_id_fkey"
+            columns: ["intencion_pago_id"]
+            isOneToOne: false
+            referencedRelation: "intenciones_pago"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pagos_pagador_tercero_id_fkey"
             columns: ["pagador_tercero_id"]
             isOneToOne: false
@@ -4130,6 +4483,169 @@ export type Database = {
           },
           {
             foreignKeyName: "pagos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pasarela_config: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id: string
+          identificador_publico: string | null
+          modo: Database["public"]["Enums"]["pasarela_modo_t"]
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          tenant_id: string
+          updated_at: string | null
+          verificada_at: string | null
+          webhook_token: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          identificador_publico?: string | null
+          modo?: Database["public"]["Enums"]["pasarela_modo_t"]
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          tenant_id: string
+          updated_at?: string | null
+          verificada_at?: string | null
+          webhook_token?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          identificador_publico?: string | null
+          modo?: Database["public"]["Enums"]["pasarela_modo_t"]
+          proveedor?: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          tenant_id?: string
+          updated_at?: string | null
+          verificada_at?: string | null
+          webhook_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pasarela_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pasarela_config_metodo: {
+        Row: {
+          config_id: string
+          created_at: string
+          forma_pago_id: number
+          tenant_id: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          forma_pago_id: number
+          tenant_id: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          forma_pago_id?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pasarela_config_metodo_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "pasarela_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_config_metodo_forma_pago_id_fkey"
+            columns: ["forma_pago_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_config_metodo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_config_metodo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pasarela_credencial: {
+        Row: {
+          config_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string
+          tenant_id: string
+          vault_secret_id: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre: string
+          tenant_id: string
+          vault_secret_id: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          vault_secret_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pasarela_credencial_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "pasarela_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_credencial_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_credencial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pasarela_credencial_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5039,6 +5555,7 @@ export type Database = {
           is_platform_admin: boolean
           phone: string | null
           status: Database["public"]["Enums"]["user_status_t"]
+          tenant_predeterminado_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -5051,6 +5568,7 @@ export type Database = {
           is_platform_admin?: boolean
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status_t"]
+          tenant_predeterminado_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -5063,6 +5581,7 @@ export type Database = {
           is_platform_admin?: boolean
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status_t"]
+          tenant_predeterminado_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -5076,6 +5595,20 @@ export type Database = {
           {
             foreignKeyName: "profiles_active_tenant_id_fkey"
             columns: ["active_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_tenant_predeterminado_id_fkey"
+            columns: ["tenant_predeterminado_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_tenant_predeterminado_id_fkey"
+            columns: ["tenant_predeterminado_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
@@ -5914,6 +6447,7 @@ export type Database = {
           id: string | null
           inmueble_id: string | null
           nombre_archivo: string | null
+          pago_id: string | null
           storage_path: string | null
           subido_por: string | null
           tamano_bytes: number | null
@@ -5948,6 +6482,13 @@ export type Database = {
             columns: ["subido_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
             referencedColumns: ["id"]
           },
           {
@@ -6084,6 +6625,7 @@ export type Database = {
           is_platform_admin: boolean
           phone: string | null
           status: Database["public"]["Enums"]["user_status_t"]
+          tenant_predeterminado_id: string | null
           updated_at: string | null
         }
         SetofOptions: {
@@ -6192,6 +6734,27 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_activar_pasarela: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: {
+          activa: boolean
+          created_at: string
+          id: string
+          identificador_publico: string | null
+          modo: Database["public"]["Enums"]["pasarela_modo_t"]
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          tenant_id: string
+          updated_at: string | null
+          verificada_at: string | null
+          webhook_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pasarela_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_actividad_reciente_cartera: {
         Args: { p_limite?: number; p_tenant_id: string }
         Returns: {
@@ -6286,6 +6849,31 @@ export type Database = {
         }[]
       }
       fn_calcular_dv_nit: { Args: { p_nit: string }; Returns: string }
+      fn_cambiar_modo_pasarela: {
+        Args: {
+          p_config_id: string
+          p_modo: Database["public"]["Enums"]["pasarela_modo_t"]
+          p_tenant_id: string
+        }
+        Returns: {
+          activa: boolean
+          created_at: string
+          id: string
+          identificador_publico: string | null
+          modo: Database["public"]["Enums"]["pasarela_modo_t"]
+          proveedor: Database["public"]["Enums"]["pasarela_proveedor_t"]
+          tenant_id: string
+          updated_at: string | null
+          verificada_at: string | null
+          webhook_token: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pasarela_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_cerrar_rol_anterior: {
         Args: {
           p_inmueble_id: string
@@ -6316,6 +6904,10 @@ export type Database = {
           p_tenant_total: number
         }
         Returns: Json
+      }
+      fn_credenciales_pasarela_descifrables: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: number
       }
       fn_dashboard_cartera: {
         Args: { p_fecha_corte: string; p_tenant_id: string }
@@ -6348,6 +6940,16 @@ export type Database = {
       fn_generar_cargos_novedades_periodo: {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: number
+      }
+      fn_guardar_credencial_pasarela: {
+        Args: {
+          p_actor_id: string
+          p_config_id: string
+          p_nombre: string
+          p_tenant_id: string
+          p_valor: string
+        }
+        Returns: string
       }
       fn_guardar_plantilla_email: {
         Args: {
@@ -6500,6 +7102,13 @@ export type Database = {
           sin_mapear: number
         }[]
       }
+      fn_leer_credenciales_pasarela: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: {
+          nombre: string
+          valor: string
+        }[]
+      }
       fn_liquidacion_prevuelo: {
         Args: {
           p_liquidacion_id?: string
@@ -6540,6 +7149,13 @@ export type Database = {
           cuotas_acuerdo_vencen_semana: number
           llamadas_pendientes: number
           promesas_vencen_hoy: number
+        }[]
+      }
+      fn_pasarela_credenciales_presentes: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          config_id: string
+          nombre: string
         }[]
       }
       fn_posicion_cartera: {
@@ -6625,9 +7241,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_registrar_pago_pasarela: {
+        Args: {
+          p_aplicaciones: Json
+          p_fecha_pago: string
+          p_forma_pago_id: number
+          p_intencion_id: string
+          p_monto: number
+          p_revision_motivo?: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
       fn_siguiente_consecutivo: {
         Args: { p_tenant_id: string; p_tipo_documento: string }
         Returns: string
+      }
+      fn_similitud_pagadores: {
+        Args: { p_tenant_id: string; p_texto: string }
+        Returns: {
+          codigo: string
+          inmueble_id: string
+          similitud: number
+        }[]
       }
       fn_tipo_division_default: { Args: never; Returns: number }
       fn_toggle_plantilla_sms: {
@@ -6749,6 +7385,10 @@ export type Database = {
         Args: { p_invitation_id: string }
         Returns: undefined
       }
+      set_tenant_predeterminado: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       shares_tenant_with: { Args: { p_user: string }; Returns: boolean }
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
       tiene_rol_funcional: {
@@ -6814,6 +7454,12 @@ export type Database = {
         | "unico"
         | "por_periodo"
         | "novedad"
+      conciliacion_estado_t:
+        | "pendiente"
+        | "conciliada_auto"
+        | "conciliada_manual"
+        | "descartada"
+      conciliacion_metodo_t: "referencia" | "monto_fecha" | "heuristico"
       contable_naturaleza_t: "debito" | "credito"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
       descuento_pronto_pago_modo_t: "reduce_deuda" | "saldo_a_favor"
@@ -6868,6 +7514,7 @@ export type Database = {
         | "prejuridica"
         | "juridica"
         | "judicial"
+      extracto_origen_t: "banco" | "pasarela" | "datafono"
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_movimiento_tipo_t: "aporte" | "uso"
       fondo_tipo_t: "imprevistos" | "otro"
@@ -6880,6 +7527,12 @@ export type Database = {
         | "otra"
         | "orientacion_tecnica"
       inmueble_estado_t: "activo" | "inactivo"
+      intencion_pago_estado_t:
+        | "creada"
+        | "pendiente"
+        | "aprobada"
+        | "rechazada"
+        | "expirada"
       interes_day_count_t:
         | "mensual_30_dias_reales"
         | "actual_365"
@@ -6909,6 +7562,8 @@ export type Database = {
         | "DEBIT"
       origen_accion_cobranza_t: "job" | "manual"
       origen_evento_t: "job" | "usuario" | "sistema" | "integracion"
+      pasarela_modo_t: "sandbox" | "produccion"
+      pasarela_proveedor_t: "wompi" | "payu" | "epayco" | "bold"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       presupuesto_cuenta_naturaleza_t: "ingreso" | "egreso"
@@ -7146,6 +7801,13 @@ export const Constants = {
         "por_periodo",
         "novedad",
       ],
+      conciliacion_estado_t: [
+        "pendiente",
+        "conciliada_auto",
+        "conciliada_manual",
+        "descartada",
+      ],
+      conciliacion_metodo_t: ["referencia", "monto_fecha", "heuristico"],
       contable_naturaleza_t: ["debito", "credito"],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
       descuento_pronto_pago_modo_t: ["reduce_deuda", "saldo_a_favor"],
@@ -7206,6 +7868,7 @@ export const Constants = {
         "juridica",
         "judicial",
       ],
+      extracto_origen_t: ["banco", "pasarela", "datafono"],
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_movimiento_tipo_t: ["aporte", "uso"],
       fondo_tipo_t: ["imprevistos", "otro"],
@@ -7219,6 +7882,13 @@ export const Constants = {
         "orientacion_tecnica",
       ],
       inmueble_estado_t: ["activo", "inactivo"],
+      intencion_pago_estado_t: [
+        "creada",
+        "pendiente",
+        "aprobada",
+        "rechazada",
+        "expirada",
+      ],
       interes_day_count_t: [
         "mensual_30_dias_reales",
         "actual_365",
@@ -7252,6 +7922,8 @@ export const Constants = {
       ],
       origen_accion_cobranza_t: ["job", "manual"],
       origen_evento_t: ["job", "usuario", "sistema", "integracion"],
+      pasarela_modo_t: ["sandbox", "produccion"],
+      pasarela_proveedor_t: ["wompi", "payu", "epayco", "bold"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       presupuesto_cuenta_naturaleza_t: ["ingreso", "egreso"],

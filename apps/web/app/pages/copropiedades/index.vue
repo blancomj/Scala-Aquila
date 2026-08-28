@@ -9,7 +9,6 @@
 // ver supabase/migrations/20260813190500_platform_view.sql).
 definePageMeta({ layout: 'default' })
 
-const router = useRouter()
 const tenantStore = useTenantStore()
 
 await useAsyncData('memberships', () => tenantStore.cargarMemberships())
@@ -24,27 +23,31 @@ const cambiandoA = ref<string | null>(null)
 
 async function irACopropiedad(tenantId: string): Promise<void> {
   cambiandoA.value = tenantId
-  try {
-    await tenantStore.cambiarTenant(tenantId)
-    await router.push('/dashboard')
-  } finally {
-    cambiandoA.value = null
-  }
+  await tenantStore.cambiarTenant(tenantId)
+  // Recarga completa, no router.push: mismo motivo que NavTenantSwitcher.vue
+  // — evita instantáneas viejas en stores de otros dominios que no se
+  // invalidan al cambiar de copropiedad. /dashboard muestra el checklist de
+  // onboarding inline si esa copropiedad todavía no lo completó.
+  window.location.href = '/dashboard'
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Mis copropiedades</h1>
-      <p class="text-sm text-gray-500">
-        Copropiedades donde tienes una membresía activa. Elige una para entrar.
-      </p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold mb-2">Mis copropiedades</h1>
+        <p class="text-sm text-gray-500">
+          Copropiedades donde tienes una membresía activa. Elige una para entrar.
+        </p>
+      </div>
+      <UButton to="/onboarding/create-tenant" icon="i-lucide-plus">Crear copropiedad</UButton>
     </div>
 
-    <p v-if="tenantStore.memberships.length === 0" class="text-gray-500 text-sm">
-      No perteneces a ninguna copropiedad todavía.
-    </p>
+    <div v-if="tenantStore.memberships.length === 0" class="space-y-3">
+      <p class="text-gray-500 text-sm">No perteneces a ninguna copropiedad todavía.</p>
+      <UButton to="/onboarding/create-tenant" icon="i-lucide-plus">Crear copropiedad</UButton>
+    </div>
     <UiTabla
       v-else
       :columnas="[

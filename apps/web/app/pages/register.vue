@@ -6,6 +6,26 @@ definePageMeta({ layout: 'auth', publico: true })
 const cliente = useSupabaseClient()
 const usuario = useSupabaseUser()
 const route = useRoute()
+const config = useRuntimeConfig()
+const authStore = useAuthStore()
+const tenantStore = useTenantStore()
+
+// El enlace de invitación nunca lleva el correo en la URL (deliberado —
+// no exponer PII en query strings/logs, ver email_invitation.ts). Sin esa
+// pista, quien viene de /invite podía registrarse con cualquier correo y
+// enterarse del error recién al volver — este aviso es lo único que puede
+// prevenirlo de antemano.
+const vieneDeInvitacion = computed(
+  () => typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/invite'),
+)
+
+// Mismo destino usado dos veces: si signUp() ya deja sesión (confirmación de
+// correo desactivada) se navega aquí mismo; si no, es a donde debe volver el
+// enlace de confirmación (ver signUp() más abajo) — las dos rutas tienen que
+// coincidir o la invitación se pierde en la vuelta.
+const destino = computed(() =>
+  typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard',
+)
 
 const nombreCompleto = ref('')
 const email = ref('')
@@ -35,7 +55,17 @@ async function registrar(): Promise<void> {
     const { data, error: errorAuth } = await cliente.auth.signUp({
       email: email.value,
       password: password.value,
-      options: { data: { full_name: nombreCompleto.value } },
+      options: {
+        data: { full_name: nombreCompleto.value },
+        // Sin esto, GoTrue manda el enlace de confirmación al Site URL
+        // desnudo — quien venía de aceptar una invitación llega sin sesión Y
+        // sin token, y termina en /onboarding/create-tenant como si nunca
+        // hubiera pasado por /invite (bug reportado 2026-09-04: la
+        // invitación nunca se acepta, accept_invitation() no llega a
+        // llamarse). emailRedirectTo cierra ese hueco — mismo patrón que
+        // forgot-password.vue con reset-password.
+        emailRedirectTo: `${config.public.appUrl}${destino.value}`,
+      },
     })
     if (errorAuth) {
       error.value = errorAuth.message
@@ -45,9 +75,14 @@ async function registrar(): Promise<void> {
       confirmacionPendiente.value = true
       return
     }
+    // Mismo motivo que login.vue: sin esto, registrarse estando ya
+    // autenticado como otra cuenta en la misma pestaña deja el
+    // active_tenant_id/memberships de la cuenta ANTERIOR en caché.
+    authStore.limpiar()
+    tenantStore.limpiar()
+    useCookie<boolean>('copropiedad-confirmada-sesion').value = false
     await esperarSesion()
-    const destino = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
-    await navigateTo(destino)
+    await navigateTo(destino.value)
   } finally {
     cargando.value = false
   }
@@ -69,6 +104,15 @@ async function registrar(): Promise<void> {
     />
 
     <form v-else class="space-y-4" @submit.prevent="registrar">
+      <UAlert
+        v-if="vieneDeInvitacion"
+        color="info"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Usa el mismo correo al que te llegó la invitación"
+        description="Tiene que coincidir exactamente — si te registras con otro, la cuenta se crea pero la invitación no se puede aceptar."
+      />
+
       <UFormField label="Nombre completo" name="full_name">
         <UInput v-model="nombreCompleto" required autocomplete="name" class="w-full" />
       </UFormField>

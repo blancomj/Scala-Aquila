@@ -338,6 +338,12 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     cuentaBancariaId?: string | null
     pagadorTerceroId?: string | null
     pagadorNombre?: string | null
+    /** Cédula/NIT de quien pagó — solo aplica junto con pagadorNombre (texto libre). */
+    pagadorDocumento?: string | null
+    observaciones?: string | null
+    /** Imputación manual (art. 1653 C.C.): a qué cargo(s) específicos aplica este pago,
+     * en vez de dejar que la política automática decida. Omitir = comportamiento de siempre. */
+    aplicacionesManuales?: { cargoId: string; monto: number }[]
   }): Promise<ResultadoPago> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoPago>(
@@ -352,6 +358,12 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
           cuenta_bancaria_id: params.cuentaBancariaId ?? null,
           pagador_tercero_id: params.pagadorTerceroId ?? null,
           pagador_nombre: params.pagadorNombre ?? null,
+          pagador_documento: params.pagadorDocumento ?? null,
+          observaciones: params.observaciones ?? null,
+          aplicaciones_manuales: params.aplicacionesManuales?.map((a) => ({
+            cargo_id: a.cargoId,
+            monto: a.monto,
+          })),
         },
       },
     )

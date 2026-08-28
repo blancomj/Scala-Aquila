@@ -40,6 +40,7 @@
     "@aquila/ael-language": "workspace:*",
     "@aquila/ael-runtime": "workspace:*",
     "@aquila/financial-kernel": "workspace:*",
+    "@aquila/payment-gateways": "workspace:*",
     "@aquila/shared": "workspace:*"
   }
 }

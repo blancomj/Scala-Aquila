@@ -45,6 +45,9 @@ async function cerrarSesion(): Promise<void> {
   await cliente.auth.signOut()
   authStore.limpiar()
   tenantStore.limpiar()
+  // Un login nuevo (mismo usuario u otro) en este navegador debe volver a
+  // preguntar con cuál copropiedad trabajar — ver middleware/tenant.ts.
+  useCookie<boolean>('copropiedad-confirmada-sesion').value = false
   await router.push('/login')
 }
 </script>

@@ -150,3 +150,38 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/probar-formula/deno.json"
 entrypoint = "./functions/probar-formula/index.ts"
+
+# Fase 2 pasarelas de pago — dos puertas públicas, sin JWT a propósito:
+# crear-intencion-pago la usa el propietario sin cuenta de usuario (AD-26,
+# token HMAC del enlace de estado de cuenta) o un auxiliar autenticado (JWT
+# verificado a mano dentro de la función, no por la plataforma);
+# webhook-pasarela la llama el proveedor (Wompi), nunca un usuario — se
+# autentica con el webhook_token de la URL + la firma del payload (D-31).
+[functions.crear-intencion-pago]
+enabled = true
+verify_jwt = false
+import_map = "./functions/crear-intencion-pago/deno.json"
+entrypoint = "./functions/crear-intencion-pago/index.ts"
+
+[functions.webhook-pasarela]
+enabled = true
+verify_jwt = false
+import_map = "./functions/webhook-pasarela/deno.json"
+entrypoint = "./functions/webhook-pasarela/index.ts"
+
+# Pantalla de resultado (§8.2): sondea el estado de una intención por su
+# propio uuid (capability token, ver cabecera del archivo) — sin JWT, mismo
+# motivo que crear-intencion-pago (AD-26).
+[functions.ver-intencion-pago]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ver-intencion-pago/deno.json"
+entrypoint = "./functions/ver-intencion-pago/index.ts"
+
+# Job de expiración (§7) — cron, sin JWT, autenticado con CRON_SECRET (mismo
+# patrón que enviar-estados-cuenta-pendientes).
+[functions.expirar-intenciones-pago]
+enabled = true
+verify_jwt = false
+import_map = "./functions/expirar-intenciones-pago/deno.json"
+entrypoint = "./functions/expirar-intenciones-pago/index.ts"

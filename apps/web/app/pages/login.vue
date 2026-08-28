@@ -4,6 +4,15 @@ definePageMeta({ layout: 'auth', publico: true })
 const cliente = useSupabaseClient()
 const usuario = useSupabaseUser()
 const route = useRoute()
+const authStore = useAuthStore()
+const tenantStore = useTenantStore()
+
+// Mismo aviso que register.vue: si ya tenías cuenta pero con un correo
+// distinto al invitado, iniciar sesión aquí no arregla nada — hay que
+// entrar con la cuenta correcta (ver invite.vue, INV_EMAIL_MISMATCH).
+const vieneDeInvitacion = computed(
+  () => typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/invite'),
+)
 
 const email = ref('')
 const password = ref('')
@@ -34,6 +43,17 @@ async function iniciarSesion(): Promise<void> {
       error.value = errorAuth.message
       return
     }
+    // authStore.cargarPerfil() cachea profile.value y NO vuelve a consultar
+    // si ya hay algo cargado (solo lo hace con { forzar: true }) — sin este
+    // reset, iniciar sesión con OTRA cuenta en la misma pestaña sin pasar
+    // antes por "cerrar sesión" (NavUsuarioMenu.vue/perfil.vue, que sí
+    // limpian) deja corriendo el active_tenant_id/memberships del usuario
+    // ANTERIOR. Bug real 2026-08-28: una cuenta con copropiedades de sobra
+    // terminaba en /onboarding/create-tenant porque el active_tenant_id
+    // null de la sesión previa seguía en caché.
+    authStore.limpiar()
+    tenantStore.limpiar()
+    useCookie<boolean>('copropiedad-confirmada-sesion').value = false
     // Espera a que useSupabaseUser() refleje la sesión recién iniciada antes
     // de navegar — si se navega en el mismo tick, auth.global puede
     // ejecutarse con el estado reactivo todavía sin actualizar y rebotar a
@@ -55,6 +75,15 @@ async function iniciarSesion(): Promise<void> {
     </template>
 
     <form class="space-y-4" @submit.prevent="iniciarSesion">
+      <UAlert
+        v-if="vieneDeInvitacion"
+        color="info"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Usa la cuenta con el correo al que te llegó la invitación"
+        description="Si tu cuenta tiene otro correo, la invitación no se va a poder aceptar con esta sesión."
+      />
+
       <UFormField label="Correo electrónico" name="email">
         <UInput v-model="email" type="email" required autocomplete="email" class="w-full" />
       </UFormField>

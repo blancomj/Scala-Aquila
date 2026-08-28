@@ -13,6 +13,9 @@ export interface PagoConRecibo {
   id: string
   inmueble_id: string
   inmueble_codigo: string
+  /** null = inmueble sin agrupación asignada. Resolver el nombre legible (ruta del árbol)
+   * le corresponde a quien pinte esto — este store no conoce agrupacionesStore. */
+  inmueble_agrupacion_id: string | null
   monto: number
   fecha_pago: string
   fecha_registro: string
@@ -25,6 +28,10 @@ export interface PagoConRecibo {
   esta_anulado: boolean
   recibo_id: string | null
   recibo_folio: string | null
+  /** Comprobante adjunto (documentos.pago_id, 20260903170000) — foto/PDF del recibo físico.
+   * null = no se adjuntó ninguno al registrar el pago. */
+  comprobante_storage_path: string | null
+  comprobante_nombre_archivo: string | null
 }
 
 export interface FiltrosRecaudo {
@@ -32,6 +39,10 @@ export interface FiltrosRecaudo {
   hasta?: string
   inmuebleId?: string
   formaPagoCodigo?: string
+  /** Nodo de agrupación elegido (ubicación) — se resuelve su subárbol completo con
+   * agrupacion_subarbol() antes de filtrar, así que también trae los inmuebles de los
+   * nodos hijos (ej. elegir "Torre 1" incluye sus pisos). */
+  agrupacionId?: string
 }
 
 export const useRecaudoStore = defineStore('recaudo', () => {
@@ -47,9 +58,10 @@ export const useRecaudoStore = defineStore('recaudo', () => {
         .select(
           `id, inmueble_id, monto, fecha_pago, fecha_registro, referencia, pago_original_id,
            anulado_motivo,
-           inmueble:inmuebles(codigo),
+           inmueble:inmuebles(codigo, agrupacion_id),
            forma_pago:lista_tipos(codigo, nombre),
-           recibo:recibos_caja(id, folio)`,
+           recibo:recibos_caja(id, folio),
+           comprobante:documentos(storage_path, nombre_archivo)`,
         )
         .eq('tenant_id', tenantId)
         .order('fecha_pago', { ascending: false })
@@ -73,6 +85,7 @@ export const useRecaudoStore = defineStore('recaudo', () => {
         id: p.id,
         inmueble_id: p.inmueble_id,
         inmueble_codigo: p.inmueble?.codigo ?? '—',
+        inmueble_agrupacion_id: p.inmueble?.agrupacion_id ?? null,
         monto: Number(p.monto),
         fecha_pago: p.fecha_pago,
         fecha_registro: p.fecha_registro,
@@ -85,10 +98,23 @@ export const useRecaudoStore = defineStore('recaudo', () => {
         esta_anulado: reversasPorOriginal.has(p.id),
         recibo_id: p.recibo?.id ?? null,
         recibo_folio: p.recibo?.folio ?? null,
+        comprobante_storage_path: p.comprobante?.[0]?.storage_path ?? null,
+        comprobante_nombre_archivo: p.comprobante?.[0]?.nombre_archivo ?? null,
       }))
 
       if (filtros.formaPagoCodigo) {
         filas = filas.filter((f) => f.forma_pago_codigo === filtros.formaPagoCodigo)
+      }
+
+      // Ubicación: el nodo elegido + su subárbol completo (agrupacion_subarbol) — así
+      // "Torre 1" también incluye los pagos de sus pisos, no solo los del nodo exacto.
+      if (filtros.agrupacionId) {
+        const { data: subarbol, error: errorSubarbol } = await cliente.rpc('agrupacion_subarbol', {
+          p_agrupacion_id: filtros.agrupacionId,
+        })
+        if (errorSubarbol) throw errorSubarbol
+        const idsSubarbol = new Set((subarbol ?? []).map((n) => n.id))
+        filas = filas.filter((f) => f.inmueble_agrupacion_id !== null && idsSubarbol.has(f.inmueble_agrupacion_id))
       }
 
       pagos.value = filas

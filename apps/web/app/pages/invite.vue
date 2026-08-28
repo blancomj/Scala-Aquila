@@ -5,8 +5,10 @@
 definePageMeta({ layout: 'auth', publico: true })
 
 const route = useRoute()
+const cliente = useSupabaseClient()
 const usuario = useSupabaseUser()
 const authStore = useAuthStore()
+const tenantStore = useTenantStore()
 const invitationsStore = useInvitationsStore()
 
 const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
@@ -14,6 +16,7 @@ const rutaConToken = computed(() => `/invite?token=${encodeURIComponent(token.va
 
 const procesando = ref(false)
 const error = ref<string | null>(null)
+const sesionCerradaPorOtroCorreo = ref(false)
 
 async function aceptar(): Promise<void> {
   error.value = null
@@ -23,6 +26,23 @@ async function aceptar(): Promise<void> {
     await authStore.cargarPerfil({ forzar: true })
     await navigateTo('/dashboard')
   } catch (excepcion) {
+    // La sesión activa en este navegador no es la del correo invitado (p.
+    // ej. quedó abierta de una cuenta distinta). "Reintentar" con la misma
+    // sesión repetiría el mismo rechazo para siempre — hay que cerrarla y
+    // dejar que el usuario inicie sesión (o se registre) con el correo
+    // correcto, que es la pantalla que ya existe para cuando no hay sesión.
+    if ((excepcion as { code?: string } | undefined)?.code === 'INV_EMAIL_MISMATCH') {
+      sesionCerradaPorOtroCorreo.value = true
+      await cliente.auth.signOut()
+      authStore.limpiar()
+      tenantStore.limpiar()
+      // Mismo criterio que NavUsuarioMenu.vue/perfil.vue: un login nuevo
+      // (ahora con el correo correcto) debe volver a preguntar con cuál
+      // copropiedad trabajar si esa cuenta tiene más de una — sin esto, una
+      // confirmación fantasma de ESTA sesión saltaría esa pregunta.
+      useCookie<boolean>('copropiedad-confirmada-sesion').value = false
+      return
+    }
     error.value = mensajeError(excepcion, 'No se pudo aceptar la invitación.')
   } finally {
     procesando.value = false
@@ -57,8 +77,15 @@ onMounted(async () => {
       <UButton block :loading="procesando" @click="aceptar">Reintentar</UButton>
     </div>
 
-    <div v-else-if="!usuario" class="space-y-4">
-      <p class="text-gray-500">
+    <div v-else-if="!usuario || sesionCerradaPorOtroCorreo" class="space-y-4">
+      <UAlert
+        v-if="sesionCerradaPorOtroCorreo"
+        color="warning"
+        variant="soft"
+        title="Cerramos la sesión que tenías abierta"
+        description="No era la del correo al que enviaron esta invitación. Inicia sesión o crea una cuenta con ese correo para continuar."
+      />
+      <p v-else class="text-gray-500">
         Para aceptar la invitación, inicia sesión o crea una cuenta con el correo al que te
         invitaron.
       </p>

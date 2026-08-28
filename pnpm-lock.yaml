@@ -78,6 +78,9 @@ importers:
       '@aquila/liquidation-engine':
         specifier: workspace:*
         version: link:../../packages/liquidation-engine
+      '@aquila/payment-gateways':
+        specifier: workspace:*
+        version: link:../../packages/payment-gateways
       '@aquila/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -189,6 +192,18 @@ importers:
       '@aquila/ael-runtime':
         specifier: workspace:*
         version: link:../ael-runtime
+      '@aquila/financial-kernel':
+        specifier: workspace:*
+        version: link:../financial-kernel
+      '@aquila/payment-gateways':
+        specifier: workspace:*
+        version: link:../payment-gateways
+      '@aquila/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/payment-gateways:
+    dependencies:
       '@aquila/financial-kernel':
         specifier: workspace:*
         version: link:../financial-kernel

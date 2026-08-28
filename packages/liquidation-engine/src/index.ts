@@ -44,16 +44,19 @@ export {
   TramoClasificacionNoEncontradoError,
   SegmentacionDayCountNoSoportadoError,
   SegmentosTasaSolapadosError,
+  ImputacionManualInvalidaError,
 } from './errors.js'
 
 export {
   imputarPago,
+  construirPlanManual,
   calcularInteresMora,
   diasCalendario,
   type CategoriaCargo,
   type CargoAbierto,
   type EstrategiaImputacion,
   type AplicacionPago,
+  type AplicacionManual,
   type PlanImputacion,
   type CargoInteresGenerado,
   type PoliticaMora,
@@ -216,3 +219,39 @@ export {
   type PoliticaImputacion,
   type DatosPago,
 } from './cuenta-corriente-supabase.js'
+
+export {
+  detectarParser,
+  formatosSoportados,
+  hashArchivo,
+  hashLinea,
+  parserBancolombia,
+  type LineaCruda,
+  type ParserExtracto,
+} from './conciliacion-parsers.js'
+
+export {
+  buscarReferenciaEnTexto,
+  evaluarLinea,
+  type CandidatoHeuristico,
+  type CandidatoPorMontoFecha,
+  type CandidatoPorReferencia,
+  type DecisionMatching,
+  type FactorExplicacion,
+  type LineaAConciliar,
+  type MetodoMatching,
+  type PropuestaCandidata,
+} from './conciliacion-matching.js'
+
+export {
+  aplicarLineaAInmueble,
+  ArchivoNoReconocidoError,
+  crearSaldoAFavorDesdeLinea,
+  descartarLinea,
+  importarExtracto,
+  LineaYaResueltaError,
+  medirAutoConciliacion,
+  resolverCandidatos,
+  type MetricaAutoConciliacion,
+  type ResumenImportacion,
+} from './conciliacion-supabase.js'

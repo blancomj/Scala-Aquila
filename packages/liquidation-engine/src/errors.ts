@@ -89,6 +89,16 @@ export class EstrategiaImputacionInvalidaError extends Error {
   }
 }
 
+/** Imputación manual (RegistrarPagoForm "aplicar a cargos específicos", art. 1653 C.C.):
+ * un cargo elegido no está abierto en este inmueble, aparece repetido, su monto excede su
+ * pendiente, o la suma excede el monto del pago. */
+export class ImputacionManualInvalidaError extends Error {
+  constructor(readonly detalle: string) {
+    super(`Imputación manual inválida: ${detalle}`)
+    this.name = 'ImputacionManualInvalidaError'
+  }
+}
+
 /** PLAN §6.6: la política vigente no tiene interés de mora configurado. */
 export class PoliticaMoraNoConfiguradaError extends Error {
   constructor() {

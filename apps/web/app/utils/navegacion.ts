@@ -70,49 +70,27 @@ export const NAV_PLATAFORMA: NavItem = {
 
 export const NAV_GRUPOS: NavGrupo[] = [
   {
-    titulo: 'Cartera',
+    titulo: 'Copropiedad',
     items: [
-      {
-        label: 'Dashboard de Cartera',
-        to: '/cartera',
-        permiso: 'data:read',
-        modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.carteraDashboard,
-      },
       { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
       { label: 'Terceros', to: '/terceros', permiso: 'data:read', icono: NAV_ICONOS.terceros },
-    ],
-  },
-  {
-    titulo: 'Estado de cuenta',
-    items: [
       {
-        label: 'Resumen',
-        to: '/estado-cuenta',
-        permiso: 'data:read',
-        modulo: 'estado_cuenta',
-        icono: NAV_ICONOS.resumenCuenta,
+        label: 'Zonas comunes',
+        to: '/configuracion/zonas-comunes',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
       },
       {
-        label: 'Recaudo',
-        to: '/recaudo',
-        permiso: 'data:create',
-        modulo: 'estado_cuenta',
-        icono: NAV_ICONOS.pagos,
+        label: 'Agrupaciones',
+        to: '/configuracion/agrupaciones',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
       },
       {
-        label: 'Novedades',
-        to: '/estado-cuenta/novedades',
-        permiso: 'data:create',
-        modulo: 'estado_cuenta',
-        icono: NAV_ICONOS.novedades,
-      },
-      {
-        label: 'Conceptos',
-        to: '/estado-cuenta/conceptos',
-        permiso: 'data:create',
-        modulo: 'estado_cuenta',
-        icono: NAV_ICONOS.conceptos,
+        label: 'Coeficientes',
+        to: '/coeficientes',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.coeficientes,
       },
     ],
   },
@@ -141,6 +119,25 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.controlValidaciones,
       },
       {
+        label: 'Fundamentos normativos',
+        to: '/fundamentos',
+        permiso: 'data:create',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.fundamentos,
+      },
+    ],
+  },
+  {
+    titulo: 'Facturación',
+    items: [
+      {
+        label: 'Conceptos',
+        to: '/estado-cuenta/conceptos',
+        permiso: 'data:create',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.conceptos,
+      },
+      {
         label: 'Dependencias',
         to: '/conceptos/dependencias',
         permiso: 'data:read',
@@ -148,11 +145,11 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.dependencias,
       },
       {
-        label: 'Fundamentos normativos',
-        to: '/fundamentos',
+        label: 'Novedades',
+        to: '/estado-cuenta/novedades',
         permiso: 'data:create',
-        modulo: 'financiero',
-        icono: NAV_ICONOS.fundamentos,
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.novedades,
       },
       {
         label: 'Liquidación',
@@ -161,6 +158,44 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'financiero',
         icono: NAV_ICONOS.liquidacion,
       },
+      {
+        label: 'Estados de cuenta',
+        to: '/estado-cuenta',
+        permiso: 'data:read',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.resumenCuenta,
+      },
+    ],
+  },
+  {
+    titulo: 'Recaudo y Cartera',
+    items: [
+      {
+        label: 'Recaudo',
+        to: '/recaudo',
+        permiso: 'data:create',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.pagos,
+      },
+      {
+        label: 'Dashboard de Cartera',
+        to: '/cartera',
+        permiso: 'data:read',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
+        label: 'Transacciones de pasarela',
+        to: '/pagos/transacciones',
+        permiso: 'data:read',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.pagos,
+      },
+    ],
+  },
+  {
+    titulo: 'Contabilidad',
+    items: [
       {
         label: 'Plan de cuentas contable',
         to: '/contabilidad/plan-de-cuentas',
@@ -188,10 +223,10 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: 'Configuración',
     items: [
       {
-        label: 'Coeficientes',
-        to: '/coeficientes',
+        label: 'Datos de la copropiedad',
+        to: '/configuracion',
         permiso: 'settings:manage',
-        icono: NAV_ICONOS.coeficientes,
+        icono: NAV_ICONOS.configuracion,
       },
       {
         label: 'Políticas financieras',
@@ -200,20 +235,8 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.politicas,
       },
       {
-        label: 'General',
-        to: '/configuracion',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.configuracion,
-      },
-      {
-        label: 'Agrupaciones',
-        to: '/configuracion/agrupaciones',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.dependencias,
-      },
-      {
-        label: 'Zonas comunes',
-        to: '/configuracion/zonas-comunes',
+        label: 'Catálogos',
+        to: '/configuracion/catalogos',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.dependencias,
       },
@@ -224,16 +247,16 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.dependencias,
       },
       {
-        label: 'Catálogos',
-        to: '/configuracion/catalogos',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.dependencias,
-      },
-      {
         label: 'Consecutivos de documento',
         to: '/configuracion/consecutivos',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.pagos,
+      },
+      {
+        label: 'Plantillas de correo',
+        to: '/configuracion/plantillas-email',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.plantillasEmail,
       },
       {
         label: 'Plantillas SMS',
@@ -242,10 +265,10 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.plantillasSms,
       },
       {
-        label: 'Plantillas de correo',
-        to: '/configuracion/plantillas-email',
+        label: 'Pasarela de pago',
+        to: '/configuracion/pasarela',
         permiso: 'settings:manage',
-        icono: NAV_ICONOS.plantillasEmail,
+        icono: NAV_ICONOS.pagos,
       },
     ],
   },
@@ -253,7 +276,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: 'Seguridad',
     items: [
       {
-        label: 'Seguridad',
+        label: 'Roles y accesos',
         to: '/seguridad',
         permiso: 'users:manage',
         icono: NAV_ICONOS.seguridad,

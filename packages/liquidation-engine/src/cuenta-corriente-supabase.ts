@@ -184,6 +184,11 @@ export interface DatosPago {
   readonly pagadorTerceroId?: string | null
   /** Nombre libre de quien pagó, si no es un tercero registrado. */
   readonly pagadorNombre?: string | null
+  /** Cédula/NIT de quien pagó, solo cuando pagadorNombre (texto libre) se usó — un tercero
+   * registrado ya trae su documento en terceros.numero_documento. */
+  readonly pagadorDocumento?: string | null
+  /** Nota libre sobre el pago (ej. "cheque posfechado"). Viaja al recibo de caja. */
+  readonly observaciones?: string | null
 }
 
 export async function registrarPago(
@@ -207,24 +212,40 @@ export async function registrarPago(
       ...(datos.fechaRegistro === undefined ? {} : { fecha_registro: datos.fechaRegistro }),
       pagador_tercero_id: datos.pagadorTerceroId ?? null,
       pagador_nombre: datos.pagadorNombre ?? null,
+      pagador_documento: datos.pagadorDocumento ?? null,
+      observaciones: datos.observaciones ?? null,
     })
     .select('id')
     .single()
   if (errorPago) throw new Error(`No se pudo registrar el pago: ${errorPago.message}`)
 
-  if (plan.aplicaciones.length === 0) return pago.id
+  if (plan.aplicaciones.length > 0) {
+    const filas = plan.aplicaciones.map((a) => ({
+      tenant_id: datos.tenantId,
+      pago_id: pago.id,
+      cargo_id: a.cargoId,
+      monto: Number(a.monto.amount.toString()),
+    }))
+    const { error: errorAplicaciones } = await cliente.from('pago_aplicaciones').insert(filas)
+    if (errorAplicaciones) {
+      throw new Error(
+        `No se pudieron registrar las aplicaciones del pago: ${errorAplicaciones.message}`,
+      )
+    }
+  }
 
-  const filas = plan.aplicaciones.map((a) => ({
-    tenant_id: datos.tenantId,
-    pago_id: pago.id,
-    cargo_id: a.cargoId,
-    monto: Number(a.monto.amount.toString()),
-  }))
-  const { error: errorAplicaciones } = await cliente.from('pago_aplicaciones').insert(filas)
-  if (errorAplicaciones) {
-    throw new Error(
-      `No se pudieron registrar las aplicaciones del pago: ${errorAplicaciones.message}`,
-    )
+  // Emitir el recibo DESPUÉS de pago_aplicaciones (2026-08-27, corrige una
+  // condición de carrera real — ver 20260903190000_recibo_caja_timing.sql):
+  // un trigger AFTER INSERT en `pagos` armaba el snapshot antes de que
+  // existieran las aplicaciones (dos .insert() separados, no una
+  // transacción), así que "por concepto de" siempre salía vacío. Ahora se
+  // llama explícitamente, aquí, una vez que ambas tablas ya tienen sus
+  // filas — fn_emitir_recibo_caja ya excluye reversas/montos no positivos.
+  const { error: errorRecibo } = await cliente.rpc('fn_emitir_recibo_caja', {
+    p_pago_id: pago.id,
+  })
+  if (errorRecibo) {
+    throw new Error(`No se pudo emitir el recibo de caja: ${errorRecibo.message}`)
   }
 
   return pago.id

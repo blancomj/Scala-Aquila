@@ -49,6 +49,8 @@ export const useDocumentosStore = defineStore('documentos', () => {
     archivo: File
     fechaVencimiento?: string
     descripcion?: string
+    /** RC-7: adjunta el documento a un pago concreto (comprobante escaneado). */
+    pagoId?: string
   }): Promise<void> {
     subiendo.value = true
     try {
@@ -63,6 +65,7 @@ export const useDocumentosStore = defineStore('documentos', () => {
       form.set('archivo', params.archivo)
       if (params.fechaVencimiento) form.set('fecha_vencimiento', params.fechaVencimiento)
       if (params.descripcion) form.set('descripcion', params.descripcion)
+      if (params.pagoId) form.set('pago_id', params.pagoId)
 
       const { error: errorFuncion } = await cliente.functions.invoke('subir-documento', {
         body: form,

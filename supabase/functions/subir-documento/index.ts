@@ -60,6 +60,7 @@ export default {
     const tipoDocumentoIdRaw = form.get('tipo_documento_id')
     const fechaVencimiento = form.get('fecha_vencimiento')
     const descripcionRaw = form.get('descripcion')
+    const pagoIdRaw = form.get('pago_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -125,6 +126,10 @@ export default {
         undefined,
         correlationId,
       )
+    }
+    const pagoId = typeof pagoIdRaw === 'string' && pagoIdRaw.length > 0 ? pagoIdRaw : null
+    if (pagoId !== null && !UUID_RE.test(pagoId)) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'pago_id debe ser un uuid válido.', undefined, correlationId)
     }
     const DESCRIPCION_MAX = 500
     if (typeof descripcionRaw === 'string' && descripcionRaw.length > DESCRIPCION_MAX) {
@@ -198,6 +203,29 @@ export default {
       tenantId = tenantIdRaw as string
     }
 
+    // pago_id — RC-7: el comprobante que se adjunta al registrar un pago
+    // (foto del recibo físico, comprobante bancario). RLS-scoped, mismo
+    // criterio que inmuebleId arriba: un pago ajeno simplemente no aparece.
+    if (pagoId !== null) {
+      const { data: pago, error: errorPago } = await ctx.supabase
+        .from('pagos')
+        .select('id, tenant_id')
+        .eq('id', pagoId)
+        .maybeSingle()
+      if (errorPago) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorPago.message, undefined, correlationId)
+      }
+      if (!pago || pago.tenant_id !== tenantId) {
+        return errorResponse(
+          404,
+          'PAGO_NO_ENCONTRADO',
+          'El pago no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+    }
+
     const { data: esAgent, error: errorRol } = await ctx.supabase.rpc('has_role', {
       p_tenant: tenantId,
       p_roles: ['auxiliar'],
@@ -241,6 +269,11 @@ export default {
     // grupo_id, version+1 (ver comentario de la tabla en
     // 20260820100300_documentos_inmueble.sql). RLS-scoped: solo ve
     // documentos del propio tenant, ya verificado como miembro arriba.
+    //
+    // Con pago_id: el alcance también se acota a ESE pago — cada pago es su
+    // propio evento, así que el comprobante de un pago nuevo nunca debe
+    // "reemplazar" el de un pago anterior solo por compartir tipo/inmueble.
+    // Como pago_id es único por pago, esto siempre resuelve en version=1.
     let consultaVigente = ctx.supabase
       .from('v_documento_vigente')
       .select('grupo_id, version')
@@ -248,6 +281,7 @@ export default {
       .eq('tipo_documento_id', tipoDocumentoId)
     consultaVigente =
       inmuebleId === null ? consultaVigente.is('inmueble_id', null) : consultaVigente.eq('inmueble_id', inmuebleId)
+    consultaVigente = pagoId === null ? consultaVigente.is('pago_id', null) : consultaVigente.eq('pago_id', pagoId)
     const { data: vigente, error: errorVigente } = await consultaVigente.maybeSingle()
     if (errorVigente) {
       return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
@@ -282,6 +316,7 @@ export default {
       .insert({
         tenant_id: tenantId,
         inmueble_id: inmuebleId,
+        pago_id: pagoId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

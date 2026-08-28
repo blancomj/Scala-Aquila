@@ -1,0 +1,30 @@
+{
+  "name": "@aquila/payment-gateways",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./descriptores": {
+      "types": "./dist/descriptores.d.ts",
+      "default": "./dist/descriptores.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aquila/financial-kernel": "workspace:*",
+    "@aquila/shared": "workspace:*"
+  }
+}

@@ -27,6 +27,7 @@ interface ReciboCajaDatos {
   fecha_pago: string
   forma_pago: string | null
   referencia: string | null
+  observaciones: string | null
   conceptos: ConceptoRecibo[]
   anticipo: number
   saldo_pendiente_despues: number
@@ -217,6 +218,10 @@ function mostrarToast(mensaje: string): void {
             <div v-if="datos.referencia" class="fila mono">
               <dt>Referencia</dt>
               <dd>{{ datos.referencia }}</dd>
+            </div>
+            <div v-if="datos.observaciones" class="fila">
+              <dt>Observaciones</dt>
+              <dd>{{ datos.observaciones }}</dd>
             </div>
           </dl>
         </section>

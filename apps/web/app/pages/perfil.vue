@@ -139,6 +139,9 @@ async function cerrarTodasLasSesiones(): Promise<void> {
     }
     authStore.limpiar()
     tenantStore.limpiar()
+    // Mismo criterio que NavUsuarioMenu.vue: un login nuevo debe volver a
+    // preguntar con cuál copropiedad trabajar.
+    useCookie<boolean>('copropiedad-confirmada-sesion').value = false
     await router.push('/login')
   } finally {
     cerrandoTodo.value = false
@@ -242,6 +245,25 @@ async function desactivarMfa(): Promise<void> {
 const membresias = computed(() =>
   tenantStore.memberships.filter((m) => m.status === 'active'),
 )
+
+// Solo tiene sentido elegir "predeterminada" si hay más de una entre las
+// que elegir — con una sola no se muestra nada (spec 2026-09-04).
+const guardandoPredeterminada = ref(false)
+const errorPredeterminada = ref<string | null>(null)
+
+async function elegirPredeterminada(tenantId: string): Promise<void> {
+  if (tenantId === tenantStore.tenantPredeterminadoId) return
+  errorPredeterminada.value = null
+  guardandoPredeterminada.value = true
+  try {
+    await tenantStore.actualizarTenantPredeterminado(tenantId)
+    toast.add({ title: 'Copropiedad predeterminada actualizada.', color: 'success' })
+  } catch (excepcion) {
+    errorPredeterminada.value = mensajeError(excepcion, 'No se pudo actualizar la predeterminada.')
+  } finally {
+    guardandoPredeterminada.value = false
+  }
+}
 </script>
 
 <template>
@@ -440,16 +462,44 @@ const membresias = computed(() =>
         </svg>
         Tus copropiedades
       </h2>
+      <p v-if="membresias.length > 1" class="text-xs text-muted mb-3">
+        La predeterminada es la que se preselecciona al iniciar sesión cuando tienes más de una.
+      </p>
       <ul class="divide-y divide-default border border-default rounded-md">
         <li
           v-for="membresia in membresias"
           :key="membresia.id"
-          class="px-3 py-2.5 flex items-center justify-between text-sm"
+          class="px-3 py-2.5 flex items-center justify-between gap-3 text-sm"
         >
           <span class="truncate">{{ membresia.tenant.name }}</span>
-          <UBadge color="neutral" variant="subtle">{{ ROL_LABEL[membresia.role] }}</UBadge>
+          <div class="flex items-center gap-2 shrink-0">
+            <UBadge color="neutral" variant="subtle">{{ ROL_LABEL[membresia.role] }}</UBadge>
+            <UBadge v-if="membresias.length === 1" color="primary" variant="subtle">
+              Predeterminada
+            </UBadge>
+            <UButton
+              v-else-if="membresia.tenant_id === tenantStore.tenantPredeterminadoId"
+              size="xs"
+              color="primary"
+              variant="subtle"
+              disabled
+            >
+              Predeterminada
+            </UButton>
+            <UButton
+              v-else
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :loading="guardandoPredeterminada"
+              @click="elegirPredeterminada(membresia.tenant_id)"
+            >
+              Hacer predeterminada
+            </UButton>
+          </div>
         </li>
       </ul>
+      <UAlert v-if="errorPredeterminada" color="error" variant="soft" :title="errorPredeterminada" class="mt-3" />
     </div>
   </div>
 </template>

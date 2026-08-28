@@ -88,5 +88,13 @@ async function crear(): Promise<void> {
 
       <UButton type="submit" block :loading="cargando">Crear copropiedad</UButton>
     </form>
+
+    <template #footer>
+      <p class="text-sm text-gray-500">
+        <NuxtLink to="/copropiedades" class="text-primary-500 font-medium"
+          >Volver a mis copropiedades</NuxtLink
+        >
+      </p>
+    </template>
   </UCard>
 </template>

@@ -22,6 +22,7 @@ import {
   PoliticaMoraNoConfiguradaError,
   SegmentacionDayCountNoSoportadoError,
   SegmentosTasaSolapadosError,
+  ImputacionManualInvalidaError,
 } from './errors.js'
 
 export type CategoriaCargo = 'capital' | 'interes' | 'otro'
@@ -156,6 +157,63 @@ export function imputarPago(
   }
 
   return { aplicaciones, aplicado, noAplicado: restante }
+}
+
+export interface AplicacionManual {
+  readonly cargoId: string
+  readonly monto: Money
+}
+
+/**
+ * Construye un PlanImputacion a partir de una selección manual del auxiliar
+ * (art. 1653 C.C. — el pagador puede declarar a qué obligación aplica su
+ * pago). A diferencia de imputarPago(), no ordena ni decide por el usuario:
+ * solo valida integridad (cargo abierto en este inmueble, sin duplicados,
+ * cada monto ≤ pendiente del cargo, suma ≤ monto del pago) y arma el mismo
+ * PlanImputacion que consume registrarPago() — el remanente (si lo hay)
+ * queda como noAplicado, igual que un sobrepago hoy.
+ */
+export function construirPlanManual(
+  montoPago: Money,
+  aplicaciones: readonly AplicacionManual[],
+  cargosAbiertos: readonly CargoAbierto[],
+): PlanImputacion {
+  if (aplicaciones.length === 0) {
+    throw new ImputacionManualInvalidaError('se requiere al menos un cargo.')
+  }
+  const cargosPorId = new Map(cargosAbiertos.map((c) => [c.id, c]))
+  const vistos = new Set<string>()
+  let acumulado = fos.money(0, montoPago.currency)
+
+  for (const a of aplicaciones) {
+    if (vistos.has(a.cargoId)) {
+      throw new ImputacionManualInvalidaError(`el cargo ${a.cargoId} está repetido.`)
+    }
+    vistos.add(a.cargoId)
+    const cargo = cargosPorId.get(a.cargoId)
+    if (!cargo) {
+      throw new ImputacionManualInvalidaError(`el cargo ${a.cargoId} no está pendiente en este inmueble.`)
+    }
+    if (fos.comparar(a.monto, cargo.montoPendiente) > 0) {
+      throw new ImputacionManualInvalidaError(
+        `${a.monto.amount.toString()} excede el pendiente del cargo ${a.cargoId} ` +
+          `(${cargo.montoPendiente.amount.toString()}).`,
+      )
+    }
+    acumulado = fos.sumar(acumulado, a.monto)
+  }
+  if (fos.comparar(acumulado, montoPago) > 0) {
+    throw new ImputacionManualInvalidaError(
+      `las aplicaciones (${acumulado.amount.toString()}) exceden el monto del pago ` +
+        `(${montoPago.amount.toString()}).`,
+    )
+  }
+
+  return {
+    aplicaciones: aplicaciones.map((a) => ({ cargoId: a.cargoId, monto: a.monto })),
+    aplicado: acumulado,
+    noAplicado: fos.restar(montoPago, acumulado),
+  }
 }
 
 // ─────────────────────────── Interés de mora ────────────────────────────

@@ -52,6 +52,14 @@ export const useTenantStore = defineStore('tenant', () => {
 
   const activeTenant = computed<TenantRow | null>(() => membresiaActiva.value?.tenant ?? null)
   const role = computed<TenantRole | null>(() => membresiaActiva.value?.role ?? null)
+
+  // Preferencia explícita del usuario para el selector de inicio de sesión —
+  // distinta de activeTenant (la copropiedad de la sesión actual). NULL =
+  // sin preferencia todavía; el selector cae a active_tenant_id como respaldo.
+  const tenantPredeterminadoId = computed<string | null>(() => {
+    const authStore = useAuthStore()
+    return authStore.profile?.tenant_predeterminado_id ?? null
+  })
   const permissions = computed<readonly Permission[]>(() =>
     role.value ? ROLE_PERMISSIONS[role.value] : [],
   )
@@ -138,6 +146,21 @@ export const useTenantStore = defineStore('tenant', () => {
     await authStore.cargarPerfil({ forzar: true })
   }
 
+  // Solo actualiza la preferencia (tenant_predeterminado_id) — NO cambia la
+  // copropiedad de la sesión actual. Son dos acciones independientes a
+  // propósito: elegir "con cuál quiero que me pregunte empezar" no implica
+  // saltar a trabajar ahí ahora mismo.
+  async function actualizarTenantPredeterminado(tenantId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error: errorSet } = await cliente.rpc('set_tenant_predeterminado', {
+      p_tenant_id: tenantId,
+    })
+    if (errorSet) throw errorSet
+
+    const authStore = useAuthStore()
+    await authStore.cargarPerfil({ forzar: true })
+  }
+
   function limpiar(): void {
     memberships.value = []
   }
@@ -148,11 +171,13 @@ export const useTenantStore = defineStore('tenant', () => {
     activeTenant,
     role,
     permissions,
+    tenantPredeterminadoId,
     puede,
     puedeVerModulo,
     cargarMemberships,
     crearTenant,
     cambiarTenant,
+    actualizarTenantPredeterminado,
     limpiar,
   }
 })

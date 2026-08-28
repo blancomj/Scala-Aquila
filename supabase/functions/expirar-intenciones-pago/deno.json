@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
+    "decimal.js": "npm:decimal.js@^10.6.0",
+    "@aquila/ael-core": "../../../packages/ael-core/dist/index.js",
+    "@aquila/ael-language": "../../../packages/ael-language/dist/index.js",
+    "@aquila/ael-runtime": "../../../packages/ael-runtime/dist/index.js",
+    "@aquila/financial-kernel": "../../../packages/financial-kernel/dist/index.js",
+    "@aquila/payment-gateways": "../../../packages/payment-gateways/dist/index.js"
+  }
+}

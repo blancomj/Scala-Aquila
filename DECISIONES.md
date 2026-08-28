@@ -924,3 +924,325 @@ el catálogo limpio.
 - Requiere que platform admin revise propuestas (proceso manual)
 ```
 
+
+---
+
+## D-31 — Estructura multi-pasarela de pago por copropiedad
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | Pagos electrónicos (Doc 05, fase 1 de 2)    |
+| **Estado** | Aceptada                                    |
+| **Decide** | Usuario (plan aprobado 2026-08-27)          |
+
+**Contexto.** `Docs/evaluacion/05-evaluacion-pagos-conciliacion.md` §A fija el
+principio no negociable: **la copropiedad es el comercio, no AQUILA** — cada
+tenant usa su propia cuenta de pasarela y el dinero va directo a su cuenta de
+recaudo, lo que evita caer bajo regulación de la Superintendencia Financiera.
+Eso obliga a credenciales POR TENANT, algo que la infraestructura existente no
+podía dar: hasta hoy el único manejo de secretos era `supabase secrets set`
+(D-19/D-21), que es por plataforma. Esta decisión cubre la **fase de
+estructura**: esquema, configuración, adaptadores y pantalla. No hay cobro
+real, ni webhooks, ni registro de pagos desde una pasarela.
+
+**Decisión.**
+
+1. **`pasarela_proveedor_t` y `pasarela_modo_t` son enums nativos, no
+   `lista_tipos`** (la carga de la prueba que exige D-24 se cumple): el valor
+   selecciona en tiempo de ejecución qué adaptador de código se ejecuta —
+   firma de webhook, contrato de API y tipo de checkout distintos por
+   proveedor. `ADAPTADORES` es un `Record<PasarelaProveedor, …>` exhaustivo:
+   agregar un valor al enum sin escribir su adaptador es un error de
+   compilación. Un proveedor nuevo no es una fila de catálogo, es una clase.
+
+2. **La credencial vive en `pasarela_credencial`, tabla aparte, con RLS
+   `enable`+`force` y CERO políticas para `authenticated`** — ni SELECT. Solo
+   `service_role` la lee, desde `configurar-pasarela`. Separarla de
+   `pasarela_config` es de seguridad, no de normalización: si vivieran juntas,
+   la UI las leería juntas. El `COMMENT ON TABLE` dice explícitamente que la
+   ausencia de política es deliberada, para que nadie la "arregle" después.
+   El único camino de lectura hacia el cliente es
+   `fn_pasarela_credenciales_presentes`, que devuelve `(config_id, nombre)` y
+   nada más — no hay superficie por la que salga un valor.
+
+3. **`ResultadoIntencion` es una unión discriminada**
+   (`redirect | boton_embebido | referencia_efectivo`), no el
+   `{checkoutUrl | referenciaEfectivo}` que propone §D del documento
+   propietario. **Fue Bold quien lo forzó**: su checkout online no es un
+   redirect, es un botón embebido con firma de integridad, y modelado como
+   "URL o referencia" no cabe. Queda escrito aquí y en un test
+   (`registro.test.ts`, "Bold es el único con checkout de botón embebido")
+   porque una "simplificación" futura de la interfaz rompería Bold en
+   silencio: compilaría, y el pago no funcionaría.
+
+4. **Resolución de tenant en el webhook: opción 1 — `webhook_token` por
+   tenant** (columna única, aleatoria, rotable), creada ya aunque el webhook
+   sea de la fase siguiente: agregarla después obligaría a regenerar tokens en
+   tenants ya configurados. Un webhook llega sin autenticación y su firma se
+   valida con el secreto del tenant dueño de la transacción — hay que saber de
+   qué tenant es *antes* de poder validarlo. El token **identifica sin
+   autenticar**; la firma sigue siendo lo que autoriza.
+
+5. **El datáfono físico de Bold queda fuera del adaptador online**, y la UI lo
+   dice donde se configura Bold. Un cobro por datáfono es presencial y aparece
+   después en el reporte de liquidación de Bold: es conciliación, no checkout
+   con webhook. Si alguien asume que configurar Bold aquí también lo cubre, el
+   mismo pago termina registrado dos veces.
+
+6. **`metodos_habilitados` reutiliza la familia `FORMA_PAGO` de `lista_tipos`**
+   vía la tabla puente `pasarela_config_metodo`, en vez del `text[]` con
+   vocabulario libre que proponía el prompt de origen. Motivo: `FORMA_PAGO` es
+   el mismo vocabulario que alimenta `pagos.forma_pago_id` (NOT NULL), así que
+   la fase 2 podrá mapear lo que reporta la pasarela a un pago real sin
+   reconciliar dos catálogos paralelos. Tabla puente y no `bigint[]` porque un
+   array no admite FK por elemento. Se sembraron los 4 códigos que faltaban
+   (`tarjeta_credito`, `tarjeta_debito`, `nequi`, `corresponsal_bancario`).
+
+7. **Paquete propio `packages/payment-gateways`** (precedente D-09) y no
+   `packages/shared/src/pasarelas/`: un módulo de `shared` consumido por una
+   Edge Function se importa como `.ts` crudo desde Deno, que no resuelve
+   imports internos `.js` apuntando a hermanos `.ts`. La interfaz + 4
+   adaptadores + registro son varios archivos que se importan entre sí, así
+   que necesitan el build a `dist/` — igual que `liquidation-engine`.
+
+8. **`fn_activar_pasarela` y `fn_cambiar_modo_pasarela` son `SECURITY
+   DEFINER`, no `SECURITY INVOKER`** (corrección sobre el diseño de origen,
+   que mandaba copiar `fn_marcar_cuenta_recaudo`): ambas emiten auditoría, y
+   `audit_log` no tiene política de INSERT para `authenticated` — con INVOKER
+   el insert de auditoría fallaría por RLS. Se sigue el patrón de
+   `fn_guardar_plantilla_sms` (20260822240000): DEFINER + chequeo explícito de
+   `has_role()` adentro, porque al escalar privilegios la RLS de la tabla ya
+   no autoriza por sí sola. `fn_marcar_cuenta_recaudo` puede ser INVOKER
+   justamente porque no audita nada.
+
+9. **Supabase Vault: verificado, no asumido (2026-08-27).** El diseño de
+   origen daba Vault por resuelto, pero no había ni un solo uso en las 199
+   migraciones del proyecto. Antes de construir encima se probó contra el
+   proyecto de **desarrollo** (`hwjmlyzzvpmhadldavbq`): `supabase_vault`
+   **0.3.1** instalado, y el ciclo completo `vault.create_secret` →
+   `vault.decrypted_secrets` → `delete` funcionó. Sobre esa evidencia se
+   adoptó Vault como cifrado en reposo, sin criptografía propia ni envelope
+   encryption a mano. **Queda pendiente repetir esta verificación en el
+   proyecto de producción (`alfftzoxwsurvzknsczs`) antes de promover estas
+   migraciones** — D-25 exige autorización explícita del usuario en el momento
+   para tocar producción, así que no se hizo aquí.
+
+10. **El botón "Pagar" del estado de cuenta sigue apagado** (D-28 punto 4):
+    esta fase no habilita cobro. La pantalla de configuración lo dice.
+
+**Consecuencias aceptadas.**
+
+```text
++ Una credencial guardada no tiene ningún camino de vuelta al cliente, y hay
+  un test que lo prueba contra la base real (tests/rls/pasarelas.test.ts)
++ Agregar un proveedor al enum sin su adaptador no compila
++ El vocabulario de métodos no se bifurca: la fase 2 hereda FORMA_PAGO
+- Cambiar una credencial invalida verificada_at y desactiva la pasarela: hay
+  que volver a probar y reactivar (deliberado, pero es fricción real)
+- "Probar conexión" en esta fase solo verifica que las credenciales estén y
+  se puedan descifrar, NO habla con el proveedor — la respuesta lo declara
+  en `alcance` para no dar una falsa sensación de "probado contra Wompi"
+- Vault queda como dependencia de plataforma verificada solo en desarrollo
+```
+
+---
+
+## D-32 — Wompi real (Fase 2): adaptador, `crear-intencion-pago`, `webhook-pasarela`
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | Pagos electrónicos (Doc 05, fase 2 de 2)    |
+| **Estado** | Aceptada — verificado parcialmente          |
+| **Decide** | Usuario (credenciales activas y "probar conexión" en sandbox, 2026-08-28) |
+
+**Contexto.** D-31 dejó la estructura (esquema, configuración, adaptadores en
+`NO_IMPLEMENTADO`). Esta decisión cierra el adaptador de Wompi y las dos Edge
+Functions que conectan un checkout real al pipeline de recaudo que ya existía
+(`registrarPago`/`imputarPago`) — sin pipeline paralelo, tal como exige §1 del
+prompt de fase 2. El disparador fue el usuario confirmando que las
+credenciales de Wompi ya estaban activas y "probar conexión" en modo sandbox
+había pasado.
+
+**1. Esquema y `fn_registrar_pago_pasarela` — ya existían.** Una sesión
+anterior (interrumpida antes de este cierre) ya había construido y probado
+`intenciones_pago`, su máquina de estados, y `fn_registrar_pago_pasarela`
+(idempotente por el patrón de `20260831130000`, con reclamo atómico —
+`20260904130000`/`150000`). El test `tests/rls/intenciones-pago.test.ts`
+("DOBLE WEBHOOK IDÉNTICO ⇒ UN SOLO PAGO") ya pasaba contra la base real. Esta
+decisión NO repite ese trabajo — solo agrega la pieza que faltaba:
+`fn_leer_credenciales_pasarela` (`20260904200000`), la única función que
+devuelve el VALOR descifrado de una credencial (todo lo anterior,
+deliberadamente, solo daba nombres o conteos) — service_role únicamente,
+nunca expuesta a `authenticated`/`anon`.
+
+**2. Firma y endpoints de Wompi — verificados contra la documentación oficial
+el 2026-08-28** (`https://docs.wompi.co/en/docs/colombia/`), no deducidos de
+memoria ni del documento propietario, tal como exige §4 del prompt:
+
+```text
+Ambientes:   sandbox https://sandbox.wompi.co/v1 · producción https://production.wompi.co/v1
+Checkout:    https://checkout.wompi.co/p/ (MISMA url en ambos ambientes — el
+             ambiente lo decide el prefijo de la public-key usada)
+Integridad:  SHA256(reference + amount-in-cents + currency + integrity-secret)
+Checksum de
+eventos:     SHA256(concat(valores de signature.properties, en orden) +
+             signature.timestamp + events-secret) — properties es una lista
+             de rutas dentro de `data` y puede variar entre eventos; nunca se
+             asume un shape fijo
+Transacción: GET /v1/transactions/{id}, Authorization: Bearer {public_key}
+             (la public-key basta para consultar estado — no hace falta la
+             privada)
+```
+
+No se usa el parámetro opcional `expiration-time` de Wompi (afecta el orden
+de la firma y no aporta nada que `intenciones_pago.expira_at` + el job de
+expiración no cubran ya).
+
+**3. Verificación doble (§6.2) — resuelta así: gana la consulta, siempre.**
+`webhook-pasarela` valida la firma, y SOLO entonces llama
+`consultarTransaccion()` contra la API de Wompi; el estado y el monto que se
+materializan en `pagos` son los de esa respuesta, nunca los del cuerpo del
+webhook. Si el monto confirmado por la API difiere del `intenciones_pago.monto`
+esperado, se registra igual (nunca se ajusta en silencio) y se anota en
+`revision_motivo` de la propia fila — queda auditado, no bloqueado.
+
+**4. Formas de pago — ninguna nueva que sembrar.** Las 4 que faltaban
+(`tarjeta_credito`, `tarjeta_debito`, `nequi`, `corresponsal_bancario`) ya se
+sembraron en D-31/`20260904100000`. El mapeo "método de Wompi → código
+`FORMA_PAGO`" vive en `packages/payment-gateways/src/metodo-forma-pago.ts`
+(ya existía, con test). Si Wompi reporta un método sin mapeo, el pago se
+registra igual contra `transferencia_bancaria` con el hecho anotado — nunca
+se bloquea un cobro real ya confirmado por falta de un mapeo de catálogo.
+
+**5. Botón "Pagar" (cierra D-28 punto 4) — condición exacta, AÚN NO
+implementada en la UI.** Esta decisión deja listo el backend
+(`crear-intencion-pago` genera la URL de Web Checkout firmada; probado
+end-to-end contra la función real con credenciales sintéticas de prueba, sin
+tocar la red de Wompi porque `crearIntencion()` no la necesita — es
+construcción y firma locales). La condición que la UI deberá aplicar al
+encender el botón: `pasarela_config.activa = true` para el tenant (no hace
+falta `verificada_at` en sandbox — sí en producción, ya lo exige
+`fn_activar_pasarela`). El propio encendido del botón, la pantalla de
+resultado y el panel del administrador (§8) quedan fuera de esta decisión —
+ver "qué falta" abajo.
+
+**6. `ParamsIntencion`/`consultarTransaccion` cambiaron de forma respecto a
+D-31.** La fase de estructura no anticipó cómo llegarían las credenciales al
+adaptador. Se agregó `credenciales: Record<string,string>` a `ParamsIntencion`
+y un segundo parámetro `ContextoConsulta` (`{modo, credenciales}`) a
+`consultarTransaccion()` — el caller (la Edge Function, que ya las leyó de
+Vault) se las pasa; el adaptador nunca las persiste ni las loguea. PayU/ePayco/
+Bold, que siguen en `NO_IMPLEMENTADO`, ya cumplen la forma nueva sin cambios
+(`metodosNoImplementados()` ignora los parámetros extra).
+
+**7. Job de expiración (§7) — `expirar-intenciones-pago`, cron con
+`CRON_SECRET`** (mismo patrón que `enviar-estados-cuenta-pendientes`). Busca
+intenciones `creada`/`pendiente` con `expira_at` vencido; si una SÍ tenía
+`transaction_id`, consulta la API antes de expirarla — si resulta que se
+aprobó y el webhook nunca llegó, la materializa por el mismo camino canónico
+(`fn_registrar_pago_pasarela`), nunca con un INSERT propio. Sin
+`transaction_id` (el checkout nunca se abrió) se expira directo, sin llamar a
+la API. **Falta programar el cron externo que la invoque** (mismo pendiente
+que ya tenía `enviar-estados-cuenta-pendientes`) y confirmar `CRON_SECRET`
+como secret de esta función en el proyecto.
+
+**8. UI (§8) — botón "Pagar", pantalla de resultado, panel del
+administrador.**
+- `ver-estado-cuenta` ahora expone `pago_habilitado` (booleano derivado de
+  `pasarela_config.activa` del tenant — ningún secreto, seguro en una puerta
+  anónima) y el visor público (`comprobante-cuenta/[id].vue`) enciende
+  "Pagar ahora en línea" con esa señal, nunca con una condición local. Cierra
+  D-28 punto 4.
+- Nueva Edge Function pública `ver-intencion-pago`: el propio uuid de la
+  intención actúa como capability token (igual criterio que un enlace de
+  reseteo de contraseña) — sin firma HMAC porque no hay nada que reenviar ni
+  que perdure, la intención expira sola (§7).
+- `pago/resultado.vue`: sondea `ver-intencion-pago` cada 5s (hasta 3 minutos)
+  tras volver del checkout — el webhook, no el redirect, es quien confirma,
+  así que el estado sigue "pendiente" un rato normal.
+- `pagos/transacciones.vue`: bandeja de solo lectura para el administrador
+  (intenciones_pago no tiene política de escritura para `authenticated` —
+  toda transición la maneja una Edge Function o el cron).
+- El campo `metodo` que Wompi recibe en la URL no restringe nada del lado de
+  Wompi (su Web Checkout muestra todos los métodos habilitados en el
+  dashboard del comercio, no hay parámetro que filtre uno solo) — la UI no
+  ofrece selector de método, envía `'pse'` como valor informativo; lo que
+  realmente decide la forma de pago del `pago` final es lo que el webhook
+  confirma (`estadoReal.metodo`), no lo que se envió al crear la intención.
+
+**9. Vacío contable cerrado tras el despliegue (2026-08-28, pregunta directa
+del usuario): la cuenta bancaria de recaudo NO estaba vinculada al pago de
+pasarela.** `fn_registrar_pago_pasarela` insertaba `pagos` sin
+`cuenta_bancaria_id` — `contable_movimientos()` ante ese campo nulo cae al
+evento genérico `BANCO_RECAUDO` en vez de debitar la cuenta puntual del
+tenant, a diferencia de cualquier pago manual no-efectivo (`registrar-pago`
+ya resolvía la cuenta `es_recaudo=true`). **Esto no es la cuenta a la que
+Wompi liquida de verdad** — eso lo configura la copropiedad directamente en
+su panel de Wompi, fuera de AQUILA (D-31 §A) — es la cuenta que la propia
+copropiedad marcó dentro de AQUILA como su cuenta de recaudo, el mismo dato
+que ya usa cualquier otro pago no-efectivo. Corregido en
+`20260904210000_pago_pasarela_cuenta_recaudo.sql`: `fn_registrar_pago_pasarela`
+ahora resuelve esa cuenta (mismo criterio que `registrar-pago/index.ts`) y la
+deja en la fila — se hizo DENTRO de la función SQL, no en las dos Edge
+Functions que la llaman, para no duplicar la consulta. Sin cuenta
+`es_recaudo` configurada, la columna sigue quedando `null` (mismo respaldo de
+antes). Verificado contra la base real: `tests/rls/intenciones-pago.test.ts`
+("DOBLE WEBHOOK IDÉNTICO") ahora arma una cuenta `es_recaudo` en el fixture y
+confirma que `pagos.cuenta_bancaria_id` queda exactamente esa cuenta.
+
+**Rate limit corregido durante las pruebas.** `crear-intencion-pago` partió
+en 15/hora por IP y resultó demasiado bajo: varios residentes de una misma
+copropiedad comparten con frecuencia la IP del router del edificio y podrían
+generar cada uno su propio checkout la misma hora. Subido a 40/hora, mismo
+orden de magnitud que `configurar-pasarela`.
+
+**Comportamiento de Wompi descubierto probando, no documentado de antemano.**
+Ninguno todavía — la integración no se ha probado contra una transacción real
+de sandbox (ver más abajo).
+
+**Qué quedó implementado y verificado:**
+
+```text
+✓ adaptadorWompi real: crearIntencion/consultarTransaccion/validarFirmaWebhook/
+  parsearWebhook — 17 tests unitarios, incluida una fixture de firma real que
+  pasa y tres variantes que deben fallar (alterada, secreto de otro tenant,
+  payload sin forma esperada)
+✓ fn_leer_credenciales_pasarela (20260904200000), aplicada a desarrollo
+✓ crear-intencion-pago desplegada — 6 tests end-to-end contra la función real
+  (FORBIDDEN para no-auxiliar, sin saldo, método no soportado, monto excede
+  saldo, éxito con URL de Web Checkout firmada y verificada, consulta de
+  estado vía ver-intencion-pago)
+✓ webhook-pasarela desplegada — 2 tests end-to-end contra la función real
+  (token de webhook desconocido, firma inválida) — ambos auditados en
+  audit_log y confirmados sin tocar `pagos`
+✓ ver-intencion-pago y expirar-intenciones-pago desplegadas; esta última
+  verificada rechazando una llamada sin CRON_SECRET (403)
+✓ UI: botón "Pagar ahora" en el visor público, pantalla de resultado con
+  sondeo, panel de transacciones del administrador — las tres verificadas
+  cargando en el navegador (sin errores de consola) contra la app real;
+  `nuxt typecheck` sin errores nuevos
+✓ pnpm vitest en verde en todo el módulo de pasarelas/conciliación
+  (105 tests)
+```
+
+**Qué falta — NO declarado DONE sin evidencia (§11 del prompt lo prohíbe
+explícitamente):**
+
+```text
+✗ Ninguna transacción real de sandbox de Wompi se ha completado todavía. El
+  camino 'aprobada' de webhook-pasarela (verificación doble real, divergencia
+  de monto, reembolso vía fn_anular_pago) NO tiene prueba end-to-end contra
+  Wompi — requiere que un humano complete un checkout real en el sandbox
+  (crear-intencion-pago ya genera la URL, y el botón "Pagar ahora" del visor
+  público ya la dispara; falta que alguien la abra y pague con una
+  tarjeta/PSE de prueba de Wompi) antes de considerar esta fase verificada de
+  punta a punta
+✗ expirar-intenciones-pago no tiene todavía un cron externo que la invoque
+  (mismo pendiente ya conocido de enviar-estados-cuenta-pendientes) — hay que
+  confirmar CRON_SECRET como secret de la función y programar la invocación
+✗ El botón "Pagar ahora" y la pantalla de resultado no se han probado
+  visualmente con datos reales (solo con ids inexistentes, para confirmar que
+  no rompen) — falta abrir un estado de cuenta real con una pasarela activa
+✗ PayU, ePayco, Bold — siguen en NO_IMPLEMENTADO, como exige §0 del prompt
+```
+
