@@ -6,24 +6,32 @@
  * mismo objeto que se hashea es el que se persiste, así ambos nunca pueden
  * divergir entre sí.
  *
- * GAP-CAR-011 (decisión explícita del usuario, 2026-08-17): el esquema NO
- * distingue hoy una cuota extraordinaria de una ordinaria a nivel de cargo
- * (fuente_financiacion.cuota_extraordinaria es una fuente de financiación
- * del PRESUPUESTO, no una marca por cargo — "todavía no reduce
- * conceptos.CUOTA_ADMIN", 20260814200000). Tampoco hay ninguna marca que
- * distinga una sanción de cualquier otro cargo categoria='otro'
- * (TIPO_NOVEDAD en lista_tipos existe sembrado pero NUNCA se referencia
- * desde ninguna tabla/código — novedades.tipo es el enum CHARGE/DISCOUNT/
- * ADJUSTMENT/REFUND/CREDIT/DEBIT, sin sub-clasificación). Por eso
- * montoExpensasExtraordinarias y montoSanciones son SIEMPRE '0' — no se
- * inventa una clasificación que no existe. Los 3 rubros que sí son
- * ciertos (capital→ordinarias, interés→intereses_mora, todo lo demás
- * categoria='otro'→montoOtros) se certifican con exactitud, y el total
- * siempre reconcilia con fn_posicion_cartera (misma fuente de cargos).
+ * GAP-CAR-011 — RESUELTO (2026-08-29). Cuando se escribió el gap
+ * (2026-08-17) el esquema no distinguía una cuota extraordinaria de una
+ * ordinaria a nivel de cargo, ni una sanción de cualquier otro cargo
+ * categoria='otro'. Desde entonces se sembraron dos catálogos que sí
+ * discriminan a nivel de cargo:
+ *   - conceptos_plantilla (20260901180000): el concepto CUOTA_EXTRA es
+ *     real y produce cargos con concepto_id propio — un cargo
+ *     categoria='capital' cuyo concepto es CUOTA_EXTRA es una expensa
+ *     extraordinaria, cualquier otro concepto de categoria='capital' es
+ *     ordinaria.
+ *   - novedad_tipo_cuenta (20260830240000): TIPO_NOVEDAD 'sancion' (uno de
+ *     los 8 motivos sembrados en lista_tipos, 20260814180000) ya se
+ *     referencia desde novedades.tipo_novedad_id — un cargo
+ *     categoria='otro' cuya novedad tiene motivo 'sancion' es una sanción,
+ *     cualquier otro motivo (o sin novedad) sigue siendo montoOtros.
+ * Los 5 rubros del art. 48 se certifican con exactitud; el total sigue
+ * reconciliando con fn_posicion_cartera (misma fuente de cargos).
  */
 import * as fos from '@aquila/financial-kernel'
 import { createHash } from 'node:crypto'
 import type { CategoriaCargo } from './cuenta-corriente.js'
+
+/** conceptos.codigo de la cuota extraordinaria (conceptos_plantilla, 20260901180000). */
+const CONCEPTO_CODIGO_CUOTA_EXTRAORDINARIA = 'CUOTA_EXTRA'
+/** lista_tipos.codigo (familia TIPO_NOVEDAD) que marca una sanción (20260814180000). */
+const TIPO_NOVEDAD_CODIGO_SANCION = 'sancion'
 
 export class CertificacionSinDeudaError extends Error {
   constructor(inmuebleId: string, fechaCorte: string) {
@@ -44,6 +52,8 @@ export interface DetalleCargoCertificado {
   readonly montoOriginal: string
   readonly saldoPendiente: string
   readonly categoria: CategoriaCargo
+  /** lista_tipos.codigo (TIPO_NOVEDAD) de la novedad origen del cargo — null si no viene de una novedad. */
+  readonly motivoNovedadCodigo: string | null
 }
 
 /**
@@ -58,10 +68,8 @@ export interface CertificacionDeudaDatos {
   readonly fechaExpedicion: string
   readonly fechaCorte: string
   readonly montoExpensasOrdinarias: string
-  /** GAP-CAR-011 — siempre '0', ver cabecera del archivo. */
   readonly montoExpensasExtraordinarias: string
   readonly montoInteresesMora: string
-  /** GAP-CAR-011 — siempre '0', ver cabecera del archivo. */
   readonly montoSanciones: string
   readonly montoOtros: string
   readonly montoTotal: string
@@ -94,16 +102,22 @@ export function construirCertificacionDeuda(params: {
     return porFecha !== 0 ? porFecha : a.cargoId.localeCompare(b.cargoId)
   })
 
-  const porCategoria = (categoria: CategoriaCargo): string =>
-    fos
-      .sumarDecimales(detalleOrdenado.filter((c) => c.categoria === categoria).map((c) => c.saldoPendiente))
-      .toString()
+  const sumar = (cs: readonly DetalleCargoCertificado[]): string =>
+    fos.sumarDecimales(cs.map((c) => c.saldoPendiente)).toString()
 
-  const ordinarias = porCategoria('capital')
-  const interesesMora = porCategoria('interes')
-  const otros = porCategoria('otro')
-  const extraordinarias = '0' // GAP-CAR-011
-  const sanciones = '0' // GAP-CAR-011
+  const esExtraordinaria = (c: DetalleCargoCertificado): boolean =>
+    c.conceptoCodigo === CONCEPTO_CODIGO_CUOTA_EXTRAORDINARIA
+  const esSancion = (c: DetalleCargoCertificado): boolean =>
+    c.motivoNovedadCodigo === TIPO_NOVEDAD_CODIGO_SANCION
+
+  const cargosCapital = detalleOrdenado.filter((c) => c.categoria === 'capital')
+  const cargosOtro = detalleOrdenado.filter((c) => c.categoria === 'otro')
+
+  const ordinarias = sumar(cargosCapital.filter((c) => !esExtraordinaria(c)))
+  const extraordinarias = sumar(cargosCapital.filter(esExtraordinaria))
+  const interesesMora = sumar(detalleOrdenado.filter((c) => c.categoria === 'interes'))
+  const sanciones = sumar(cargosOtro.filter(esSancion))
+  const otros = sumar(cargosOtro.filter((c) => !esSancion(c)))
   const total = fos.sumarDecimales([ordinarias, extraordinarias, interesesMora, sanciones, otros]).toString()
 
   if (fos.compararDecimales(total, '0') <= 0) {
@@ -155,6 +169,7 @@ export function calcularCertificacionHash(datos: CertificacionDeudaDatos): strin
       montoOriginal: c.montoOriginal,
       saldoPendiente: c.saldoPendiente,
       categoria: c.categoria,
+      motivoNovedadCodigo: c.motivoNovedadCodigo,
     })),
     politicaFinancieraId: datos.politicaFinancieraId,
     politicaVersion: datos.politicaVersion,

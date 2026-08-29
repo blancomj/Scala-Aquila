@@ -3186,20 +3186,19 @@ Entregables  · certificaciones_deuda + fn_certificar_deuda ✅
                la única transición vigente→anulada, con motivo
                obligatorio y administrador explícito. 6 tests unitarios
                + 7 tests RLS.)
-             · ~~GAP-CAR-011~~ (nuevo, decisión explícita del usuario
-               2026-08-17): el esquema no distingue una cuota
-               extraordinaria (fuente_financiacion.cuota_extraordinaria
-               es del presupuesto, no del cargo) ni una sanción
-               (TIPO_NOVEDAD en lista_tipos existe sembrado pero NINGÚN
-               código lo referencia — novedades.tipo es el enum
-               CHARGE/DISCOUNT/ADJUSTMENT/REFUND/CREDIT/DEBIT, sin
-               sub-clasificación) a nivel de cargo. Se certifican con
-               exactitud los 3 rubros que sí son cargo-discriminables
-               (capital→ordinarias, interés→intereses_mora, todo lo
-               demás→otros); monto_expensas_extraordinarias y
-               monto_sanciones quedan siempre en 0, documentado, no
-               inventado. El total siempre reconcilia con
-               fn_posicion_cartera (misma fuente de cargos).
+             · ~~GAP-CAR-011~~ ✅ **RESUELTO (2026-08-29).** Cuando se
+               abrió el gap (2026-08-17) el esquema no distinguía una
+               cuota extraordinaria ni una sanción a nivel de cargo.
+               Desde entonces se sembraron dos catálogos que sí
+               discriminan a nivel de cargo: `conceptos_plantilla`
+               (`CUOTA_EXTRA`, 20260901180000) y `novedad_tipo_cuenta`
+               (TIPO_NOVEDAD `sancion`, 20260830240000, ya referenciado
+               desde `novedades.tipo_novedad_id`). `construirCertificacionDeuda`
+               ahora certifica los 5 rubros del art. 48 con exactitud —
+               `monto_expensas_extraordinarias` y `monto_sanciones` ya
+               no quedan fijos en 0. El total sigue reconciliando con
+               fn_posicion_cartera (misma fuente de cargos). 9 tests
+               unitarios (3 nuevos cubren la discriminación y el hash).
              · casos_juridicos + caso_juridico_actuaciones ✅
                (20260822340000 — certificacion_id NOT NULL, sin
                certificación vigente no hay caso. Remitir a jurídico y
@@ -3225,9 +3224,9 @@ Entregables  · certificaciones_deuda + fn_certificar_deuda ✅
                aparte (ver Prerreq. arriba): se resolvió generalizando
                `documentos`.
 Golden Cases PH-C21..PH-C23, PH-C32, PH-C43, PH-C44 — PH-C32
-             (certificación art. 48 completa/discrimina 4 rubros) queda
-             parcial por GAP-CAR-011: discrimina 3 con exactitud, 2
-             siempre en 0. El resto (PH-C21..C23, C43, C44 — creación de
+             (certificación art. 48 completa/discrimina 5 rubros) ya
+             discrimina los 5 con exactitud (GAP-CAR-011 resuelto,
+             2026-08-29). El resto (PH-C21..C23, C43, C44 — creación de
              proceso desde certificación, costas) no se mapearon a
              tests concretos con golden data en esta pieza.
 Salida       Título ejecutivo reproducible ✅ (certificacion_hash,

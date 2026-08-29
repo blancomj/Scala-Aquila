@@ -9,11 +9,12 @@ import {
 function cargo(over: Partial<DetalleCargoCertificado> & { cargoId: string }): DetalleCargoCertificado {
   return {
     periodoClave: '2026-01',
-    conceptoCodigo: 'CUOTA_ADMIN',
+    conceptoCodigo: 'ADMINISTRACION',
     fechaVencimiento: '2026-01-05',
     montoOriginal: '100000',
     saldoPendiente: '100000',
     categoria: 'capital',
+    motivoNovedadCodigo: null,
     ...over,
   }
 }
@@ -33,7 +34,7 @@ function baseParams(cargos: readonly DetalleCargoCertificado[]) {
 }
 
 describe('construirCertificacionDeuda', () => {
-  it('discrimina capital→ordinarias, interes→intereses_mora, otro→otros; extraordinarias/sanciones siempre 0 (GAP-CAR-011)', () => {
+  it('discrimina capital→ordinarias, interes→intereses_mora, otro→otros cuando no hay marca de extraordinaria/sanción', () => {
     const cargos = [
       cargo({ cargoId: 'c1', categoria: 'capital', saldoPendiente: '500000' }),
       cargo({ cargoId: 'c2', categoria: 'interes', saldoPendiente: '30000' }),
@@ -47,6 +48,36 @@ describe('construirCertificacionDeuda', () => {
     expect(resultado.montoExpensasExtraordinarias).toBe('0')
     expect(resultado.montoSanciones).toBe('0')
     expect(resultado.montoTotal).toBe('550000')
+  })
+
+  it('GAP-CAR-011 resuelto: capital con concepto CUOTA_EXTRA cuenta como extraordinaria, no como ordinaria', () => {
+    const cargos = [
+      cargo({ cargoId: 'c1', categoria: 'capital', conceptoCodigo: 'ADMINISTRACION', saldoPendiente: '500000' }),
+      cargo({ cargoId: 'c2', categoria: 'capital', conceptoCodigo: 'CUOTA_EXTRA', saldoPendiente: '200000' }),
+    ]
+    const resultado = construirCertificacionDeuda(baseParams(cargos))
+
+    expect(resultado.montoExpensasOrdinarias).toBe('500000')
+    expect(resultado.montoExpensasExtraordinarias).toBe('200000')
+    expect(resultado.montoTotal).toBe('700000')
+  })
+
+  it('GAP-CAR-011 resuelto: otro con motivo de novedad sancion cuenta como sanción, no como otros', () => {
+    const cargos = [
+      cargo({ cargoId: 'c1', categoria: 'otro', conceptoCodigo: 'NOVEDAD', motivoNovedadCodigo: null, saldoPendiente: '20000' }),
+      cargo({
+        cargoId: 'c2',
+        categoria: 'otro',
+        conceptoCodigo: 'NOVEDAD',
+        motivoNovedadCodigo: 'sancion',
+        saldoPendiente: '50000',
+      }),
+    ]
+    const resultado = construirCertificacionDeuda(baseParams(cargos))
+
+    expect(resultado.montoOtros).toBe('20000')
+    expect(resultado.montoSanciones).toBe('50000')
+    expect(resultado.montoTotal).toBe('70000')
   })
 
   it('el total siempre reconcilia con la suma exacta de detalleCargos (PH-C32)', () => {
@@ -89,5 +120,15 @@ describe('calcularCertificacionHash', () => {
       baseParams([cargo({ cargoId: 'c1', saldoPendiente: '100001' })]),
     )
     expect(calcularCertificacionHash(original)).not.toBe(calcularCertificacionHash(modificado))
+  })
+
+  it('cambia si cambia el motivo de novedad de un cargo aunque el saldo sea igual', () => {
+    const sinMotivo = construirCertificacionDeuda(
+      baseParams([cargo({ cargoId: 'c1', categoria: 'otro', motivoNovedadCodigo: null })]),
+    )
+    const conSancion = construirCertificacionDeuda(
+      baseParams([cargo({ cargoId: 'c1', categoria: 'otro', motivoNovedadCodigo: 'sancion' })]),
+    )
+    expect(calcularCertificacionHash(sinMotivo)).not.toBe(calcularCertificacionHash(conSancion))
   })
 })

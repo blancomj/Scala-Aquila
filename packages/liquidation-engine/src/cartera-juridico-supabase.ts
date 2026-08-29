@@ -29,7 +29,7 @@ async function obtenerCargosParaCertificar(
 
   const { data: filas, error } = await cliente
     .from('v_cargo_saldo')
-    .select('id, periodo_id, categoria, concepto_id, monto_original, monto_pendiente')
+    .select('id, periodo_id, categoria, concepto_id, novedad_id, monto_original, monto_pendiente')
     .eq('tenant_id', tenantId)
     .eq('inmueble_id', inmuebleId)
     .gt('monto_pendiente', 0)
@@ -55,6 +55,34 @@ async function obtenerCargosParaCertificar(
     for (const c of conceptos) conceptoCodigoPorId.set(c.id, c.codigo)
   }
 
+  // GAP-CAR-011: cargos.novedad_id → novedades.tipo_novedad_id → lista_tipos.codigo
+  // (familia TIPO_NOVEDAD, 20260814180000) es hoy la única marca que distingue una
+  // sanción de cualquier otro cargo categoria='otro' — ver cabecera de cartera-juridico.ts.
+  const novedadIds = [...new Set(filas.flatMap((f) => (f.novedad_id ? [f.novedad_id] : [])))]
+  const motivoCodigoPorNovedadId = new Map<string, string>()
+  if (novedadIds.length > 0) {
+    const { data: novedades, error: errorNovedades } = await cliente
+      .from('novedades')
+      .select('id, tipo_novedad_id')
+      .in('id', novedadIds)
+    if (errorNovedades) throw new Error(`No se pudieron leer las novedades: ${errorNovedades.message}`)
+
+    const tipoNovedadIds = [...new Set(novedades.flatMap((n) => (n.tipo_novedad_id ? [n.tipo_novedad_id] : [])))]
+    if (tipoNovedadIds.length > 0) {
+      const { data: tipos, error: errorTipos } = await cliente
+        .from('lista_tipos')
+        .select('id, codigo')
+        .in('id', tipoNovedadIds)
+      if (errorTipos) throw new Error(`No se pudieron leer los tipos de novedad: ${errorTipos.message}`)
+      const codigoPorTipoId = new Map(tipos.map((t) => [t.id, t.codigo]))
+
+      for (const n of novedades) {
+        const codigo = n.tipo_novedad_id ? codigoPorTipoId.get(n.tipo_novedad_id) : undefined
+        if (codigo) motivoCodigoPorNovedadId.set(n.id, codigo)
+      }
+    }
+  }
+
   const detalle: DetalleCargoCertificado[] = []
   for (const f of filas) {
     if (
@@ -78,6 +106,7 @@ async function obtenerCargosParaCertificar(
       montoOriginal: String(f.monto_original),
       saldoPendiente: String(f.monto_pendiente),
       categoria: f.categoria,
+      motivoNovedadCodigo: f.novedad_id ? (motivoCodigoPorNovedadId.get(f.novedad_id) ?? null) : null,
     })
   }
   return detalle

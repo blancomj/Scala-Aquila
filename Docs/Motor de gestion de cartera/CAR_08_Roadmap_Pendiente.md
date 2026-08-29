@@ -60,7 +60,7 @@ dependencias reales están en §3.
 | 6 | Operador postal con guía rastreable | `PRQ-CAR-020` |
 | 7 | Versionado recuperable de plantillas | `PRQ-CAR-021` |
 | 8 | `subir-documento` acepta `envio_id` | `PRQ-CAR-022` |
-| 9 | Certificación del art. 48 completa | `GAP-CAR-011` |
+| 9 | Certificación del art. 48 completa — **hecho** (5 rubros discriminados) | `GAP-CAR-011` |
 | 10 | Conciliación pago ↔ cuota de acuerdo | `GAP-CAR-008` |
 | 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) | §18.2 paso 7 |
 | 12 | Pago retroactivo y reproducibilidad histórica | `GAP-CAR-003` |
