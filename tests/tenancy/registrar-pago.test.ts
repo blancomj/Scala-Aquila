@@ -33,6 +33,26 @@ interface RespuestaPago {
   aplicaciones: { cargo_id: string; monto: string }[]
 }
 
+// Fechas relativas a "hoy", nunca literales: guard_pago_medio_recaudo
+// (20260903100000, PAGO_FECHA_INCOHERENTE) rechaza fecha_pago > fecha_registro
+// (hoy) — un literal como '2026-12-10' era válido cuando se escribió este
+// archivo y dejó de serlo en cuanto el reloj real alcanzó esa fecha.
+function fechaISO(fecha: Date): string {
+  return fecha.toISOString().slice(0, 10)
+}
+function sumarDias(base: Date, dias: number): Date {
+  const d = new Date(base)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d
+}
+function sumarMeses(base: Date, meses: number): Date {
+  const d = new Date(base)
+  d.setUTCMonth(d.getUTCMonth() + meses)
+  return d
+}
+const HOY = new Date()
+const FECHA_HOY = fechaISO(HOY)
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -235,14 +255,28 @@ d('registrar-pago (Edge Function)', () => {
     clienteAuditor = await clienteComo(env!, auditor)
 
     inmuebleId = await armarTenant(admin, tenant.id, 'deuda_mas_antigua')
-    periodoViejoId = await crearPeriodo(admin, tenant.id, 2026, 11, '2026-11-05')
-    periodoActualId = await crearPeriodo(admin, tenant.id, 2026, 12, '2026-12-05')
+    const mesViejo = sumarMeses(HOY, -1)
+    const mesActual = HOY
+    periodoViejoId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesViejo.getUTCFullYear(),
+      mesViejo.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, -35)),
+    )
+    periodoActualId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesActual.getUTCFullYear(),
+      mesActual.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, -5)),
+    )
   }, 30_000)
 
   it('un auditor no puede registrar pagos (403)', async () => {
     const { data, response } = await clienteAuditor.functions.invoke<RespuestaPago>(
       'registrar-pago',
-      { body: { inmueble_id: inmuebleId, monto: 1000, fecha_pago: '2026-12-10' } },
+      { body: { inmueble_id: inmuebleId, monto: 1000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' } },
     )
     expect(data).toBeNull()
     expect(response?.status).toBe(403)
@@ -268,7 +302,7 @@ d('registrar-pago (Edge Function)', () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>(
       'registrar-pago',
       {
-        body: { inmueble_id: inmuebleId, monto: 15_000, fecha_pago: '2026-12-10' },
+        body: { inmueble_id: inmuebleId, monto: 15_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
       },
     )
     expect(response?.status).toBe(200)
@@ -298,7 +332,7 @@ d('registrar-pago (Edge Function)', () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>(
       'registrar-pago',
       {
-        body: { inmueble_id: inmuebleId, monto: 20_000, fecha_pago: '2026-12-11' },
+        body: { inmueble_id: inmuebleId, monto: 20_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
       },
     )
     expect(response?.status).toBe(200)
@@ -323,7 +357,14 @@ d('registrar-pago (Edge Function)', () => {
       .single<{ id: string }>()
     if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
 
-    const periodoExcesoId = await crearPeriodo(admin, tenant.id, 2027, 1, '2027-01-05')
+    const mesExceso = sumarMeses(HOY, 1)
+    const periodoExcesoId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesExceso.getUTCFullYear(),
+      mesExceso.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, 20)),
+    )
     const capitalId = await crearCargoCapital(
       admin,
       tenant.id,
@@ -335,7 +376,7 @@ d('registrar-pago (Edge Function)', () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>(
       'registrar-pago',
       {
-        body: { inmueble_id: otroInmueble.id, monto: 50_000, fecha_pago: '2026-12-12' },
+        body: { inmueble_id: otroInmueble.id, monto: 50_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
       },
     )
     expect(response?.status).toBe(200)
@@ -349,6 +390,62 @@ d('registrar-pago (Edge Function)', () => {
       .eq('monto', 50_000)
     expect(error).toBeNull()
     expect(pagos).toHaveLength(1)
+  }, 30_000)
+
+  it('GAP-CAR-003: un pago retroactivo (fecha_pago muy anterior a hoy) registra el evento de discontinuidad', async () => {
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmuebleRetro, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `PAGO-RETRO-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>('registrar-pago', {
+      body: { inmueble_id: inmuebleRetro.id, monto: 10_000, fecha_pago: '2020-01-15', forma_pago: 'efectivo' },
+    })
+    expect(response?.status).toBe(200)
+
+    const { data: evento, error: errEvento } = await admin
+      .from('eventos_cartera')
+      .select('*')
+      .eq('entidad_id', data!.pago_id)
+      .eq('tipo', 'PAGO_REGISTRADO')
+      .maybeSingle()
+    expect(errEvento).toBeNull()
+    expect(evento?.motivo).toContain('Pago retroactivo')
+    expect(evento?.fecha_corte).toBe('2020-01-15')
+    expect(evento?.origen).toBe('usuario')
+    // Los snapshots (CAR §18.3, "Opción 1") no se tocan — este evento es solo
+    // el registro de la discontinuidad, nunca una reescritura del histórico.
+    const { count } = await admin
+      .from('posiciones_cartera_snapshot')
+      .select('id', { count: 'exact', head: true })
+      .eq('inmueble_id', inmuebleRetro.id)
+    expect(count).toBe(0)
+  }, 30_000)
+
+  it('un pago con fecha_pago de hoy NO genera evento de pago retroactivo', async () => {
+    const tipoId = await tipoApartamentoId(admin)
+    const { data: inmuebleHoy, error: errInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `PAGO-HOY-${String(Date.now())}`, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
+
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>('registrar-pago', {
+      body: { inmueble_id: inmuebleHoy.id, monto: 10_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
+    })
+    expect(response?.status).toBe(200)
+
+    const { data: evento } = await admin
+      .from('eventos_cartera')
+      .select('id')
+      .eq('entidad_id', data!.pago_id)
+      .eq('tipo', 'PAGO_REGISTRADO')
+      .maybeSingle()
+    expect(evento).toBeNull()
   }, 30_000)
 
   it('con pagador marcado pero sin plantilla activa, el pago igual responde 200 (SMS es mejor esfuerzo)', async () => {
@@ -398,11 +495,18 @@ d('registrar-pago (Edge Function)', () => {
     })
     if (errRol) throw new Error(`fixture inmueble_persona_rol: ${errRol.message}`)
 
-    const periodoSmsId = await crearPeriodo(admin, tenant.id, 2027, 2, '2027-02-05')
+    const mesSms = sumarMeses(HOY, 2)
+    const periodoSmsId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesSms.getUTCFullYear(),
+      mesSms.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, 50)),
+    )
     const capitalId = await crearCargoCapital(admin, tenant.id, inmuebleSms.id, periodoSmsId, 30_000)
 
     const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>('registrar-pago', {
-      body: { inmueble_id: inmuebleSms.id, monto: 30_000, fecha_pago: '2027-02-06' },
+      body: { inmueble_id: inmuebleSms.id, monto: 30_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
     })
     expect(response?.status).toBe(200)
     expect(data?.aplicaciones).toEqual([{ cargo_id: capitalId, monto: '30000' }])
@@ -430,8 +534,22 @@ d('registrar-pago — estrategia periodo_actual (AD-36)', () => {
     clienteAgent = await clienteComo(env!, agente)
 
     inmuebleId = await armarTenant(admin, tenant.id, 'periodo_actual')
-    periodoViejoId = await crearPeriodo(admin, tenant.id, 2026, 11, '2026-11-05')
-    periodoActualId = await crearPeriodo(admin, tenant.id, 2026, 12, '2026-12-05')
+    const mesViejo = sumarMeses(HOY, -1)
+    const mesActual = HOY
+    periodoViejoId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesViejo.getUTCFullYear(),
+      mesViejo.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, -35)),
+    )
+    periodoActualId = await crearPeriodo(
+      admin,
+      tenant.id,
+      mesActual.getUTCFullYear(),
+      mesActual.getUTCMonth() + 1,
+      fechaISO(sumarDias(HOY, -5)),
+    )
 
     const capitalViejoId = await crearCargoCapital(
       admin,
@@ -451,7 +569,7 @@ d('registrar-pago — estrategia periodo_actual (AD-36)', () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaPago>(
       'registrar-pago',
       {
-        body: { inmueble_id: inmuebleId, monto: 40_000, fecha_pago: '2026-12-15' },
+        body: { inmueble_id: inmuebleId, monto: 40_000, fecha_pago: FECHA_HOY, forma_pago: 'efectivo' },
       },
     )
     expect(response?.status).toBe(200)

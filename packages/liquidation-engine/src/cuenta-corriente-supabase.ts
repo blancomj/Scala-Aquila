@@ -263,9 +263,54 @@ export async function registrarPago(
       observaciones: datos.observaciones ?? null,
       acuerdo_cuota_id: datos.acuerdoCuotaId ?? null,
     })
-    .select('id')
+    .select('id, fecha_registro')
     .single()
   if (errorPago) throw new Error(`No se pudo registrar el pago: ${errorPago.message}`)
+
+  // GAP-CAR-003 — pago retroactivo: fecha_pago quedó ANTES de fecha_registro
+  // (la que de verdad resolvió la base — current_date si no se envió, nunca
+  // el reloj del cliente). CAR §18.3 "Opción 1": los snapshots ya calculados
+  // en ese rango NO se recalculan — el histórico refleja lo que se sabía
+  // entonces. Este evento es el registro de esa discontinuidad, no una
+  // corrección del snapshot (que sigue append-only e inmutable).
+  if (datos.fechaPago < pago.fecha_registro) {
+    const { count: snapshotsAfectados } = await cliente
+      .from('posiciones_cartera_snapshot')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', datos.tenantId)
+      .eq('inmueble_id', datos.inmuebleId)
+      .gte('fecha_corte', datos.fechaPago)
+
+    const { error: errorEvento } = await cliente.from('eventos_cartera').insert({
+      tenant_id: datos.tenantId,
+      tipo: 'PAGO_REGISTRADO',
+      inmueble_id: datos.inmuebleId,
+      entidad_tipo: 'pagos',
+      entidad_id: pago.id,
+      fecha_corte: datos.fechaPago,
+      estado_nuevo: {
+        fechaPago: datos.fechaPago,
+        fechaRegistro: pago.fecha_registro,
+        monto: Number(datos.monto.amount.toString()),
+      },
+      motivo:
+        `Pago retroactivo: fecha_pago (${datos.fechaPago}) es anterior a fecha_registro ` +
+        `(${pago.fecha_registro}). ${String(snapshotsAfectados ?? 0)} snapshot(s) de posición ya ` +
+        `calculado(s) en ese rango no se recalculan (CAR §18.3, GAP-CAR-003).`,
+      origen: 'usuario',
+      actor_id: datos.registradoPor,
+      // evento_dedup es `unique nulls not distinct (tenant_id, dedup_key)`:
+      // dos filas del mismo tenant con dedup_key null colisionarían entre
+      // sí. pago.id ya es único por construcción — sirve de dedup_key real
+      // sin depender de que el llamador nunca repita esto dos veces.
+      dedup_key: `PAGO_RETROACTIVO:${pago.id}`,
+    })
+    if (errorEvento) {
+      throw new Error(
+        `El pago ${pago.id} se registró, pero no se pudo registrar el evento de pago retroactivo: ${errorEvento.message}`,
+      )
+    }
+  }
 
   // GAP-CAR-008 — la conciliación ya se calculó (conciliarCuotaAcuerdo, con
   // el estado leído ANTES de este insert); aquí solo se escribe. Si esto
