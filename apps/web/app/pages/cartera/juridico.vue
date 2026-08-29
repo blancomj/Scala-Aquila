@@ -296,7 +296,7 @@ function abrirDetalle(caso: CasoJuridico): void {
     </UModal>
 
     <!-- ── detalle ───────────────────────────────────────────────────── -->
-    <CasoJuridicoDrawer
+    <CarteraCasoJuridicoDrawer
       v-if="casoSeleccionado"
       :caso="casoSeleccionado"
       :opciones-abogado="opcionesAbogado"

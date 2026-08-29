@@ -459,7 +459,7 @@ function abrirDetalleAcuerdo(acuerdo: AcuerdoPago): void {
       </template>
     </UModal>
 
-    <AcuerdoPagoDrawer
+    <CarteraAcuerdoPagoDrawer
       v-if="acuerdoSeleccionado"
       :acuerdo="acuerdoSeleccionado"
       :inmueble-codigo="inmueblePorId.get(acuerdoSeleccionado.inmueble_id) ?? acuerdoSeleccionado.inmueble_id"

@@ -74,7 +74,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <UiDrawer
+  <div class="ficha-inmueble">
+    <UiDrawer
     :abierto="true"
     :titulo="`Acuerdo ${acuerdo.consecutivo ?? ''}`"
     :subtitulo="`Inmueble ${inmuebleCodigo}`"
@@ -158,5 +159,6 @@ onMounted(() => {
     <template #foot>
       <UButton variant="ghost" color="neutral" @click="emit('cerrar')">Cerrar</UButton>
     </template>
-  </UiDrawer>
+    </UiDrawer>
+  </div>
 </template>
