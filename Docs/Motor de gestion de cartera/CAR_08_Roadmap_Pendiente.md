@@ -74,17 +74,18 @@ dependencias reales están en §3.
 una sola pantalla, `apps/web/app/pages/cartera/index.vue`, de solo lectura".
 Ya no — bandeja, simulación, escalamiento, configuración e indicadores tienen
 pantalla propia (tabla abajo); certificaciones/jurídico/promesas-acuerdos
-también tienen archivo `.vue` en `apps/web/app/pages/cartera/` pero su estado
-real no se verificó en esta pasada — no marcarlos **hecha** sin confirmarlo.
+también tienen archivo `.vue` en `apps/web/app/pages/cartera/`. **Verificados
+en vivo el 2026-08-29** (ver §2.2.1): las tres pantallas cargan, pero dos
+tenían el detalle completamente muerto.
 
 | # | Bloque |
 |---|---|
 | 16 | Bandeja de acciones y aprobaciones — **hecha** (/cartera/acciones) |
 | 17 | Simulación previa de corrida — **hecha** (/cartera/simulacion) |
 | 18 | Centro de escalamiento, aprobaciones y bitácora — **hecha** (/cartera/escalamiento) |
-| 19 | Promesas y acuerdos |
-| 20 | Casos jurídicos, expediente y actuaciones |
-| 21 | Certificaciones de deuda |
+| 19 | Promesas y acuerdos — **verificada** (2026-08-29): lista y acciones bien; el drawer de detalle no montaba, corregido en `9da6828` |
+| 20 | Casos jurídicos — **verificada parcialmente** (2026-08-29): pantalla, estado vacío y modal de remisión correctos; el drawer de detalle tenía el mismo fallo, corregido sin poder ejercerse (no hay ningún caso en dev) |
+| 21 | Certificaciones de deuda — **verificada parcialmente** (2026-08-29): formulario y guardas correctos (exige política vigente y deuda vencida, con mensajes claros); la vía feliz sigue sin ejercerse, ningún tenant de dev tiene deuda vencida |
 | 22 | Costas judiciales |
 | 23 | Configuración — **hecha en su parte crítica** (/cartera/configuracion): siembra §8.4/§9.4, activación y encendido de estrategias. Falta editar tramos (exige versión nueva, §8.5) |
 | 24 | Plantillas y canales — **hecha en su parte crítica**: versionado recuperable (`PRQ-CAR-021`). Sigue pendiente `PRQ-CAR-022` (`subir-documento` con `envio_id`) y los canales sin construir (WhatsApp/postal, bloques 5/6) |
@@ -147,6 +148,40 @@ real no se verificó en esta pasada — no marcarlos **hecha** sin confirmarlo.
 
 `[NEGOCIO]` **Prioridad recomendada:** 26 en paralelo desde el primer día → 3 →
 1 + 2 → 9 → 16 y 17 → resto de interfaz.
+
+---
+
+## 2.2.1 Verificación en vivo de 19/20/21 (2026-08-29)
+
+```text
+🔴 Bug real, ya corregido (9da6828) — afectaba a 19 y 20 por igual:
+   Los componentes viven en components/cartera/, así que Nuxt los
+   auto-importa CON el prefijo del directorio (CarteraAcuerdoPagoDrawer,
+   CarteraCasoJuridicoDrawer), pero las páginas los llamaban sin él.
+   Vue no resolvía el componente y no renderizaba NADA: hacer clic en
+   el número de un acuerdo no abría nada, sin error visible. Sus
+   vecinos de carpeta sí llevaban el prefijo, lo que hacía el fallo
+   invisible a la lectura.
+
+🔴 Segundo defecto, mismo commit: ambos drawers usaban UiDrawer sin un
+   ancestro .ficha-inmueble, del que toma el estilo de panel. Una vez
+   montados salían dentro del flujo de la página, sin overlay.
+
+✅ Lo que sí funcionaba: las tres pantallas cargan sin errores de
+   consola, con estados vacíos correctos. El modal de remisión a
+   jurídico exige certificación vigente y enlaza a emitirla. La
+   certificación rechaza con mensajes claros cuando falta la política
+   financiera vigente o cuando no hay deuda vencida.
+
+⚠️ Lo que NO se pudo verificar: la expedición real de una certificación
+   y, por dependencia, la creación de un caso jurídico. Ningún tenant
+   de dev tiene deuda vencida — DEMO Bandeja Cobranza no tiene ni un
+   cargo. Para cerrarlo hace falta un tenant con cartera real.
+```
+
+`[ARQ]` De paso quedó verificado end-to-end el arreglo de la política
+financiera (`05c5251`): se creó y activó una política v1 desde la interfaz en
+DEMO Bandeja Cobranza, que es justo lo que antes era imposible.
 
 ---
 
