@@ -206,6 +206,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
+        label: 'Indicadores de cobranza',
+        to: '/cartera/indicadores',
+        permiso: 'data:read',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
         label: 'Configuración de cartera',
         to: '/cartera/configuracion',
         permiso: 'settings:manage',

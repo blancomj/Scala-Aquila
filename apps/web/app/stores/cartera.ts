@@ -95,6 +95,30 @@ export interface AlertasDTO {
   obligacionesSinVencimientoMonto: string
 }
 
+export interface RollRateTramoDTO {
+  tramoCodigo: string
+  tramoSiguienteCodigo: string | null
+  deudaEnTramoAnterior: string
+  deudaQueRoloAlSiguiente: string
+  rollRate: number | null
+}
+
+export interface IndicadoresCarteraDTO {
+  fechaDesde: string
+  fechaHasta: string
+  overduePortfolioPct: number | null
+  cureRate: number | null
+  rollRatePorTramo: RollRateTramoDTO[]
+  recoveryRate: number | null
+  collectionEffectiveness: number | null
+  promiseFulfillmentRate: number | null
+  agreementFulfillmentRate: number | null
+  legalReferralRate: number | null
+  legalRecoveryRate: number | null
+  averageDaysToRecovery: number | null
+  costToCollect: number | null
+}
+
 export type TipoEventoActividadDTO = 'pago' | 'promesa' | 'acuerdo' | 'caso_juridico'
 
 export interface EventoActividadDTO {
@@ -111,6 +135,7 @@ export const useCarteraStore = defineStore('cartera', () => {
   const recaudo = shallowRef<RecaudoDTO | null>(null)
   const alertas = shallowRef<AlertasDTO | null>(null)
   const actividadReciente = shallowRef<EventoActividadDTO[]>([])
+  const indicadores = shallowRef<IndicadoresCarteraDTO | null>(null)
   const loading = ref(false)
 
   async function cargarDashboard(
@@ -188,12 +213,32 @@ export const useCarteraStore = defineStore('cartera', () => {
     return data.eventos
   }
 
+  async function cargarIndicadores(
+    tenantId: string,
+    fechaDesde: string,
+    fechaHasta: string,
+  ): Promise<IndicadoresCarteraDTO> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<IndicadoresCarteraDTO>(
+      'cartera-indicadores',
+      { body: { tenant_id: tenantId, fecha_desde: fechaDesde, fecha_hasta: fechaHasta } },
+    )
+    if (errorFuncion) {
+      indicadores.value = null
+      throw await extraerErrorFuncion(errorFuncion)
+    }
+    if (!data) throw new Error('cartera-indicadores no devolvió datos.')
+    indicadores.value = data
+    return data
+  }
+
   function limpiar(): void {
     dashboard.value = null
     evolucion.value = []
     recaudo.value = null
     alertas.value = null
     actividadReciente.value = []
+    indicadores.value = null
   }
 
   return {
@@ -202,12 +247,14 @@ export const useCarteraStore = defineStore('cartera', () => {
     recaudo,
     alertas,
     actividadReciente,
+    indicadores,
     loading,
     cargarDashboard,
     cargarEvolucion,
     cargarRecaudo,
     cargarAlertas,
     cargarActividadReciente,
+    cargarIndicadores,
     limpiar,
   }
 })
