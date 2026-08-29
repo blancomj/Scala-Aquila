@@ -184,46 +184,49 @@ async function confirmarEliminar(): Promise<void> {
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Zonas comunes</h1>
-        <p class="text-sm text-neutral-500 max-w-2xl">
-          Inventario de bienes comunes de la copropiedad — piscina, salón social, escaleras, redes
-          técnicas. Los no esenciales pueden asignarse en uso exclusivo a un inmueble (Art. 20, Ley
-          675/2001); nunca generan cobro propio, su sostenimiento se cubre con la cuota de
-          administración.
-        </p>
-      </div>
-      <UButton size="sm" @click="abrirNueva()">Nueva zona común</UButton>
+    <div class="flex items-start gap-3 bg-neutral-50 rounded-md px-3 py-2">
+      <h1 class="text-base font-semibold text-neutral-900 whitespace-nowrap">Zonas comunes</h1>
+      <p class="text-sm text-neutral-500 max-w-prose line-clamp-2">
+        Inventario de bienes comunes de la copropiedad — piscina, salón social, escaleras, redes
+        técnicas. Los no esenciales pueden asignarse en uso exclusivo a un inmueble (Art. 20, Ley
+        675/2001); nunca generan cobro propio, su sostenimiento se cubre con la cuota de
+        administración.
+      </p>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-if="zonasStore.zonasComunes.length === 0" class="text-neutral-500 text-sm">
-      Todavía no hay zonas comunes registradas. Crea la primera — por ejemplo la piscina, el salón
-      social o un depósito común.
-    </p>
+    <div v-if="zonasStore.zonasComunes.length === 0" class="flex items-center justify-between gap-3 flex-wrap">
+      <p class="text-neutral-500 text-sm">
+        Todavía no hay zonas comunes registradas. Crea la primera — por ejemplo la piscina, el salón
+        social o un depósito común.
+      </p>
+      <UButton size="sm" @click="abrirNueva()">Nueva zona común</UButton>
+    </div>
 
     <template v-else>
-      <div class="flex items-center gap-3 flex-wrap">
-        <UInput
-          v-model="busqueda"
-          size="sm"
-          icon="i-lucide-search"
-          placeholder="Buscar por código, nombre, descripción o inmueble asignado…"
-          class="w-80"
-        />
-        <USelect
-          v-model="filtroTipoId"
-          :items="[{ label: 'Todos los tipos', value: null }, ...zonasStore.tiposZonaComun.map((t) => ({ label: t.nombre, value: t.id }))]"
-          value-key="value"
-          size="sm"
-          class="w-56"
-        />
-        <UCheckbox v-model="filtroSoloUsoExclusivo" label="Solo con uso exclusivo" />
-        <UButton v-if="hayFiltrosActivos" size="xs" variant="ghost" @click="limpiarFiltros">
-          Limpiar filtros
-        </UButton>
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-3 flex-wrap">
+          <UInput
+            v-model="busqueda"
+            size="sm"
+            icon="i-lucide-search"
+            placeholder="Buscar por código, nombre, descripción o inmueble asignado…"
+            class="w-80"
+          />
+          <USelect
+            v-model="filtroTipoId"
+            :items="[{ label: 'Todos los tipos', value: null }, ...zonasStore.tiposZonaComun.map((t) => ({ label: t.nombre, value: t.id }))]"
+            value-key="value"
+            size="sm"
+            class="w-56"
+          />
+          <UCheckbox v-model="filtroSoloUsoExclusivo" label="Solo con uso exclusivo" />
+          <UButton v-if="hayFiltrosActivos" size="xs" variant="ghost" @click="limpiarFiltros">
+            Limpiar filtros
+          </UButton>
+        </div>
+        <UButton size="sm" @click="abrirNueva()">Nueva zona común</UButton>
       </div>
 
       <p v-if="hayFiltrosActivos && zonasFiltradas.length === 0" class="text-neutral-500 text-sm">

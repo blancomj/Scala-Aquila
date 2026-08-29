@@ -8,6 +8,10 @@ const supabaseHttp = process.env.SUPABASE_URL ?? ''
 const supabaseWs = supabaseHttp.replace(/^http/, 'ws')
 const esDev = process.env.NODE_ENV !== 'production'
 
+// Dev-only allowance so impeccable live mode can load. Guarded by NODE_ENV.
+const __impeccableLiveDev =
+  process.env.NODE_ENV === 'development' ? ' http://localhost:8400' : ''
+
 const csp = [
   "default-src 'self'",
   `connect-src 'self' ${supabaseHttp} ${supabaseWs}${esDev ? ' ws://localhost:* http://localhost:*' : ''}`,
@@ -16,7 +20,7 @@ const csp = [
   // ofrece nonces por defecto (requeriría el módulo nuxt-security, fuera de
   // alcance aquí); el resto de la CSP (connect/frame/object/base-uri) sigue
   // cerrado. Limitación conocida, no un descuido.
-  `script-src 'self' 'unsafe-inline'${esDev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline'${esDev ? " 'unsafe-eval'" : ''}${__impeccableLiveDev}`,
   "style-src 'self' 'unsafe-inline'",
   // Supabase: URLs públicas de Storage (bucket logo-copropiedad) sirven
   // imágenes desde el dominio del proyecto — sin esto un <img> con esa URL

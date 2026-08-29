@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-28T00:00:00Z",
+  "title": "Design System: Aquila PH",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue-50": { "role": "primary", "displayName": "Signal Blue 50", "canonical": "oklch(0.97 0.02 255)" },
+      "signal-blue-100": { "role": "primary", "displayName": "Signal Blue 100", "canonical": "oklch(0.94 0.04 255)" },
+      "signal-blue-200": { "role": "primary", "displayName": "Signal Blue 200", "canonical": "oklch(0.88 0.07 255)" },
+      "signal-blue-300": { "role": "primary", "displayName": "Signal Blue 300", "canonical": "oklch(0.80 0.10 255)" },
+      "signal-blue-400": { "role": "primary", "displayName": "Signal Blue 400", "canonical": "oklch(0.72 0.13 255)" },
+      "signal-blue-500": {
+        "role": "primary",
+        "displayName": "Azul Señal / Signal Blue",
+        "canonical": "oklch(0.56 0.17 255)",
+        "tonalRamp": [
+          "oklch(0.22 0.07 255)",
+          "oklch(0.30 0.10 255)",
+          "oklch(0.38 0.13 255)",
+          "oklch(0.46 0.15 255)",
+          "oklch(0.50 0.17 255)",
+          "oklch(0.56 0.17 255)",
+          "oklch(0.72 0.13 255)",
+          "oklch(0.97 0.02 255)"
+        ]
+      },
+      "signal-blue-600": { "role": "primary", "displayName": "Signal Blue 600", "canonical": "oklch(0.50 0.17 255)" },
+      "signal-blue-700": { "role": "primary", "displayName": "Signal Blue 700", "canonical": "oklch(0.46 0.15 255)" },
+      "signal-blue-800": { "role": "primary", "displayName": "Signal Blue 800", "canonical": "oklch(0.38 0.13 255)" },
+      "signal-blue-900": { "role": "primary", "displayName": "Signal Blue 900", "canonical": "oklch(0.30 0.10 255)" },
+      "signal-blue-950": { "role": "primary", "displayName": "Signal Blue 950", "canonical": "oklch(0.22 0.07 255)" },
+      "instrument-gray-50": { "role": "neutral", "displayName": "Instrument Gray 50", "canonical": "#f5f5f6" },
+      "instrument-gray-100": { "role": "neutral", "displayName": "Instrument Gray 100", "canonical": "#ececee" },
+      "instrument-gray-200": { "role": "neutral", "displayName": "Instrument Gray 200", "canonical": "#d9d9de" },
+      "instrument-gray-300": { "role": "neutral", "displayName": "Instrument Gray 300", "canonical": "#c4c4ca" },
+      "instrument-gray-400": { "role": "neutral", "displayName": "Instrument Gray 400", "canonical": "#8d8d93" },
+      "instrument-gray-500": {
+        "role": "neutral",
+        "displayName": "Gris Instrumento / Instrument Gray",
+        "canonical": "#6b6b70",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#1b1b1d",
+          "#28282a",
+          "#3d3d40",
+          "#55555a",
+          "#6b6b70",
+          "#8d8d93",
+          "#f5f5f6"
+        ]
+      },
+      "instrument-gray-600": { "role": "neutral", "displayName": "Instrument Gray 600", "canonical": "#55555a" },
+      "instrument-gray-700": { "role": "neutral", "displayName": "Instrument Gray 700", "canonical": "#3d3d40" },
+      "instrument-gray-800": { "role": "neutral", "displayName": "Instrument Gray 800", "canonical": "#28282a" },
+      "instrument-gray-900": { "role": "neutral", "displayName": "Instrument Gray 900", "canonical": "#1b1b1d" },
+      "instrument-gray-950": { "role": "neutral", "displayName": "Instrument Gray 950", "canonical": "#0b0b0c" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Inter Tight)", "purpose": "Section/page headings — kept compact by the Operator Heading Rule; no hero-scale headings in normal back-office pages." },
+      "body": { "displayName": "Body (Inter)", "purpose": "Standard body text, forms, tables." },
+      "label": { "displayName": "Label (Inter, semibold)", "purpose": "Form labels and table headers; set internally by Nuxt UI components." }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid Signal Blue action button — the only accent-colored control on most screens.",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary { background: oklch(0.56 0.17 255); color: #ffffff; padding: 8px 16px; border-radius: 5px; border: none; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; transition: background 0.15s ease; } .ds-btn-primary:hover { background: oklch(0.50 0.17 255); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.56 0.17 255); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Neutral outline button for secondary/cancel actions.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { background: transparent; color: #3d3d40; padding: 8px 16px; border-radius: 5px; border: 1px solid #c4c4ca; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; transition: background 0.15s ease, border-color 0.15s ease; } .ds-btn-outline:hover { background: #f5f5f6; border-color: #8d8d93; } .ds-btn-outline:focus-visible { outline: 2px solid oklch(0.56 0.17 255); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-primary",
+      "description": "Subtle-tinted status chip — color is always semantic (primary/success/warning/error), never decorative.",
+      "html": "<span class=\"ds-badge\">Nuevo</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; background: oklch(0.97 0.02 255); color: oklch(0.46 0.15 255); padding: 2px 8px; border-radius: 3px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 600; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat container — border, not shadow, for separation. Used only for genuinely discrete units, not as default page-section wrapping.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Total recaudado</div><div class=\"ds-card-value\">$ 4.582.000</div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #d9d9de; border-radius: 6px; padding: 16px; } .ds-card-title { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: #55555a; margin-bottom: 4px; } .ds-card-value { font-family: 'Inter Tight', ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 600; color: #1b1b1d; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard field — neutral border at rest, Signal Blue ring on focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Correo\" />",
+      "css": ".ds-input { background: #ffffff; color: #1b1b1d; border: 1px solid #c4c4ca; border-radius: 5px; padding: 8px 12px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-input:focus-visible { border-color: oklch(0.56 0.17 255); box-shadow: 0 0 0 2px oklch(0.94 0.04 255); outline: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Room",
+    "overview": "Aquila PH is instrumentation, not a storefront. Its staff users spend hours a day inside it running liquidations, chasing cartera, and reconciling accounts — the interface's job is to stay out of the way of that work, the way a well-run control room's panels stay legible under sustained, high-volume use rather than trying to impress on first glance. The system reads as precise and confiable (trustworthy): nothing is decorative without functional value, nothing moves without a reason, and the one accent color exists to mean \"act here,\" never to add visual interest. This is deliberately not a generic SaaS-marketing dashboard aesthetic — it aspires to feel dense, correct, auditable, and fast to scan. The product's visual character must also communicate financial rigor and auditability: monetary results are decimal-exact, deterministic, traceable, and reviewable, and the visual language favors explicit states, clear provenance, stable layouts, and unambiguous relationships between inputs, calculations, results, approvals, and audit information.",
+    "keyCharacteristics": [
+      "One accent, spent rarely — everything else is neutral gray doing structural work.",
+      "Flat by construction — border/surface-step depth, no dramatic shadows.",
+      "Small, consistent radius (3–10px) — reads as engineered, not soft.",
+      "Density and legibility outrank whitespace and \"breathing room.\"",
+      "Financial correctness and auditability are communicated through clarity and explicit state, not decoration.",
+      "Every interactive/status color routes through a semantic token (primary/neutral/success/warning/error) — never a hardcoded hex/oklch in markup."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "The brand accent (Signal Blue) is the only accent in the system — no second competing hue.", "section": "colors" },
+      { "name": "The Semantic-Only Color Rule", "body": "No hex/oklch value is ever hardcoded in component markup — every color reaches the DOM through primary/neutral/success/warning/error.", "section": "colors" },
+      { "name": "The neutral-* Not gray-* Rule", "body": "New code uses the neutral-* scale (or Nuxt UI's semantic classes) — never Tailwind's default gray-*.", "section": "colors" },
+      { "name": "The Two-Font Floor Rule", "body": "Never use a font outside Inter / Inter Tight, and never drop below text-xs (12px).", "section": "typography" },
+      { "name": "The Operator Heading Rule", "body": "Normal back-office surfaces do not use hero-scale or marketing-scale headings; page titles stay compact to preserve room for filters, tables, and forms.", "section": "typography" },
+      { "name": "The Context Text Rule", "body": "Text is sized according to its role, not automatically shrunk because it's secondary — contextual/legal text is never reduced below a readable size to save space.", "section": "typography" },
+      { "name": "The Operational Density Rule", "body": "Preserve the maximum useful information that can be scanned comfortably. Never increase component height, padding, gaps, or container size merely for a more \"airy\" appearance — any increase in space needs a functional reason.", "section": "layout" },
+      { "name": "The Border-Over-Shadow Rule", "body": "Flat by default — depth comes from a border or a one-step surface-color change, not a shadow.", "section": "elevation" },
+      { "name": "The Contained-Radius Rule", "body": "Never reach for a radius outside the five-step scale (3/5/6/8/10px), and never a larger radius than the component class calls for.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do reach for a U* Nuxt UI component before any raw HTML element or custom-built equivalent.",
+      "Do drive every color through primary/neutral/success/warning/error — never a literal hex/oklch in markup.",
+      "Do keep the accent scarce — most of any screen should read as neutral gray.",
+      "Do match radius to the component's class (rounded-sm buttons/fields, rounded-md cards).",
+      "Do use <UiTabla> for every table and <UiSelectorBuscable> for every searchable/long select.",
+      "Do confirm success with a toast and reserve inline UAlert for errors the user must read."
+    ],
+    "donts": [
+      "Don't wrap content in a card unless it is a genuinely discrete, scannable unit — a page section split into 3+ cards where a single table/list would do the same job is the smell to catch.",
+      "Don't use section/page padding beyond the scale already in use elsewhere in the app (p-4–p-6, gap-4–gap-6). No p-12+/gap-12+ \"hero-style\" spacing on operator screens.",
+      "Don't use a linear-gradient/radial-gradient background anywhere in the operator surface — zero usages is the bar.",
+      "Don't use backdrop-filter: blur(...) or any translucent-panel/glassmorphism effect.",
+      "Don't exceed Nuxt UI's own shadow-sm/shadow-md/shadow-lg defaults — no custom box-shadow value anywhere.",
+      "Don't add decorative illustration/SVG assets. Icons come only from the Lucide set and only to label a real action or status.",
+      "Don't ship a transition/animation that isn't tied to a real state change or that runs longer than ~200ms. No scroll-triggered or entrance animations.",
+      "Don't stack an icon next to a label that already says the same thing, and never use an icon-only control without an aria-label.",
+      "Don't scale a control above this system's established compact size (~36px control height) for visual emphasis — use color/weight instead of size.",
+      "Don't trade away density or operational efficiency for a \"cleaner-looking\" minimalist layout — this is the Operational Density Rule.",
+      "Don't hardcode a hex/oklch color in component markup.",
+      "Don't introduce a second accent hue for \"variety.\"",
+      "Don't rebuild a component Nuxt UI already provides.",
+      "Don't strip built-in focus-visible rings or ARIA behavior with a custom reset.",
+      "Don't use a raw <UTable> or <USelectMenu> — use <UiTabla> / <UiSelectorBuscable> instead.",
+      "Don't introduce new gray-* Tailwind classes — use neutral-* or Nuxt UI's semantic classes."
+    ]
+  }
+}
