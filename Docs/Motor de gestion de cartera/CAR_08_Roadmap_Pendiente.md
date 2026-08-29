@@ -55,9 +55,9 @@ dependencias reales están en §3.
 | 1 | Orquestación por lotes y reintentos — **hecho** (cartera-ejecutar-lote) | §18.4, `GAP-CAR-005` |
 | 2 | Agendamiento del job diario — **hecho** (pg_cron 11:00 UTC, solo calcula) | §18, `PRQ-CAR-010` |
 | 3 | Expediente probatorio — **COMPLETO**: §34.2/34.3/34.4/34.5, I-C23 y documento imprimible | **§34** |
-| 4 | Canal email de cobranza | `GAP-CAR-005` |
-| 5 | Canal WhatsApp | `GAP-CAR-005`, `VER-CAR-08` |
-| 6 | Operador postal con guía rastreable | `PRQ-CAR-020` |
+| 4 | Canal email de cobranza — **hecho** (2026-08-29, Brevo real vía `despacho_cobranza.ts` — plantillas, acuses, hash de contenido, mismo tronco que SMS) | `GAP-CAR-005` |
+| 5 | Canal WhatsApp — **bloqueado, no de código**: `VER-CAR-08` (valor probatorio + habeas data) sigue abierto; la regla del propio documento (§24.2) prohíbe implementar sin ese concepto jurídico resuelto | `GAP-CAR-005`, `VER-CAR-08` |
+| 6 | Operador postal con guía rastreable — **sin empezar**: no hay proveedor elegido (ningún código lo contempla) | `PRQ-CAR-020` |
 | 7 | Versionado recuperable de plantillas | `PRQ-CAR-021` |
 | 8 | `subir-documento` acepta `envio_id` | `PRQ-CAR-022` |
 | 9 | Certificación del art. 48 completa — **hecho** (5 rubros discriminados) | `GAP-CAR-011` |
@@ -146,7 +146,7 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
 
 ---
 
-`[NEGOCIO]` **I-C23 ya tiene por dónde cumplirse (2026-08-28):** el canal SMS registra evidencia y recibe acuses reales de Brevo, así que un inmueble notificado por SMS y entregado YA puede escalar. Email, WhatsApp y postal (bloques 4, 5, 6) siguen sin despachar; el webhook de acuse ya les sirve, falta el worker.
+`[NEGOCIO]` **I-C23 ya tiene por dónde cumplirse (2026-08-29):** SMS y email registran evidencia y reciben acuses reales de Brevo, así que un inmueble notificado por cualquiera de los dos y entregado YA puede escalar. WhatsApp sigue bloqueado por `VER-CAR-08` (concepto jurídico, no código); postal (bloque 6) sigue sin proveedor elegido.
 
 ---
 
