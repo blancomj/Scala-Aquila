@@ -199,6 +199,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
+        label: 'Centro de escalamiento',
+        to: '/cartera/escalamiento',
+        permiso: 'data:read',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
         label: 'Configuración de cartera',
         to: '/cartera/configuracion',
         permiso: 'settings:manage',

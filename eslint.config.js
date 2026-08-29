@@ -13,6 +13,10 @@ export default tseslint.config(
       '**/.nuxt/**',
       '**/.output/**',
       '**/coverage/**',
+      // Worktrees de agentes en segundo plano (EnterWorktree/isolation:
+      // "worktree") — snapshots git independientes con su propio historial,
+      // nunca el árbol de trabajo que se está lintenado.
+      '.claude/worktrees/**',
       // apps/web tiene su propia config (@nuxt/eslint, vue-eslint-parser) —
       // se lintea con `pnpm --filter @aquila/web lint`, no con esta config.
       'apps/web/**',

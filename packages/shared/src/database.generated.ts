@@ -7118,6 +7118,21 @@ export type Database = {
           ultimo_estado_acuse: Database["public"]["Enums"]["estado_acuse_t"]
         }[]
       }
+      fn_bandeja_escalamiento: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          cantidad_cargos_vencidos: number
+          deuda_total: number
+          dias_mora: number
+          etapa: Database["public"]["Enums"]["etapa_cobranza_t"]
+          etapa_propuesta: Database["public"]["Enums"]["etapa_cobranza_t"]
+          inmueble_codigo: string
+          inmueble_id: string
+          motivo_propuesta: string
+          propuesto_at: string
+          propuesto_por: string
+        }[]
+      }
       fn_buscar_global: {
         Args: {
           p_categoria?: string
