@@ -63,7 +63,7 @@ dependencias reales están en §3.
 | 9 | Certificación del art. 48 completa — **hecho** (5 rubros discriminados) | `GAP-CAR-011` |
 | 10 | Conciliación pago ↔ cuota de acuerdo — **hecha** (asociación explícita, registrar-pago) | `GAP-CAR-008` |
 | 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) | §18.2 paso 7 |
-| 12 | Pago retroactivo y reproducibilidad histórica | `GAP-CAR-003` |
+| 12 | Pago retroactivo y reproducibilidad histórica — **hecho** (evento PAGO_REGISTRADO, snapshots inmutables) | `GAP-CAR-003` |
 | 13 | Alertas de prescripción y registro de actos interruptivos | `VER-CAR-05` |
 | 14 | Exclusión de la evidencia del job de purga — **cumplido por construcción**: forbid_mutation solo admite DELETE en audit_log | §34.6, `I-C25` |
 | 15 | Provisión / deterioro contable de cartera | Sin id — no está en CAR-00 |

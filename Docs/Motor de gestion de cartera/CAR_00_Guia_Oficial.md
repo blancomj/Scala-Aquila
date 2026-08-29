@@ -418,7 +418,7 @@ REC-CAR-008  Toda función de cálculo recibe fecha_referencia explícita.
 |---|---|---|---|
 | **`GAP-CAR-001`** | `cargos` no tiene `fecha_vencimiento`; se deriva de `periodos.fecha_vencimiento`, que **existe pero es `nullable`**. Un período sin fecha de vencimiento produce antigüedad indefinida. | **Bloqueante** — reducido de "total" a "acotado" tras verificación. | F0 |
 | **`GAP-CAR-002`** | No existe concepto de "fecha de corte" persistida para reproducir una clasificación histórica. | Impide `PH-C27` (snapshot reproducible). | F3 |
-| **`GAP-CAR-003`** | `pagos` no tiene `fecha_pago` vs `fecha_registro` diferenciadas para efectos de mora (hoy solo `fecha_pago`). Un pago registrado tarde con fecha anterior altera la antigüedad retroactivamente. | Afecta idempotencia del job diario. | F3 |
+| ~~`GAP-CAR-003`~~ | ✅ **RESUELTO (2026-08-29).** `pagos.fecha_pago`/`fecha_registro` diferenciadas (RC-0); `guard_pago_medio_recaudo` rechaza `fecha_pago > fecha_registro` (`PAGO_FECHA_INCOHERENTE`, 20260903100000). `registrarPago()` detecta retroactividad y escribe evento `PAGO_REGISTRADO` en `eventos_cartera` — snapshots siguen inmutables (Opción 1 de §18.3), nunca se recalculan. | Ninguno. | — |
 | ~~`GAP-CAR-004`~~ | ✅ **RESUELTO.** `tasas_referencia` + `interes_tipo_tasa`/`interes_multiplicador` + guard de tope legal + `calcularInteresMora(..., segmentos?)` — los tres implementados y aplicados (F2). Solo falta la carga real del IBC vigente (tarea operativa, no de código, §3.4). | Ninguno. `PH-C11`/`PH-C36`/`PH-C37` implementables y verificados. | — |
 | ~~`GAP-CAR-005`~~ | ✅ **RESUELTO PARA SMS (2026-08-17), verificado end-to-end.** `plantillas_sms` + `sendSms()` real vía Brevo Transactional SMS (commit `Plantillas sms configurables`), consumido por `supabase/functions/ejecutar-accion-cobranza/index.ts` — desplegado, `BREVO_SMS_SENDER` configurado como secreto del proyecto, SMS real enviado y confirmado recibido en un teléfono real por el usuario. **email/WhatsApp siguen sin resolver para el canal de cobranza**: existe un sistema de plantillas de correo generalizado (`email_templates` + `guardar-plantilla-email`/`sincronizar-plantilla-email`/`probar-plantilla-email` + panel `apps/web/app/pages/configuracion/plantillas-email.vue`, 2026-08-17, ver `PROMPT_PLANTILLAS_EMAIL.md`) que reutiliza los 4 `event_type` de cartera, pero **ningún worker dispara correo real todavía** (el worker de F4 solo dispara SMS) y la sincronización contra Brevo está bloqueada por un problema de verificación de remitente en la cuenta (`Sender is invalid / inactive`), aplazado por el usuario. `invite-user/index.ts` sigue aparte, con HTML inline, sin migrar a este sistema. WhatsApp no tiene proveedor configurado. Tampoco hay infraestructura de tareas/colas más allá de un único `cron.schedule` (purga de `audit_log`) — el worker de F4 se invoca manualmente, una acción a la vez, sin orquestación de lote todavía. | Ya no bloquea F4 para canal SMS. Sigue bloqueando email/WhatsApp y la orquestación por lotes. | F4 — `PRQ-CAR-009/010` |
 | ~~`GAP-CAR-006`~~ | ✅ **RESUELTO por verificación.** `inmueble_persona_rol` (antes `inmueble_propietario`, renombrada en `20260820100000`/`20260821100000` junto con `propietarios→terceros`) **sí** es temporal: tiene `vigente_desde date not null`, `vigente_hasta date` (nullable) y `porcentaje numeric(6,3)` con check `> 0 and <= 100`. Cubre historial de propiedad y solidaridad proporcional. | Ninguno. `PH-C24`/`PH-C25` son implementables. | — |
@@ -1883,18 +1883,7 @@ IDEM-04  Si el hash de posición coincide con el del día anterior y no hubo
          cambio de clasificación, no se emite evento de cambio.
 ```
 
-`[GAP]` **`GAP-CAR-003`** — Un pago registrado con `fecha_pago` retroactiva **cambia el pasado**. El snapshot del día anterior deja de ser reproducible. Decisión requerida:
-
-```text
-Opción 1: los snapshots son inmutables; un pago retroactivo no los reescribe.
-          El histórico refleja "lo que se sabía entonces".   ← recomendada
-Opción 2: recalcular snapshots afectados y versionarlos.
-          Más correcto contablemente, mucho más costoso.
-
-RECOMENDACIÓN: Opción 1 + registro del pago retroactivo como evento
-que explica la discontinuidad. Es coherente con la inmutabilidad de
-resultados del motor de liquidación (Docs 20 §69 RESULT IMMUTABILITY).
-```
+~~`[GAP]` **`GAP-CAR-003`**~~ ✅ **Resuelto (2026-08-29) — Opción 1.** Los snapshots son inmutables (append-only por construcción); un pago retroactivo no los reescribe — el histórico refleja "lo que se sabía entonces", coherente con la inmutabilidad de resultados del motor de liquidación (Docs 20 §69 RESULT IMMUTABILITY). `registrarPago()` (`packages/liquidation-engine/src/cuenta-corriente-supabase.ts`) detecta `fecha_pago < fecha_registro` (la que de verdad resolvió la base) y escribe el evento que explica la discontinuidad en `eventos_cartera` (`tipo='PAGO_REGISTRADO'`), con el conteo de snapshots ya calculados en ese rango. 2 tests contra el dev DB real (`tests/tenancy/registrar-pago.test.ts`).
 
 `[ARQ]` **Agendamiento (2026-08-29, PRQ-CAR-010 cerrado).** `pg_cron` dispara `cron_cartera_recalcular_diario()` a las **11:00 UTC = 6:00 a. m. Colombia**; esa función hace un `net.http_post` a `cartera-cron-diario`, que recorre las copropiedades con política **vigente** e invoca `cartera-recalcular` en modo ejecución. Alcance decidido por el propietario del producto: **la corrida solo calcula**. Crea las acciones en la bandeja y no despacha ningún mensaje; el envío exige una persona en `/cartera/acciones` o agendar `cartera-ejecutar-lote`, que es otra decisión.
 
