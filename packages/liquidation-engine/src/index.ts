@@ -45,11 +45,13 @@ export {
   SegmentacionDayCountNoSoportadoError,
   SegmentosTasaSolapadosError,
   ImputacionManualInvalidaError,
+  CuotaAcuerdoNoConciliableError,
 } from './errors.js'
 
 export {
   imputarPago,
   construirPlanManual,
+  conciliarCuotaAcuerdo,
   calcularInteresMora,
   diasCalendario,
   type CategoriaCargo,
@@ -61,6 +63,9 @@ export {
   type CargoInteresGenerado,
   type PoliticaMora,
   type SegmentoTasa,
+  type EstadoCuotaAcuerdo,
+  type CuotaAcuerdoActual,
+  type ResultadoConciliacionCuota,
 } from './cuenta-corriente.js'
 
 export {
@@ -225,6 +230,7 @@ export {
   obtenerPoliticaMora,
   obtenerPoliticaImputacion,
   registrarPago,
+  obtenerCuotaAcuerdoParaConciliar,
   registrarCargoInteres,
   obtenerUltimaFechaInteresPorCapital,
   generarCargosNovedadesPeriodo,

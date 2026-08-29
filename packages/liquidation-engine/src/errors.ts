@@ -216,3 +216,18 @@ export class PeriodoSinFechaVencimientoError extends Error {
     this.name = 'PeriodoSinFechaVencimientoError'
   }
 }
+
+/**
+ * GAP-CAR-008 (CAR §12.4) — la cuota de acuerdo elegida para conciliar ya
+ * está cerrada (pagada/incumplida/cancelada). Conciliar contra una cuota
+ * cerrada resucitaría un estado que ya se decidió como definitivo.
+ */
+export class CuotaAcuerdoNoConciliableError extends Error {
+  constructor(readonly estadoActual: string) {
+    super(
+      `La cuota de acuerdo está en estado '${estadoActual}' y no admite conciliación — solo se ` +
+        `puede conciliar contra 'pendiente', 'parcial' o 'vencida' (CAR §12.4 GAP-CAR-008)`,
+    )
+    this.name = 'CuotaAcuerdoNoConciliableError'
+  }
+}

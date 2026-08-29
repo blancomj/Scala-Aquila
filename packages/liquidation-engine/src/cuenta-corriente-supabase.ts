@@ -11,9 +11,11 @@ import type {
   CargoAbierto,
   CargoInteresGenerado,
   CategoriaCargo,
+  CuotaAcuerdoActual,
   EstrategiaImputacion,
   PlanImputacion,
   PoliticaMora,
+  ResultadoConciliacionCuota,
 } from './cuenta-corriente.js'
 
 export interface OpcionesCargosAbiertos {
@@ -189,12 +191,57 @@ export interface DatosPago {
   readonly pagadorDocumento?: string | null
   /** Nota libre sobre el pago (ej. "cheque posfechado"). Viaja al recibo de caja. */
   readonly observaciones?: string | null
+  /** GAP-CAR-008 — asociación explícita opcional a la cuota de acuerdo que este pago cubre. */
+  readonly acuerdoCuotaId?: string | null
+}
+
+/**
+ * GAP-CAR-008 — lee la cuota y valida que pertenezca al mismo tenant/
+ * inmueble del pago que se está registrando (nunca se confía un
+ * acuerdo_cuota_id ajeno enviado por el cliente) y que su acuerdo esté
+ * vigente (conciliar contra un acuerdo ya cerrado no tiene sentido).
+ */
+export async function obtenerCuotaAcuerdoParaConciliar(
+  cliente: AquilaClient,
+  opciones: { readonly tenantId: string; readonly inmuebleId: string; readonly cuotaId: string; readonly moneda: string },
+): Promise<CuotaAcuerdoActual> {
+  const { data: cuota, error: errorCuota } = await cliente
+    .from('acuerdo_pago_cuotas')
+    .select('monto, monto_pagado, estado, acuerdo_id')
+    .eq('id', opciones.cuotaId)
+    .eq('tenant_id', opciones.tenantId)
+    .maybeSingle()
+  if (errorCuota) throw new Error(`No se pudo leer la cuota de acuerdo: ${errorCuota.message}`)
+  if (!cuota) throw new Error(`La cuota de acuerdo ${opciones.cuotaId} no existe en este tenant.`)
+
+  const { data: acuerdo, error: errorAcuerdo } = await cliente
+    .from('acuerdos_pago')
+    .select('inmueble_id, estado')
+    .eq('id', cuota.acuerdo_id)
+    .single()
+  if (errorAcuerdo) throw new Error(`No se pudo leer el acuerdo de la cuota: ${errorAcuerdo.message}`)
+  if (acuerdo.inmueble_id !== opciones.inmuebleId) {
+    throw new Error(
+      `La cuota de acuerdo ${opciones.cuotaId} pertenece a otro inmueble — no se puede conciliar ` +
+        `contra el pago de ${opciones.inmuebleId}.`,
+    )
+  }
+  if (acuerdo.estado !== 'vigente') {
+    throw new Error(`El acuerdo de esta cuota está en estado '${acuerdo.estado}', no 'vigente'.`)
+  }
+
+  return {
+    monto: money(cuota.monto, opciones.moneda),
+    montoPagado: money(cuota.monto_pagado, opciones.moneda),
+    estado: cuota.estado,
+  }
 }
 
 export async function registrarPago(
   cliente: AquilaClient,
   datos: DatosPago,
   plan: PlanImputacion,
+  conciliacionCuota?: ResultadoConciliacionCuota,
 ): Promise<string> {
   const { data: pago, error: errorPago } = await cliente
     .from('pagos')
@@ -214,10 +261,31 @@ export async function registrarPago(
       pagador_nombre: datos.pagadorNombre ?? null,
       pagador_documento: datos.pagadorDocumento ?? null,
       observaciones: datos.observaciones ?? null,
+      acuerdo_cuota_id: datos.acuerdoCuotaId ?? null,
     })
     .select('id')
     .single()
   if (errorPago) throw new Error(`No se pudo registrar el pago: ${errorPago.message}`)
+
+  // GAP-CAR-008 — la conciliación ya se calculó (conciliarCuotaAcuerdo, con
+  // el estado leído ANTES de este insert); aquí solo se escribe. Si esto
+  // falla el pago ya quedó registrado — se prioriza no perder el pago real
+  // sobre el estado de la cuota, mismo criterio que el recibo de caja abajo.
+  if (datos.acuerdoCuotaId && conciliacionCuota) {
+    const { error: errorCuota } = await cliente
+      .from('acuerdo_pago_cuotas')
+      .update({
+        monto_pagado: Number(conciliacionCuota.montoPagado.amount.toString()),
+        estado: conciliacionCuota.estado,
+        ...(conciliacionCuota.sePagaCompleto ? { fecha_pago: datos.fechaPago } : {}),
+      })
+      .eq('id', datos.acuerdoCuotaId)
+    if (errorCuota) {
+      throw new Error(
+        `El pago ${pago.id} se registró, pero no se pudo conciliar la cuota de acuerdo: ${errorCuota.message}`,
+      )
+    }
+  }
 
   if (plan.aplicaciones.length > 0) {
     const filas = plan.aplicaciones.map((a) => ({

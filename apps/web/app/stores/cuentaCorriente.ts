@@ -30,6 +30,8 @@ export interface ResultadoPago {
   aplicado: string
   no_aplicado: string
   aplicaciones: { cargo_id: string; monto: string }[]
+  /** GAP-CAR-008 — presente solo cuando el pago se asoció explícitamente a una cuota de acuerdo. */
+  cuota_acuerdo?: { id: string; estado: string; monto_pagado: string; se_paga_completo: boolean }
 }
 
 interface ResultadoInteres {
@@ -344,6 +346,8 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     /** Imputación manual (art. 1653 C.C.): a qué cargo(s) específicos aplica este pago,
      * en vez de dejar que la política automática decida. Omitir = comportamiento de siempre. */
     aplicacionesManuales?: { cargoId: string; monto: number }[]
+    /** GAP-CAR-008 (CAR §12.4) — asociación explícita opcional a la cuota de acuerdo que cubre este pago. */
+    acuerdoCuotaId?: string | null
   }): Promise<ResultadoPago> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoPago>(
@@ -364,6 +368,7 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
             cargo_id: a.cargoId,
             monto: a.monto,
           })),
+          acuerdo_cuota_id: params.acuerdoCuotaId ?? null,
         },
       },
     )

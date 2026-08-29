@@ -3,7 +3,9 @@ import { money } from '@aquila/financial-kernel'
 import {
   imputarPago,
   calcularInteresMora,
+  conciliarCuotaAcuerdo,
   type CargoAbierto,
+  type CuotaAcuerdoActual,
   type EstrategiaImputacion,
   type PoliticaMora,
   type SegmentoTasa,
@@ -14,6 +16,7 @@ import {
   PoliticaMoraNoConfiguradaError,
   SegmentacionDayCountNoSoportadoError,
   SegmentosTasaSolapadosError,
+  CuotaAcuerdoNoConciliableError,
 } from './errors.js'
 
 const ORDEN_ESTANDAR = ['interes', 'capital', 'otro'] as const
@@ -603,4 +606,58 @@ describe('calcularInteresMora con SegmentoTasa[] (CAR §13.3, GAP-CAR-004, PH-C1
     const politica = politicaMora({ dayCount: 'treinta_360' })
     expect(() => calcularInteresMora([c], '2027-02-01', politica, redondeo)).not.toThrow()
   })
+})
+
+describe('conciliarCuotaAcuerdo (GAP-CAR-008, CAR §12.4)', () => {
+  function cuota(over: Partial<CuotaAcuerdoActual> = {}): CuotaAcuerdoActual {
+    return {
+      monto: money(200_000, 'COP'),
+      montoPagado: money(0, 'COP'),
+      estado: 'pendiente',
+      ...over,
+    }
+  }
+
+  it('un pago parcial deja la cuota en parcial, con el monto acumulado', () => {
+    const resultado = conciliarCuotaAcuerdo(cuota(), money(80_000, 'COP'))
+    expect(resultado.estado).toBe('parcial')
+    expect(resultado.sePagaCompleto).toBe(false)
+    expect(resultado.montoPagado.amount.toString()).toBe('80000')
+  })
+
+  it('un pago que completa el saldo restante deja la cuota en pagada', () => {
+    const resultado = conciliarCuotaAcuerdo(cuota({ montoPagado: money(120_000, 'COP') }), money(80_000, 'COP'))
+    expect(resultado.estado).toBe('pagada')
+    expect(resultado.sePagaCompleto).toBe(true)
+    expect(resultado.montoPagado.amount.toString()).toBe('200000')
+  })
+
+  it('un pago mayor al saldo de la cuota la salda sin exceder cuota.monto (cuota_pagado_no_excede)', () => {
+    const resultado = conciliarCuotaAcuerdo(cuota({ montoPagado: money(150_000, 'COP') }), money(500_000, 'COP'))
+    expect(resultado.estado).toBe('pagada')
+    expect(resultado.montoPagado.amount.toString()).toBe('200000')
+  })
+
+  it('acumula sobre una cuota ya parcial en vez de reemplazar', () => {
+    const resultado = conciliarCuotaAcuerdo(
+      cuota({ estado: 'parcial', montoPagado: money(50_000, 'COP') }),
+      money(50_000, 'COP'),
+    )
+    expect(resultado.estado).toBe('parcial')
+    expect(resultado.montoPagado.amount.toString()).toBe('100000')
+  })
+
+  it('una cuota vencida también admite conciliación (pago tardío)', () => {
+    const resultado = conciliarCuotaAcuerdo(cuota({ estado: 'vencida' }), money(200_000, 'COP'))
+    expect(resultado.estado).toBe('pagada')
+  })
+
+  it.each(['pagada', 'incumplida', 'cancelada'] as const)(
+    'rechaza conciliar contra una cuota en estado final %s',
+    (estado) => {
+      expect(() => conciliarCuotaAcuerdo(cuota({ estado }), money(50_000, 'COP'))).toThrow(
+        CuotaAcuerdoNoConciliableError,
+      )
+    },
+  )
 })

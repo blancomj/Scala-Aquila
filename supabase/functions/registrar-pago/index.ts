@@ -15,14 +15,27 @@ import { money } from '@aquila/financial-kernel'
 // dist/index.js (compilado), no src/index.ts — mismo motivo que
 // liquidar-periodo/index.ts: Deno no resuelve especificadores .js que en
 // realidad apuntan a hermanos .ts (convención NodeNext del build de Node).
+// Módulos concretos, NUNCA el barrel index.js: index.js re-exporta todo
+// liquidation-engine, incluida conciliacion-matching.js, que importa
+// "@aquila/payment-gateways" — un specifier que Deno no resuelve sin mapa de
+// imports y que ya rompió el deploy de esta función (deuda conocida, CAR_08
+// §4 "el barrel arrastra su grafo completo"). Estos cuatro archivos son el
+// cierre transitivo real de lo que se usa aquí: clavePeriodo no importa
+// nada, errors.js son solo clases Error, cuenta-corriente(-supabase).js solo
+// importan @aquila/financial-kernel + esos dos.
+import { clavePeriodo } from '../../../packages/liquidation-engine/dist/snapshot.js'
+import { CuotaAcuerdoNoConciliableError } from '../../../packages/liquidation-engine/dist/errors.js'
 import {
-  clavePeriodo,
   imputarPago,
   construirPlanManual,
+  conciliarCuotaAcuerdo,
+} from '../../../packages/liquidation-engine/dist/cuenta-corriente.js'
+import {
   obtenerCargosAbiertos,
   obtenerPoliticaImputacion,
+  obtenerCuotaAcuerdoParaConciliar,
   registrarPago,
-} from '../../../packages/liquidation-engine/dist/index.js'
+} from '../../../packages/liquidation-engine/dist/cuenta-corriente-supabase.js'
 import { esTelefonoValido, renderSmsTemplate } from '../../../packages/shared/src/sms.ts'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
@@ -147,6 +160,9 @@ const payloadSchema = z.object({
     .array(z.object({ cargo_id: z.string().uuid(), monto: z.number().positive() }))
     .max(50)
     .optional(),
+  // GAP-CAR-008 (CAR §12.4) — asociación explícita opcional a la cuota de
+  // acuerdo que este pago cubre. No hay inferencia por monto/fecha.
+  acuerdo_cuota_id: z.string().uuid().nullish(),
 })
 
 // Espejo local de AplicacionPago (packages/liquidation-engine/src/cuenta-corriente.ts)
@@ -246,6 +262,29 @@ export default {
       .single()
     if (errorTenant) {
       return errorResponse(500, 'INTERNAL_ERROR', errorTenant.message, undefined, correlationId)
+    }
+
+    // ── GAP-CAR-008 · conciliación explícita pago↔cuota de acuerdo ──────
+    // Se valida y calcula ANTES de imputar el pago — si la cuota no existe,
+    // pertenece a otro inmueble, o ya está cerrada, se rechaza con un 422
+    // legible en vez de registrar el pago y fallar a medias en el paso final.
+    let conciliacionCuota: ReturnType<typeof conciliarCuotaAcuerdo> | undefined
+    if (datos.acuerdo_cuota_id) {
+      try {
+        const cuotaActual = await obtenerCuotaAcuerdoParaConciliar(ctx.supabase, {
+          tenantId: inmueble.tenant_id,
+          inmuebleId: datos.inmueble_id,
+          cuotaId: datos.acuerdo_cuota_id,
+          moneda: tenant.moneda,
+        })
+        conciliacionCuota = conciliarCuotaAcuerdo(cuotaActual, money(datos.monto, tenant.moneda))
+      } catch (excepcion) {
+        if (excepcion instanceof CuotaAcuerdoNoConciliableError) {
+          return errorResponse(422, 'CUOTA_ACUERDO_NO_CONCILIABLE', excepcion.message, undefined, correlationId)
+        }
+        const mensaje = excepcion instanceof Error ? excepcion.message : 'No se pudo validar la cuota de acuerdo.'
+        return errorResponse(422, 'CUOTA_ACUERDO_INVALIDA', mensaje, undefined, correlationId)
+      }
     }
 
     // ── RC-0 · medio de recaudo ────────────────────────────────────────
@@ -379,8 +418,10 @@ export default {
           pagadorNombre: datos.pagador_nombre ?? null,
           pagadorDocumento: datos.pagador_documento ?? null,
           observaciones: datos.observaciones ?? null,
+          acuerdoCuotaId: datos.acuerdo_cuota_id ?? null,
         },
         plan,
+        conciliacionCuota,
       )
     } catch (excepcion) {
       const mensaje = excepcion instanceof Error ? excepcion.message : 'No se pudo registrar.'
@@ -424,6 +465,16 @@ export default {
           cargo_id: a.cargoId,
           monto: a.monto.amount.toString(),
         })),
+        ...(conciliacionCuota
+          ? {
+              cuota_acuerdo: {
+                id: datos.acuerdo_cuota_id,
+                estado: conciliacionCuota.estado,
+                monto_pagado: conciliacionCuota.montoPagado.amount.toString(),
+                se_paga_completo: conciliacionCuota.sePagaCompleto,
+              },
+            }
+          : {}),
       },
       200,
       correlationId,

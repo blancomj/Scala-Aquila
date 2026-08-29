@@ -173,11 +173,62 @@ async function cargarPersonasDelInmueble(id: string | null): Promise<void> {
   if (pagadorRegistrado) quienPaga.value = pagadorRegistrado.tercero_id
 }
 
+// ── Cuota de acuerdo (GAP-CAR-008, CAR §12.4) ───────────────────────────
+// Consulta propia, sin tocar carteraGestionStore: esa store es la dueña de
+// acuerdos/cuotas para la pantalla de promesas y acuerdos (tenant-wide,
+// paginada a su manera) — este formulario solo necesita, para UN inmueble,
+// si hay un acuerdo vigente con cuotas abiertas que este pago pueda cubrir.
+interface CuotaPendienteAcuerdo {
+  id: string
+  numeroCuota: number
+  monto: number
+  montoPagado: number
+  fechaVencimiento: string
+}
+const cuotasPendientesAcuerdo = ref<CuotaPendienteAcuerdo[]>([])
+const cuotaAcuerdoSeleccionada = ref<string | null>(null)
+
+const opcionesCuotaAcuerdo = computed(() => [
+  { value: null, label: 'No corresponde a ninguna cuota' },
+  ...cuotasPendientesAcuerdo.value.map((c) => ({
+    value: c.id,
+    label: `Cuota ${c.numeroCuota} · vence ${c.fechaVencimiento} · pendiente ${formatoMoneda(c.monto - c.montoPagado)}`,
+  })),
+])
+
+async function cargarCuotasPendientesAcuerdo(inmuebleId: string | null): Promise<void> {
+  cuotasPendientesAcuerdo.value = []
+  cuotaAcuerdoSeleccionada.value = null
+  if (!inmuebleId) return
+  const cliente = useSupabaseClient<Database>()
+  const { data: acuerdo } = await cliente
+    .from('acuerdos_pago')
+    .select('id')
+    .eq('inmueble_id', inmuebleId)
+    .eq('estado', 'vigente')
+    .maybeSingle()
+  if (!acuerdo) return
+  const { data: filas } = await cliente
+    .from('acuerdo_pago_cuotas')
+    .select('id, numero_cuota, monto, monto_pagado, fecha_vencimiento')
+    .eq('acuerdo_id', acuerdo.id)
+    .in('estado', ['pendiente', 'parcial', 'vencida'])
+    .order('numero_cuota', { ascending: true })
+  cuotasPendientesAcuerdo.value = (filas ?? []).map((c) => ({
+    id: c.id,
+    numeroCuota: c.numero_cuota,
+    monto: c.monto,
+    montoPagado: c.monto_pagado,
+    fechaVencimiento: c.fecha_vencimiento,
+  }))
+}
+
 watch(
   inmuebleEfectivoId,
   (id) => {
     cargarPersonasDelInmueble(id)
     cargarSaldoPendiente(id)
+    cargarCuotasPendientesAcuerdo(id)
   },
   { immediate: true },
 )
@@ -251,6 +302,7 @@ async function registrar(): Promise<void> {
         aplicacionManualActiva.value && seleccionCargos.value.size > 0
           ? [...seleccionCargos.value.entries()].map(([cargoId, montoCargo]) => ({ cargoId, monto: montoCargo }))
           : undefined,
+      acuerdoCuotaId: cuotaAcuerdoSeleccionada.value,
     })
     if (archivoComprobante.value) await subirComprobante(resultado.pago_id)
     monto.value = null
@@ -259,6 +311,7 @@ async function registrar(): Promise<void> {
     archivoComprobante.value = null
     aplicacionManualActiva.value = false
     seleccionCargos.value = new Map()
+    await cargarCuotasPendientesAcuerdo(inmuebleId)
     emit('registrado', resultado)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo registrar el pago.')
@@ -315,6 +368,19 @@ defineExpose({ registrar })
           <UInput v-model="pagadorDocumentoLibre" placeholder="C.C. 1234567890" class="w-full" />
         </UFormField>
       </div>
+      <UFormField
+        v-if="cuotasPendientesAcuerdo.length > 0"
+        label="¿Corresponde a una cuota del acuerdo de pago?"
+        name="acuerdo_cuota_id"
+        help="Asociación explícita (CAR §12.4) — no se infiere por monto/fecha."
+      >
+        <USelect
+          :model-value="cuotaAcuerdoSeleccionada"
+          :items="opcionesCuotaAcuerdo"
+          class="w-full"
+          @update:model-value="(v) => (cuotaAcuerdoSeleccionada = v as string | null)"
+        />
+      </UFormField>
       <UFormField
         name="aplicacion_manual"
         :help="

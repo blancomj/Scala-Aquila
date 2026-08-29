@@ -23,6 +23,7 @@ import {
   SegmentacionDayCountNoSoportadoError,
   SegmentosTasaSolapadosError,
   ImputacionManualInvalidaError,
+  CuotaAcuerdoNoConciliableError,
 } from './errors.js'
 
 export type CategoriaCargo = 'capital' | 'interes' | 'otro'
@@ -213,6 +214,57 @@ export function construirPlanManual(
     aplicaciones: aplicaciones.map((a) => ({ cargoId: a.cargoId, monto: a.monto })),
     aplicado: acumulado,
     noAplicado: fos.restar(montoPago, acumulado),
+  }
+}
+
+// ────────────────────── Conciliación pago↔cuota de acuerdo (GAP-CAR-008) ─
+
+export type EstadoCuotaAcuerdo = 'pendiente' | 'parcial' | 'pagada' | 'vencida' | 'incumplida' | 'cancelada'
+
+/** Solo se concilia contra una cuota todavía abierta — pagada/incumplida/cancelada son estados finales. */
+const ESTADOS_CUOTA_CONCILIABLES: readonly EstadoCuotaAcuerdo[] = ['pendiente', 'parcial', 'vencida']
+
+export interface CuotaAcuerdoActual {
+  readonly monto: Money
+  readonly montoPagado: Money
+  readonly estado: EstadoCuotaAcuerdo
+}
+
+export interface ResultadoConciliacionCuota {
+  readonly montoPagado: Money
+  readonly estado: 'parcial' | 'pagada'
+  readonly sePagaCompleto: boolean
+}
+
+/**
+ * GAP-CAR-008 (CAR §12.4, decisión explícita del usuario 2026-08-17):
+ * asociación explícita pago↔cuota vía pagos.acuerdo_cuota_id — no hay
+ * inferencia por monto/fecha (queda para cuando exista un caso de uso
+ * real que la ejerza). Esta función solo calcula cuánto de `montoPago`
+ * cubre la cuota y en qué estado queda; nunca decide SI se asocia — eso
+ * ya lo decidió quien registró el pago.
+ *
+ * montoPagado nunca excede cuota.monto (cuota_pagado_no_excede,
+ * 20260822310000): el pago ya se aplicó por completo a cargos vía
+ * imputarPago() antes de llegar aquí — este cálculo solo etiqueta cuánto
+ * de esa cuota quedó cubierto, un pago mayor al saldo de la cuota
+ * simplemente la salda sin que el exceso se "pierda" (ya está aplicado
+ * en el ledger real).
+ */
+export function conciliarCuotaAcuerdo(cuota: CuotaAcuerdoActual, montoPago: Money): ResultadoConciliacionCuota {
+  if (!ESTADOS_CUOTA_CONCILIABLES.includes(cuota.estado)) {
+    throw new CuotaAcuerdoNoConciliableError(cuota.estado)
+  }
+
+  const sumaBruta = fos.sumar(cuota.montoPagado, montoPago)
+  const excede = fos.comparar(sumaBruta, cuota.monto) > 0
+  const montoPagadoFinal = excede ? cuota.monto : sumaBruta
+  const sePagaCompleto = excede || fos.comparar(montoPagadoFinal, cuota.monto) === 0
+
+  return {
+    montoPagado: montoPagadoFinal,
+    estado: sePagaCompleto ? 'pagada' : 'parcial',
+    sePagaCompleto,
   }
 }
 
