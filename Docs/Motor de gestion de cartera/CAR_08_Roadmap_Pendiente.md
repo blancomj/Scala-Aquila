@@ -95,7 +95,7 @@ real no se verificó en esta pasada — no marcarlos **hecha** sin confirmarlo.
 | # | Bloque | Referencia |
 |---|---|---|
 | 26 | Consulta jurídica única — **redactada**, ver `CAR_10`; falta enviarla | `VER-CAR-01`..`08` |
-| 27 | Carga del IBC vigente | §3.4 — tarea operativa, no de código |
+| 27 | Carga del IBC vigente — **pantalla hecha** (2026-08-29, `/plataforma/tasas-referencia`). Estaba mal clasificado: no era "tarea operativa", era que no existía ninguna superficie para hacerla. **Falta cargar una resolución real**, y en dev toda la vigencia de 2026 la ocupa una fila de prueba al 5% mensual que, por append-only, no se corrige sin una migración de reparación | §3.4 |
 | 28 | Portal del residente | `GAP-CAR-010`, exige revisar `AD-26` |
 
 ---
@@ -245,6 +245,21 @@ dev es una fila de prueba (`TEST-CALC-INTERESES-2026`, marcada "no es una tasa
 real"). Ahora que la interfaz sí permite declarar la fuente, una política
 activada se validaría contra ese dato falso. Cargar la resolución real de la
 Superfinanciera dejó de ser una tarea operativa aplazable.
+
+Construida esa pantalla el mismo día (`8e6444a`), quedó a la vista el resto del
+problema:
+
+```text
+· La fila de prueba TEST-CALC-INTERESES-2026 ocupa 2026-01-01 → 2026-12-31
+  al 5% mensual (60% E.A.). Cualquier política de mora activada en 2026 se
+  valida contra ella.
+· No se puede corregir desde el producto ni con service role: forbid_mutation
+  bloquea UPDATE y DELETE, y la restricción de no solape impide registrar la
+  resolución real encima. Sacarla exige una migración de reparación que
+  deshabilite el trigger a propósito — decisión de gobernanza, no de
+  implementación.
+· Sin verificar todavía si producción tiene el mismo problema.
+```
 
 ---
 
