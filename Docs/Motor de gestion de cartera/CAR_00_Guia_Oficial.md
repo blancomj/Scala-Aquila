@@ -2398,7 +2398,7 @@ Certificaciones por vencer
 | `PRQ-CAR-018` | Vínculo usuario ↔ inmueble | **Arquitectura (`AD-26`)** | ⤴ **Diferido** — `GAP-CAR-010` | No para F1-F9 | Solo para acceso del residente |
 | `PRQ-CAR-019` | **Webhooks de acuse** del proveedor de envío | Infraestructura | ❌ **No existe.** Brevo los ofrece; no hay endpoint que los reciba | **Sí** para §34, canales con acuse técnico | Sin acuse no hay notificación acreditable |
 | `PRQ-CAR-020` | **Operador postal** con guía rastreable | Externo — proveedor | ❌ **No existe.** Ningún código lo contempla, pese a que el canal físico se ofrece en la interfaz | **Sí** para §34, canal físico | El envío físico es el de mayor peso probatorio |
-| `PRQ-CAR-021` | **Versionado recuperable de plantillas** | Este bloque + plantillas | ⚠️ **Parcial** — `plantillas_sms` y `email_templates` existen; no se puede recuperar una versión anterior | **Sí** para §34 | Hay que aportar el texto exacto que se envió |
+| `PRQ-CAR-021` | **Versionado recuperable de plantillas** | Este bloque + plantillas | ✅ **Resuelto** (2026-08-29, `20260907130000`) — `plantillas_sms_versiones`/`plantillas_email_versiones` append-only, `version` denormalizada en la fila viva, `acciones_cobranza_envios.plantilla_version` deja de escribir 0 fijo | **Sí** para §34 | Hay que aportar el texto exacto que se envió |
 | `PRQ-CAR-022` | `subir-documento` acepta `envio_id` | Este bloque | ⚠️ **Parcial** — la Edge Function existe (`GAP-CAR-007` resuelto), falta el campo | Sí para canal físico | Cargue del acuse escaneado |
 
 ## 24.2 Regla de bloqueo
