@@ -61,7 +61,7 @@ dependencias reales están en §3.
 | 7 | Versionado recuperable de plantillas | `PRQ-CAR-021` |
 | 8 | `subir-documento` acepta `envio_id` | `PRQ-CAR-022` |
 | 9 | Certificación del art. 48 completa — **hecho** (5 rubros discriminados) | `GAP-CAR-011` |
-| 10 | Conciliación pago ↔ cuota de acuerdo | `GAP-CAR-008` |
+| 10 | Conciliación pago ↔ cuota de acuerdo — **hecha** (asociación explícita, registrar-pago) | `GAP-CAR-008` |
 | 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) | §18.2 paso 7 |
 | 12 | Pago retroactivo y reproducibilidad histórica | `GAP-CAR-003` |
 | 13 | Alertas de prescripción y registro de actos interruptivos | `VER-CAR-05` |

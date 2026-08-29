@@ -1310,7 +1310,7 @@ create type public.estado_cuota_acuerdo_t as enum (
 
 Un pago de cuota de acuerdo entra por `registrar-pago` como cualquier otro pago y se imputa con `imputarPago()` según la política vigente. El acuerdo **no tiene su propio imputador**. La cuota se marca pagada por conciliación posterior, no por escritura directa en el ledger.
 
-`[GAP]` **`GAP-CAR-008`** — Conciliar "pago recibido" con "cuota de acuerdo cubierta" requiere una regla: ¿el pago se asocia explícitamente al acuerdo, o se infiere por monto y fecha? **Decisión pendiente.** Recomendación: asociación explícita opcional (`pagos.acuerdo_cuota_id` nullable) más inferencia como respaldo, para no obligar al usuario a clasificar cada pago.
+~~`[GAP]` **`GAP-CAR-008`**~~ ✅ **Resuelto (2026-08-29).** Asociación explícita vía `pagos.acuerdo_cuota_id` — sin inferencia por monto/fecha. Ver F5 (§26.x) para la mecánica completa: `conciliarCuotaAcuerdo()` + validación en `registrar-pago`.
 
 ## 12.5 Efecto sobre la gestión
 
@@ -3065,12 +3065,17 @@ Entregables  · promesas_pago ✅ (20260822300000_cartera_promesas_pago.sql
                exige administrador explícito para pendiente_aprobacion→
                vigente, bloquea autoaprobación, un solo acuerdo vigente
                por inmueble (índice único). 8 tests RLS.)
-             · ~~GAP-CAR-008~~ ✅ resuelto (2026-08-17, decisión
-               explícita del usuario): pagos.acuerdo_cuota_id nullable
-               (asociación explícita) + inferencia de respaldo — la
-               función de inferencia por monto+fecha queda para cuando
-               exista un caso de uso real que la ejerza, no se inventa
-               sin eso.
+             · ~~GAP-CAR-008~~ ✅ resuelto (2026-08-17 decisión de esquema:
+               pagos.acuerdo_cuota_id nullable, asociación explícita sin
+               inferencia por monto/fecha — sigue sin construirse, queda
+               para cuando exista un caso de uso real que la ejerza.
+               2026-08-29 mecánica completa: conciliarCuotaAcuerdo() pura
+               calcula monto_pagado/estado sin exceder cuota.monto;
+               registrar-pago valida la cuota antes de imputar [422 si no
+               existe/otro inmueble/cerrada] y concilia después de
+               insertar el pago; selector opcional en
+               RegistrarPagoForm.vue cuando el inmueble tiene acuerdo
+               vigente con cuotas abiertas. 8 tests unitarios.)
              · Congelamiento de etapa ✅ parcial: guard_acuerdo_
                transicion() completa etapa_congelada al activar (desde
                el snapshot más reciente si el llamador no la fija
