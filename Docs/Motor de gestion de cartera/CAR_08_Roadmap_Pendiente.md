@@ -70,8 +70,12 @@ dependencias reales están en §3.
 
 ## 2.2 Interfaz
 
-`[ARQ]` **Hoy existe una sola pantalla**: `apps/web/app/pages/cartera/index.vue`,
-de solo lectura. Todo F4–F7 está sin puerta de entrada.
+`[ARQ]` **La frase que ya no es cierta (2ª):** esta sección decía "hoy existe
+una sola pantalla, `apps/web/app/pages/cartera/index.vue`, de solo lectura".
+Ya no — bandeja, simulación, escalamiento, configuración e indicadores tienen
+pantalla propia (tabla abajo); certificaciones/jurídico/promesas-acuerdos
+también tienen archivo `.vue` en `apps/web/app/pages/cartera/` pero su estado
+real no se verificó en esta pasada — no marcarlos **hecha** sin confirmarlo.
 
 | # | Bloque |
 |---|---|
@@ -84,7 +88,7 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
 | 22 | Costas judiciales |
 | 23 | Configuración — **hecha en su parte crítica** (/cartera/configuracion): siembra §8.4/§9.4, activación y encendido de estrategias. Falta editar tramos (exige versión nueva, §8.5) |
 | 24 | Plantillas y canales |
-| 25 | Indicadores de cobranza y jurídicos |
+| 25 | Indicadores de cobranza y jurídicos — **hecha** (/cartera/indicadores): consume `cartera-indicadores` (ya existía completo, F9 parte 2+3+4) sin cambios de backend |
 
 ## 2.3 Externos y decisiones
 
