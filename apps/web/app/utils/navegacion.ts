@@ -213,6 +213,20 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
+        label: 'Casos jurídicos',
+        to: '/cartera/juridico',
+        permiso: 'data:create',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
+        label: 'Promesas y acuerdos de pago',
+        to: '/cartera/promesas-acuerdos',
+        permiso: 'data:create',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
         label: 'Transacciones de pasarela',
         to: '/pagos/transacciones',
         permiso: 'data:read',

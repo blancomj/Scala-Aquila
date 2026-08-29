@@ -493,7 +493,7 @@ export type Database = {
           aprobado_at: string | null
           aprobado_por: string | null
           condona_interes: boolean
-          consecutivo: string
+          consecutivo: string | null
           created_at: string
           cuota_inicial: number
           documento_url: string | null
@@ -523,7 +523,7 @@ export type Database = {
           aprobado_at?: string | null
           aprobado_por?: string | null
           condona_interes?: boolean
-          consecutivo: string
+          consecutivo?: string | null
           created_at?: string
           cuota_inicial?: number
           documento_url?: string | null
@@ -553,7 +553,7 @@ export type Database = {
           aprobado_at?: string | null
           aprobado_por?: string | null
           condona_interes?: boolean
-          consecutivo?: string
+          consecutivo?: string | null
           created_at?: string
           cuota_inicial?: number
           documento_url?: string | null
@@ -1126,7 +1126,7 @@ export type Database = {
           busqueda_tsv: unknown
           certificacion_id: string
           ciudad: string | null
-          consecutivo: string
+          consecutivo: string | null
           created_at: string
           estado: Database["public"]["Enums"]["estado_caso_juridico_t"]
           fecha_apertura: string | null
@@ -1152,7 +1152,7 @@ export type Database = {
           busqueda_tsv?: unknown
           certificacion_id: string
           ciudad?: string | null
-          consecutivo: string
+          consecutivo?: string | null
           created_at?: string
           estado?: Database["public"]["Enums"]["estado_caso_juridico_t"]
           fecha_apertura?: string | null
@@ -1178,7 +1178,7 @@ export type Database = {
           busqueda_tsv?: unknown
           certificacion_id?: string
           ciudad?: string | null
-          consecutivo?: string
+          consecutivo?: string | null
           created_at?: string
           estado?: Database["public"]["Enums"]["estado_caso_juridico_t"]
           fecha_apertura?: string | null

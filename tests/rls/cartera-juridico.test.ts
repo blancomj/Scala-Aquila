@@ -295,6 +295,47 @@ d('CAR F7 — jurídico (§15-16)', () => {
       expect(data?.aprobado_at).not.toBeNull()
     })
 
+    it('el consecutivo lo asigna el servidor (fn_siguiente_consecutivo, RC-3), no el cliente', async () => {
+      // Un solo login para todo el caso (evita agotar el rate limit de auth
+      // del proyecto de prueba): crearCertificacionVigente() ya haría su
+      // propio login por llamada, así que aquí se inserta directo con el
+      // mismo cliente administrador ya autenticado.
+      const clienteAdministrador = await clienteComo(env!, administrador)
+      const { data: certUnoRow, error: errorCertUno } = await clienteAdministrador
+        .from('certificaciones_deuda')
+        .insert(payloadCertificacion())
+        .select('id')
+        .single<{ id: string }>()
+      if (errorCertUno) throw new Error(`fixture certificacion uno: ${errorCertUno.message}`)
+      const certUno = certUnoRow.id
+
+      const { data: certDosRow, error: errorCertDos } = await clienteAdministrador
+        .from('certificaciones_deuda')
+        .insert(payloadCertificacion())
+        .select('id')
+        .single<{ id: string }>()
+      if (errorCertDos) throw new Error(`fixture certificacion dos: ${errorCertDos.message}`)
+      const certDos = certDosRow.id
+
+      const { data: casoUno, error: errorUno } = await clienteAdministrador
+        .from('casos_juridicos')
+        .insert(payloadCaso(certUno, { consecutivo: 'valor-que-el-cliente-manda-y-se-ignora' }))
+        .select('consecutivo')
+        .single()
+      if (errorUno) throw new Error(`insert caso uno: ${errorUno.message}`)
+      expect(casoUno.consecutivo).toBeTruthy()
+      expect(casoUno.consecutivo).not.toBe('valor-que-el-cliente-manda-y-se-ignora')
+
+      const { data: casoDos, error: errorDos } = await clienteAdministrador
+        .from('casos_juridicos')
+        .insert(payloadCaso(certDos))
+        .select('consecutivo')
+        .single()
+      if (errorDos) throw new Error(`insert caso dos: ${errorDos.message}`)
+      expect(casoDos.consecutivo).toBeTruthy()
+      expect(casoDos.consecutivo).not.toBe(casoUno.consecutivo)
+    })
+
     it('CASO_JURIDICO_ABOGADO_INVALIDO: rechaza un tercero sin rol de abogado vigente', async () => {
       const certId = await crearCertificacionVigente()
       const tipoIdentCedula = await listaTipoId(admin, 'TIPO_IDENTIFICACION', 'cedula')
