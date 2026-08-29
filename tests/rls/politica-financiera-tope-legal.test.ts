@@ -11,6 +11,12 @@
  * omitirlos — antes era opt-in sin límite de tiempo, decisión revertida
  * tras el hallazgo.
  *
+ * S3 (2026-08-29): el multiplicador mismo tiene ahora un techo. Hasta
+ * 20260908130000 el guard validaba la tasa contra `multiplicador × tasa de
+ * referencia` sin que nadie limitara el multiplicador, declarado por el propio
+ * tenant — el tope "legal" era circular: bastaba declarar 3.0 para cobrar el
+ * triple del IBC y pasar. El art. 30 permite hasta 1.5.
+ *
  * tasas_referencia es append-only y GLOBAL (sin tenant_id) — la fila de
  * prueba que este archivo inserta NO se puede borrar después y queda
  * permanentemente en la base. Se usa una fecha en el pasado lejano,
@@ -173,5 +179,34 @@ d('guard_politica_financiera_tope_legal (CAR §3.4, PH-C36/PH-C37)', () => {
     )
     expect(error).not.toBeNull()
     expect(error?.message).toContain('TOPE_LEGAL_NO_DECLARADO')
+  })
+
+  it('S3: rechaza un multiplicador por encima de 1.5, aunque la tasa quepa bajo ese tope inflado', async () => {
+    const tenant = await tenantDePrueba('multiplicador-ilegal')
+    const { error } = await admin.from('politicas_financieras').insert(
+      politicaBase(tenant.id, {
+        interes_tipo_tasa: 'ibc_consumo_ordinario',
+        interes_multiplicador: 3, // el art. 30 permite hasta 1.5
+        // 0.05 cabe en 3 × 0.02 = 0.06, así que el guard de tope legal lo
+        // aprobaría: lo que se rechaza es el múltiplo, no la tasa.
+        interes_tasa_mensual: 0.05,
+        interes_tope_mensual: 0.05,
+      }),
+    )
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('politicas_financieras_multiplicador_tope_legal')
+  })
+
+  it('S3: un multiplicador menor que 1.5 sigue siendo válido — la asamblea puede fijar menos', async () => {
+    const tenant = await tenantDePrueba('multiplicador-menor')
+    const { error } = await admin.from('politicas_financieras').insert(
+      politicaBase(tenant.id, {
+        interes_tipo_tasa: 'ibc_consumo_ordinario',
+        interes_multiplicador: 1.2, // tope = 1.2 × 0.02 = 0.024
+        interes_tasa_mensual: 0.02,
+        interes_tope_mensual: 0.024,
+      }),
+    )
+    expect(error).toBeNull()
   })
 })

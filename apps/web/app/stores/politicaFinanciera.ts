@@ -25,6 +25,8 @@ type RedondeoModo = Database['public']['Enums']['redondeo_modo_t']
 type FondoBaseCalculo = Database['public']['Enums']['fondo_base_calculo_t']
 type InteresDayCount = Database['public']['Enums']['interes_day_count_t']
 type InteresDescuentoOrden = Database['public']['Enums']['interes_descuento_orden_t']
+type TipoTasaReferencia = Database['public']['Enums']['tipo_tasa_referencia_t']
+type TasaReferenciaRow = Database['public']['Tables']['tasas_referencia']['Row']
 
 async function hashPlaceholder(valores: Record<string, unknown>): Promise<string> {
   const canonico = JSON.stringify(valores, Object.keys(valores).sort())
@@ -37,6 +39,9 @@ async function hashPlaceholder(valores: Record<string, unknown>): Promise<string
 export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () => {
   const politicas = shallowRef<PoliticaFinancieraRow[]>([])
   const loading = ref(false)
+  /** Tasa certificada vigente para el tipo elegido — solo para que la UI muestre el
+   * tope legal resultante antes de guardar. La autoridad es el trigger de la base. */
+  const tasaReferenciaVigente = ref<TasaReferenciaRow | null>(null)
 
   async function cargarPoliticas(tenantId: string): Promise<PoliticaFinancieraRow[]> {
     loading.value = true
@@ -59,6 +64,8 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
     tenantId: string
     redondeoModo: RedondeoModo
     redondeoEscala: number
+    interesTipoTasa?: TipoTasaReferencia
+    interesMultiplicador?: number
     interesTasaMensual?: number
     interesTopeMensual?: number
     interesDiasGracia: number
@@ -80,6 +87,8 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
       redondeo_modo: params.redondeoModo,
       redondeo_escala: params.redondeoEscala,
       residual_metodo: 'mayor_resto' as const,
+      interes_tipo_tasa: params.interesTipoTasa,
+      interes_multiplicador: params.interesMultiplicador,
       interes_tasa_mensual: params.interesTasaMensual,
       interes_tope_mensual: params.interesTopeMensual,
       interes_dias_gracia: params.interesDiasGracia,
@@ -131,9 +140,45 @@ export const usePoliticaFinancieraStore = defineStore('politicaFinanciera', () =
     await cargarPoliticas(tenantId)
   }
 
-  function limpiar(): void {
-    politicas.value = []
+  /**
+   * Tasa de referencia certificada vigente a una fecha. `tasas_referencia` es global
+   * (RLS: select para cualquier autenticado, insert solo is_platform_admin), así que va
+   * sin filtro de tenant. Misma selección que hace guard_politica_financiera_tope_legal:
+   * la vigente a `vigente_desde` de la política, o a hoy si aún no tiene fecha.
+   */
+  async function cargarTasaReferenciaVigente(
+    tipo: TipoTasaReferencia,
+    fecha?: string,
+  ): Promise<TasaReferenciaRow | null> {
+    const alaFecha = fecha || new Date().toISOString().slice(0, 10)
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorTasa } = await cliente
+      .from('tasas_referencia')
+      .select('*')
+      .eq('tipo_tasa', tipo)
+      .lte('vigente_desde', alaFecha)
+      .or(`vigente_hasta.is.null,vigente_hasta.gte.${alaFecha}`)
+      .order('vigente_desde', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (errorTasa) throw errorTasa
+    tasaReferenciaVigente.value = data
+    return data
   }
 
-  return { politicas, loading, cargarPoliticas, crearPolitica, activarPolitica, limpiar }
+  function limpiar(): void {
+    politicas.value = []
+    tasaReferenciaVigente.value = null
+  }
+
+  return {
+    politicas,
+    loading,
+    tasaReferenciaVigente,
+    cargarPoliticas,
+    cargarTasaReferenciaVigente,
+    crearPolitica,
+    activarPolitica,
+    limpiar,
+  }
 })

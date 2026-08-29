@@ -33,6 +33,12 @@ const redondeoModo = ref<'half_up' | 'half_even' | 'down' | 'up'>(
   politicaExistente.value?.redondeo_modo ?? 'half_up',
 )
 const redondeoEscala = ref(politicaExistente.value?.redondeo_escala ?? 0)
+const interesTipoTasa = ref<'ibc_consumo_ordinario' | null>(
+  politicaExistente.value?.interes_tipo_tasa ?? null,
+)
+const interesMultiplicador = ref<number | null>(
+  politicaExistente.value?.interes_multiplicador ?? 1.5,
+)
 const interesTasaMensual = ref<number | null>(politicaExistente.value?.interes_tasa_mensual ?? null)
 const interesTopeMensual = ref<number | null>(politicaExistente.value?.interes_tope_mensual ?? null)
 const interesDiasGracia = ref(politicaExistente.value?.interes_dias_gracia ?? 0)
@@ -74,6 +80,54 @@ const opcionesFondoBase = [
   { label: 'Presupuesto anual', value: 'presupuesto_anual' },
   { label: 'Cuota de administración', value: 'cuota_administracion' },
 ]
+const opcionesTipoTasa = [
+  { label: '— Sin interés de mora —', value: null },
+  { label: 'IBC consumo y ordinario (Superfinanciera)', value: 'ibc_consumo_ordinario' },
+]
+
+// Espejo en la UI de guard_politica_financiera_tope_legal (20260901110000): mismo
+// cálculo, misma tasa vigente, mismos dos rechazos. No sustituye al trigger — la
+// autoridad sigue siendo la base; esto solo evita que el administrador descubra el
+// rechazo al activar, cuando ya no puede editar la versión (guard_politica_inmutable).
+const tasaVigente = computed(() => politicaStore.tasaReferenciaVigente)
+const cobraMora = computed(
+  () => interesTasaMensual.value !== null || interesTopeMensual.value !== null,
+)
+const topeLegal = computed<number | null>(() => {
+  if (!tasaVigente.value || interesMultiplicador.value === null) return null
+  return interesMultiplicador.value * Number(tasaVigente.value.valor_mensual)
+})
+const faltaFuente = computed(() => cobraMora.value && interesTipoTasa.value === null)
+const faltaTasaVigente = computed(
+  () => interesTipoTasa.value !== null && tasaVigente.value === null,
+)
+const excedeTopeLegal = computed(() => {
+  const tope = topeLegal.value
+  if (tope === null) return false
+  return (
+    (interesTasaMensual.value !== null && interesTasaMensual.value > tope) ||
+    (interesTopeMensual.value !== null && interesTopeMensual.value > tope)
+  )
+})
+const puedeGuardar = computed(
+  () => !faltaFuente.value && !excedeTopeLegal.value && !faltaTasaVigente.value,
+)
+
+watch(
+  [interesTipoTasa, vigenteDesde],
+  async () => {
+    if (!interesTipoTasa.value) return
+    try {
+      await politicaStore.cargarTasaReferenciaVigente(
+        interesTipoTasa.value,
+        vigenteDesde.value || undefined,
+      )
+    } catch (excepcion) {
+      error.value = mensajeError(excepcion, 'No se pudo leer la tasa de referencia vigente.')
+    }
+  },
+  { immediate: true },
+)
 
 async function guardar(): Promise<void> {
   error.value = null
@@ -86,6 +140,8 @@ async function guardar(): Promise<void> {
       tenantId,
       redondeoModo: redondeoModo.value,
       redondeoEscala: redondeoEscala.value,
+      interesTipoTasa: interesTipoTasa.value ?? undefined,
+      interesMultiplicador: interesTipoTasa.value ? (interesMultiplicador.value ?? undefined) : undefined,
       interesTasaMensual: interesTasaMensual.value ?? undefined,
       interesTopeMensual: interesTopeMensual.value ?? undefined,
       interesDiasGracia: interesDiasGracia.value,
@@ -135,6 +191,46 @@ async function guardar(): Promise<void> {
         <div>
           <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-3">Interés y mora</h3>
           <div class="space-y-4">
+            <UFormField
+              label="Fuente de la tasa"
+              name="interes_tipo_tasa"
+              help="Obligatoria si la política cobra mora: es la tasa certificada contra la que se valida el tope del art. 30."
+            >
+              <USelect
+                v-model="interesTipoTasa"
+                :items="opcionesTipoTasa"
+                value-key="value"
+                :disabled="soloLectura"
+                class="w-full"
+              />
+            </UFormField>
+            <div v-if="interesTipoTasa" class="grid grid-cols-2 gap-4">
+              <UFormField
+                label="Multiplicador"
+                name="interes_multiplicador"
+                help="Máximo 1.5 (art. 30 Ley 675). La asamblea puede fijar menos, nunca más."
+              >
+                <UInput
+                  v-model.number="interesMultiplicador"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="1.5"
+                  :disabled="soloLectura"
+                  class="w-full"
+                />
+              </UFormField>
+              <div class="self-center text-xs text-neutral-500">
+                <template v-if="topeLegal !== null">
+                  Tope legal resultante:
+                  <span class="font-semibold tabular-nums">{{ topeLegal.toFixed(6) }}%</span>
+                  mensual
+                  <span v-if="tasaVigente" class="block mt-1">
+                    Resolución {{ tasaVigente.resolucion_numero }} · {{ tasaVigente.entidad_fuente }}
+                  </span>
+                </template>
+              </div>
+            </div>
             <div class="grid grid-cols-2 gap-4">
               <UFormField
                 label="Tasa mensual"
@@ -163,6 +259,27 @@ async function guardar(): Promise<void> {
                 />
               </UFormField>
             </div>
+            <UAlert
+              v-if="faltaFuente"
+              color="warning"
+              variant="soft"
+              title="Falta declarar la fuente de la tasa"
+              description="Una política que cobra mora debe declarar contra qué tasa certificada se valida. Sin eso la versión se guarda, pero la base rechaza activarla."
+            />
+            <UAlert
+              v-else-if="faltaTasaVigente"
+              color="warning"
+              variant="soft"
+              title="No hay tasa de referencia vigente para esa fecha"
+              description="Hay que cargar la resolución correspondiente antes de activar esta versión."
+            />
+            <UAlert
+              v-else-if="excedeTopeLegal"
+              color="error"
+              variant="soft"
+              title="El interés excede el tope legal"
+              description="Ni la tasa ni el tope mensual pueden superar el multiplicador por la tasa de referencia vigente (art. 30 Ley 675 de 2001)."
+            />
             <UFormField
               label="Días de gracia"
               name="interes_dias_gracia"
@@ -264,7 +381,7 @@ async function guardar(): Promise<void> {
         </template>
         <template v-else>
           <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
-          <UButton :loading="guardando" @click="guardar">Crear versión</UButton>
+          <UButton :loading="guardando" :disabled="!puedeGuardar" @click="guardar">Crear versión</UButton>
         </template>
       </template>
     </UiDrawer>
