@@ -4,7 +4,7 @@
 // casos_juridicos (20260822340000) convierte el art. 48 en una restricción
 // de integridad referencial: sin certificación vigente no hay caso, y esta
 // pantalla no deja avanzar sin una.
-import { useCasosJuridicosStore, type CasoJuridico, type EstadoCasoJuridico } from '~/stores/casosJuridicos'
+import { useCasosJuridicosStore, type EstadoCasoJuridico } from '~/stores/casosJuridicos'
 import { useCertificacionesStore } from '~/stores/certificaciones'
 import { useCuentaCorrienteStore } from '~/stores/cuentaCorriente'
 import { useTercerosStore } from '~/stores/terceros'
@@ -162,12 +162,9 @@ async function crearCaso(): Promise<void> {
   }
 }
 
-// ── detalle ───────────────────────────────────────────────────────────
-const casoSeleccionado = ref<CasoJuridico | null>(null)
-
-function abrirDetalle(caso: CasoJuridico): void {
-  casoSeleccionado.value = caso
-}
+// El detalle vive en su propia ruta (/cartera/juridico/[id]), no en un
+// drawer sobre esta tabla: un caso jurídico se trabaja durante semanas y
+// necesita poder enlazarse y recargarse por sí solo.
 </script>
 
 <template>
@@ -209,9 +206,12 @@ function abrirDetalle(caso: CasoJuridico): void {
       vacio="Todavía no se ha remitido ningún caso a jurídico."
     >
       <template #celda-consecutivo="{ fila }">
-        <button type="button" class="font-medium text-primary-600 hover:underline" @click="abrirDetalle(fila)">
+        <NuxtLink
+          :to="`/cartera/juridico/${fila.id}`"
+          class="font-medium text-primary-600 hover:underline"
+        >
           {{ fila.consecutivo ?? '—' }}
-        </button>
+        </NuxtLink>
       </template>
       <template #celda-inmueble="{ fila }">
         {{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}
@@ -295,14 +295,5 @@ function abrirDetalle(caso: CasoJuridico): void {
       </template>
     </UModal>
 
-    <!-- ── detalle ───────────────────────────────────────────────────── -->
-    <CarteraCasoJuridicoDrawer
-      v-if="casoSeleccionado"
-      :caso="casoSeleccionado"
-      :opciones-abogado="opcionesAbogado"
-      :inmueble-codigo="inmueblePorId.get(casoSeleccionado.inmueble_id) ?? casoSeleccionado.inmueble_id"
-      @cerrar="casoSeleccionado = null"
-      @actualizado="casosStore.cargarCasos(tenantStore.activeTenant!.id)"
-    />
   </div>
 </template>

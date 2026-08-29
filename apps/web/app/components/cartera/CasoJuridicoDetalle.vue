@@ -235,14 +235,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ficha-inmueble">
-    <UiDrawer
-    :abierto="true"
-    :titulo="`Caso ${caso.consecutivo ?? ''}`"
-    :subtitulo="`Inmueble ${inmuebleCodigo}`"
-    @cerrar="emit('cerrar')"
-  >
-    <div class="space-y-6 text-sm">
+  <div class="space-y-6 text-sm">
       <!-- ── datos generales ────────────────────────────────────────── -->
       <section class="space-y-3">
         <h3 class="text-xs font-semibold uppercase text-neutral-400">Datos del caso</h3>
@@ -398,11 +391,5 @@ onMounted(async () => {
           Registrar costa
         </UButton>
       </section>
-    </div>
-
-    <template #foot>
-      <UButton variant="ghost" color="neutral" @click="emit('cerrar')">Cerrar</UButton>
-    </template>
-    </UiDrawer>
   </div>
 </template>
