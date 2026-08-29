@@ -209,6 +209,43 @@ Hallazgos de la propia auditoría que valen para no repetir el trabajo:
   que sí están en producción.
 ```
 
+## 3.1.1 Seguimiento — la grieta de CJ-1, verificada
+
+Se consultó la base: de 27 políticas financieras, 26 tienen
+`interes_tipo_tasa` nulo, pero **ninguna cobra mora sin fuente declarada**.
+Las 26 nulas no cobran interés en absoluto, que es el único caso que el guard
+admite omitir. La grieta existe en el papel y no está siendo explotada.
+
+Verificándola aparecieron dos huecos reales encadenados, ya cerrados en
+`05c5251`:
+
+```text
+✅ La interfaz nunca alimentó al guard (20260908130000 + drawer/store)
+   · PoliticasVersionDrawer pedía tasa y tope mensual pero NO la fuente
+     ni el multiplicador; el store tampoco los enviaba. La política se
+     guardaba en borrador (el guard no mira borradores) y al ACTIVARLA
+     el trigger la rechazaba con TOPE_LEGAL_NO_DECLARADO — cuando ya no
+     se puede editar. Ninguna copropiedad podía activar una política con
+     mora desde el producto. Eso explica las 26 sin interés.
+   · tasas_referencia tenía 61 resoluciones cargadas y CERO lectores en
+     el producto. El store estrena cargarTasaReferenciaVigente().
+
+✅ El multiplicador no tenía techo propio
+   · El guard validaba la tasa contra multiplicador × tasa de referencia,
+     pero el multiplicador lo declaraba el mismo tenant: con 3.00 se
+     cobraba el triple del IBC y el guard aprobaba. El tope legal era
+     circular. Ahora hay CHECK <= 1.5 (art. 30). No decide nada de
+     VER-CAR-01, que pregunta por el orden de operaciones, el método de
+     conversión, la modalidad y la base de días — no por el múltiplo.
+```
+
+`[NEGOCIO]` **El bloque 27 (carga del IBC vigente) pasó a ruta crítica.** Al
+verificar en la aplicación viva, la única tasa de referencia vigente hoy en
+dev es una fila de prueba (`TEST-CALC-INTERESES-2026`, marcada "no es una tasa
+real"). Ahora que la interfaz sí permite declarar la fuente, una política
+activada se validaría contra ese dato falso. Cargar la resolución real de la
+Superfinanciera dejó de ser una tarea operativa aplazable.
+
 ---
 
 # 4. Deuda conocida al corte
