@@ -39,10 +39,15 @@ la funcionalidad que depende de ella NO se implementa con un valor por
 defecto. Se detiene.
 ```
 
-Ocho puntos están abiertos. Cinco son los del §2 (los que el propio documento
-rector ordenó llevar en una sola consulta). Tres más, en §3, ya estaban
-marcados como bloqueantes y se incluyen aquí porque llevarlos en el mismo
-envío no tiene costo adicional.
+Nueve puntos están abiertos. Cinco son los del §2 (los que el propio
+documento rector ordenó llevar en una sola consulta). Tres más, en §3, ya
+estaban marcados como bloqueantes y se incluyen aquí porque llevarlos en el
+mismo envío no tiene costo adicional.
+
+`[ARQ]` `CJ-9` y las preguntas `CJ-2.5`, `CJ-2.6` y `CJ-3.6` se agregaron el
+2026-08-29, al contrastar esta consulta contra la auditoría externa
+`PROMPT-CAR-JUR-001`. Son puntos que esa auditoría da por resueltos —o por
+ya construidos— y que este documento no estaba preguntando.
 
 ## 1.3 Forma de respuesta que el sistema necesita
 
@@ -130,6 +135,12 @@ doctrina mayoritaria, y se pide confirmarla o corregirla.
 Por otra parte, cuando entra un pago parcial, el sistema decide a qué lo
 imputa. Hoy el orden es **configurable por copropiedad**.
 
+Ocurre también el caso inverso: que un pago exceda lo exigible y quede un
+saldo a favor del inmueble. Hoy, cuando la copropiedad activa esa opción, el
+sistema consume ese saldo contra la mora de capital pendiente empezando por
+la más antigua, de modo que un crédito originado en un periodo puede terminar
+compensando la mora de un periodo posterior.
+
 ### Preguntas
 
 1. **Capitalización.** ¿Es correcto que los intereses de mora sobre expensas
@@ -150,6 +161,23 @@ imputa. Hoy el orden es **configurable por copropiedad**.
 4. **Descuentos por pronto pago.** Si la copropiedad ofrece un descuento por
    pago oportuno, ¿su pérdida por mora tiene naturaleza de sanción sujeta a
    límite, o es simplemente el precio ordinario sin el beneficio?
+
+5. **Saldos a favor.** Cuando un pago excede lo exigible y queda un saldo a
+   favor del inmueble, ¿puede la copropiedad aplicarlo automáticamente a
+   obligaciones de otros periodos —incluidos periodos **posteriores** a aquel
+   en que se originó el crédito—, o debe mantenerse como crédito disponible
+   hasta que el deudor disponga otra cosa? ¿Cambia la respuesta si esa
+   aplicación automática está prevista en el reglamento o aprobada por la
+   asamblea? ¿Y si el saldo termina aplicándose a intereses de mora causados
+   con posterioridad a la fecha del pago?
+
+6. **Alcance de la instrucción del deudor.** La pregunta 3 se refiere a la
+   elección de *cuota*. Además de eso, ¿puede el deudor instruir válidamente
+   a qué **concepto** se imputa su pago —por ejemplo, exigir que se aplique a
+   capital antes que a intereses—, y esa instrucción obliga a la copropiedad?
+   Si obliga, ¿debe constar por escrito, y qué ocurre cuando contradice el
+   orden fijado en el reglamento? Si no obliga, ¿puede la copropiedad
+   aceptarla voluntariamente, y ese consentimiento requiere un acto formal?
 
 ### Por qué bloquea
 
@@ -204,6 +232,15 @@ una obligación prescriba, decidir cuándo una cartera es **incobrable**, y sabe
    guías— para que siga siendo útil? El sistema necesita una fórmula del tipo
    *fecha de extinción de la obligación + término + margen*, y mientras no la
    tenga **no purga absolutamente nada**.
+
+6. **Límite máximo de conservación.** La pregunta anterior busca el **mínimo**
+   probatorio. ¿Existe además un **máximo** derivado de la protección de datos
+   personales, cumplido el cual conservar esa evidencia —comunicaciones,
+   números de contacto, historial de mora de una persona identificada— deja de
+   ser lícito? Hoy el sistema no purga nada, y esa política indefinida podría
+   ser en sí misma un incumplimiento. Si ambos plazos existen y no coinciden,
+   ¿cuál prevalece, y qué debe hacerse con el dato en el intervalo:
+   anonimizarlo, bloquear su acceso, conservar solo una huella?
 
 ### Por qué bloquea
 
@@ -355,6 +392,53 @@ no tiene costo y evita una segunda ronda con el mismo abogado.
 implementada: el sistema notifica a **todos** los copropietarios vigentes, uno
 por uno, sin dividir el monto entre ellos.
 
+## CJ-9 — Finalidad del dato de contacto en los canales ya en operación
+
+`[LEGAL]` **No cierra ningún `VER-CAR` existente. A diferencia de todo lo
+demás en este documento, afecta funcionalidad que ya está en producción.**
+
+### Contexto fáctico
+
+La pregunta 4 de `CJ-5` plantea el problema de la finalidad del dato dentro
+del bloque de WhatsApp, que hoy está bloqueado y no se usa. Pero el sistema
+**ya envía comunicaciones de cobro por SMS y por correo electrónico**, sobre
+los mismos datos de contacto y con la misma duda: números y correos que en
+muchos casos fueron capturados para portería, emergencias o convocatoria a
+asamblea.
+
+Aquí no se trata, entonces, de una funcionalidad detenida a la espera de
+concepto. Es tráfico real que ya está saliendo.
+
+### Preguntas
+
+1. **Base jurídica.** ¿El cobro de una obligación derivada de la relación de
+   propiedad horizontal está cubierto por la finalidad original con que se
+   capturó el dato de contacto? ¿O requiere autorización específica bajo la
+   Ley 1581 de 2012?
+
+2. **Diferencia por canal.** ¿La respuesta cambia entre correo electrónico,
+   SMS, llamada telefónica y carta física, o es la misma para todos?
+
+3. **Datos ya capturados.** Si se requiere autorización específica, ¿qué debe
+   hacerse con los contactos que no la tienen: dejar de usarlos, solicitarla
+   de forma retroactiva, o existe una base jurídica alternativa —ejecución de
+   la relación derivada del régimen de propiedad horizontal, interés
+   legítimo— que la sustituya?
+
+4. **Registro exigible.** ¿Qué debe conservar el sistema para demostrar la
+   licitud del uso: la autorización, su fecha, el texto exacto aceptado, la
+   finalidad declarada, el canal por el que se otorgó?
+
+5. **Contacto de un tercero distinto del obligado.** Cuando el dato
+   corresponde a un arrendatario, apoderado o familiar y no al propietario
+   deudor, ¿puede usarse para gestión de cobro dirigida a este último?
+
+### Por qué importa
+
+`[NEGOCIO]` Es el único punto de esta consulta cuyo efecto no es "no
+construir" sino **"dejar de enviar"**. Si la respuesta es restrictiva, obliga
+a corregir un canal en operación y a revisar lo ya enviado.
+
 ---
 
 # 4. Anexo — Cómo se usará cada respuesta
@@ -371,6 +455,7 @@ por uno, sin dividir el monto entre ellos.
 | CJ-6 | Módulo de gastos de cobranza — hoy detenido |
 | CJ-7 | Acción de publicación de morosos — hoy bloqueada en el catálogo |
 | CJ-8 | Reglas de responsabilidad ante cambio de propietario y copropiedad múltiple |
+| CJ-9 | Licitud del uso de los datos de contacto ya capturados, en los canales que hoy despachan |
 
 ---
 
@@ -389,6 +474,7 @@ editar `CAR_00_Guia_Oficial.md` §3.5 y dejar el rastro aquí.
 | CJ-6 | `VER-CAR-03` | — | ⧗ Abierto | — |
 | CJ-7 | `VER-CAR-04` | — | ⧗ Abierto | — |
 | CJ-8 | `VER-CAR-06` | — | ⧗ Abierto | — |
+| CJ-9 | *(sin asignar)* | — | ⧗ Abierto | — |
 
 **Datos del concepto recibido** (diligenciar):
 
