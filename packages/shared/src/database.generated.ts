@@ -5496,6 +5496,119 @@ export type Database = {
           },
         ]
       }
+      prescripcion_actos_interruptivos: {
+        Row: {
+          caso_id: string | null
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          fecha_ocurrencia: string
+          id: string
+          inmueble_id: string
+          pago_id: string | null
+          registrado_por: string
+          tenant_id: string
+          tipo_acto_id: number
+        }
+        Insert: {
+          caso_id?: string | null
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          fecha_ocurrencia: string
+          id?: string
+          inmueble_id: string
+          pago_id?: string | null
+          registrado_por: string
+          tenant_id: string
+          tipo_acto_id: number
+        }
+        Update: {
+          caso_id?: string | null
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          fecha_ocurrencia?: string
+          id?: string
+          inmueble_id?: string
+          pago_id?: string | null
+          registrado_por?: string
+          tenant_id?: string
+          tipo_acto_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescripcion_actos_interruptivos_tipo_acto_id_fkey"
+            columns: ["tipo_acto_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuesto_cuenta: {
         Row: {
           activa: boolean

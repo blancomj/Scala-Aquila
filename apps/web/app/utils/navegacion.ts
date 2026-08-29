@@ -234,6 +234,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
+        label: 'Actos interruptivos de prescripción',
+        to: '/cartera/prescripcion',
+        permiso: 'data:create',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
         label: 'Promesas y acuerdos de pago',
         to: '/cartera/promesas-acuerdos',
         permiso: 'data:create',
