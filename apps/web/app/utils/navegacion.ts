@@ -241,6 +241,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
+        label: 'Transferencias de propiedad',
+        to: '/cartera/transferencias',
+        permiso: 'data:create',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.carteraDashboard,
+      },
+      {
         label: 'Promesas y acuerdos de pago',
         to: '/cartera/promesas-acuerdos',
         permiso: 'data:create',

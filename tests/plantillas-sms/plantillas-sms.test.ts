@@ -175,6 +175,25 @@ d('Plantillas SMS (RPC)', () => {
     expect(error?.message).toMatch(/^FORBIDDEN:/)
   })
 
+  it('fn_guardar_plantilla_sms: rechaza contenido prohibido (CJ-4 §11.3) sin guardar nada', async () => {
+    const { error } = await clienteAgent.rpc('fn_guardar_plantilla_sms', {
+      p_tenant_id: tenant.id,
+      p_event_type: 'cartera_aviso_prejuridico',
+      p_cuerpo: 'Si no paga, procederemos a embargar su inmueble de inmediato.',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toMatch(/^CONTENIDO_PROHIBIDO:/)
+    expect(error?.message).toMatch(/procederemos a embargar/)
+
+    const { data } = await clienteAgent
+      .from('plantillas_sms')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('event_type', 'cartera_aviso_prejuridico')
+      .maybeSingle()
+    expect(data).toBeNull()
+  })
+
   it('listado: con fila previa, refleja el cuerpo guardado', async () => {
     const { data, error } = await clienteAgent
       .from('plantillas_sms')

@@ -143,6 +143,26 @@ d('Plantillas de correo (RPC)', () => {
     expect(error?.message).toMatch(/^FORBIDDEN:/)
   })
 
+  it('fn_guardar_plantilla_email: rechaza contenido prohibido (CJ-4 §11.3) sin guardar nada', async () => {
+    const { error } = await clienteAgent.rpc('fn_guardar_plantilla_email', {
+      p_tenant_id: tenant.id,
+      p_event_type: 'cartera_aviso_prejuridico',
+      p_subject: 'Su deuda será reportada a centrales de riesgo',
+      p_html_content: '<p>Contenido de aviso con suficiente longitud.</p>',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toMatch(/^CONTENIDO_PROHIBIDO:/)
+    expect(error?.message).toMatch(/centrales de riesgo/)
+
+    const { data } = await clienteAgent
+      .from('email_templates')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('event_type', 'cartera_aviso_prejuridico')
+      .maybeSingle()
+    expect(data).toBeNull()
+  })
+
   it('listado: con fila previa, refleja el asunto guardado', async () => {
     const { data, error } = await clienteAgent
       .from('email_templates')

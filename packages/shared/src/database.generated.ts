@@ -2524,6 +2524,81 @@ export type Database = {
           },
         ]
       }
+      documentos_legal_holds: {
+        Row: {
+          activo: boolean
+          actualizado_por: string | null
+          caso_id: string | null
+          creado_por: string
+          created_at: string
+          documento_grupo_id: string
+          id: string
+          motivo: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_por?: string | null
+          caso_id?: string | null
+          creado_por: string
+          created_at?: string
+          documento_grupo_id: string
+          id?: string
+          motivo: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_por?: string | null
+          caso_id?: string | null
+          creado_por?: string
+          created_at?: string
+          documento_grupo_id?: string
+          id?: string
+          motivo?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_legal_holds_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_legal_holds_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_legal_holds_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_legal_holds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_legal_holds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           brevo_template_id: number | null
@@ -3503,6 +3578,122 @@ export type Database = {
             columns: ["tercero_id"]
             isOneToOne: false
             referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inmueble_transferencias: {
+        Row: {
+          created_at: string
+          descripcion: string
+          deuda_a_la_fecha: number | null
+          documento_id: string | null
+          fecha_transferencia: string
+          id: string
+          inmueble_id: string
+          propietario_anterior_id: string | null
+          propietario_nuevo_id: string
+          registrado_por: string
+          tenant_id: string
+          tipo_transferencia_id: number
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          deuda_a_la_fecha?: number | null
+          documento_id?: string | null
+          fecha_transferencia: string
+          id?: string
+          inmueble_id: string
+          propietario_anterior_id?: string | null
+          propietario_nuevo_id: string
+          registrado_por: string
+          tenant_id: string
+          tipo_transferencia_id: number
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          deuda_a_la_fecha?: number | null
+          documento_id?: string | null
+          fecha_transferencia?: string
+          id?: string
+          inmueble_id?: string
+          propietario_anterior_id?: string | null
+          propietario_nuevo_id?: string
+          registrado_por?: string
+          tenant_id?: string
+          tipo_transferencia_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmueble_transferencias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_propietario_anterior_id_fkey"
+            columns: ["propietario_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_propietario_nuevo_id_fkey"
+            columns: ["propietario_nuevo_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_transferencias_tipo_transferencia_id_fkey"
+            columns: ["tipo_transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -5010,6 +5201,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plantillas_frases_prohibidas: {
+        Row: {
+          activo: boolean
+          categoria: string
+          created_at: string
+          descripcion: string
+          fundamento: string
+          id: number
+          patron: string
+        }
+        Insert: {
+          activo?: boolean
+          categoria: string
+          created_at?: string
+          descripcion: string
+          fundamento: string
+          id?: never
+          patron: string
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          created_at?: string
+          descripcion?: string
+          fundamento?: string
+          id?: never
+          patron?: string
+        }
+        Relationships: []
       }
       plantillas_sms: {
         Row: {
@@ -7233,6 +7454,32 @@ export type Database = {
           ultimo_estado: Database["public"]["Enums"]["estado_acuse_t"]
         }[]
       }
+      fn_activar_legal_hold: {
+        Args: {
+          p_caso_id?: string
+          p_documento_grupo_id: string
+          p_motivo: string
+          p_tenant_id: string
+        }
+        Returns: {
+          activo: boolean
+          actualizado_por: string | null
+          caso_id: string | null
+          creado_por: string
+          created_at: string
+          documento_grupo_id: string
+          id: string
+          motivo: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documentos_legal_holds"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_activar_pasarela: {
         Args: { p_config_id: string; p_tenant_id: string }
         Returns: {
@@ -7670,6 +7917,31 @@ export type Database = {
           valor: string
         }[]
       }
+      fn_liberar_legal_hold: {
+        Args: {
+          p_documento_grupo_id: string
+          p_motivo: string
+          p_tenant_id: string
+        }
+        Returns: {
+          activo: boolean
+          actualizado_por: string | null
+          caso_id: string | null
+          creado_por: string
+          created_at: string
+          documento_grupo_id: string
+          id: string
+          motivo: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "documentos_legal_holds"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_liquidacion_prevuelo: {
         Args: {
           p_liquidacion_id?: string
@@ -7852,6 +8124,15 @@ export type Database = {
         }
       }
       fn_unaccent_immutable: { Args: { p_texto: string }; Returns: string }
+      fn_validar_contenido_plantilla: {
+        Args: { p_texto: string }
+        Returns: {
+          categoria: string
+          descripcion: string
+          fundamento: string
+          patron: string
+        }[]
+      }
       fundamento_validacion_pendiente: {
         Args: never
         Returns: {
