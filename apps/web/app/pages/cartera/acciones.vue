@@ -31,7 +31,7 @@ type EstadoAccion = AccionBandeja['estado']
 const tenantStore = useTenantStore()
 const cobranzaStore = useCobranzaStore()
 const toast = useToast()
-const usuario = useSupabaseUser()
+const authStore = useAuthStore()
 
 const errorCarga = ref<string | null>(null)
 const filtroEstado = ref<EstadoAccion | 'todas'>('todas')
@@ -158,7 +158,7 @@ const esAdministrador = computed(() => tenantStore.role === 'administrador')
 function motivoNoPuedeDecidir(accion: AccionBandeja): string | null {
   if (accion.estado !== 'pendiente_aprobacion') return 'Esta acción no está esperando aprobación.'
   if (!esAdministrador.value) return 'Aprobar o rechazar una acción de cobranza requiere rol administrador (art. 48).'
-  if (accion.propuestaPor && accion.propuestaPor === usuario.value?.id) {
+  if (accion.propuestaPor && accion.propuestaPor === authStore.profile?.id) {
     return 'No puedes aprobar una acción que tú mismo propusiste.'
   }
   return null
