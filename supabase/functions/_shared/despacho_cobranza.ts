@@ -109,6 +109,7 @@ async function registrarEvidenciaEnvio(
     enviadoPor: string | null
     exito: boolean
     errorMensaje: string | null
+    plantillaVersion: number
   },
 ): Promise<{ envioId: string | null; error: string | null }> {
   const { data: envio, error: errorEnvio } = await admin
@@ -122,9 +123,10 @@ async function registrarEvidenciaEnvio(
       destinatario_contacto: datos.destinatarioContacto,
       plantilla_codigo: datos.plantillaCodigo,
       asunto: datos.asunto,
-      // 0 = plantilla sin versionado (PRQ-CAR-021 pendiente). Ver
-      // 20260906130000: no se escribe 1 para disimular que no hay historial.
-      plantilla_version: 0,
+      // PRQ-CAR-021 (20260907130000): versión real de plantillas_sms/
+      // email_templates.version al momento del envío. 0 solo en correo con
+      // la plantilla del sistema (sin propia redactada) — nunca en SMS.
+      plantilla_version: datos.plantillaVersion,
       contenido_renderizado: datos.contenidoRenderizado,
       contenido_hash: datos.contenidoHash,
       proveedor: 'brevo',
@@ -367,6 +369,7 @@ export async function despacharAccionCobranza(
     asunto: preparado.asunto,
     contenidoRenderizado: preparado.contenido,
     contenidoHash,
+    plantillaVersion: preparado.plantillaVersion,
     referenciaExterna: resultadoEnvio.providerMessageId ?? null,
     enviadoPor: opciones.actorId,
     exito: resultadoEnvio.success,
@@ -425,6 +428,8 @@ type MensajePreparado =
       readonly asunto: string | null
       /** 'propia' = la copropiedad la escribió; 'del sistema' = la de defecto. */
       readonly origenPlantilla: string
+      /** plantillas_sms/email_templates.version vigente (PRQ-CAR-021). 0 = plantilla del sistema (solo correo). */
+      readonly plantillaVersion: number
     }
   | { readonly tipo: 'no_ejecutable'; readonly codigo: string; readonly mensaje: string }
 
@@ -463,7 +468,7 @@ async function prepararMensaje(
 
     const { data: plantilla, error } = await admin
       .from('plantillas_sms')
-      .select('cuerpo')
+      .select('cuerpo, version')
       .eq('tenant_id', datos.tenantId)
       .eq('event_type', datos.eventType)
       .eq('activo', true)
@@ -484,6 +489,7 @@ async function prepararMensaje(
       contenido: renderSmsTemplate(plantilla.cuerpo, valoresDeCampos(campos, datos, null)),
       asunto: null,
       origenPlantilla: 'propia',
+      plantillaVersion: plantilla.version,
     }
   }
 
@@ -502,7 +508,7 @@ async function prepararMensaje(
   // se siembra con un clic.
   const { data: plantilla, error } = await admin
     .from('email_templates')
-    .select('subject, html_content')
+    .select('subject, html_content, version')
     .eq('tenant_id', datos.tenantId)
     .eq('event_type', datos.eventType)
     .maybeSingle()
@@ -511,6 +517,9 @@ async function prepararMensaje(
   const usaPropia = plantilla !== null && plantilla.html_content.trim().length > 0
   const asuntoFuente = usaPropia ? plantilla.subject : CORREO_COBRANZA_POR_DEFECTO.subject
   const cuerpoFuente = usaPropia ? plantilla.html_content : CORREO_COBRANZA_POR_DEFECTO.htmlContent
+  // 0 = plantilla del sistema (sin propia redactada), no "sin versionado" —
+  // PRQ-CAR-021 ya existe; ver comentario de plantillaVersion en MensajePreparado.
+  const plantillaVersion = usaPropia ? plantilla.version : 0
 
   // El nombre de la copropiedad no viaja en la acción: se lee aquí, y solo
   // para el correo — el SMS no lo usa, y una consulta de más por cada SMS
@@ -525,6 +534,7 @@ async function prepararMensaje(
     contenido: renderEmailTemplate(cuerpoFuente, params),
     asunto: renderEmailTemplate(asuntoFuente, params),
     origenPlantilla: usaPropia ? 'propia' : 'del sistema',
+    plantillaVersion,
   }
 }
 

@@ -2537,6 +2537,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
+          version: number
         }
         Insert: {
           brevo_template_id?: number | null
@@ -2550,6 +2551,7 @@ export type Database = {
           tenant_id: string
           updated_at?: string | null
           updated_by?: string | null
+          version?: number
         }
         Update: {
           brevo_template_id?: number | null
@@ -2563,6 +2565,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string | null
           updated_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -4943,6 +4946,71 @@ export type Database = {
           },
         ]
       }
+      plantillas_email_versiones: {
+        Row: {
+          creado_por: string | null
+          created_at: string
+          event_type: string
+          html_content: string
+          id: string
+          plantilla_id: string
+          subject: string
+          tenant_id: string
+          version: number
+        }
+        Insert: {
+          creado_por?: string | null
+          created_at?: string
+          event_type: string
+          html_content: string
+          id?: string
+          plantilla_id: string
+          subject: string
+          tenant_id: string
+          version: number
+        }
+        Update: {
+          creado_por?: string | null
+          created_at?: string
+          event_type?: string
+          html_content?: string
+          id?: string
+          plantilla_id?: string
+          subject?: string
+          tenant_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_email_versiones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_email_versiones_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_email_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_email_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plantillas_sms: {
         Row: {
           activo: boolean
@@ -4953,6 +5021,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
+          version: number
         }
         Insert: {
           activo?: boolean
@@ -4963,6 +5032,7 @@ export type Database = {
           tenant_id: string
           updated_at?: string | null
           updated_by?: string | null
+          version?: number
         }
         Update: {
           activo?: boolean
@@ -4973,6 +5043,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string | null
           updated_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -4994,6 +5065,68 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plantillas_sms_versiones: {
+        Row: {
+          creado_por: string | null
+          created_at: string
+          cuerpo: string
+          event_type: string
+          id: string
+          plantilla_id: string
+          tenant_id: string
+          version: number
+        }
+        Insert: {
+          creado_por?: string | null
+          created_at?: string
+          cuerpo: string
+          event_type: string
+          id?: string
+          plantilla_id: string
+          tenant_id: string
+          version: number
+        }
+        Update: {
+          creado_por?: string | null
+          created_at?: string
+          cuerpo?: string
+          event_type?: string
+          id?: string
+          plantilla_id?: string
+          tenant_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_sms_versiones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_sms_versiones_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "plantillas_sms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_sms_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_sms_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -7283,6 +7416,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -7302,6 +7436,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -7594,6 +7729,7 @@ export type Database = {
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"

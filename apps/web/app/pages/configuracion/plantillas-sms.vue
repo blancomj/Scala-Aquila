@@ -127,6 +127,36 @@ async function cambiarInterruptor(activo: boolean): Promise<void> {
   }
 }
 
+// ── historial de versiones (PRQ-CAR-021) — solo lectura, "usar" carga el
+// texto en el editor pero no guarda: guardar sigue siendo un acto explícito. ──
+const historialAbierto = ref(false)
+const cargandoHistorial = ref(false)
+const errorHistorial = ref<string | null>(null)
+
+function formatoFecha(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+async function abrirHistorial(): Promise<void> {
+  const plantillaId = itemActual.value?.id
+  if (!plantillaId) return
+  errorHistorial.value = null
+  historialAbierto.value = true
+  cargandoHistorial.value = true
+  try {
+    await plantillasStore.cargarHistorial(plantillaId)
+  } catch (excepcion) {
+    errorHistorial.value = mensajeError(excepcion, 'No se pudo cargar el historial.')
+  } finally {
+    cargandoHistorial.value = false
+  }
+}
+
+function usarVersion(cuerpo: string): void {
+  cuerpoEditado.value = cuerpo
+  historialAbierto.value = false
+}
+
 // ── prueba de envío ─────────────────────────────────────────────────────
 const telefonoPrueba = ref('')
 const probando = ref(false)
@@ -176,6 +206,16 @@ async function probarEnvio(): Promise<void> {
           @update:model-value="cambiarInterruptor"
         />
       </div>
+      <UButton
+        size="xs"
+        variant="soft"
+        color="neutral"
+        :disabled="!itemActual?.id"
+        class="mb-1.5"
+        @click="abrirHistorial"
+      >
+        Historial{{ itemActual?.version ? ` (v${itemActual.version})` : '' }}
+      </UButton>
     </div>
     <p class="text-xs text-gray-500 -mt-4">Destinatario: {{ destinatario }}</p>
     <p v-if="itemActual && !itemActual.cuerpo" class="text-xs text-gray-500 -mt-4">
@@ -259,5 +299,40 @@ async function probarEnvio(): Promise<void> {
         Guardar plantilla
       </UButton>
     </div>
+
+    <UModal v-model:open="historialAbierto" title="Historial de versiones" :ui="{ content: 'max-w-xl' }">
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-xs text-gray-500">
+            Cada guardado que cambió el texto queda aquí, para siempre (PRQ-CAR-021). "Usar este
+            texto" lo carga en el editor — no guarda nada hasta que hagas clic en "Guardar plantilla".
+          </p>
+          <UAlert v-if="errorHistorial" color="error" variant="soft" :title="errorHistorial" />
+          <div v-else-if="cargandoHistorial" class="space-y-2">
+            <USkeleton class="h-16 w-full" />
+            <USkeleton class="h-16 w-full" />
+          </div>
+          <p v-else-if="plantillasStore.historial.length === 0" class="text-sm text-gray-400">
+            Sin versiones registradas todavía.
+          </p>
+          <ul v-else class="space-y-2 max-h-96 overflow-y-auto">
+            <li
+              v-for="v in plantillasStore.historial"
+              :key="v.version"
+              class="rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-medium">v{{ v.version }} · {{ formatoFecha(v.createdAt) }}</span>
+                <UButton size="xs" variant="soft" @click="usarVersion(v.cuerpo)">Usar este texto</UButton>
+              </div>
+              <p class="mt-1 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{{ v.cuerpo }}</p>
+            </li>
+          </ul>
+        </div>
+      </template>
+      <template #footer>
+        <UButton variant="ghost" @click="historialAbierto = false">Cerrar</UButton>
+      </template>
+    </UModal>
   </div>
 </template>
