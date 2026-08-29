@@ -85,7 +85,7 @@ tenían el detalle completamente muerto.
 | 18 | Centro de escalamiento, aprobaciones y bitácora — **hecha** (/cartera/escalamiento) |
 | 19 | Promesas y acuerdos — **verificada** (2026-08-29): lista y acciones bien; el drawer de detalle no montaba, corregido en `9da6828` |
 | 20 | Casos jurídicos — **verificada** (2026-08-29): remisión completa desde una certificación vigente, caso `000001` creado en DEMO Bandeja Cobranza y drawer de detalle abierto |
-| 21 | Certificaciones de deuda — **verificada** (2026-08-29): guardas correctas y expedición real, certificación `000006` por $850.000 sobre TORRE-B-208 |
+| 21 | Certificaciones de deuda — **verificada** (2026-08-29): guardas correctas y expedición real, certificación `000006` por $850.000 sobre TORRE-B-208. El documento imprimible del art. 48 **no era alcanzable** por el anidamiento de rutas de Nuxt; corregido en `6571dc2` |
 | 22 | Costas judiciales |
 | 23 | Configuración — **hecha en su parte crítica** (/cartera/configuracion): siembra §8.4/§9.4, activación y encendido de estrategias. Falta editar tramos (exige versión nueva, §8.5) |
 | 24 | Plantillas y canales — **hecha en su parte crítica**: versionado recuperable (`PRQ-CAR-021`). Sigue pendiente `PRQ-CAR-022` (`subir-documento` con `envio_id`) y los canales sin construir (WhatsApp/postal, bloques 5/6) |
