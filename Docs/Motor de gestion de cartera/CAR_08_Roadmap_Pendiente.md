@@ -154,6 +154,63 @@ real no se verificó en esta pasada — no marcarlos **hecha** sin confirmarlo.
 
 ---
 
+# 3.1 Gobierno jurídico (PROMPT-CAR-JUR-001, auditoría 2026-08-29)
+
+`[ARQ]` `Docs/Motor de gestion de cartera/PROMPT_AGENTE_IMPLEMENTACION_MOTOR_CARTERA_GOBIERNO_JURIDICO.md`
+(recibido del usuario) pide auditar el motor contra un marco de gobierno
+jurídico (CJ-1..CJ-8, niveles L1-L7 de configurabilidad). Se contrastó archivo
+por archivo contra el repositorio real (no contra lo que el documento asumía)
+antes de tocar nada. Resultado: la mayoría de lo que pide ya estaba bien
+resuelto o correctamente bloqueado por un `VER-CAR-*` abierto. Tres huecos
+reales sí se cerraron:
+
+```text
+✅ CJ-8 transferencia de propiedad y solidaridad (20260908100000)
+   · inmueble_transferencias — bitácora factual de POR QUÉ cambió el
+     titular (tipo, evidencia, deuda conocida a la fecha). NO duplica
+     inmueble_persona_rol (que ya resuelve QUIÉN/CUÁNDO con
+     vigente_desde/hasta) — solo agrega el contexto evidencial que
+     faltaba. /cartera/transferencias.
+   · Solidaridad de pago verificada como ya correcta por construcción:
+     cargos cuelgan de inmueble_id, no de porcentaje de copropietario —
+     nada que cambiar ahí.
+
+✅ CJ-4 catálogo de frases prohibidas (20260908110000)
+   · plantillas_frases_prohibidas (global, solo is_platform_admin
+     escribe) + fn_validar_contenido_plantilla — fn_guardar_plantilla_sms/
+     email ahora RECHAZAN (no solo advierten) contenido tipo "embargo
+     inminente", "centrales de riesgo", "constituye en mora", etc.
+     Antes esto no existía: cualquier texto se guardaba sin validar.
+
+✅ CJ-3 legal_hold (20260908120000)
+   · documentos_legal_holds + fn_activar_legal_hold (rol auxiliar) /
+     fn_liberar_legal_hold (rol administrador) — freno de purga por
+     documento_grupo_id. No hay ningún job de purga hoy (verificado);
+     esto es el prerrequisito estructural, no una función completa.
+```
+
+Hallazgos de la propia auditoría que valen para no repetir el trabajo:
+
+```text
+· CJ-1 (intereses): guard_politica_financiera_tope_legal (20260901110000)
+  YA es el guard obligatorio que CJ-1 §8.6 pedía — trigger de base de
+  datos, no solo convención. Grieta menor: políticas con
+  interes_tipo_tasa NULL se lo saltan (compatibilidad hacia atrás,
+  20260822220000) — no se verificó cuántas políticas vigentes están así.
+· CJ-2 (imputación): compensaCreditos (H3/H4, auditoría externa
+  2026-08-26) permite que un crédito de un periodo compense la mora de
+  un periodo POSTERIOR cuando la política del tenant lo activa — posible
+  tensión con la regla "no netear créditos contra obligaciones futuras"
+  del documento. No se tocó: es exactamente el tipo de punto que debe
+  quedar para el abogado, no decidido por el agente.
+· CJ-5 (evidencia SMS/email): acciones_cobranza_envios +
+  acciones_cobranza_acuses ya cubren el estándar de evidencia que el
+  documento exige para WhatsApp — aplicado correctamente a los canales
+  que sí están en producción.
+```
+
+---
+
 # 4. Deuda conocida al corte
 
 ```text
