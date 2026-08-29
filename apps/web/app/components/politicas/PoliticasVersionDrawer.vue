@@ -223,8 +223,8 @@ async function guardar(): Promise<void> {
               <div class="self-center text-xs text-neutral-500">
                 <template v-if="topeLegal !== null">
                   Tope legal resultante:
-                  <span class="font-semibold tabular-nums">{{ topeLegal.toFixed(6) }}%</span>
-                  mensual
+                  <span class="font-semibold tabular-nums">{{ (topeLegal * 100).toFixed(4) }}%</span>
+                  mensual (<span class="tabular-nums">{{ topeLegal.toFixed(6) }}</span> en decimal)
                   <span v-if="tasaVigente" class="block mt-1">
                     Resolución {{ tasaVigente.resolucion_numero }} · {{ tasaVigente.entidad_fuente }}
                   </span>
@@ -235,7 +235,7 @@ async function guardar(): Promise<void> {
               <UFormField
                 label="Tasa mensual"
                 name="interes_tasa_mensual"
-                help="Como porcentaje, ej. 1.5 = 1.5% mensual."
+                help="Fracción decimal, no porcentaje: 0.02 = 2% mensual — misma unidad que consume el motor."
               >
                 <UInput
                   v-model.number="interesTasaMensual"
@@ -248,7 +248,7 @@ async function guardar(): Promise<void> {
               <UFormField
                 label="Tope mensual"
                 name="interes_tope_mensual"
-                help="Tope legal de interés de mora, mismo formato que la tasa."
+                help="Máximo que puede cobrarse, en la misma fracción decimal."
               >
                 <UInput
                   v-model.number="interesTopeMensual"

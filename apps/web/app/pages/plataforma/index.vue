@@ -16,6 +16,13 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
       Solo metadatos — ningún dato operativo de las copropiedades.
     </p>
 
+    <NuxtLink
+      to="/plataforma/tasas-referencia"
+      class="inline-block text-sm text-primary-600 dark:text-primary-400 hover:underline mb-6"
+    >
+      Tasas de referencia certificadas →
+    </NuxtLink>
+
     <p v-if="platformStore.tenants.length === 0" class="text-gray-500 text-sm">
       Sin copropiedades.
     </p>
