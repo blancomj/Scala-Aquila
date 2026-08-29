@@ -77,7 +77,7 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
 |---|---|
 | 16 | Bandeja de acciones y aprobaciones — **hecha** (/cartera/acciones) |
 | 17 | Simulación previa de corrida — **hecha** (/cartera/simulacion) |
-| 18 | Centro de escalamiento, aprobaciones y bitácora |
+| 18 | Centro de escalamiento, aprobaciones y bitácora — **hecha** (/cartera/escalamiento) |
 | 19 | Promesas y acuerdos |
 | 20 | Casos jurídicos, expediente y actuaciones |
 | 21 | Certificaciones de deuda |
