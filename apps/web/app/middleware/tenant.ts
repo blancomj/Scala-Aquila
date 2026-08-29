@@ -38,6 +38,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Sin ninguna membresía activa: recién nunca tuvo copropiedad, o la única
   // que tenía se borró junto con su membership. Ahí sí corresponde ofrecer
   // crear una — este es el ÚNICO caso legítimo de /onboarding/create-tenant.
+  // Un administrador de plataforma sin ninguna copropiedad NO es alguien que
+  // deba crear una: su trabajo está en la consola de plataforma, que no
+  // requiere tenant (AD-09/SEC-10, plano de autorización aparte). Sin esto
+  // caía en "crea tu copropiedad", justo lo que no es. Nunca se notó porque
+  // las cuentas de plataforma que existen hoy son ADEMÁS miembros de alguna
+  // copropiedad, así que el modelo nunca se ejerció con su usuario real.
+  // /plataforma no declara este middleware, así que no hay bucle.
+  if (tenantStore.memberships.length === 0 && perfil?.is_platform_admin) {
+    return navigateTo('/plataforma')
+  }
+
   if (tenantStore.memberships.length === 0) {
     return navigateTo('/onboarding/create-tenant')
   }
