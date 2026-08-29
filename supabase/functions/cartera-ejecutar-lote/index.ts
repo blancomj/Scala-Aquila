@@ -9,7 +9,7 @@
 // tres razones para no mezclarlos, y el rector las fija en §18.4.
 //
 // MODO SIMULACIÓN, y es el DEFECTO a propósito. Este endpoint gasta dinero
-// real: cada acción despachada es un SMS facturado. Que haya que pedir
+// real: cada acción despachada es un SMS o un correo facturado. Que haya que pedir
 // 'ejecucion' de forma explícita es la diferencia entre una corrida de
 // prueba y una factura inesperada. La simulación recorre las mismas
 // validaciones y renderiza los mismos mensajes; solo se salta el envío.
@@ -47,9 +47,12 @@ const payloadSchema = z.object({
 interface LineaResultado {
   accionId: string
   inmuebleId: string
+  canal: string
   resultado: 'despachada' | 'fallida' | 'simulada' | 'omitida'
   motivo?: string
   contenido?: string
+  /** Solo correo: en SMS no hay asunto que mostrar. */
+  asunto?: string
   destinatarioContacto?: string
 }
 
@@ -124,9 +127,12 @@ export default {
     // antigua salga primero cuando el límite corta el lote.
     let consulta = admin
       .from('acciones_cobranza')
-      .select('id, inmueble_id')
+      .select('id, inmueble_id, canal')
       .eq('tenant_id', tenantId)
-      .eq('canal', 'sms')
+      // Los canales con despacho automático. Los demás ('telefono',
+      // 'fisico', 'interno') son gestión humana: incluirlos aquí llenaría
+      // cada corrida de omitidas que nadie puede resolver.
+      .in('canal', ['sms', 'email'])
       .in('estado', ['programada', 'aprobada'])
       .lte('fecha_programada', fechaCorte)
       .order('fecha_programada', { ascending: true })
@@ -160,6 +166,7 @@ export default {
         lineas.push({
           accionId: pendiente.id,
           inmuebleId: pendiente.inmueble_id,
+          canal: pendiente.canal,
           resultado: 'omitida',
           motivo: `${resultado.codigo}: ${resultado.mensaje}`,
         })
@@ -171,8 +178,10 @@ export default {
         lineas.push({
           accionId: pendiente.id,
           inmuebleId: pendiente.inmueble_id,
+          canal: pendiente.canal,
           resultado: 'simulada',
           contenido: resultado.contenido,
+          ...(resultado.asunto === null ? {} : { asunto: resultado.asunto }),
           destinatarioContacto: resultado.destinatarioContacto,
         })
         continue
@@ -186,6 +195,7 @@ export default {
       lineas.push({
         accionId: pendiente.id,
         inmuebleId: pendiente.inmueble_id,
+        canal: pendiente.canal,
         resultado: resultado.estado === 'ejecutada' ? 'despachada' : 'fallida',
         motivo: resultado.errorMessage ?? undefined,
       })

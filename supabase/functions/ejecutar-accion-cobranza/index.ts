@@ -1,6 +1,6 @@
-// CAR F4 — worker de ejecución de UNA acción de cobranza. Alcance SOLO SMS
-// (decisión explícita del usuario, 2026-08-17: email/whatsapp quedan fuera
-// hasta generalizar sus respectivos proveedores).
+// CAR F4 — worker de ejecución de UNA acción de cobranza. Canales con
+// despacho automático: SMS (2026-08-17) y correo (2026-08-29). WhatsApp y
+// postal siguen fuera hasta que exista su proveedor.
 //
 // Desde 2026-08-28 esta función es una CÁSCARA HTTP: valida método, payload,
 // rate limit y rol, y delega el despacho en _shared/despacho_cobranza.ts,

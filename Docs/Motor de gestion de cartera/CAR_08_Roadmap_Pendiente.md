@@ -53,8 +53,8 @@ dependencias reales están en §3.
 | # | Bloque | Referencia |
 |---|---|---|
 | 1 | Orquestación por lotes y reintentos — **hecho** (cartera-ejecutar-lote) | §18.4, `GAP-CAR-005` |
-| 2 | Agendamiento del job diario — **falta solo programar el cron** | §18, `PRQ-CAR-010` |
-| 3 | Expediente probatorio — **§34.2/34.3/34.4/34.5 e I-C23 hechos**; falta el PDF | **§34** |
+| 2 | Agendamiento del job diario — **hecho** (pg_cron 11:00 UTC, solo calcula) | §18, `PRQ-CAR-010` |
+| 3 | Expediente probatorio — **COMPLETO**: §34.2/34.3/34.4/34.5, I-C23 y documento imprimible | **§34** |
 | 4 | Canal email de cobranza | `GAP-CAR-005` |
 | 5 | Canal WhatsApp | `GAP-CAR-005`, `VER-CAR-08` |
 | 6 | Operador postal con guía rastreable | `PRQ-CAR-020` |
@@ -65,7 +65,7 @@ dependencias reales están en §3.
 | 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) | §18.2 paso 7 |
 | 12 | Pago retroactivo y reproducibilidad histórica | `GAP-CAR-003` |
 | 13 | Alertas de prescripción y registro de actos interruptivos | `VER-CAR-05` |
-| 14 | Exclusión de la evidencia de cobranza del job de purga | §34.6, `I-C25` |
+| 14 | Exclusión de la evidencia del job de purga — **cumplido por construcción**: forbid_mutation solo admite DELETE en audit_log | §34.6, `I-C25` |
 | 15 | Provisión / deterioro contable de cartera | Sin id — no está en CAR-00 |
 
 ## 2.2 Interfaz
@@ -75,14 +75,14 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
 
 | # | Bloque |
 |---|---|
-| 16 | Bandeja de acciones y aprobaciones |
-| 17 | Simulación previa de corrida |
+| 16 | Bandeja de acciones y aprobaciones — **hecha** (/cartera/acciones) |
+| 17 | Simulación previa de corrida — **hecha** (/cartera/simulacion) |
 | 18 | Centro de escalamiento, aprobaciones y bitácora |
 | 19 | Promesas y acuerdos |
 | 20 | Casos jurídicos, expediente y actuaciones |
 | 21 | Certificaciones de deuda |
 | 22 | Costas judiciales |
-| 23 | Configuración: tramos, etapas, estrategias, políticas de interés, parámetros |
+| 23 | Configuración — **hecha en su parte crítica** (/cartera/configuracion): siembra §8.4/§9.4, activación y encendido de estrategias. Falta editar tramos (exige versión nueva, §8.5) |
 | 24 | Plantillas y canales |
 | 25 | Indicadores de cobranza y jurídicos |
 
@@ -111,7 +111,8 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
    ├── ✅ 34.3 evidencia + 34.4 acreditación + I-C23 en el escalamiento
    ├── ✅ 34.5 fn_compilar_expediente (reproducible, PH-C44 verificado)
    ├── ✅ webhook-brevo: acuses de SMS y email (PRQ-CAR-019 cerrado)
-   └── ⧗ PDF paginado ← lo único que falta de §34
+   └── ✅ documento imprimible (/cartera/expediente/{inmuebleId}): 7 secciones,
+          índice y hash del expediente al pie de CADA página
    ├──→ 7   versionado de plantillas     (precondición)
    ├──→ 4   canal email                  (webhooks de acuse)
    ├──→ 6   operador postal              (canal físico)
@@ -123,15 +124,21 @@ de solo lectura. Todo F4–F7 está sin puerta de entrada.
    │      dominio (paso 6) y MODO SIMULACIÓN POR DEFECTO
    ├── ✅ 17 simulación previa: el endpoint ya devuelve el mensaje exacto
    │      que enviaría; falta solo la pantalla
-   └── ⧗ cron diario: NO programado a propósito — activarlo empieza a
-          enviar SMS reales a residentes y esa es decisión del dueño del
-          producto, no del código
+   └── ✅ cron diario activo (11:00 UTC = 6:00 a. m. Colombia). SOLO
+          CALCULA: crea las acciones en la bandeja y no despacha nada.
+          Agendar además cartera-ejecutar-lote en modo ejecucion es lo
+          que convertiría esto en envío automático — decisión abierta.
 
 9 (certificación completa)  ─── título ejecutivo defendible
    └── depende de distinguir extraordinarias y sanciones en el cargo
 
 16..25 (interfaz)  ─── al final, salvo 16 y 17
-   16 y 17 son las que vuelven usable lo ya construido
+   ✅ 16 bandeja: cola ordenada por urgencia, aprobar/rechazar con el
+         maker-checker del art. 48, despacho, y una columna PRUEBA
+         separada del estado — despachada no es acreditada
+   ✅ 17 simulación previa: muestra el texto exacto que saldría y, con
+         el mismo peso, lo que NO saldría y por qué. Desde ahí se puede
+         despachar el lote con confirmación explícita.
 ```
 
 `[NEGOCIO]` **Prioridad recomendada:** 26 en paralelo desde el primer día → 3 →

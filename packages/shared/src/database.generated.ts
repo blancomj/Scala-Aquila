@@ -891,6 +891,45 @@ export type Database = {
           },
         ]
       }
+      cartera_corridas_diarias: {
+        Row: {
+          disparado_at: string
+          fecha_corte: string
+          id: string
+          origen: string
+          tenant_id: string
+        }
+        Insert: {
+          disparado_at?: string
+          fecha_corte: string
+          id?: string
+          origen?: string
+          tenant_id: string
+        }
+        Update: {
+          disparado_at?: string
+          fecha_corte?: string
+          id?: string
+          origen?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_corridas_diarias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_corridas_diarias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartera_etapas: {
         Row: {
           aprobado_at: string | null
@@ -6936,6 +6975,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
       fn_acreditacion_accion: {
         Args: { p_accion_id: string; p_tenant_id: string }
@@ -7044,6 +7084,39 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fn_bandeja_cobranza: {
+        Args: {
+          p_estados?: Database["public"]["Enums"]["estado_accion_cobranza_t"][]
+          p_limite?: number
+          p_tenant_id: string
+        }
+        Returns: {
+          accion_id: string
+          acreditada: boolean
+          aprobada_at: string
+          aprobada_por: string
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          clasificacion_codigo: string
+          creada_por: Database["public"]["Enums"]["origen_accion_cobranza_t"]
+          destinatario_contacto: string
+          destinatario_id: string
+          destinatario_nombre: string
+          destinatario_rol: string
+          deuda_total: number
+          dias_mora: number
+          envios_total: number
+          estado: Database["public"]["Enums"]["estado_accion_cobranza_t"]
+          fecha_ejecucion: string
+          fecha_programada: string
+          grupo_envio_id: string
+          inmueble_codigo: string
+          inmueble_id: string
+          notas: string
+          propuesta_por: string
+          tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
+          ultimo_estado_acuse: Database["public"]["Enums"]["estado_acuse_t"]
+        }[]
       }
       fn_buscar_global: {
         Args: {
@@ -7476,6 +7549,10 @@ export type Database = {
           p_revision_motivo?: string
           p_transaction_id: string
         }
+        Returns: string
+      }
+      fn_sembrar_configuracion_cartera: {
+        Args: { p_tenant_id: string }
         Returns: string
       }
       fn_siguiente_consecutivo: {

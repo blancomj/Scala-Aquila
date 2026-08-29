@@ -792,6 +792,8 @@ Valores **por defecto sugeridos**, no impuestos. Cada copropiedad los ajusta por
 
 `[NEGOCIO]` Nota de alineación con la industria: los tramos de 30 días son el estándar de *aging buckets* en gestión de cobranza (`no vencido / 1-30 / 31-60 / 61-90 / >90`), lo que permite comparar los indicadores de AQUILA contra benchmarks del sector. Los tramos por encima de 90 días son extensión propia del dominio PH, donde la deuda no se castiga sino que escala a proceso ejecutivo por título del art. 48.
 
+`[ARQ]` **Siembra (2026-08-29).** `fn_sembrar_configuracion_cartera(tenant)` crea esta política y las estrategias de §9.4 de un clic desde `/cartera/configuracion`. Nace en **borrador**: activarla es una decisión de quien administra, y una vigente ya no se corrige. Falla si la copropiedad ya tiene política — corregir es crear versión nueva, no re-sembrar. Antes de esto, encender el módulo en una copropiedad exigía escribir SQL a mano.
+
 ## 8.5 Regla de versionado
 
 `[ARQ]` **`REC-CAR-011`** — Igual que `guard_politica_inmutable` en `politicas_financieras`:
@@ -1893,6 +1895,12 @@ RECOMENDACIÓN: Opción 1 + registro del pago retroactivo como evento
 que explica la discontinuidad. Es coherente con la inmutabilidad de
 resultados del motor de liquidación (Docs 20 §69 RESULT IMMUTABILITY).
 ```
+
+`[ARQ]` **Agendamiento (2026-08-29, PRQ-CAR-010 cerrado).** `pg_cron` dispara `cron_cartera_recalcular_diario()` a las **11:00 UTC = 6:00 a. m. Colombia**; esa función hace un `net.http_post` a `cartera-cron-diario`, que recorre las copropiedades con política **vigente** e invoca `cartera-recalcular` en modo ejecución. Alcance decidido por el propietario del producto: **la corrida solo calcula**. Crea las acciones en la bandeja y no despacha ningún mensaje; el envío exige una persona en `/cartera/acciones` o agendar `cartera-ejecutar-lote`, que es otra decisión.
+
+`[ARQ]` **Por qué hay un disparador intermedio y no una llamada directa:** `cartera-recalcular` se autentica con `withSupabase({auth:['user','secret']})`. El modo `secret` valida la clave interna del proyecto, que vive en las Edge Functions y no debe copiarse a la base ni a Vault. El primer intento —pg_cron llamando directo con la service key— devolvió **63 respuestas 401**: una service key no es un JWT de usuario. El disparador lee la clave dentro de Supabase y hacia afuera solo expone un token propio en la ruta.
+
+`[ARQ]` `cartera_corridas_diarias` responde «¿corrió hoy esta copropiedad?». `cron.job_run_details` solo dice si el JOB corrió, no a quién alcanzó.
 
 ## 18.4 Worker de ejecución de acciones
 
@@ -4013,6 +4021,8 @@ Contenido obligatorio, en este orden:
 `[ARQ]` **Criterio de terminación de esta sección:** el abogado debe poder radicar con este expediente **sin pedir nada más**. Si tiene que preguntar algo, la sección no está completa.
 
 `[NEGOCIO]` Salida: PDF paginado, numerado, con índice y con el hash del expediente al pie de cada página. El PDF **no es la fuente de verdad**: es una materialización fechada de `fn_compilar_expediente`, reproducible (`PH-C44`).
+
+`[ARQ]` **Materialización (2026-08-29).** `/cartera/expediente/{inmuebleId}?corte=YYYY-MM-DD` compone las siete secciones y se imprime con `@media print` — sin librería de PDF, igual que el recibo de caja y el comprobante de cuenta. El `expediente_hash` va en el pie de **cada** página, no solo al final: un expediente cuyo hash consta una sola vez admite que le quiten hojas sin que se note. La ausencia de título ejecutivo se imprime explícitamente en la sección 2 en vez de omitirse.
 
 ## 34.6 Retención
 

@@ -1,12 +1,28 @@
 // Webhook de acuses de Brevo — CAR §34.2, cierra PRQ-CAR-019.
 //
-// Endpoint PÚBLICO, sin JWT: lo llama Brevo, no un usuario. Ruta:
-// /functions/v1/webhook-brevo/{token}. Brevo no firma sus webhooks con
-// HMAC, así que el token de la URL (BREVO_WEBHOOK_TOKEN) es lo único que
-// autoriza — por eso se compara en tiempo constante y por eso el endpoint
-// solo puede INSERTAR acuses: aunque alguien adivinara el token, lo peor
-// que lograría es ensuciar la evidencia con acuses de mensajes cuyo
-// message_id no conoce.
+// Endpoint PÚBLICO, sin JWT: lo llama Brevo, no un usuario. Brevo no firma
+// sus webhooks con HMAC, así que el token de la URL (BREVO_WEBHOOK_TOKEN)
+// es lo único que autoriza — por eso se compara en tiempo constante y por
+// eso el endpoint solo puede INSERTAR acuses: aunque alguien adivinara el
+// token, lo peor que lograría es ensuciar la evidencia con acuses de
+// mensajes cuyo message_id no conoce.
+//
+// RUTA: el token es el ÚLTIMO segmento, y lo que venga antes se ignora.
+// Las dos formas son válidas y equivalentes:
+//
+//   /functions/v1/webhook-brevo/{token}
+//   /functions/v1/webhook-brevo/{canal}/{token}     ← p. ej. .../sms/{token}
+//
+// El segmento de canal existe porque Brevo EXIGE que cada webhook tenga
+// una URL distinta y necesita uno por canal (SMS y email se configuran por
+// separado). Sin él habría que rotar el token solo para poder registrar el
+// segundo webhook. La función no necesita saber el canal: lo deduce del
+// envío al que resuelve el message_id.
+//
+// En la consola de Brevo, el método de autenticación debe quedar en "Sin
+// autenticación": las otras opciones añaden una cabecera Authorization que
+// el gateway de Supabase inspecciona antes de llegar aquí, y un valor que
+// no sea un JWT válido puede hacer que rechace con 401 sin ejecutar nada.
 //
 // A diferencia de webhook-pasarela, aquí NO hay tenant en la ruta: la
 // cuenta de Brevo es del sistema, no de cada copropiedad. El tenant se
@@ -26,6 +42,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
+import { normalizarMessageId } from '../_shared/email_cobranza_provider.ts'
 import { logEvent } from '../_shared/logger.ts'
 
 type EstadoAcuse = Database['public']['Enums']['estado_acuse_t']
@@ -69,13 +86,38 @@ const MAPA_EVENTOS: Readonly<Record<string, EstadoAcuse>> = {
   softBounce: 'fallido',
   soft_bounce: 'fallido',
   error: 'fallido',
+  expired: 'fallido',
   // Imposibilidad acreditada.
   blocked: 'no_entregable',
   rejected: 'no_entregable',
+  undelivered: 'no_entregable',
+  not_delivered: 'no_entregable',
   invalid_email: 'no_entregable',
   invalid_parameter: 'no_entregable',
   unsubscribed: 'no_entregable',
   spam: 'no_entregable',
+}
+
+/**
+ * Brevo nombra el tipo de evento distinto en cada canal, cosa que solo se
+ * descubre con tráfico real (verificado el 2026-08-29 contra el webhook de
+ * SMS en producción):
+ *
+ *   email → { event: "delivered", ... }
+ *   sms   → { status: "delivered", msg_status: "delivered", ... }  SIN `event`
+ *
+ * Exigir `event` hacía que TODOS los eventos de SMS se descartaran en
+ * silencio, con el mismo síntoma que un webhook mal configurado.
+ *
+ * `msg_status` va antes que `status` porque describe el mensaje; `status`
+ * en algunos payloads describe la petición.
+ */
+function extraerTipoEvento(evento: Record<string, unknown>): string | null {
+  const candidatos = [evento['event'], evento['msg_status'], evento['status']]
+  for (const valor of candidatos) {
+    if (typeof valor === 'string' && valor.length > 0) return valor
+  }
+  return null
 }
 
 /** Comparación en tiempo constante: el token es el único control de acceso. */
@@ -99,20 +141,32 @@ function ipDelRequest(req: Request): string {
  * la versión del webhook. Se leen todas en vez de asumir una: el coste de
  * equivocarse es un acuse que nunca se registra y una notificación que
  * queda sin acreditar.
+ *
+ * En correo el identificador viene entre ángulos —"<2026...@relay>"— porque
+ * es un Message-ID de RFC 5322. Se normaliza igual que al guardarlo
+ * (email_cobranza_provider.ts): basta con que una punta conserve los
+ * ángulos para que la búsqueda no encuentre nada. Los ids de SMS no los
+ * llevan y la normalización no los toca.
  */
 function extraerMessageId(evento: Record<string, unknown>): string | null {
   const candidatos = [evento['message_id'], evento['messageId'], evento['message-id'], evento['id']]
   for (const valor of candidatos) {
-    if (typeof valor === 'string' && valor.length > 0) return valor
+    if (typeof valor === 'string' && valor.length > 0) return normalizarMessageId(valor)
     if (typeof valor === 'number') return String(valor)
   }
   return null
 }
 
 /**
- * `ts` (epoch en segundos) es más fiable que `date`, que llega como texto
- * local sin zona en algunos eventos. Si no hay ninguno utilizable se usa
- * la hora de recepción, y la diferencia con recibido_at queda visible.
+ * `ts` / `ts_event` (epoch en segundos) es la única fuente sin ambigüedad.
+ * `date` llega como texto SIN zona horaria en varios eventos de SMS
+ * (verificado el 2026-08-29: un acuse quedó fechado cinco horas antes del
+ * envío, porque el texto en hora de la cuenta se leyó como UTC).
+ *
+ * Por qué importa más de lo que parece: la acreditación se decide por el
+ * acuse MÁS RECIENTE de cada envío. Un `delivered` fechado por error antes
+ * del `encolado` no solo se ve raro — pierde contra él y la notificación
+ * nunca queda acreditada. La fecha del proveedor no es cosmética.
  */
 function extraerOcurridoAt(evento: Record<string, unknown>): string {
   const ts = evento['ts'] ?? evento['ts_event'] ?? evento['ts_epoch']
@@ -190,11 +244,20 @@ Deno.serve(async (req) => {
   let ignorados = 0
 
   for (const evento of eventos) {
-    const tipoEvento = typeof evento['event'] === 'string' ? evento['event'] : null
+    const tipoEvento = extraerTipoEvento(evento)
     const messageId = extraerMessageId(evento)
 
     if (!tipoEvento || !messageId) {
       ignorados += 1
+      // Sin esto, un cambio de formato del proveedor es indistinguible de
+      // "no era nuestro". Se registran solo las CLAVES, no los valores: el
+      // payload trae el teléfono del deudor.
+      logEvent({
+        level: 'warn',
+        action: 'webhook_brevo.evento_sin_identificador',
+        correlationId,
+        meta: { claves: Object.keys(evento), tipoEvento },
+      })
       continue
     }
 
@@ -207,14 +270,22 @@ Deno.serve(async (req) => {
         level: 'warn',
         action: 'webhook_brevo.evento_no_mapeado',
         correlationId,
-        meta: { tipoEvento, messageId },
+        // Los tres campos crudos: es lo que permite ampliar el mapa con
+        // datos en vez de con suposiciones sobre la API del proveedor.
+        meta: {
+          tipoEvento,
+          messageId,
+          event: evento['event'],
+          status: evento['status'],
+          msg_status: evento['msg_status'],
+        },
       })
       continue
     }
 
     const { data: envio, error: errorEnvio } = await admin
       .from('acciones_cobranza_envios')
-      .select('id, tenant_id')
+      .select('id, tenant_id, enviado_at')
       .eq('referencia_externa', messageId)
       .maybeSingle()
     if (errorEnvio) {
@@ -229,16 +300,49 @@ Deno.serve(async (req) => {
     }
     if (!envio) {
       // Evento de un correo o SMS del sistema que no es una acción de
-      // cobranza (invitación, estado de cuenta). No es un error.
+      // cobranza (invitación, estado de cuenta). No es un error, pero se
+      // deja rastro: si un día TODOS los eventos caen aquí, el síntoma es
+      // idéntico a "el webhook no está configurado", y sin este log no hay
+      // forma de distinguirlos. El identificador no es dato personal.
       ignorados += 1
+      // Se registran los campos que parecen identificadores, no el payload
+      // entero: el cuerpo trae el teléfono del deudor y esto va a un log.
+      const identificadores: Record<string, unknown> = {}
+      for (const [clave, valor] of Object.entries(evento)) {
+        if (/id$|^id|msg|message|reference|tag/i.test(clave) && (typeof valor === 'string' || typeof valor === 'number')) {
+          identificadores[clave] = valor
+        }
+      }
+      logEvent({
+        level: 'info',
+        action: 'webhook_brevo.evento_sin_envio',
+        correlationId,
+        meta: { tipoEvento, messageIdUsado: messageId, identificadores, claves: Object.keys(evento) },
+      })
       continue
+    }
+
+    // Un acuse no puede ser anterior al envío que acusa. Cuando el
+    // proveedor manda una fecha sin zona y sale del pasado, se usa la hora
+    // de recepción: preferimos un dato honesto y algo tardío a uno
+    // imposible que además rompe el "gana el más reciente".
+    let ocurridoAt = extraerOcurridoAt(evento)
+    if (Date.parse(ocurridoAt) < Date.parse(envio.enviado_at)) {
+      logEvent({
+        level: 'warn',
+        action: 'webhook_brevo.fecha_anterior_al_envio',
+        correlationId,
+        tenantId: envio.tenant_id,
+        meta: { messageId, tipoEvento, ocurridoAtProveedor: ocurridoAt, enviadoAt: envio.enviado_at },
+      })
+      ocurridoAt = new Date().toISOString()
     }
 
     const { error: errorAcuse } = await admin.from('acciones_cobranza_acuses').insert({
       tenant_id: envio.tenant_id,
       envio_id: envio.id,
       estado,
-      ocurrido_at: extraerOcurridoAt(evento),
+      ocurrido_at: ocurridoAt,
       origen: 'proveedor',
       payload_crudo: evento as never,
       motivo: typeof evento['reason'] === 'string' ? evento['reason'] : null,

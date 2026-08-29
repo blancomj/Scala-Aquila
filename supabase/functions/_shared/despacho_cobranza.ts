@@ -16,12 +16,27 @@
 // El paso 1 —a quién le toca hoy— es del llamador: uno recibe la acción
 // por parámetro, el otro la busca en lote.
 //
-// Alcance SMS, heredado del worker original (decisión de 2026-08-17):
-// email y whatsapp entran cuando exista su despachador. El webhook de
-// acuses ya sirve a los tres.
+// Canales: SMS (2026-08-17) y EMAIL (2026-08-29). WhatsApp y postal
+// entran cuando exista su despachador. El webhook de acuses ya sirve a
+// los tres — mapea los eventos de Brevo de SMS y de correo al mismo
+// estado_acuse_t.
+//
+// Lo que cambia entre SMS y correo es solo el par (plantilla, envío): de
+// dónde sale el texto y por qué API se manda. Todo lo demás —tope de
+// intentos, evidencia, acuse inicial, evento, cierre de la acción— es
+// idéntico, y por eso vive fuera del switch. Duplicar ese tronco por
+// canal es exactamente lo que haría que un canal acabara acreditando
+// distinto que el otro.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { esTelefonoValido, renderSmsTemplate, SMS_FIELD_REGISTRY } from '../../../packages/shared/src/sms.ts'
+import {
+  CORREO_COBRANZA_POR_DEFECTO,
+  EMAIL_FIELD_REGISTRY,
+  esEmailValido,
+  renderEmailTemplate,
+} from '../../../packages/shared/src/email.ts'
+import { enviarEmailCobranza } from './email_cobranza_provider.ts'
 import { sendSms } from './sms_provider.ts'
 
 export type ClienteAdmin = ReturnType<typeof createClient<Database>>
@@ -35,15 +50,20 @@ export type ResultadoDespacho =
       readonly envioId: string | null
       readonly evidenciaRegistrada: boolean
       readonly evidenciaError: string | null
+      /** Solo SMS: el correo no se cobra por segmentos. */
       readonly segmentsUsed: number
       readonly errorMessage: string | null
       readonly contenido: string
+      /** null en SMS. */
+      readonly asunto: string | null
     }
   | {
       readonly tipo: 'simulada'
       readonly contenido: string
+      readonly asunto: string | null
       readonly destinatarioContacto: string
       readonly intentoNumero: number
+      readonly canal: Database['public']['Enums']['canal_cobranza_t']
     }
   /** No se puede despachar y no es un fallo técnico: falta un requisito. */
   | { readonly tipo: 'no_ejecutable'; readonly codigo: string; readonly mensaje: string }
@@ -82,6 +102,7 @@ async function registrarEvidenciaEnvio(
     destinatarioTerceroId: string
     destinatarioContacto: string
     plantillaCodigo: string
+    asunto: string | null
     contenidoRenderizado: string
     contenidoHash: string
     referenciaExterna: string | null
@@ -100,6 +121,7 @@ async function registrarEvidenciaEnvio(
       destinatario_tercero_id: datos.destinatarioTerceroId,
       destinatario_contacto: datos.destinatarioContacto,
       plantilla_codigo: datos.plantillaCodigo,
+      asunto: datos.asunto,
       // 0 = plantilla sin versionado (PRQ-CAR-021 pendiente). Ver
       // 20260906130000: no se escribe 1 para disimular que no hay historial.
       plantilla_version: 0,
@@ -199,11 +221,14 @@ export async function despacharAccionCobranza(
     }
   }
 
-  if (accion.canal !== 'sms') {
+  // Los canales no automatizables ('telefono', 'fisico', 'interno') caen
+  // aquí y NO son un error: son gestión humana. La bandeja los muestra
+  // como "gestión manual" y quien administra los cierra a mano.
+  if (accion.canal !== 'sms' && accion.canal !== 'email') {
     return {
       tipo: 'no_ejecutable',
       codigo: 'ACCION_COBRANZA_CANAL_NO_SOPORTADO',
-      mensaje: `Este worker solo ejecuta canal='sms' — la acción ${accion.id} usa '${accion.canal}'.`,
+      mensaje: `El canal '${accion.canal}' no tiene despacho automático — esta acción se gestiona a mano.`,
     }
   }
   if (accion.estado !== 'programada' && accion.estado !== 'aprobada') {
@@ -266,26 +291,12 @@ export async function despacharAccionCobranza(
     }
   }
 
-  const { data: plantilla, error: errorPlantilla } = await admin
-    .from('plantillas_sms')
-    .select('cuerpo')
-    .eq('tenant_id', opciones.tenantId)
-    .eq('event_type', eventType)
-    .eq('activo', true)
-    .maybeSingle()
-  if (errorPlantilla) {
-    return { tipo: 'no_ejecutable', codigo: 'INTERNAL_ERROR', mensaje: errorPlantilla.message }
-  }
-  if (!plantilla) {
-    return {
-      tipo: 'no_ejecutable',
-      codigo: 'SMS_TEMPLATE_NOT_FOUND',
-      mensaje: `No hay una plantilla activa para el evento '${eventType}' en este tenant.`,
-    }
-  }
-
   const [{ data: tercero, error: errorTercero }, { data: inmueble, error: errorInmueble }] = await Promise.all([
-    admin.from('terceros').select('telefono, nombre_completo').eq('id', accion.destinatario_tercero_id).maybeSingle(),
+    admin
+      .from('terceros')
+      .select('telefono, email, nombre_completo')
+      .eq('id', accion.destinatario_tercero_id)
+      .maybeSingle(),
     admin.from('inmuebles').select('codigo').eq('id', accion.inmueble_id).maybeSingle(),
   ])
   if (errorTercero) return { tipo: 'no_ejecutable', codigo: 'INTERNAL_ERROR', mensaje: errorTercero.message }
@@ -293,43 +304,57 @@ export async function despacharAccionCobranza(
   if (!tercero || !inmueble) {
     return { tipo: 'no_ejecutable', codigo: 'INTERNAL_ERROR', mensaje: 'Destinatario o inmueble inconsistente.' }
   }
-  if (!tercero.telefono || !esTelefonoValido(tercero.telefono)) {
-    return {
-      tipo: 'no_ejecutable',
-      codigo: 'ACCION_COBRANZA_DESTINATARIO_SIN_TELEFONO',
-      mensaje: `El tercero ${accion.destinatario_tercero_id} no tiene un teléfono válido registrado.`,
-    }
-  }
 
-  const campos = SMS_FIELD_REGISTRY[eventType] ?? []
-  const params: Record<string, string> = {}
-  for (const campo of campos) {
-    if (campo.field === 'nombreResidente') params[campo.field] = tercero.nombre_completo ?? ''
-    else if (campo.field === 'inmueble') params[campo.field] = inmueble.codigo
-    else if (campo.field === 'diasMora') params[campo.field] = String(accion.dias_mora_al_momento)
-    else if (campo.field === 'saldoPendiente') params[campo.field] = formatearMoneda(accion.deuda_total_al_momento)
-  }
-  const textoRenderizado = renderSmsTemplate(plantilla.cuerpo, params)
+  const preparado = await prepararMensaje(admin, {
+    tenantId: opciones.tenantId,
+    canal: accion.canal,
+    eventType,
+    destinatarioId: accion.destinatario_tercero_id,
+    nombreDestinatario: tercero.nombre_completo,
+    telefono: tercero.telefono,
+    email: tercero.email,
+    inmuebleCodigo: inmueble.codigo,
+    diasMora: accion.dias_mora_al_momento,
+    deudaTotal: accion.deuda_total_al_momento,
+  })
+  if (preparado.tipo === 'no_ejecutable') return preparado
 
   if (opciones.modo === 'simulacion') {
     return {
       tipo: 'simulada',
-      contenido: textoRenderizado,
-      destinatarioContacto: tercero.telefono,
+      contenido: preparado.contenido,
+      asunto: preparado.asunto,
+      destinatarioContacto: preparado.contacto,
       intentoNumero,
+      canal: accion.canal,
     }
   }
 
   await admin.from('acciones_cobranza').update({ estado: 'ejecutando' }).eq('id', accion.id)
 
-  const resultadoEnvio = await sendSms({
-    to: tercero.telefono,
-    body: textoRenderizado,
-    reference: accion.id,
-  })
-  const contenidoHash = await calcularContenidoHash(textoRenderizado)
+  const resultadoEnvio =
+    accion.canal === 'email'
+      ? {
+          ...(await enviarEmailCobranza({
+            to: preparado.contacto,
+            destinatarioNombre: tercero.nombre_completo,
+            subject: preparado.asunto ?? '',
+            html: preparado.contenido,
+            reference: accion.id,
+          })),
+          segmentsUsed: 0,
+        }
+      : await sendSms({ to: preparado.contacto, body: preparado.contenido, reference: accion.id })
 
-  // La evidencia va ANTES de cerrar la acción: si esto falla, el SMS ya
+  // El asunto es contenido, no metadato: dos correos con el mismo cuerpo y
+  // distinto asunto no son el mismo mensaje. Va dentro del material que se
+  // hashea, y por eso el hash de un correo nunca coincide con el de un SMS
+  // de igual texto.
+  const materialHash =
+    preparado.asunto === null ? preparado.contenido : `${preparado.asunto}\n\n${preparado.contenido}`
+  const contenidoHash = await calcularContenidoHash(materialHash)
+
+  // La evidencia va ANTES de cerrar la acción: si esto falla, el mensaje ya
   // salió y hay que saberlo ahora, no el día que un juez pida la prueba.
   const evidencia = await registrarEvidenciaEnvio(admin, {
     tenantId: opciones.tenantId,
@@ -337,9 +362,10 @@ export async function despacharAccionCobranza(
     intentoNumero,
     canal: accion.canal,
     destinatarioTerceroId: accion.destinatario_tercero_id,
-    destinatarioContacto: tercero.telefono,
+    destinatarioContacto: preparado.contacto,
     plantillaCodigo: eventType,
-    contenidoRenderizado: textoRenderizado,
+    asunto: preparado.asunto,
+    contenidoRenderizado: preparado.contenido,
     contenidoHash,
     referenciaExterna: resultadoEnvio.providerMessageId ?? null,
     enviadoPor: opciones.actorId,
@@ -354,12 +380,13 @@ export async function despacharAccionCobranza(
       fecha_ejecucion: new Date().toISOString(),
       contenido_hash: contenidoHash,
       referencia_externa: resultadoEnvio.providerMessageId ?? null,
-      destinatario_contacto: tercero.telefono,
+      destinatario_contacto: preparado.contacto,
       notas: resultadoEnvio.success ? null : resultadoEnvio.errorMessage,
       ejecutada_por: opciones.actorId,
     })
     .eq('id', accion.id)
 
+  const canalTexto = accion.canal === 'email' ? 'Correo' : 'SMS'
   await emitirEventoDespacho(admin, {
     tenantId: opciones.tenantId,
     accionId: accion.id,
@@ -368,7 +395,8 @@ export async function despacharAccionCobranza(
     intentoNumero,
     exito: resultadoEnvio.success,
     motivo: resultadoEnvio.success
-      ? `SMS despachado al proveedor (intento ${String(intentoNumero)}). Despachada no es recibida: la entrega se acredita por acuse (§34).`
+      ? `${canalTexto} despachado al proveedor (intento ${String(intentoNumero)}, plantilla ${preparado.origenPlantilla}). ` +
+        'Despachada no es recibida: la entrega se acredita por acuse (§34).'
       : `Fallo del proveedor en el intento ${String(intentoNumero)}: ${resultadoEnvio.errorMessage ?? 'sin detalle'}`,
     actorId: opciones.actorId,
   })
@@ -381,6 +409,143 @@ export async function despacharAccionCobranza(
     evidenciaError: evidencia.error,
     segmentsUsed: resultadoEnvio.segmentsUsed,
     errorMessage: resultadoEnvio.errorMessage ?? null,
-    contenido: textoRenderizado,
+    contenido: preparado.contenido,
+    asunto: preparado.asunto,
   }
+}
+
+/** Lo que hay que saber para mandar el mensaje, ya resuelto por canal. */
+type MensajePreparado =
+  | {
+      readonly tipo: 'listo'
+      /** Teléfono o correo, según el canal. */
+      readonly contacto: string
+      /** Texto del SMS u HTML del correo — lo que se envía y lo que se guarda como prueba. */
+      readonly contenido: string
+      readonly asunto: string | null
+      /** 'propia' = la copropiedad la escribió; 'del sistema' = la de defecto. */
+      readonly origenPlantilla: string
+    }
+  | { readonly tipo: 'no_ejecutable'; readonly codigo: string; readonly mensaje: string }
+
+/**
+ * §18.4 pasos 2 y 3, por canal: contacto vigente + plantilla renderizada.
+ *
+ * Los motivos de rechazo nombran a la PERSONA, no su uuid: se leen en la
+ * pantalla de simulación, donde alguien tiene que poder ir a arreglar el
+ * dato.
+ */
+async function prepararMensaje(
+  admin: ClienteAdmin,
+  datos: {
+    tenantId: string
+    canal: Database['public']['Enums']['canal_cobranza_t']
+    eventType: string
+    destinatarioId: string
+    nombreDestinatario: string | null
+    telefono: string | null
+    email: string | null
+    inmuebleCodigo: string
+    diasMora: number
+    deudaTotal: number
+  },
+): Promise<MensajePreparado> {
+  const quien = datos.nombreDestinatario ?? `el tercero ${datos.destinatarioId}`
+
+  if (datos.canal === 'sms') {
+    if (!datos.telefono || !esTelefonoValido(datos.telefono)) {
+      return {
+        tipo: 'no_ejecutable',
+        codigo: 'ACCION_COBRANZA_DESTINATARIO_SIN_TELEFONO',
+        mensaje: `${quien} no tiene un teléfono válido registrado.`,
+      }
+    }
+
+    const { data: plantilla, error } = await admin
+      .from('plantillas_sms')
+      .select('cuerpo')
+      .eq('tenant_id', datos.tenantId)
+      .eq('event_type', datos.eventType)
+      .eq('activo', true)
+      .maybeSingle()
+    if (error) return { tipo: 'no_ejecutable', codigo: 'INTERNAL_ERROR', mensaje: error.message }
+    if (!plantilla) {
+      return {
+        tipo: 'no_ejecutable',
+        codigo: 'SMS_TEMPLATE_NOT_FOUND',
+        mensaje: `No hay una plantilla de SMS activa para el evento '${datos.eventType}' en esta copropiedad.`,
+      }
+    }
+
+    const campos = SMS_FIELD_REGISTRY[datos.eventType] ?? []
+    return {
+      tipo: 'listo',
+      contacto: datos.telefono,
+      contenido: renderSmsTemplate(plantilla.cuerpo, valoresDeCampos(campos, datos, null)),
+      asunto: null,
+      origenPlantilla: 'propia',
+    }
+  }
+
+  if (!datos.email || !esEmailValido(datos.email)) {
+    return {
+      tipo: 'no_ejecutable',
+      codigo: 'ACCION_COBRANZA_DESTINATARIO_SIN_EMAIL',
+      mensaje: `${quien} no tiene un correo válido registrado.`,
+    }
+  }
+
+  // A diferencia del SMS, la ausencia de plantilla propia NO impide
+  // despachar: se usa la del sistema. Exigir que alguien redacte HTML
+  // antes de poder cobrar por correo dejaría el canal apagado en la
+  // práctica — el mismo motivo por el que la configuración de §8.4/§9.4
+  // se siembra con un clic.
+  const { data: plantilla, error } = await admin
+    .from('email_templates')
+    .select('subject, html_content')
+    .eq('tenant_id', datos.tenantId)
+    .eq('event_type', datos.eventType)
+    .maybeSingle()
+  if (error) return { tipo: 'no_ejecutable', codigo: 'INTERNAL_ERROR', mensaje: error.message }
+
+  const usaPropia = plantilla !== null && plantilla.html_content.trim().length > 0
+  const asuntoFuente = usaPropia ? plantilla.subject : CORREO_COBRANZA_POR_DEFECTO.subject
+  const cuerpoFuente = usaPropia ? plantilla.html_content : CORREO_COBRANZA_POR_DEFECTO.htmlContent
+
+  // El nombre de la copropiedad no viaja en la acción: se lee aquí, y solo
+  // para el correo — el SMS no lo usa, y una consulta de más por cada SMS
+  // de un lote de 200 no es gratis.
+  const { data: tenant } = await admin.from('tenants').select('name').eq('id', datos.tenantId).maybeSingle()
+
+  const campos = EMAIL_FIELD_REGISTRY[datos.eventType] ?? []
+  const params = valoresDeCampos(campos, datos, tenant?.name ?? '')
+  return {
+    tipo: 'listo',
+    contacto: datos.email,
+    contenido: renderEmailTemplate(cuerpoFuente, params),
+    asunto: renderEmailTemplate(asuntoFuente, params),
+    origenPlantilla: usaPropia ? 'propia' : 'del sistema',
+  }
+}
+
+/**
+ * Rellena solo los campos que el registro del evento declara. Un campo no
+ * declarado se queda sin valor a propósito: el renderizador deja el
+ * marcador literal, y eso se ve en la simulación — mejor que enviarlo
+ * vacío y que nadie lo note.
+ */
+function valoresDeCampos(
+  campos: readonly { field: string }[],
+  datos: { nombreDestinatario: string | null; inmuebleCodigo: string; diasMora: number; deudaTotal: number },
+  copropiedad: string | null,
+): Record<string, string> {
+  const params: Record<string, string> = {}
+  for (const campo of campos) {
+    if (campo.field === 'nombreResidente') params[campo.field] = datos.nombreDestinatario ?? ''
+    else if (campo.field === 'inmueble') params[campo.field] = datos.inmuebleCodigo
+    else if (campo.field === 'diasMora') params[campo.field] = String(datos.diasMora)
+    else if (campo.field === 'saldoPendiente') params[campo.field] = formatearMoneda(datos.deudaTotal)
+    else if (campo.field === 'copropiedad' && copropiedad !== null) params[campo.field] = copropiedad
+  }
+  return params
 }

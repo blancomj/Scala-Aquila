@@ -101,6 +101,35 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     })
   }
 
+  /**
+   * Un envío extra sobre la misma acción, insertado con service_role. Sirve
+   * para probar el webhook sin gastar un SMS por caso: lo que se ejercita
+   * es la traducción del evento, no el despacho.
+   */
+  async function crearEnvioSuelto(intento: number, referencia: string, enviadoAt: string): Promise<string> {
+    const { data, error } = await admin
+      .from('acciones_cobranza_envios')
+      .insert({
+        tenant_id: tenant.id,
+        accion_id: accionId,
+        intento_numero: intento,
+        canal: 'sms',
+        destinatario_tercero_id: terceroId,
+        destinatario_contacto: SMS_DESTINO_PRUEBA,
+        plantilla_codigo: EVENT_TYPE,
+        plantilla_version: 0,
+        contenido_renderizado: `envío ${String(intento)} para prueba de webhook`,
+        contenido_hash: `hash-webhook-${String(intento)}`,
+        proveedor: 'brevo',
+        referencia_externa: referencia,
+        enviado_at: enviadoAt,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`crearEnvioSuelto: ${error.message}`)
+    return data.id
+  }
+
   async function acreditacion(): Promise<Acreditacion> {
     const { data, error } = await admin.rpc('fn_acreditacion_accion', {
       p_tenant_id: tenant.id,
@@ -344,12 +373,73 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     expect(cuerpo.registrados).toBe(0)
     expect(cuerpo.duplicados).toBe(1)
 
+    // Se cuenta el acuse con ESE instante exacto, no todos los 'entregado'
+    // del envío: el webhook está configurado de verdad y Brevo puede
+    // registrar acuses legítimos de este mismo SMS mientras corre el test.
+    // La deduplicación es por (envio, estado, ocurrido_at) — eso es lo que
+    // hay que comprobar.
     const { count } = await admin
       .from('acciones_cobranza_acuses')
       .select('id', { count: 'exact', head: true })
       .eq('envio_id', envioId)
       .eq('estado', 'entregado')
+      .eq('ocurrido_at', new Date(tsEntrega * 1000).toISOString())
     expect(count).toBe(1)
+  }, 60_000)
+
+  it('acepta la forma REAL del webhook de SMS, que no trae campo `event`', async () => {
+    // Hallazgo del 2026-08-29 contra Brevo en producción: el webhook de SMS
+    // manda `status`/`msg_status`; `event` es solo del canal email. Exigir
+    // `event` descartaba en silencio TODOS los acuses de SMS, con el mismo
+    // síntoma que un webhook mal configurado.
+    const envioSms = await crearEnvioSuelto(2, 'brevo-msg-forma-sms', '2026-08-28T10:00:00Z')
+
+    const respuesta = await enviarEventoBrevo({
+      id: 1,
+      status: 'delivered',
+      msg_status: 'delivered',
+      messageId: 'brevo-msg-forma-sms',
+      to: '573000000000',
+      ts_event: Math.floor(Date.now() / 1000) + 120,
+      type: 'transactional',
+    })
+    expect(respuesta.status).toBe(200)
+    const cuerpo = (await respuesta.json()) as { registrados: number }
+    expect(cuerpo.registrados).toBe(1)
+
+    const { data: acuses } = await admin
+      .from('acciones_cobranza_acuses')
+      .select('estado')
+      .eq('envio_id', envioSms)
+    expect((acuses ?? []).map((a) => a.estado)).toContain('entregado')
+  }, 60_000)
+
+  it('un acuse fechado antes del envío se guarda con la hora de recepción', async () => {
+    // Brevo manda `date` sin zona horaria en varios eventos de SMS, y leerlo
+    // como UTC producía acuses cinco horas ANTERIORES al envío. No es
+    // cosmético: gana el acuse más reciente, así que un 'entregado' con
+    // fecha del pasado pierde contra el 'encolado' y nunca acredita.
+    const envioFecha = await crearEnvioSuelto(3, 'brevo-msg-fecha-rara', '2026-02-15T09:00:00Z')
+
+    const respuesta = await enviarEventoBrevo({
+      id: 2,
+      status: 'delivered',
+      msg_status: 'delivered',
+      messageId: 'brevo-msg-fecha-rara',
+      date: '2020-01-01 00:00:00',
+      type: 'transactional',
+    })
+    expect(respuesta.status).toBe(200)
+
+    const { data: acuse } = await admin
+      .from('acciones_cobranza_acuses')
+      .select('estado, ocurrido_at')
+      .eq('envio_id', envioFecha)
+      .single<{ estado: string; ocurrido_at: string }>()
+    expect(acuse!.estado).toBe('entregado')
+    expect(Date.parse(acuse!.ocurrido_at)).toBeGreaterThan(Date.parse('2026-02-15T09:00:00Z'))
+
+    expect((await acreditacion()).acreditada).toBe(true)
   }, 60_000)
 
   it('un evento de un mensaje ajeno se ignora sin ensuciar la evidencia', async () => {
@@ -397,12 +487,16 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     expect(accion).toBeDefined()
     expect(accion!.acreditada).toBe(true)
 
+    // El expediente trae TODOS los intentos de la acción, incluidos los
+    // envíos sueltos que los tests del webhook cuelgan de ella. Lo que se
+    // comprueba es que el despacho real está, con su texto y su acuse.
     const envios = accion!.envios as Array<Record<string, unknown>>
-    expect(envios).toHaveLength(1)
-    expect(String(envios[0]!.contenido_renderizado)).toContain('45 dias de mora')
-    expect(String(envios[0]!.destinatario_contacto)).toBe(SMS_DESTINO_PRUEBA)
+    const despachado = envios.find((e) => e.envio_id === envioId)
+    expect(despachado).toBeDefined()
+    expect(String(despachado!.contenido_renderizado)).toContain('45 dias de mora')
+    expect(String(despachado!.destinatario_contacto)).toBe(SMS_DESTINO_PRUEBA)
 
-    const acuses = envios[0]!.acuses as Array<Record<string, unknown>>
+    const acuses = despachado!.acuses as Array<Record<string, unknown>>
     expect(acuses.map((a) => a.estado)).toContain('entregado')
   }, 60_000)
 })

@@ -134,12 +134,18 @@ interface PlanJobCarteraInmuebleLocal {
 }
 
 export default {
-  fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
+  // auth: ['user', 'secret'] — la misma operación la disparan dos actores
+  // distintos: un administrador desde la interfaz, y el CRON diario
+  // (§18, cartera-cron-diario), que no es una persona y no tiene sesión.
+  // 'secret' valida la clave interna del proyecto en el header apikey.
+  fetch: withSupabase<Database>({ auth: ['user', 'secret'] }, async (req, ctx) => {
     const correlationId = crypto.randomUUID()
     const actorId = ctx.userClaims?.id ?? null
-    if (!actorId) {
-      return errorResponse(401, 'UNAUTHENTICATED', 'Sesión inválida.', undefined, correlationId)
-    }
+    // Sin usuario = el job. Es lo que el rector llama creada_por='job'
+    // (§10.2): no hay persona que auditar, y el actor queda en null a
+    // propósito — inventarle un usuario al sistema sería peor.
+    const esJob = actorId === null
+    const cliente = esJob ? ctx.supabaseAdmin : ctx.supabase
     if (req.method !== 'POST') {
       return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.', undefined, correlationId)
     }
@@ -162,35 +168,43 @@ export default {
     }
     const { tenant_id: tenantId, fecha_corte: fechaCorte, modo, alcance_inmuebles: alcanceInmuebles } = parseo.data
 
-    const bloqueo = await enforceRateLimit(
-      ctx.supabase,
-      `cartera_recalcular:${actorId}`,
-      RATE_LIMIT_MAX_HITS,
-      RATE_LIMIT_VENTANA,
-      correlationId,
-    )
-    if (bloqueo) return bloqueo
-
-    // §22.3: rol mínimo administrador — es una operación de lote sobre toda la cartera del tenant.
-    const { data: esAdministrador, error: errorRol } = await ctx.supabase.rpc('has_role', {
-      p_tenant: tenantId,
-      p_roles: ['administrador'],
-    })
-    if (errorRol) return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
-    if (!esAdministrador) {
-      return errorResponse(
-        403,
-        'FORBIDDEN',
-        'Ejecutar el job diario de cartera exige rol administrador.',
-        undefined,
+    // El rate limit es por actor humano; el cron corre una vez al día y no
+    // compite con nadie por la cuota de nadie.
+    if (!esJob) {
+      const bloqueo = await enforceRateLimit(
+        cliente,
+        `cartera_recalcular:${actorId}`,
+        RATE_LIMIT_MAX_HITS,
+        RATE_LIMIT_VENTANA,
         correlationId,
       )
+      if (bloqueo) return bloqueo
+    }
+
+    // §22.3: rol mínimo administrador cuando lo dispara una persona. El
+    // job no tiene rol que comprobar: su barrera es la clave secreta del
+    // proyecto, que nunca sale de las Edge Functions.
+    if (!esJob) {
+      const { data: esAdministrador, error: errorRol } = await cliente.rpc('has_role', {
+        p_tenant: tenantId,
+        p_roles: ['administrador'],
+      })
+      if (errorRol) return errorResponse(500, 'INTERNAL_ERROR', errorRol.message, undefined, correlationId)
+      if (!esAdministrador) {
+        return errorResponse(
+          403,
+          'FORBIDDEN',
+          'Ejecutar el job diario de cartera exige rol administrador.',
+          undefined,
+          correlationId,
+        )
+      }
     }
 
     // 0. Prerrequisito bloqueante (PH-C26/I-C14): sin política de clasificación vigente, ABORTAR.
     let politica: PoliticaClasificacionLocal
     try {
-      politica = await obtenerPoliticaClasificacionVigente(ctx.supabase, { tenantId })
+      politica = await obtenerPoliticaClasificacionVigente(cliente, { tenantId })
     } catch (excepcion) {
       logEvent({
         level: 'warn',
@@ -209,13 +223,13 @@ export default {
       )
     }
 
-    const estrategias = await obtenerEstrategiasCobranzaVigentes(ctx.supabase, { tenantId, politicaId: politica.id })
-    const inmuebleIds = await obtenerInmueblesDelTenant(ctx.supabase, { tenantId, alcanceInmuebles })
+    const estrategias = await obtenerEstrategiasCobranzaVigentes(cliente, { tenantId, politicaId: politica.id })
+    const inmuebleIds = await obtenerInmueblesDelTenant(cliente, { tenantId, alcanceInmuebles })
 
     // Garantiza que cada inmueble tenga fila en cartera_etapas antes de evaluar
     // (nace en preventiva — guard_cartera_etapa_inicial, F6). No-op si ya existe.
     for (const inmuebleId of inmuebleIds) {
-      const { error: errorEtapaSeed } = await ctx.supabase
+      const { error: errorEtapaSeed } = await cliente
         .from('cartera_etapas')
         .upsert(
           { tenant_id: tenantId, inmueble_id: inmuebleId },
@@ -226,7 +240,7 @@ export default {
       }
     }
 
-    const { data: posiciones, error: errorPosiciones } = await ctx.supabase.rpc('fn_posicion_cartera', {
+    const { data: posiciones, error: errorPosiciones } = await cliente.rpc('fn_posicion_cartera', {
       p_tenant_id: tenantId,
       p_fecha_corte: fechaCorte,
     })
@@ -243,7 +257,7 @@ export default {
       const diasMoraMaximo = fila.dias_mora_maximo ?? 0
       const clasificacion = clasificarCartera(diasMoraMaximo, politica)
 
-      const entrada = await cargarEntradaJobCarteraInmueble(ctx.supabase, {
+      const entrada = await cargarEntradaJobCarteraInmueble(cliente, {
         tenantId,
         inmuebleId: fila.inmueble_id,
         fechaCorte,
@@ -354,7 +368,7 @@ export default {
           // .is('etapa_propuesta', null) — no reemplaza una propuesta ya
           // pendiente (PH-C33: una segunda corrida el mismo día no debe
           // duplicar la propuesta ni el conteo de candidatos).
-          const { error: errorPropuesta, count } = await ctx.supabase
+          const { error: errorPropuesta, count } = await cliente
             .from('cartera_etapas')
             .update({ etapa_propuesta: decision.hacia, motivo_propuesta: decision.motivo }, { count: 'exact' })
             .eq('tenant_id', tenantId)
@@ -370,7 +384,7 @@ export default {
             })
           }
         } else {
-          const { error: errorEtapa, count } = await ctx.supabase
+          const { error: errorEtapa, count } = await cliente
             .from('cartera_etapas')
             .update({ etapa: decision.hacia }, { count: 'exact' })
             .eq('tenant_id', tenantId)
@@ -388,7 +402,7 @@ export default {
 
       // promesas_pago (§12.2)
       for (const cambio of plan.promesasIncumplidas) {
-        const { error: errorPromesa } = await ctx.supabase
+        const { error: errorPromesa } = await cliente
           .from('promesas_pago')
           .update({ estado: 'incumplida' })
           .eq('id', cambio.promesaId)
@@ -399,7 +413,7 @@ export default {
 
       // acuerdo_pago_cuotas
       for (const cambio of plan.cuotasVencidas) {
-        const { error: errorCuota } = await ctx.supabase
+        const { error: errorCuota } = await cliente
           .from('acuerdo_pago_cuotas')
           .update({ estado: 'vencida' })
           .eq('id', cambio.cuotaId)
@@ -410,7 +424,7 @@ export default {
       // acuerdos_pago — el "descongelamiento" de cartera_etapas es un efecto
       // secundario natural (CARTERA_ETAPA_CONGELADA lee acuerdos_pago en vivo, F6).
       if (plan.acuerdoIncumplido) {
-        const { error: errorAcuerdo } = await ctx.supabase
+        const { error: errorAcuerdo } = await cliente
           .from('acuerdos_pago')
           .update({ estado: 'incumplido', fecha_incumplimiento: fechaCorte })
           .eq('id', plan.acuerdoIncumplido.acuerdoId)

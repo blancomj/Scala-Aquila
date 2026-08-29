@@ -30,4 +30,7 @@ export {
   validateEmailTemplateBody,
   filtrarOverridesValidos,
   EmailValidationError,
+  esEmailValido,
+  htmlATextoPlano,
+  CORREO_COBRANZA_POR_DEFECTO,
 } from './email.js'

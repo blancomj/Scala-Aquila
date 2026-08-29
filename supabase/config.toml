@@ -183,6 +183,34 @@ enabled = true
 import_map = "./functions/cartera-ejecutar-lote/deno.json"
 entrypoint = "./functions/cartera-ejecutar-lote/index.ts"
 
+# cartera-cron-diario: disparador de la corrida diaria (CAR §18). Lo llama
+# pg_cron vía pg_net, nunca un usuario — autoriza el token de la ruta
+# (CARTERA_CRON_TOKEN), mismo criterio que webhook-brevo. Solo CALCULA:
+# no despacha mensajes.
+# cartera-recalcular acepta auth [user, secret]: la interfaz manda JWT de
+# usuario y el cron manda la clave secreta en apikey. La verificacion la
+# hace el wrapper (withSupabase), no el gateway — por eso verify_jwt=false.
+[functions.cartera-recalcular]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cartera-recalcular/deno.json"
+entrypoint = "./functions/cartera-recalcular/index.ts"
+
+[functions.cartera-cron-diario]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cartera-cron-diario/deno.json"
+entrypoint = "./functions/cartera-cron-diario/index.ts"
+
+# cartera-certificar-deuda: expide la certificación de deuda del art. 48
+# (CAR §15.2, bloque 21). JWT normal — solo un administrador autenticado
+# puede invocarla; sin cliente de servicio, RLS + guard_certificacion_insert
+# hacen el resto.
+[functions.cartera-certificar-deuda]
+enabled = true
+import_map = "./functions/cartera-certificar-deuda/deno.json"
+entrypoint = "./functions/cartera-certificar-deuda/index.ts"
+
 [functions.webhook-brevo]
 enabled = true
 verify_jwt = false
