@@ -12,6 +12,16 @@ export const TIPO_FUNDAMENTO = [
   { value: 'otra', label: 'Otra' },
 ] as const
 
+// Mismos datos que TIPO_FUNDAMENTO, como array mutable de `string` planos — el `as const` de
+// arriba da un tuple readonly de literales, que USelect's `items` (tipado mutable) rechaza, y que
+// además forzaría los `ref<string>` de tipo/propTipo en las 3 pantallas que seleccionan un tipo de
+// fundamento a angostarse al union literal. Un solo lugar que ensancha el tipo, en vez de un cast
+// repetido en cada `<USelect :items="...">`.
+export const TIPO_FUNDAMENTO_ITEMS: { value: string; label: string }[] = TIPO_FUNDAMENTO.map((t) => ({
+  value: t.value,
+  label: t.label,
+}))
+
 export const ETIQUETA_TIPO_FUNDAMENTO: Record<string, string> = Object.fromEntries(
   TIPO_FUNDAMENTO.map((t) => [t.value, t.label]),
 )

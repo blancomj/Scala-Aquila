@@ -23,6 +23,7 @@ const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
 const conceptoStore = useConceptoStore()
+const toast = useToast()
 
 watch(
   () => props.presupuestoId,
@@ -376,6 +377,7 @@ async function guardarMonto(cuenta: CuentaFila): Promise<void> {
     }
     await presupuestoStore.cargarTotalesCuenta(props.presupuestoId)
     cancelarEdicionMonto()
+    toast.add({ title: `Monto de "${cuenta.nombre}" actualizado`, color: 'success' })
   } catch (excepcion) {
     errorMonto.value = mensajeError(excepcion, 'No se pudo guardar el monto.')
   } finally {
@@ -400,6 +402,7 @@ function cerrarDrawerRubro(): void {
 function onRubroGuardado(): void {
   cerrarDrawerRubro()
   if (props.presupuestoId) presupuestoStore.cargarTotalesCuenta(props.presupuestoId)
+  toast.add({ title: 'Rubro guardado', color: 'success' })
 }
 
 // ── Administración del árbol (antes /presupuesto/cuentas, luego "Editar estructura") ─────────
@@ -428,6 +431,16 @@ function cerrarDrawerCuenta(): void {
   cuentaEnEdicion.value = null
 }
 
+function onCuentaCreada(): void {
+  cerrarDrawerCuenta()
+  toast.add({ title: 'Cuenta creada', color: 'success' })
+}
+
+function onCuentaEditada(): void {
+  cerrarDrawerCuenta()
+  toast.add({ title: 'Cuenta actualizada', color: 'success' })
+}
+
 const cambiandoActivaId = ref<string | null>(null)
 const errorActiva = ref<string | null>(null)
 
@@ -438,11 +451,13 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
 
   cambiandoActivaId.value = cuenta.id
   try {
+    const activarla = !cuenta.activa
     await presupuestoStore.actualizarCuenta({
       id: cuenta.id,
       tenantId,
-      activa: !cuenta.activa,
+      activa: activarla,
     })
+    toast.add({ title: `"${cuenta.nombre}" ${activarla ? 'activada' : 'desactivada'}`, color: 'success' })
   } catch (excepcion) {
     errorActiva.value = mensajeError(excepcion, 'No se pudo cambiar el estado.')
   } finally {
@@ -455,7 +470,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
   <div class="space-y-6 max-w-[1030px] mx-auto">
     <div>
       <h2 class="text-lg font-semibold">Plan de cuentas</h2>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         La estructura de cuentas es fija por copropiedad; los montos se asignan por cada
         presupuesto.
       </p>
@@ -466,24 +481,24 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
       class="rounded-lg border p-4"
       :class="
         reconciliado
-          ? 'border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
-          : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20'
+          ? 'border-success-200 bg-success-50/50 dark:border-success-900 dark:bg-success-950/20'
+          : 'border-warning-200 bg-warning-50/50 dark:border-warning-900 dark:bg-warning-950/20'
       "
     >
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
         <p class="text-sm">
           <span class="text-xl font-semibold tabular-nums">{{ formatoMoneda(sumaEgresos) }}</span>
-          <span class="text-gray-500"> asignados de {{ formatoMoneda(montoTotal) }} en rubros de egreso</span>
+          <span class="text-neutral-500"> asignados de {{ formatoMoneda(montoTotal) }} en rubros de egreso</span>
         </p>
       </div>
-      <div class="h-1.5 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden mb-2">
+      <div class="h-1.5 rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 overflow-hidden mb-2">
         <div
           class="h-full rounded-full transition-all"
-          :class="reconciliado ? 'bg-green-500' : 'bg-amber-500'"
+          :class="reconciliado ? 'bg-success-500' : 'bg-warning-500'"
           :style="{ width: `${porcentajeAsignado}%` }"
         />
       </div>
-      <p class="text-xs" :class="reconciliado ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'">
+      <p class="text-xs" :class="reconciliado ? 'text-success-700 dark:text-success-400' : 'text-warning-700 dark:text-warning-400'">
         <template v-if="reconciliado">
           Los rubros de egreso cuadran con el monto total — este presupuesto puede activarse.
         </template>
@@ -549,7 +564,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             <button
               v-if="!fila.es_hoja"
               type="button"
-              class="flex size-5 shrink-0 items-center justify-center rounded border border-gray-300 text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
+              class="flex size-5 shrink-0 items-center justify-center rounded border border-neutral-300 text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-white"
               :aria-expanded="!gruposColapsados.has(fila.id)"
               :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
               @click="alternarGrupo(fila.id)"
@@ -568,7 +583,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             >
               <span :class="{ 'font-medium': fila.nivel === 1 }">{{ fila.nombre }}</span>
             </button>
-            <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
+            <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-neutral-400">
               ({{ conteoDescendientes.get(fila.id) ?? 0 }})
             </span>
             <UBadge v-if="fila.es_hoja && cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle">
@@ -586,7 +601,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             <UIcon
               v-if="!fila.es_hoja && gruposDeUnSoloHijo.has(fila.id)"
               name="i-lucide-triangle-alert"
-              class="size-3.5 shrink-0 text-amber-500"
+              class="size-3.5 shrink-0 text-warning-500"
               :title="`«${fila.nombre}» agrupa un solo elemento — considera moverlo directo a su padre en vez de mantener este grupo`"
             />
             <UButton
@@ -601,9 +616,9 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
           </div>
         </template>
         <template #celda-tipo="{ fila }">
-          <span class="text-gray-500">{{ fila.es_hoja ? 'Hoja' : 'Grupo' }}</span>
+          <span class="text-neutral-500">{{ fila.es_hoja ? 'Hoja' : 'Grupo' }}</span>
         </template>
-        <template #celda-orden="{ fila }"><span class="text-gray-500 tabular-nums">{{ fila.orden }}</span></template>
+        <template #celda-orden="{ fila }"><span class="text-neutral-500 tabular-nums">{{ fila.orden }}</span></template>
         <template #celda-monto="{ fila }">
           <div class="flex items-center justify-end gap-1">
             <input
@@ -615,7 +630,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
               step="1000"
               :disabled="guardandoMontoId === fila.id"
               :aria-label="`Monto anual de ${fila.nombre}`"
-              class="w-36 rounded-md border border-primary bg-white dark:bg-gray-900 px-2 py-0.5 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+              class="w-36 rounded-md border border-primary bg-white dark:bg-neutral-900 px-2 py-0.5 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
               @keydown.enter.prevent="guardarMonto(fila)"
               @keydown.esc.prevent="cancelarEdicionMonto()"
               @blur="guardarMonto(fila)"
@@ -623,28 +638,28 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             <button
               v-else-if="montoEditable(fila)"
               type="button"
-              class="group inline-flex items-center justify-end gap-1.5 rounded-md px-2 py-0.5 -mr-2 tabular-nums transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              class="group inline-flex items-center justify-end gap-1.5 rounded-md px-2 py-0.5 -mr-2 tabular-nums transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
               :title="`Editar el monto anual de ${fila.nombre}`"
               @click="iniciarEdicionMonto(fila)"
             >
               {{ formatoMoneda(totalPorCuenta.get(fila.id) ?? 0) }}
               <UIcon
                 name="i-lucide-pencil"
-                class="size-3 shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
+                class="size-3 shrink-0 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100"
               />
             </button>
             <span v-else class="tabular-nums">{{ formatoMoneda(totalPorCuenta.get(fila.id) ?? 0) }}</span>
           </div>
         </template>
         <template #celda-porcentaje="{ fila }">
-          <span class="text-gray-500 tabular-nums">{{ porcentajeDelTotal(fila.id) }}</span>
+          <span class="text-neutral-500 tabular-nums">{{ porcentajeDelTotal(fila.id) }}</span>
         </template>
         <template #celda-activa="{ fila }">
           <div class="flex justify-end">
             <UButton
               size="xs"
               variant="ghost"
-              :color="fila.activa ? 'error' : 'primary'"
+              :color="fila.activa ? 'neutral' : 'primary'"
               :icon="fila.activa ? 'i-lucide-eye-off' : 'i-lucide-eye'"
               :aria-label="fila.activa ? 'Desactivar' : 'Activar'"
               :loading="cambiandoActivaId === fila.id"
@@ -660,7 +675,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
            detalleRubrosRelevante: oculta el caso común de un solo rubro que ya es un
            duplicado exacto de la fila del árbol de arriba). -->
       <div v-for="cuenta in visibles(seccion.filas).filter(detalleRubrosRelevante)" :key="cuenta.id" class="mt-3">
-        <h4 class="text-xs font-medium text-gray-500 mb-1" :style="{ paddingLeft: `${(cuenta.nivel - 1) * 16}px` }">
+        <h4 class="text-xs font-medium text-neutral-500 mb-1" :style="{ paddingLeft: `${(cuenta.nivel - 1) * 16}px` }">
           {{ cuenta.nombre }}
         </h4>
         <UiTabla
@@ -690,7 +705,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
             <span class="tabular-nums">{{ formatoMoneda(fila.monto_anual) }}</span>
           </template>
           <template #celda-fundamento="{ fila }">
-            <span class="text-gray-500">
+            <span class="text-neutral-500">
               {{ fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—' }}
             </span>
           </template>
@@ -698,7 +713,7 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
       </div>
     </section>
 
-    <p v-if="cuentasConConceptoAutomatico.size > 0" class="text-xs text-gray-500">
+    <p v-if="cuentasConConceptoAutomatico.size > 0" class="text-xs text-neutral-500">
       <UBadge size="xs" variant="subtle">cobro automático</UBadge>
       el valor de esta cuenta se toma directamente de lo facturado por el concepto vinculado —
       no se digita a mano ni se puede editar aquí.
@@ -719,8 +734,8 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
       :cuenta="cuentaEnEdicion ?? undefined"
       :parent-id-inicial="parentIdParaNueva"
       @cerrar="cerrarDrawerCuenta"
-      @creada="cerrarDrawerCuenta"
-      @editada="cerrarDrawerCuenta"
+      @creada="onCuentaCreada"
+      @editada="onCuentaEditada"
     />
   </div>
 </template>

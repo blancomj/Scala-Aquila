@@ -8,32 +8,54 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 
+// cargarCuentas es indispensable aquí, no solo en index.vue: PresupuestoTabControlValidaciones
+// construye cuentaPorId desde presupuestoStore.cuentas para filtrar los rubros de egreso
+// (checkRubros) — sin cargarla, cuentaPorId queda vacío, cuentaPorId.get(rubro.cuenta_id) da
+// undefined para cada rubro, y "Rubros de egreso = Monto total" muestra $0 siempre, sin importar
+// cuánto se haya asignado. Bug real, no de timing — confirmado en vivo contra datos reales.
 await useAsyncData('presupuesto-control', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return []
-  return presupuestoStore.cargarPresupuestos(tenantId)
+  const [presupuestos] = await Promise.all([
+    presupuestoStore.cargarPresupuestos(tenantId),
+    presupuestoStore.cargarCuentas(tenantId),
+  ])
+  return presupuestos
 })
 
 const presupuestoSeleccionadoId = useSeleccionPresupuesto()
+const presupuestoSeleccionado = computed(
+  () => presupuestoStore.presupuestos.find((p) => p.id === presupuestoSeleccionadoId.value) ?? null,
+)
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-semibold mb-2">Control y validaciones</h1>
-        <p class="text-sm text-gray-500">
-          Estado de reconciliación del presupuesto seleccionado frente a los guard triggers
-          reales de Postgres.
+        <p class="text-sm text-neutral-500">
+          Verifica que los rubros y las fuentes de financiación cuadren con las reglas que se
+          exigen para aprobar o activar el presupuesto.
         </p>
       </div>
-      <PresupuestoSelector
-        v-if="presupuestoStore.presupuestos.length > 0"
-        v-model="presupuestoSeleccionadoId"
-      />
+      <div class="flex items-end gap-3">
+        <UBadge
+          v-if="presupuestoSeleccionado"
+          :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'"
+          variant="subtle"
+          class="mb-1.5"
+        >
+          {{ ETIQUETA_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? presupuestoSeleccionado.estado }}
+        </UBadge>
+        <PresupuestoSelector
+          v-if="presupuestoStore.presupuestos.length > 0"
+          v-model="presupuestoSeleccionadoId"
+        />
+      </div>
     </div>
 
-    <p v-if="presupuestoStore.presupuestos.length === 0" class="text-gray-500 text-sm">
+    <p v-if="presupuestoStore.presupuestos.length === 0" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene un presupuesto registrado.
     </p>
     <PresupuestoTabControlValidaciones v-else :presupuesto-id="presupuestoSeleccionadoId" />

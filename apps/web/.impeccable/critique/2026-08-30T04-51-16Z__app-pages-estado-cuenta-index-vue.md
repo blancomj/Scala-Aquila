@@ -1,0 +1,80 @@
+---
+target: facturación module (conceptos/dependencias/novedades/liquidacion/estado-cuenta)
+total_score: 25
+max_score: 40
+na_heuristics: 
+p0_count: 0
+p1_count: 3
+timestamp: 2026-08-30T04-51-16Z
+slug: app-pages-estado-cuenta-index-vue
+---
+#### Design Health Score
+
+| # | Heuristic | Score | Key Issue |
+|---|-----------|-------|-----------|
+| 1 | Visibility of System Status | 3 | La liquidación da feedback excelente (banda de estado, badges, timestamps, gates explícitos); "Aprobar" en Novedades no da nada más allá de un spinner de carga, pese a "materializar un cargo real en el ledger". |
+| 2 | Match System/Real World | 3 | Vocabulario de dominio consistente, pero `dependencias.vue:109-111` mete citas de documentación interna ("Doc 10 §79-80") y jerga AEL ("Contract/Function") directo en texto de staff. |
+| 3 | User Control and Freedom | 3 | Buenas salidas (Descartar, Rechazar, Anular) — pero `dependencias.vue:52` "← Volver a conceptos" enlaza a `/presupuesto`, no al catálogo de conceptos. |
+| 4 | Consistency and Standards | 2 | El mismo patrón "filtrar por estado" se construyó 3 veces distintas en 5 pantallas hermanas; en mobile, el filtro de Novedades se confirma en vivo como texto ilegible/superpuesto — la inconsistencia deja de ser solo visual y pasa a ser funcional. |
+| 5 | Error Prevention | 3 | El pre-vuelo de bloqueos/avisos de Liquidación es excelente y verificado en vivo; "Aprobar" en Novedades no tiene ninguna confirmación pese a ser igual de consecuente según su propio comentario de código. |
+| 6 | Recognition Rather Than Recall | 3 | Badges/títulos/contadores consistentes; Dependencias obliga a cruzar manualmente dos tablas de códigos sin ningún enlace entre ellas. |
+| 7 | Flexibility and Efficiency | 1 | Sin atajos de teclado, sin acciones en lote en ningún lado — ni siquiera en Novedades, cuyo propio comentario de código nombra "despachar varias seguidas" como el flujo real. El `ordenar` de `UiTabla` nunca se activa en ninguna columna del módulo. |
+| 8 | Aesthetic and Minimalist Design | 3 | Denso/plano/control-room genuino; `LiquidacionPanel.vue` (573 líneas) está seccionado con bordes y etiquetas en mayúsculas, no es un muro. |
+| 9 | Error Recovery | 3 | Patrón `mensajeError()` + `UAlert` inline consistente; "Rechazar" exige un motivo con longitud mínima, así que quien preparó la novedad recibe algo accionable. |
+| 10 | Help and Documentation | 1 | Sin ayuda contextual más allá de algunos `title` al pasar el mouse. |
+| **Total** | | **25/40** | **Aceptable (62.5%)** |
+
+#### Design Specificity Verdict
+
+**Mixto, y la división corre limpiamente por un eje: el flujo de liquidación contra todo lo demás.**
+
+**LLM**: `LiquidacionPanel.vue`/`LiquidacionConfirmar.vue` están escritos para este dominio de una forma que una herramienta de facturación genérica no replicaría: una confirmación tipeada que exige el nombre exacto del periodo (no un "CONFIRMAR" genérico), un pre-vuelo de dos niveles (bloquea/avisa) que refleja la garantía real de `guard_liquidacion_transicion` en la base de datos, y comentarios de código que articulan una filosofía deliberada de fricción ("simular no compromete nada... aplicar sí"). Las otras cuatro pantallas (Conceptos, Dependencias, Novedades, Estado de cuenta) se leen como catálogo-filtro-tabla competente pero intercambiable con cualquier categoría. La oportunidad perdida más clara es `dependencias.vue`: renderiza el grafo de dependencias de AEL —la estructura exacta que PRODUCT.md señala como el diferenciador central del producto— como dos tablas planas de códigos separados por comas, sin ningún grafo o árbol visual. La pantalla cuya única razón de existir es mostrar un DAG no muestra ningún DAG.
+
+**Escaneo determinístico**: `detect.mjs` limpio en `app/pages/estado-cuenta`, `app/pages/conceptos`, `app/pages/liquidacion` y `app/components/liquidacion`. En `app/components/conceptos` → exit 2, 10 hallazgos en `ConceptosEditor.vue`/`ConceptosVariablesPanel.vue`: 3 de patrón "side-tab" (`border-l-2`, slop) y 7 de tamaño de fuente literal (`text-[10px]`). Verificación en vivo: los 7 de fuente resultaron ser el glifo "?" dentro de un botón de ayuda circular de 16px junto a las etiquetas de campo — un patrón defendible, probablemente falso positivo de bajo impacto. Los 3 `border-l-2` no se pudieron confirmar ni descartar en vivo — el agente probó los 3 conceptos existentes en ambas pestañas y ninguno los disparó; puede que vivan detrás de un estado de validación o del asistente de "Nuevo concepto" que no se ejerció.
+
+**Overlays visuales**: sin inyección de script — igual que en la corrida anterior de este mismo target, se prefirió una inspección manual completa en el navegador real (login, cambio de tenant a GC-001, las 5 pantallas en escritorio y 3 de ellas a 375×812). Nota de transparencia: a mitad de la corrida, la pestaña compartida inicial resultó estar siendo navegada simultáneamente por otro proceso — el agente lo detectó por errores de consola que no correspondían a ninguna de las 5 rutas, abrió una pestaña dedicada nueva y volvió a verificar las 5 páginas limpias ahí. Los errores de CSP/500 vistos antes NO son del módulo de Facturación — confirma, por segunda vez en esta sesión, que ese ruido viene de contaminación entre pestañas de prueba, no de la app.
+
+#### Overall Impression
+
+El mismo patrón que en Presupuesto: el flujo de mayor riesgo real (aquí, correr una liquidación) está diseñado con un cuidado genuino y verificado en vivo —gates de bloqueo/aviso, confirmación tipeada, "simular" sin compromiso— mientras las pantallas de catálogo a su alrededor son competentes pero genéricas. La sorpresa de este módulo es que el segundo flujo de mayor riesgo real —aprobar una novedad, que el propio código dice que "materializa un cargo real en el ledger"— no recibió ninguno de esos cuidados: es un solo clic sin confirmación. Y el bug más severo no es de diseño sino de renderizado: el filtro de estado de Novedades se vuelve texto ilegible y superpuesto en un teléfono, confirmado con medición de estilos computados, no solo con una captura.
+
+#### What's Working
+
+1. **La confirmación tipeada de `LiquidacionConfirmar.vue`** exige el nombre exacto del periodo (no un "CONFIRMAR" genérico) — decisión deliberada y documentada en el propio encabezado del archivo, que ataca directamente el riesgo real de aplicar el mes equivocado cuando hay varios abiertos a la vez.
+2. **El pre-vuelo de bloqueos/avisos de `LiquidacionPanel.vue`**, verificado en vivo con datos reales: dos bloqueos rojos ("El periodo no tiene fecha de vencimiento", "Hay 7 periodo(s) anterior(es) sin liquidar", citando CAR §7.1/GAP-CAR-001) y un aviso amarillo, con solo "Simular" habilitado mientras existan bloqueos — la pantalla nunca puede ofrecer un "aplicar" habilitado que el backend rechazaría.
+3. **Estados vacíos/por defecto bien pensados**: Conceptos arranca en "En uso" (oculta archivados por defecto), Novedades arranca en "Pendientes" solo cuando hay algo pendiente, si no cae a "Todas" — ambos comentados como decisiones deliberadas, no scaffolding genérico.
+
+#### Priority Issues
+
+**[P1] El filtro de estado de Novedades se vuelve ilegible en mobile — confirmado en vivo, no es una suposición.** Los 4 botones ("Pendientes (0)" / "Aprobadas (6)" / "Rechazadas (1)" / "Todas (7)") viven en un grid de columnas iguales de 77px, pero cada etiqueta necesita 107-112px con `white-space: nowrap` y `overflow: visible` — el texto sin recortar se derrama visiblemente sobre el botón vecino, produciendo algo como "Pendientes (0)rpbadas (R)echazad…". Verificado con `getBoundingClientRect` y estilos computados, no es un espejismo de captura. **Fix**: permitir que el texto de cada botón se trunque (`truncate`/`text-overflow: ellipsis`) dentro de su columna, o pasar a un contenedor `flex` con `overflow-x-auto` en vez de un grid de columnas fijas. **Comando sugerido**: `/impeccable adapt`
+
+**[P1] `UiTabla.vue` y `UiSelectorBuscable.vue` —los componentes que DESIGN.md exige para cada tabla y cada selector buscable de la app— traen `gray-*` hardcodeado.** `UiTabla.vue:143,160,187-188,212,230` y `UiSelectorBuscable.vue:130,149-150,186`. Como toda tabla/selector de la app hereda de estos dos wrappers, esto no es deuda de una pantalla: es deuda del componente compartido. Encima, 4 de las 5 pantallas de Facturación agregan su propio `gray-*` por separado (`conceptos.vue`, `ConceptosCatalogo.vue` ×9, `dependencias.vue` ×9, `novedades.vue` ×11, incluido `text-green-600` hardcodeado para montos de crédito en vez de un token `success`) — mientras que `liquidacion/index.vue` y `LiquidacionPanel.vue` usan cero `gray-*`, probando que los tokens semánticos ya se conocen y están disponibles en el equipo. **Fix**: migrar primero los dos wrappers compartidos (arregla todas las pantallas consumidoras de una vez), luego barrer las páginas, usando `LiquidacionPanel.vue` como referencia de "terminado". **Comando sugerido**: `/impeccable harden`
+
+**[P1] "Aprobar" en Novedades no tiene ninguna confirmación, pese a crear un cargo real en el ledger.** `novedades.vue:274-282` — un clic, sin modal, sin vista previa, sin deshacer— aunque el propio comentario de cabecera del archivo dice que aprobar "materializa un cargo real en el ledger". PRODUCT.md nombra la aprobación de novedades como un control maker-checker y el Principio 5 exige que toda acción consecuente sea trazable; sin embargo, dentro del mismo módulo, "aplicar" en liquidación recibe un ritual de confirmación completo y "aprobar" en novedades no recibe ninguno — una señal inconsistente que podría dejar a un aprobador apurado aceptar varios cargos reales sin revisarlos. **Fix**: como mínimo, mostrar monto + inmueble en una confirmación ligera antes del clic — no necesita la ceremonia completa de liquidación, solo algún paso deliberado. **Comando sugerido**: `/impeccable harden`
+
+**[P2] La tabla de Conceptos hace scroll de página completa en mobile, en vez de scroll contenido solo en la tabla.** Confirmado en vivo a 375px: `<main>` entero tiene `overflow-x: auto` con `scrollWidth` 700 contra 375 de viewport, porque la tabla (660px) es más ancha que la pantalla y nadie la envuelve en su propio contenedor de scroll. Desplazarse a la derecha para ver "Valor"/"Estado" arrastra también el encabezado, el botón "Nuevo concepto" y las migas de pan — la página entera se desplaza en vez de solo la grilla de datos. Es exactamente el anti-patrón que DESIGN.md pide evitar ("Wide content... gets overflow-x: auto on its own container so the page body never scrolls sideways"), y contrasta con `/liquidacion`, donde la franja de periodos sí usa un contenedor de scroll propio y `<main>` no se mueve. **Fix**: envolver la tabla en un `<div class="overflow-x-auto">` propio, no dejar que el ancho se propague a `<main>`. **Comando sugerido**: `/impeccable adapt`
+
+**[P2] Enlace "volver" roto en Dependencias.** `dependencias.vue:52` — `<NuxtLink to="/presupuesto">← Volver a conceptos</NuxtLink>` — la etiqueta promete volver al catálogo de Conceptos, pero el href apunta a `/presupuesto`. Se lee como un resto de la migración documentada de Conceptos fuera de la pestaña de Presupuesto (según el propio comentario de cabecera del archivo). No es una decisión de diseño, es un bug de una línea. **Fix**: `to="/estado-cuenta/conceptos"`. **Comando sugerido**: `/impeccable harden`
+
+#### Persona Red Flags
+
+**Alex (power user)**: sin atajos de teclado en ningún lado. El `ordenar` de `UiTabla` nunca se activa en ninguna columna de las 5 pantallas — no puede ordenar Novedades por monto ni Conceptos por estado, aunque el componente lo soporta. El propio comentario de código de Novedades nombra "despachar varias [novedades] seguidas" como el flujo real, pero no hay selección/aprobación en lote — cada una de N aprobaciones pendientes es su propio ciclo clic-espera-recarga. El selector de periodo de Liquidación es una fila de chips con scroll horizontal sin navegación por flechas/tabindex itinerante — con 12 periodos por año, Alex debe tabular chip por chip para llegar a uno antiguo.
+
+**Sam (dependiente de accesibilidad)**: `novedades.vue:250` señala crédito vs. cargo solo por color (`text-green-600` en montos negativos, sin ícono ni texto) — un usuario daltónico o de lector de pantalla no tiene ninguna pista no-color de que un número negativo significa "crédito", no "error". El combobox hecho a mano de `UiSelectorBuscable.vue` (usado para elegir inmueble en `/estado-cuenta`) tiene manejo de teclado para flechas/enter/esc pero sin `role="combobox"`, `aria-autocomplete` ni `aria-activedescendant` — un usuario de lector de pantalla que escribe una búsqueda no oye los resultados anunciados.
+
+**Riley (stress tester)** — elegido por el énfasis de PRODUCT.md en corrección financiera a escala: `LiquidacionPanel.vue:451-472` "Detalle por unidad" renderiza cada línea directo en un `UiTabla` sin paginación/virtualización ni aviso de conteo — para una copropiedad grande (cientos de unidades × varios conceptos), es un riesgo de escala sin resguardo. Dato de estado, no bug de UI: en la corrida en vivo, todas las liquidaciones del tenant demo —incluidas las ya "Aplicadas"— dan 0 líneas / $0, porque los 3 conceptos del catálogo están en Borrador/En revisión, ninguno Activo. El sistema lo señala explícitamente ("Esta Pre-Liquidación no produjo líneas — revisa que haya conceptos activos"), pero significa que los datos de demo no ejercitan hoy una liquidación real de principio a fin con montos distintos de cero.
+
+#### Minor Observations
+
+- `liquidacion/index.vue:140` — su `<h1>` no lleva el `mb-2` que sí tienen las otras 4 páginas hermanas (pequeña inconsistencia de ritmo de cabecera).
+- `conceptos.vue` es la única página del módulo donde el título vive en el archivo de la página y la fila de acción (enlaces + "Nuevo concepto") vive en el componente hijo — las otras 4 mantienen título y acción primaria en la misma fila del mismo archivo.
+- El mismo patrón "filtrar por un conjunto pequeño de estados" se construyó 3 veces distintas: `USelect` (Conceptos), control segmentado hecho a mano (Novedades), fila de chips hecha a mano (Liquidación) — cada uno defendible por separado, vale la pena consolidar.
+- Los buscadores (`busqueda` en Conceptos/Novedades) no tienen botón de limpiar visible una vez escrito algo.
+- "Aprobar y aplicar" en Liquidación (`LiquidacionPanel.vue:320-327`) es un `<UButton size="sm">` con el mismo azul sólido por defecto que "Nuevo concepto"/"Nueva novedad"/"Crear periodo" — el único punto sin retorno real del módulo no se distingue visualmente de un botón de creación rutinaria antes de hacer clic (el modal de confirmación que sigue sí es excelente, pero llega un clic tarde).
+- 3 de 5 cabeceras (`ConceptosCatalogo.vue:137`, `dependencias.vue:44`, `estado-cuenta/index.vue:207`) usan `flex justify-between` sin `flex-wrap` — el mismo patrón de bug ya encontrado y corregido una vez en este código base (`PresupuestoSelector.vue`), reaparecido en 3 de 5 pantallas hermanas del mismo módulo.
+
+#### Questions to Consider
+
+- Si aprobar una novedad y aplicar una liquidación crean ambos cargos reales y difíciles de revertir en el ledger (según los propios comentarios del código), ¿por qué solo una de las dos tiene un ritual de confirmación — debería Novedades heredar el patrón de Liquidación, o el de Liquidación merece simplificarse para acercarse a la velocidad de Novedades?
+- La pantalla de Dependencias renderiza el DAG de AEL como dos tablas planas de códigos separados por comas — si esa configurabilidad basada en grafo realmente es el diferenciador central del producto según PRODUCT.md, ¿no debería la única pantalla construida para visualizarlo verse como algo que un competidor de facturación hardcodeada no podría ofrecer?
+- Tres pantallas hermanas del mismo grupo de navegación resuelven "filtrar por estado" de tres formas distintas — si una sexta pantalla de Facturación necesitara este patrón mañana, ¿cuál de las tres copiaría un desarrollador, y sería la correcta?

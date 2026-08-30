@@ -133,14 +133,14 @@ const columnasTrasGrupo = computed(() =>
 </script>
 
 <template>
-  <table
-    v-if="filas.length > 0"
-    :class="variante === 'tailwind' ? ['w-full text-sm', fijo ? 'table-fixed' : ''] : undefined"
-  >
+  <div v-if="filas.length > 0" class="overflow-x-auto">
+    <table
+      :class="variante === 'tailwind' ? ['w-full text-sm', fijo ? 'table-fixed' : ''] : undefined"
+    >
     <thead>
       <tr
         :class="
-          variante === 'tailwind' ? 'text-left text-gray-500 border-b border-gray-200 dark:border-gray-800' : undefined
+          variante === 'tailwind' ? 'text-left text-neutral-500 border-b border-neutral-200 dark:border-neutral-800' : undefined
         "
       >
         <th
@@ -157,7 +157,7 @@ const columnasTrasGrupo = computed(() =>
           <button
             v-if="col.ordenar"
             type="button"
-            class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+            class="inline-flex items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300"
             :class="col.alinear === 'derecha' ? 'flex-row-reverse' : ''"
             @click="alternarOrden(col)"
           >
@@ -184,7 +184,7 @@ const columnasTrasGrupo = computed(() =>
           v-if="esFilaGrupo && esFilaGrupo(fila)"
           :class="
             variante === 'tailwind'
-              ? 'group border-b border-gray-100 dark:border-gray-900 bg-gray-50 dark:bg-gray-900/50'
+              ? 'group border-b border-neutral-100 dark:border-neutral-900 bg-neutral-50 dark:bg-neutral-900/50'
               : 'group'
           "
         >
@@ -209,7 +209,7 @@ const columnasTrasGrupo = computed(() =>
         </tr>
         <tr
           v-else
-          :class="variante === 'tailwind' ? 'group border-b border-gray-100 dark:border-gray-900' : 'group'"
+          :class="variante === 'tailwind' ? 'group border-b border-neutral-100 dark:border-neutral-900' : 'group'"
         >
           <td
             v-for="col in columnas"
@@ -227,7 +227,8 @@ const columnasTrasGrupo = computed(() =>
       </template>
     </tbody>
   </table>
-  <p v-else :class="variante === 'ficha' ? 'empty-state' : 'text-gray-500 text-sm'">
+  </div>
+  <p v-else :class="variante === 'ficha' ? 'empty-state' : 'text-neutral-500 text-sm'">
     <slot name="vacio">{{ vacio }}</slot>
   </p>
 </template>

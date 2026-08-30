@@ -44,12 +44,12 @@ const ordenPorCodigo = computed(() => {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-xl font-semibold mb-2">Dependencias e impacto</h1>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-neutral-500">
           Qué conceptos dependen de cuáles, y qué reglas usan cada Contract/Function — AEL-004 Fase
           5.
         </p>
       </div>
-      <NuxtLink to="/presupuesto" class="text-sm text-primary hover:underline">
+      <NuxtLink to="/estado-cuenta/conceptos" class="text-sm text-primary hover:underline">
         ← Volver a conceptos
       </NuxtLink>
     </div>
@@ -71,7 +71,7 @@ const ordenPorCodigo = computed(() => {
 
     <div>
       <h2 class="text-lg font-semibold mb-2">Grafo de conceptos</h2>
-      <p v-if="conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">
+      <p v-if="conceptoStore.conceptos.length === 0" class="text-neutral-500 text-sm">
         No hay conceptos registrados.
       </p>
       <UiTabla
@@ -87,13 +87,13 @@ const ordenPorCodigo = computed(() => {
       >
         <template #celda-codigo="{ fila }"><span class="font-medium">{{ fila.concepto.codigo }}</span></template>
         <template #celda-orden="{ fila }">
-          <span class="text-gray-500">{{ ordenPorCodigo.get(fila.concepto.codigo) ?? '—' }}</span>
+          <span class="text-neutral-500">{{ ordenPorCodigo.get(fila.concepto.codigo) ?? '—' }}</span>
         </template>
         <template #celda-dependeDe="{ fila }">
-          <span class="text-gray-500">{{ fila.dependencias.length > 0 ? fila.dependencias.join(', ') : '—' }}</span>
+          <span class="text-neutral-500">{{ fila.dependencias.length > 0 ? fila.dependencias.join(', ') : '—' }}</span>
         </template>
         <template #celda-usadoPor="{ fila }">
-          <span class="text-gray-500">
+          <span class="text-neutral-500">
             {{
               (usadoPor.get(fila.concepto.codigo) ?? []).length > 0
                 ? (usadoPor.get(fila.concepto.codigo) ?? []).join(', ')
@@ -106,11 +106,11 @@ const ordenPorCodigo = computed(() => {
 
     <div>
       <h2 class="text-lg font-semibold mb-2">Impacto por Contract/Function</h2>
-      <p class="text-xs text-gray-500 mb-2">
+      <p class="text-xs text-neutral-500 mb-2">
         Antes de archivar o cambiar un concepto, qué otras reglas usan cada
         PARAMETER/UNIT/CONCEPTO.campo o función — Doc 10 §79-80.
       </p>
-      <p v-if="impacto.length === 0" class="text-gray-500 text-sm">Sin dependencias detectadas.</p>
+      <p v-if="impacto.length === 0" class="text-neutral-500 text-sm">Sin dependencias detectadas.</p>
       <UiTabla
         v-else
         :columnas="[
@@ -122,10 +122,10 @@ const ordenPorCodigo = computed(() => {
         :clave-fila="(entrada) => entrada.etiqueta"
       >
         <template #celda-tipo="{ fila }">
-          <span class="text-gray-500">{{ fila.tipo === 'contrato' ? 'Contract' : 'Function' }}</span>
+          <span class="text-neutral-500">{{ fila.tipo === 'contrato' ? 'Contract' : 'Function' }}</span>
         </template>
         <template #celda-etiqueta="{ fila }"><span class="font-mono">{{ fila.etiqueta }}</span></template>
-        <template #celda-conceptos="{ fila }"><span class="text-gray-500">{{ fila.conceptos.join(', ') }}</span></template>
+        <template #celda-conceptos="{ fila }"><span class="text-neutral-500">{{ fila.conceptos.join(', ') }}</span></template>
       </UiTabla>
     </div>
   </div>

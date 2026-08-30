@@ -13,8 +13,22 @@ const route = useRoute()
 
 // Colapso del sidebar (icon-only) persistido en cookie (SSR-safe) —
 // localStorage a secas produce hydration mismatch porque el server no lo
-// puede leer en el primer render.
+// puede leer en el primer render. Solo aplica >= md — en mobile el sidebar
+// es un overlay de ancho completo, no una franja icon-only.
 const colapsado = useCookie<boolean>('sidebar-colapsado', { default: () => false })
+
+// Drawer en mobile (< md, useLayouts/default.vue lo abre desde el botón de
+// hamburguesa en la cabecera): sin esto, el sidebar ocupaba permanentemente
+// ~60% de un viewport de 375px sin ningún control para cerrarlo — no había
+// ningún breakpoint que lo sacara del flujo normal.
+const mobileAbierto = useSidebarMobile()
+
+watch(
+  () => route.path,
+  () => {
+    mobileAbierto.value = false
+  },
+)
 
 // Grupos colapsados (acordeón) — guarda los TÍTULOS cerrados, no los
 // abiertos: por defecto (cookie vacía) todos los grupos están expandidos.
@@ -67,9 +81,20 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
 </script>
 
 <template>
+  <!-- Backdrop del drawer en mobile — clic afuera cierra, igual que Esc. Solo existe < md;
+       >= md el sidebar es una franja fija en el flujo y esto nunca se monta. -->
+  <div
+    v-if="mobileAbierto"
+    class="md:hidden fixed inset-0 z-30 bg-black/50"
+    @click="mobileAbierto = false"
+  />
   <aside
-    class="shrink-0 bg-slate-900 flex flex-col transition-[width] duration-150"
-    :class="colapsado ? 'w-14' : 'w-56'"
+    class="bg-slate-900 flex flex-col transition-transform duration-200 fixed inset-y-0 left-0 z-40 w-64 md:static md:inset-auto md:z-auto md:shrink-0 md:transition-[width] md:translate-x-0"
+    :class="[
+      mobileAbierto ? 'translate-x-0' : '-translate-x-full',
+      colapsado ? 'md:w-14' : 'md:w-56',
+    ]"
+    @keydown.esc="mobileAbierto = false"
   >
     <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-4">
       <div class="space-y-0.5">

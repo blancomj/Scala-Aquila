@@ -89,10 +89,26 @@ const novedadesFiltradas = computed<Novedad[]>(() => {
 })
 
 // ── aprobar (única acción en línea) ────────────────────────────────────
+// Confirmación de dos pasos EN LA MISMA fila, no un modal: aprobar
+// materializa un cargo real en el ledger (ver cabecera del archivo), pero
+// el caso real es despachar varias seguidas — un modal por cada una iría
+// contra ese diseño deliberado. El primer clic solo "arma" el botón
+// mostrando el monto exacto; el segundo clic, dentro de la ventana, aprueba
+// de verdad. Armar otra fila, o dejar pasar la ventana, desarma esta.
 const accionEnCursoId = ref<string | null>(null)
 const errorAccion = ref<string | null>(null)
+const confirmandoId = ref<string | null>(null)
+let temporizadorConfirmacion: ReturnType<typeof setTimeout> | null = null
 
-async function aprobar(novedadId: string): Promise<void> {
+function desarmarConfirmacion(): void {
+  confirmandoId.value = null
+  if (temporizadorConfirmacion) {
+    clearTimeout(temporizadorConfirmacion)
+    temporizadorConfirmacion = null
+  }
+}
+
+async function ejecutarAprobacion(novedadId: string): Promise<void> {
   errorAccion.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
@@ -105,6 +121,17 @@ async function aprobar(novedadId: string): Promise<void> {
   } finally {
     accionEnCursoId.value = null
   }
+}
+
+function aprobar(novedadId: string): void {
+  if (confirmandoId.value === novedadId) {
+    desarmarConfirmacion()
+    void ejecutarAprobacion(novedadId)
+    return
+  }
+  desarmarConfirmacion()
+  confirmandoId.value = novedadId
+  temporizadorConfirmacion = setTimeout(desarmarConfirmacion, 4000)
 }
 
 // ── "cuota N de M, saldo pendiente" por novedad prorrateable ───────────
@@ -144,7 +171,7 @@ function saldoProrrateable(novedad: Novedad): number | null {
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-semibold mb-2">Novedades</h1>
-        <p class="text-sm text-gray-500 max-w-2xl">
+        <p class="text-sm text-neutral-500 max-w-2xl">
           Cobros y abonos puntuales que no vienen del presupuesto — una sanción, una reparación,
           un descuento. Cada uno requiere aprobación: solo al aprobarlo se carga a la cuenta del
           inmueble.
@@ -159,14 +186,20 @@ function saldoProrrateable(novedad: Novedad): number | null {
       </UButton>
     </div>
 
-    <p v-if="cuentaStore.inmuebles.length === 0" class="text-gray-500 text-sm">
+    <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene inmuebles registrados.
     </p>
 
     <template v-else>
       <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- flex + wrap, no grid de columnas iguales: con auto-cols-fr cada botón se achicaba al
+             ancho de columna del contenedor, pero whitespace-nowrap seguía exigiendo su ancho de
+             texto completo — en mobile el texto se derramaba sobre el botón vecino en vez de
+             recortarse (confirmado en vivo: "Pendientes (0)" invadía "Aprobadas (6)"). Con flex
+             cada botón mide su propio contenido y el conjunto pasa a una segunda fila si no cabe,
+             en vez de comprimir texto que no puede comprimirse. -->
         <div
-          class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm"
+          class="flex flex-wrap gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm"
         >
           <button
             v-for="opcion in FILTROS"
@@ -176,8 +209,8 @@ function saldoProrrateable(novedad: Novedad): number | null {
             :aria-pressed="filtro === opcion.clave"
             :class="
               filtro === opcion.clave
-                ? 'bg-white dark:bg-gray-900 shadow-sm font-medium'
-                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
+                : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
             "
             @click="filtro = opcion.clave"
           >
@@ -195,10 +228,10 @@ function saldoProrrateable(novedad: Novedad): number | null {
 
       <UAlert v-if="errorAccion" color="error" variant="soft" :title="errorAccion" />
 
-      <p v-if="cuentaStore.novedades.length === 0" class="text-gray-500 text-sm">
+      <p v-if="cuentaStore.novedades.length === 0" class="text-neutral-500 text-sm">
         Todavía no hay novedades registradas.
       </p>
-      <p v-else-if="novedadesFiltradas.length === 0" class="text-gray-500 text-sm">
+      <p v-else-if="novedadesFiltradas.length === 0" class="text-neutral-500 text-sm">
         Ninguna novedad coincide con este filtro.
       </p>
       <UiTabla
@@ -226,7 +259,7 @@ function saldoProrrateable(novedad: Novedad): number | null {
             </span>
             <p
               v-if="cuentaStore.propietariosPorInmueble.get(fila.inmueble_id)"
-              class="text-xs text-gray-400"
+              class="text-xs text-neutral-400"
             >
               {{ cuentaStore.propietariosPorInmueble.get(fila.inmueble_id) }}
             </p>
@@ -237,7 +270,7 @@ function saldoProrrateable(novedad: Novedad): number | null {
             <NuxtLink :to="`/novedades/${fila.id}`" class="hover:underline">
               {{ fila.descripcion }}
             </NuxtLink>
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-neutral-400">
               {{ ETIQUETA_TIPO_NOVEDAD[fila.tipo as NovedadTipo] ?? fila.tipo
               }}<template v-if="fila.tipo_novedad_id">
                 · {{ tipoNovedadPorId.get(fila.tipo_novedad_id) ?? '—' }}</template>
@@ -247,15 +280,15 @@ function saldoProrrateable(novedad: Novedad): number | null {
         <template #celda-monto="{ fila }">
           <span
             class="tabular-nums whitespace-nowrap"
-            :class="Number(fila.monto) < 0 ? 'text-green-600 dark:text-green-500' : ''"
+            :class="Number(fila.monto) < 0 ? 'text-success-600 dark:text-success-500' : ''"
           >
             {{ formatoMoneda(fila.monto) }}
           </span>
         </template>
         <template #celda-repeticion="{ fila }">
           <div class="leading-tight">
-            <span class="text-gray-500">{{ repeticionTexto(fila) }}</span>
-            <p v-if="fila.prorrateable" class="text-xs text-gray-400">
+            <span class="text-neutral-500">{{ repeticionTexto(fila) }}</span>
+            <p v-if="fila.prorrateable" class="text-xs text-neutral-400">
               saldo {{ formatoMoneda(saldoProrrateable(fila) ?? 0) }}
             </p>
           </div>
@@ -274,11 +307,12 @@ function saldoProrrateable(novedad: Novedad): number | null {
             <UButton
               v-if="fila.estado === 'pendiente'"
               size="xs"
-              variant="soft"
+              :variant="confirmandoId === fila.id ? 'solid' : 'soft'"
+              :color="confirmandoId === fila.id ? 'warning' : 'primary'"
               :loading="accionEnCursoId === fila.id"
               @click="aprobar(fila.id)"
             >
-              Aprobar
+              {{ confirmandoId === fila.id ? `¿Aprobar ${formatoMoneda(fila.monto)}?` : 'Aprobar' }}
             </UButton>
             <UButton size="xs" variant="ghost" :to="`/novedades/${fila.id}`">Ver</UButton>
           </div>

@@ -4,7 +4,7 @@
 // suelto que tenía esta pantalla antes, que se quedaba sin botón de cierre visible en modo solo
 // lectura). D-29: un fundamento global (tenant_id null) solo lo edita platform admin; el resto
 // solo lo ve y puede proponer un cambio (ver FundamentoPropuestaModal, en la página).
-import { COLOR_ESTADO_FUNDAMENTO, TIPO_FUNDAMENTO } from '~/utils/fundamento-labels'
+import { COLOR_ESTADO_FUNDAMENTO, TIPO_FUNDAMENTO_ITEMS } from '~/utils/fundamento-labels'
 
 const props = defineProps<{ fundamentoId: number; esPlataformaAdmin: boolean }>()
 const emit = defineEmits<{ cerrar: []; editado: [] }>()
@@ -99,7 +99,7 @@ async function guardar(): Promise<void> {
           <USelect
             v-model="tipo"
             :disabled="soloLectura"
-            :items="TIPO_FUNDAMENTO"
+            :items="TIPO_FUNDAMENTO_ITEMS"
             value-key="value"
             class="w-full"
           />

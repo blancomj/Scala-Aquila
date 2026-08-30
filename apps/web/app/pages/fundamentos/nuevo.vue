@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // /fundamentos/nuevo — formulario de creación de fundamento propio del tenant.
-definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
+import { TIPO_FUNDAMENTO_ITEMS } from '~/utils/fundamento-labels'
 
-import { TIPO_FUNDAMENTO } from '~/utils/fundamento-labels'
+definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
 const fundamentoStore = useFundamentoNormativoStore()
@@ -57,7 +57,7 @@ async function crear(): Promise<void> {
 
     <form class="space-y-4" @submit.prevent="crear">
       <UFormField label="Tipo" name="tipo">
-        <USelect v-model="tipo" :items="TIPO_FUNDAMENTO" value-key="value" class="w-full" />
+        <USelect v-model="tipo" :items="TIPO_FUNDAMENTO_ITEMS" value-key="value" class="w-full" />
       </UFormField>
 
       <UFormField label="Norma" name="norma">

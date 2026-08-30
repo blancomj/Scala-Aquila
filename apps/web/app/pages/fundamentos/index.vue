@@ -9,15 +9,16 @@
 // (var(--c-*), <table>/<select> a mano, iconos i-heroicons-*) que no se usaba en ningún otro
 // lugar del proyecto, y un UDrawer suelto sin botón de cierre visible en modo solo lectura.
 // /fundamentos/[id].vue (duplicado exacto del formulario, sin ningún enlace hacia él) se borró.
-definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
-
 import {
   COLOR_ESTADO_PROPUESTA,
   COLOR_TIPO_FUNDAMENTO,
   ETIQUETA_ESTADO_PROPUESTA,
   ETIQUETA_TIPO_FUNDAMENTO,
   TIPO_FUNDAMENTO,
+  TIPO_FUNDAMENTO_ITEMS,
 } from '~/utils/fundamento-labels'
+
+definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const authStore = useAuthStore()
 const fundamentoStore = useFundamentoNormativoStore()
@@ -94,11 +95,18 @@ const columnasPropuestas = [
   { clave: 'acciones', etiqueta: '' },
 ]
 
+// El handler debe devolver un valor (NUXT_E3006): sin eso, useAsyncData no tiene payload que
+// serializar para la hidratación y el cliente vuelve a ejecutar el handler al montar — mientras
+// esa segunda carga está en vuelo, fundamentoStore.loading pasa a true en el cliente aunque el
+// servidor ya lo había dejado en false, y el v-if/v-else de abajo (skeleton vs. contenido)
+// renderiza distinto en cada lado — exactamente el "Hydration node mismatch" que se veía en la
+// consola justo después del div de filtros.
 await useAsyncData('fundamentos-normativos', async () => {
-  await fundamentoStore.cargarFundamentos()
+  const fundamentos = await fundamentoStore.cargarFundamentos()
   if (esPlataforma.value) {
     await fundamentoStore.cargarPropuestas()
   }
+  return fundamentos
 })
 
 function abrirPropuesta(fundamento: { id: number; norma: string; tipo: string; articulo: string | null; descripcion: string | null; referencia: string | null; fuente_url: string | null }): void {
@@ -307,7 +315,7 @@ async function confirmarRechazo(): Promise<void> {
         </p>
         <form class="space-y-3" @submit.prevent="enviarPropuesta">
           <UFormField label="Tipo" name="propTipo">
-            <USelect v-model="propTipo" :items="TIPO_FUNDAMENTO" value-key="value" class="w-full" />
+            <USelect v-model="propTipo" :items="TIPO_FUNDAMENTO_ITEMS" value-key="value" class="w-full" />
           </UFormField>
           <UFormField label="Norma" name="propNorma"><UInput v-model="propNorma" required class="w-full" /></UFormField>
           <UFormField label="Artículo" name="propArticulo"><UInput v-model="propArticulo" class="w-full" /></UFormField>

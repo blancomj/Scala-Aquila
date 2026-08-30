@@ -166,10 +166,10 @@ async function confirmarArchivar(): Promise<void> {
     <div v-if="cargando && conceptoStore.conceptos.length === 0" class="space-y-2">
       <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
     </div>
-    <p v-else-if="conceptoStore.conceptos.length === 0" class="text-gray-500 text-sm">
+    <p v-else-if="conceptoStore.conceptos.length === 0" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene conceptos registrados.
     </p>
-    <p v-else-if="conceptosFiltrados.length === 0" class="text-gray-500 text-sm">
+    <p v-else-if="conceptosFiltrados.length === 0" class="text-neutral-500 text-sm">
       Ningún concepto coincide con este filtro.
     </p>
     <UiTabla
@@ -186,7 +186,7 @@ async function confirmarArchivar(): Promise<void> {
       :clave-fila="(concepto) => concepto.id"
     >
       <template #celda-codigo="{ fila }">
-        <span :class="fila.estado === 'archivado' ? 'text-gray-400 dark:text-gray-600' : ''">
+        <span :class="fila.estado === 'archivado' ? 'text-neutral-400 dark:text-neutral-600' : ''">
           {{ fila.codigo }}
         </span>
       </template>
@@ -194,18 +194,18 @@ async function confirmarArchivar(): Promise<void> {
         <div class="flex items-center gap-1.5">
           <UIcon
             :name="fila.alcance === 'todos' ? 'i-lucide-users' : 'i-lucide-filter'"
-            class="shrink-0 size-3.5 text-gray-400"
+            class="shrink-0 size-3.5 text-neutral-400"
             :title="fila.alcance === 'todos' ? 'Aplica a todos los inmuebles' : 'Aplica solo a los inmuebles que cumplen una condición'"
           />
-          <span :class="fila.estado === 'archivado' ? 'text-gray-400 dark:text-gray-600' : ''">
+          <span :class="fila.estado === 'archivado' ? 'text-neutral-400 dark:text-neutral-600' : ''">
             {{ fila.nombre }}
           </span>
         </div>
       </template>
       <template #celda-calculo="{ fila }">
         <div class="leading-tight">
-          <span class="text-gray-500">{{ fila.modo_calculo }}</span>
-          <p class="text-xs text-gray-400">{{ recurrenciaTexto(fila) }}</p>
+          <span class="text-neutral-500">{{ fila.modo_calculo }}</span>
+          <p class="text-xs text-neutral-400">{{ recurrenciaTexto(fila) }}</p>
         </div>
       </template>
       <template #celda-valor="{ fila }">
@@ -244,7 +244,7 @@ async function confirmarArchivar(): Promise<void> {
           <UIcon
             v-else-if="fila.tipo_recurrencia === 'novedad'"
             name="i-lucide-shield-check"
-            class="size-4 text-gray-400 shrink-0"
+            class="size-4 text-neutral-400 shrink-0"
             title="Protegido: es el concepto que exige NovedadesEditor para novedades permanentes o prorrateables — no se puede archivar."
           />
         </div>
@@ -261,7 +261,7 @@ async function confirmarArchivar(): Promise<void> {
           <p>
             Vas a archivar <strong>{{ conceptoAArchivar.codigo }} — {{ conceptoAArchivar.nombre }}</strong>.
           </p>
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             <template v-if="conceptoAArchivar.estado === 'activo'">
               Deja de generar cargos nuevos desde el próximo periodo; los cargos y liquidaciones
               ya generados no se modifican.

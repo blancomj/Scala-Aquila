@@ -26,7 +26,7 @@ watch(
 </script>
 
 <template>
-  <UFormField label="Presupuesto" name="presupuesto" class="w-[28rem]">
+  <UFormField label="Presupuesto" name="presupuesto" class="w-full sm:w-[28rem]">
     <UiSelectorBuscable v-model="modelValue" :opciones="opciones" />
   </UFormField>
 </template>

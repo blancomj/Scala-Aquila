@@ -13,6 +13,7 @@ const emit = defineEmits<{ 'update:presupuestoId': [id: string] }>()
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const documentosStore = useDocumentosStore()
+const toast = useToast()
 
 const drawerAbierto = ref(false)
 const errorActivar = ref<string | null>(null)
@@ -103,6 +104,7 @@ async function confirmarActivarPresupuesto(): Promise<void> {
     })
     presupuestoAActivar.value = null
     emit('update:presupuestoId', fila.id)
+    toast.add({ title: `Presupuesto ${fila.anio} — v${fila.version} activado`, color: 'success' })
   } catch (excepcion) {
     errorActivar.value = mensajeError(excepcion, 'No se pudo activar el presupuesto.')
   } finally {
@@ -113,6 +115,7 @@ async function confirmarActivarPresupuesto(): Promise<void> {
 function onCreado(id: string): void {
   drawerAbierto.value = false
   emit('update:presupuestoId', id)
+  toast.add({ title: 'Presupuesto creado en borrador', color: 'success' })
 }
 </script>
 

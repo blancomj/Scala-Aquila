@@ -127,7 +127,7 @@ watch(indiceActivo, (i) => {
       :class="
         variante === 'ficha'
           ? ['is-ficha', { 'is-compacta': compacta }]
-          : 'rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm'
+          : 'rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5 text-sm'
       "
       :disabled="deshabilitado"
       :aria-expanded="abierto"
@@ -146,7 +146,7 @@ watch(indiceActivo, (i) => {
     <div
       v-if="abierto"
       class="selector-buscable-panel"
-      :class="variante === 'ficha' ? 'is-ficha' : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md shadow-lg'"
+      :class="variante === 'ficha' ? 'is-ficha' : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg'"
     >
       <input
         ref="inputBusquedaRef"
@@ -154,7 +154,7 @@ watch(indiceActivo, (i) => {
         type="text"
         placeholder="Buscar…"
         class="selector-buscable-busqueda"
-        :class="variante === 'ficha' ? 'is-ficha' : 'border-b border-gray-200 dark:border-gray-800 px-2.5 py-1.5 text-sm'"
+        :class="variante === 'ficha' ? 'is-ficha' : 'border-b border-neutral-200 dark:border-neutral-800 px-2.5 py-1.5 text-sm'"
         @keydown.down.prevent="onArrow(1)"
         @keydown.up.prevent="onArrow(-1)"
         @keydown.enter.prevent="onEnter"
@@ -183,7 +183,7 @@ watch(indiceActivo, (i) => {
         <li
           v-if="opcionesFiltradas.length === 0"
           class="selector-buscable-vacio"
-          :class="variante === 'ficha' ? 'is-ficha' : 'px-2.5 py-1.5 text-sm text-gray-400'"
+          :class="variante === 'ficha' ? 'is-ficha' : 'px-2.5 py-1.5 text-sm text-neutral-400'"
         >
           Sin resultados
         </li>

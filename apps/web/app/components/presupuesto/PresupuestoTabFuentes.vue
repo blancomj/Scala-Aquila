@@ -17,6 +17,7 @@ const props = defineProps<{ presupuestoId: string | null }>()
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const fundamentoStore = useFundamentoNormativoStore()
+const toast = useToast()
 
 const drawerFuenteAbierto = ref(false)
 
@@ -83,6 +84,7 @@ function estadoVinculo(fila: (typeof presupuestoStore.fuentes)[number]): EstadoV
 
 function onFuenteCreada(): void {
   drawerFuenteAbierto.value = false
+  toast.add({ title: 'Fuente de financiación registrada', color: 'success' })
 }
 
 </script>
@@ -92,7 +94,7 @@ function onFuenteCreada(): void {
     <div class="flex items-center justify-between">
       <div>
         <h2 class="text-lg font-semibold">Fuentes de financiación</h2>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-neutral-500">
           Recursos que financian el presupuesto además de la cuota de administración —
           préstamos, reservas, otros ingresos.
         </p>
@@ -116,7 +118,7 @@ function onFuenteCreada(): void {
     >
       <template #celda-tipo="{ fila }">{{ tipoFuentePorId.get(fila.tipo_id) ?? '—' }}</template>
       <template #celda-categoria="{ fila }">
-        <span class="text-gray-500">{{ categoriaFuente(fila.tipo_id) }}</span>
+        <span class="text-neutral-500">{{ categoriaFuente(fila.tipo_id) }}</span>
       </template>
       <template #celda-disponible="{ fila }">
         <span class="tabular-nums">{{ formatoMoneda(fila.valor_disponible) }}</span>
@@ -128,10 +130,10 @@ function onFuenteCreada(): void {
         <UBadge :color="estadoVinculo(fila).color" variant="subtle">{{ estadoVinculo(fila).texto }}</UBadge>
       </template>
       <template #celda-descripcion="{ fila }"
-        ><span class="text-gray-500">{{ fila.descripcion ?? '—' }}</span></template
+        ><span class="text-neutral-500">{{ fila.descripcion ?? '—' }}</span></template
       >
       <template #celda-fundamento="{ fila }">
-        <span class="text-gray-500">
+        <span class="text-neutral-500">
           {{
             fila.fundamento_normativo_id ? fundamentoPorId.get(fila.fundamento_normativo_id) : '—'
           }}
@@ -139,7 +141,7 @@ function onFuenteCreada(): void {
       </template>
     </UiTabla>
 
-    <p class="text-xs text-gray-500">
+    <p class="text-xs text-neutral-500">
       "Ingreso nuevo" (otros ingresos, cuota extraordinaria) se reconoce como ingreso al
       cobrarse — vincúlalo a su cuenta en Plan de cuentas para que ambos coincidan. "Uso de
       reserva" (fondo de imprevistos) no es ingreso, es aplicar un saldo que la copropiedad ya

@@ -57,7 +57,7 @@ async function previsualizar(): Promise<void> {
     <div class="flex items-center justify-between">
       <div>
         <h2 class="text-lg font-semibold">Simulación de cobro</h2>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-neutral-500">
           Cómo quedaría la cuota de cada unidad con la estructura actual — no liquida ni cobra
           nada todavía.
         </p>
@@ -69,20 +69,20 @@ async function previsualizar(): Promise<void> {
 
     <UAlert v-if="errorPrevisualizacion" color="error" variant="soft" :title="errorPrevisualizacion" />
 
-    <p v-if="!previsualizacion && !errorPrevisualizacion" class="text-sm text-gray-500">
+    <p v-if="!previsualizacion && !errorPrevisualizacion" class="text-sm text-neutral-500">
       Pulsa "Simular" para ver la necesidad financiera y la cuota estimada por unidad con los
       rubros y fuentes registrados hasta ahora.
     </p>
 
     <template v-if="previsualizacion">
-      <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/20 p-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/20 p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Necesidad financiera anual</p>
+          <p class="text-xs text-neutral-500 uppercase tracking-wide mb-1">Necesidad financiera anual</p>
           <p class="text-2xl font-semibold tabular-nums">
             {{ formatoMoneda(previsualizacion.necesidad_financiera) }}
           </p>
         </div>
-        <p class="text-xs text-gray-500 tabular-nums">
+        <p class="text-xs text-neutral-500 tabular-nums">
           {{ formatoMoneda(previsualizacion.monto_total) }} − otros ingresos
           {{ formatoMoneda(previsualizacion.otros_ingresos_aplicados) }}
         </p>
@@ -101,7 +101,7 @@ async function previsualizar(): Promise<void> {
       >
         <template #celda-inmueble="{ fila }">{{ fila.codigo }}</template>
         <template #celda-coeficiente="{ fila }"
-          ><span class="text-gray-500 tabular-nums">{{ fila.coeficiente ?? '—' }}</span></template
+          ><span class="text-neutral-500 tabular-nums">{{ fila.coeficiente ?? '—' }}</span></template
         >
         <template #celda-valorAsignado="{ fila }">
           <span class="tabular-nums">{{ formatoMoneda(fila.valor_asignado) }}</span>
@@ -111,7 +111,7 @@ async function previsualizar(): Promise<void> {
         </template>
       </UiTabla>
 
-      <p class="text-xs text-gray-500">
+      <p class="text-xs text-neutral-500">
         La cuota mensual es un estimado (valor anual ÷ 12) para esta simulación — el cálculo real
         de liquidación redistribuye el residuo del redondeo para que la suma de las 12 cuotas
         cuadre exacto con el valor anual.

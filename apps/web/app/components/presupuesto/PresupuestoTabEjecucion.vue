@@ -13,6 +13,7 @@ const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const liquidacionStore = useLiquidacionStore()
 const conceptoStore = useConceptoStore()
+const toast = useToast()
 
 watch(
   () => props.presupuestoId,
@@ -256,6 +257,7 @@ const drawerAbierto = ref(false)
 function onRegistrado(): void {
   drawerAbierto.value = false
   if (props.presupuestoId) presupuestoStore.cargarComparativoCuenta(props.presupuestoId)
+  toast.add({ title: 'Movimiento registrado', color: 'success' })
 }
 
 const revirtiendoId = ref<string | null>(null)
@@ -320,6 +322,7 @@ async function ajustar(movimiento: PresupuestoEjecucionRow): Promise<void> {
   try {
     await presupuestoStore.revertirEjecucion({ tenantId, movimiento })
     if (props.presupuestoId) await presupuestoStore.cargarComparativoCuenta(props.presupuestoId)
+    toast.add({ title: 'Movimiento corregido', color: 'success' })
   } catch (excepcion) {
     errorReversion.value = mensajeError(excepcion, 'No se pudo revertir el movimiento.')
   } finally {
@@ -386,7 +389,7 @@ function exportar(): void {
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between flex-wrap gap-3">
-      <div class="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-800 p-0.5">
+      <div class="flex items-center gap-1 rounded-lg border border-neutral-200 dark:border-neutral-800 p-0.5">
         <UButton
           type="button"
           size="xs"
@@ -414,22 +417,22 @@ function exportar(): void {
 
     <!-- ══════════════════ Cuentas ══════════════════ -->
     <template v-if="modoVista === 'cuentas'">
-      <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex items-center gap-16 flex-wrap">
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 flex items-center gap-16 flex-wrap">
         <div class="flex gap-8">
           <div>
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Excedente / pérdida presupuestado</p>
-            <p class="text-lg font-semibold tabular-nums" :class="excedente.presupuestado < 0 ? 'text-amber-500' : ''">
+            <p class="text-xs text-neutral-500 uppercase tracking-wide">Excedente / pérdida presupuestado</p>
+            <p class="text-lg font-semibold tabular-nums" :class="excedente.presupuestado < 0 ? 'text-warning-500' : ''">
               {{ formatoMoneda(excedente.presupuestado) }}
             </p>
           </div>
           <div>
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Excedente / pérdida ejecutado</p>
-            <p class="text-lg font-semibold tabular-nums" :class="excedente.ejecutado < 0 ? 'text-amber-500' : ''">
+            <p class="text-xs text-neutral-500 uppercase tracking-wide">Excedente / pérdida ejecutado</p>
+            <p class="text-lg font-semibold tabular-nums" :class="excedente.ejecutado < 0 ? 'text-warning-500' : ''">
               {{ formatoMoneda(excedente.ejecutado) }}
             </p>
           </div>
         </div>
-        <p class="text-xs text-gray-500 max-w-md ml-auto">
+        <p class="text-xs text-neutral-500 max-w-md ml-auto">
           Presupuestado (anual) vs. ejecutado (acumulado del año) por cuenta. La variación compara
           el ejecutado contra el presupuesto <strong>prorrateado a la fecha</strong> ({{ mesesTranscurridos }}
           de 12 meses) — no contra el anual completo.
@@ -475,7 +478,7 @@ function exportar(): void {
               <button
                 v-if="!fila.es_hoja"
                 type="button"
-                class="flex size-5 shrink-0 items-center justify-center rounded border border-gray-300 text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
+                class="flex size-5 shrink-0 items-center justify-center rounded border border-neutral-300 text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-white"
                 :aria-expanded="!gruposColapsados.has(fila.id)"
                 :aria-label="`${gruposColapsados.has(fila.id) ? 'Expandir' : 'Contraer'} ${fila.nombre}`"
                 @click="alternarGrupo(fila.id)"
@@ -487,7 +490,7 @@ function exportar(): void {
               </button>
               <span v-else class="size-5 shrink-0" aria-hidden="true" />
               <span :class="{ 'font-medium': fila.nivel === 1 }">{{ fila.nombre }}</span>
-              <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-gray-400">
+              <span v-if="!fila.es_hoja && gruposColapsados.has(fila.id)" class="text-xs text-neutral-400">
                 ({{ conteoDescendientes.get(fila.id) ?? 0 }})
               </span>
               <UBadge v-else-if="fila.es_hoja && cuentasConConceptoAutomatico.has(fila.id)" size="xs" variant="subtle">
@@ -499,7 +502,7 @@ function exportar(): void {
             <span class="tabular-nums">{{ formatoMoneda(presupuestado(fila.id)) }}</span>
           </template>
           <template #celda-aLaFecha="{ fila }">
-            <span class="text-gray-500 tabular-nums">{{ formatoMoneda(presupuestadoALaFecha(fila.id)) }}</span>
+            <span class="text-neutral-500 tabular-nums">{{ formatoMoneda(presupuestadoALaFecha(fila.id)) }}</span>
           </template>
           <template #celda-ejecutado="{ fila }">
             <span class="tabular-nums">{{ formatoMoneda(ejecutado(fila.id)) }}</span>
@@ -509,8 +512,8 @@ function exportar(): void {
               class="tabular-nums"
               :class="
                 ejecutado(fila.id) > presupuestadoALaFecha(fila.id) && fila.naturaleza === 'egreso'
-                  ? 'text-amber-500'
-                  : 'text-gray-500'
+                  ? 'text-warning-500'
+                  : 'text-neutral-500'
               "
             >
               {{ variacionPct(fila.id) }}
@@ -529,7 +532,17 @@ function exportar(): void {
             icon="i-lucide-search"
             placeholder="Buscar por cuenta o descripción"
             class="w-80"
-          />
+          >
+            <template v-if="busquedaMovimientos" #trailing>
+              <UButton
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-x"
+                title="Limpiar búsqueda"
+                @click="busquedaMovimientos = ''"
+              />
+            </template>
+          </UInput>
           <USelect
             v-model="filtroCentroCosto"
             :items="opcionesFiltroCentroCosto"
@@ -537,7 +550,7 @@ function exportar(): void {
             class="w-52"
           />
         </div>
-        <p class="text-xs text-gray-500 text-right">
+        <p class="text-xs text-neutral-500 text-right">
           Un monto mal registrado no se edita ni se borra — se corrige con "Ajustar", que aparece
           agrupado justo debajo del movimiento original.
         </p>
@@ -557,7 +570,7 @@ function exportar(): void {
         :vacio="busquedaMovimientos ? 'Sin resultados.' : 'Sin movimientos registrados todavía.'"
       >
         <template #celda-cuenta="{ fila }">
-          <span :class="{ 'pl-4 text-xs text-gray-400': fila.esReversion }">
+          <span :class="{ 'pl-4 text-xs text-neutral-400': fila.esReversion }">
             <template v-if="fila.esReversion">↳ </template>{{ cuentaPorId.get(fila.movimiento.cuenta_id)?.nombre ?? '—' }}
           </span>
         </template>
@@ -570,15 +583,15 @@ function exportar(): void {
           <span v-else>—</span>
         </template>
         <template #celda-monto="{ fila }">
-          <span class="tabular-nums" :class="Number(fila.movimiento.monto) < 0 ? 'text-amber-500' : ''">
+          <span class="tabular-nums" :class="Number(fila.movimiento.monto) < 0 ? 'text-warning-500' : ''">
             {{ formatoMoneda(fila.movimiento.monto) }}
           </span>
         </template>
         <template #celda-descripcion="{ fila }">
-          <span class="text-gray-500">{{ fila.movimiento.descripcion ?? '—' }}</span>
+          <span class="text-neutral-500">{{ fila.movimiento.descripcion ?? '—' }}</span>
         </template>
         <template #celda-centroCosto="{ fila }">
-          <span class="text-gray-500">
+          <span class="text-neutral-500">
             {{ fila.movimiento.centro_costo_id ? centroCostoPorId.get(fila.movimiento.centro_costo_id) ?? '—' : '—' }}
           </span>
         </template>

@@ -15,24 +15,37 @@ await useAsyncData('presupuesto-periodos', async () => {
 })
 
 const presupuestoSeleccionadoId = useSeleccionPresupuesto()
+const presupuestoSeleccionado = computed(
+  () => presupuestoStore.presupuestos.find((p) => p.id === presupuestoSeleccionadoId.value) ?? null,
+)
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-semibold mb-2">Periodos y vigencia</h1>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-neutral-500">
           Vigencia del presupuesto seleccionado y los periodos de liquidación de su año fiscal.
         </p>
       </div>
-      <PresupuestoSelector
-        v-if="presupuestoStore.presupuestos.length > 0"
-        v-model="presupuestoSeleccionadoId"
-      />
+      <div class="flex items-end gap-3">
+        <UBadge
+          v-if="presupuestoSeleccionado"
+          :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'"
+          variant="subtle"
+          class="mb-1.5"
+        >
+          {{ ETIQUETA_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? presupuestoSeleccionado.estado }}
+        </UBadge>
+        <PresupuestoSelector
+          v-if="presupuestoStore.presupuestos.length > 0"
+          v-model="presupuestoSeleccionadoId"
+        />
+      </div>
     </div>
 
-    <p v-if="presupuestoStore.presupuestos.length === 0" class="text-gray-500 text-sm">
+    <p v-if="presupuestoStore.presupuestos.length === 0" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene un presupuesto registrado.
     </p>
     <PresupuestoTabPeriodosVigencia v-else :presupuesto-id="presupuestoSeleccionadoId" />

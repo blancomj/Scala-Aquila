@@ -48,6 +48,15 @@ const seExigeReconciliacion = computed(() => {
 
 type EstadoCheck = 'ok' | 'error' | 'pendiente' | 'no_aplica'
 
+// El glifo (✓/✕/…/—) es aria-hidden — sin esto un lector de pantalla no anuncia nada
+// significativo sobre el estado del check.
+const ETIQUETA_ESTADO_CHECK: Record<EstadoCheck, string> = {
+  ok: 'Cumple',
+  error: 'No cumple',
+  pendiente: 'Pendiente',
+  no_aplica: 'No aplica',
+}
+
 interface CheckResultado {
   estado: EstadoCheck
   titulo: string
@@ -139,9 +148,15 @@ const todoOk = computed(() =>
 
 <template>
   <div>
-    <p v-if="!presupuestoSeleccionado" class="text-sm text-gray-500">
+    <p v-if="!presupuestoSeleccionado" class="text-sm text-neutral-500">
       Selecciona un presupuesto para ver su estado de reconciliación.
     </p>
+    <!-- `cargando` estaba estampado pero nunca leído en la plantilla: la vista pintaba los
+         checks contra lo que hubiera en el store en ese instante (rubros/fuentes vacíos o de
+         otro presupuesto) antes de que la carga terminara, en vez de esperar. -->
+    <div v-else-if="cargando" class="space-y-2" role="status" aria-label="Cargando estado de reconciliación">
+      <USkeleton v-for="n in 3" :key="n" class="h-[68px] w-full rounded-lg" />
+    </div>
     <template v-else>
       <UAlert
         v-if="todoOk"
@@ -162,22 +177,23 @@ const todoOk = computed(() =>
         <div
           v-for="check in checks"
           :key="check.titulo"
-          class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-800 p-3"
+          class="flex items-center gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 p-3"
         >
           <span
             class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
             :class="{
-              'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300':
+              'bg-success-100 text-success-700 dark:bg-success-900/40 dark:text-success-300':
                 check.estado === 'ok',
-              'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':
+              'bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300':
                 check.estado === 'error',
-              'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300':
+              'bg-warning-100 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300':
                 check.estado === 'pendiente',
-              'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400':
+              'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400':
                 check.estado === 'no_aplica',
             }"
+            :aria-label="ETIQUETA_ESTADO_CHECK[check.estado]"
           >
-            {{
+            <span aria-hidden="true">{{
               check.estado === 'ok'
                 ? '✓'
                 : check.estado === 'error'
@@ -185,17 +201,17 @@ const todoOk = computed(() =>
                   : check.estado === 'pendiente'
                     ? '…'
                     : '—'
-            }}
+            }}</span>
           </span>
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium">{{ check.titulo }}</p>
-            <p class="text-xs text-gray-500">{{ check.detalle }}</p>
+            <p class="text-xs text-neutral-500">{{ check.detalle }}</p>
           </div>
           <p class="text-sm font-medium shrink-0 tabular-nums">{{ check.valor }}</p>
         </div>
       </div>
 
-      <p class="text-xs text-gray-500 mt-3">
+      <p class="text-xs text-neutral-500 mt-3">
         Estas reglas siempre se validan al guardar — esta pestaña te las muestra por adelantado,
         sin esperar a que un guardado falle para descubrir el problema.
       </p>

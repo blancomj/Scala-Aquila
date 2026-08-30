@@ -12,7 +12,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
   <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold mb-2">Conceptos</h1>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         Catálogo de conceptos que originan cargos en cuenta corriente y liquidación.
       </p>
     </div>
