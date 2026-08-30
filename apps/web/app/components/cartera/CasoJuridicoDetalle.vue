@@ -154,6 +154,9 @@ async function registrarActuacion(): Promise<void> {
       descripcion: nuevaActuacionDescripcion.value.trim(),
       estadoDesde: null,
       estadoHasta: null,
+      // Sin selector de documento en pantalla todavía (mismo estado que
+      // /cartera/transferencias) — el auto o la sentencia se adjunta más adelante.
+      documentoId: null,
     })
     nuevaActuacionDescripcion.value = ''
     toast.add({ title: 'Actuación registrada', color: 'success' })

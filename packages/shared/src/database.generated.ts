@@ -496,7 +496,7 @@ export type Database = {
           consecutivo: string | null
           created_at: string
           cuota_inicial: number
-          documento_url: string | null
+          documento_id: string | null
           estado: Database["public"]["Enums"]["estado_acuerdo_t"]
           etapa_congelada:
             | Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -526,7 +526,7 @@ export type Database = {
           consecutivo?: string | null
           created_at?: string
           cuota_inicial?: number
-          documento_url?: string | null
+          documento_id?: string | null
           estado?: Database["public"]["Enums"]["estado_acuerdo_t"]
           etapa_congelada?:
             | Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -556,7 +556,7 @@ export type Database = {
           consecutivo?: string | null
           created_at?: string
           cuota_inicial?: number
-          documento_url?: string | null
+          documento_id?: string | null
           estado?: Database["public"]["Enums"]["estado_acuerdo_t"]
           etapa_congelada?:
             | Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -584,6 +584,20 @@ export type Database = {
             columns: ["aprobado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acuerdos_pago_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
             referencedColumns: ["id"]
           },
           {
@@ -1036,6 +1050,7 @@ export type Database = {
           caso_id: string
           created_at: string
           descripcion: string
+          documento_id: string | null
           estado_desde:
             | Database["public"]["Enums"]["estado_caso_juridico_t"]
             | null
@@ -1052,6 +1067,7 @@ export type Database = {
           caso_id: string
           created_at?: string
           descripcion: string
+          documento_id?: string | null
           estado_desde?:
             | Database["public"]["Enums"]["estado_caso_juridico_t"]
             | null
@@ -1068,6 +1084,7 @@ export type Database = {
           caso_id?: string
           created_at?: string
           descripcion?: string
+          documento_id?: string | null
           estado_desde?:
             | Database["public"]["Enums"]["estado_caso_juridico_t"]
             | null
@@ -1086,6 +1103,20 @@ export type Database = {
             columns: ["caso_id"]
             isOneToOne: false
             referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caso_juridico_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
             referencedColumns: ["id"]
           },
           {
@@ -6873,6 +6904,95 @@ export type Database = {
             columns: ["tipo_identificacion_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terceros_contacto_procedencia: {
+        Row: {
+          campo: string
+          created_at: string
+          descripcion: string | null
+          documento_id: string | null
+          id: string
+          origen_id: number
+          registrado_por: string
+          tenant_id: string
+          tercero_id: string
+          valor: string
+        }
+        Insert: {
+          campo: string
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          id?: string
+          origen_id: number
+          registrado_por: string
+          tenant_id: string
+          tercero_id: string
+          valor: string
+        }
+        Update: {
+          campo?: string
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          id?: string
+          origen_id?: number
+          registrado_por?: string
+          tenant_id?: string
+          tercero_id?: string
+          valor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terceros_contacto_procedencia_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_origen_id_fkey"
+            columns: ["origen_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terceros_contacto_procedencia_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
             referencedColumns: ["id"]
           },
         ]

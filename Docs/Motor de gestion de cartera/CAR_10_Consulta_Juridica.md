@@ -429,6 +429,20 @@ concepto. Es tráfico real que ya está saliendo.
    licitud del uso: la autorización, su fecha, el texto exacto aceptado, la
    finalidad declarada, el canal por el que se otorgó?
 
+   `[ARQ]` **Infraestructura construida (2026-08-29), sin cerrar la
+   pregunta.** `terceros_contacto_procedencia` (`20260908150000`) ya registra
+   HECHO: qué campo (email/teléfono), qué valor, de qué origen declarado
+   (portería, asamblea, actualización directa por el tercero, importación
+   inicial, documento/contrato, otro — catálogo `ORIGEN_CONTACTO_TERCERO`),
+   quién y cuándo. Se alimenta opcionalmente desde el modal de tercero
+   cuando el usuario cambia email/teléfono. Es evidencia, no una respuesta:
+   no exige nada para despachar por ningún canal (`resolverDestinatarios()`
+   no la consulta) y no decide si el origen declarado constituye base
+   jurídica suficiente — eso sigue siendo exactamente esta pregunta 4. Si el
+   abogado exige campos que hoy no están (ej. texto exacto aceptado, si
+   hubo autorización explícita), la tabla se ajusta; lo construido no
+   presupone la respuesta.
+
 5. **Contacto de un tercero distinto del obligado.** Cuando el dato
    corresponde a un arrendatario, apoderado o familiar y no al propietario
    deudor, ¿puede usarse para gestión de cobro dirigida a este último?

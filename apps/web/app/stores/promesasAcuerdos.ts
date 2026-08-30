@@ -53,6 +53,8 @@ export interface CrearAcuerdoInput {
   montoCondonado: number
   interesDuranteAcuerdo: boolean
   actaReferencia: string | null
+  /** Acuerdo firmado, en documentos (CAR §12.1) — nullable, ver 20260908170000. */
+  documentoId: string | null
 }
 
 export const useCarteraGestionStore = defineStore('carteraGestion', () => {
@@ -166,6 +168,7 @@ export const useCarteraGestionStore = defineStore('carteraGestion', () => {
           monto_condonado: input.condonaInteres ? input.montoCondonado : 0,
           interes_durante_acuerdo: input.interesDuranteAcuerdo,
           acta_referencia: input.actaReferencia,
+          documento_id: input.documentoId,
         })
         .select('*')
         .single()

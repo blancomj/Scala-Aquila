@@ -41,6 +41,8 @@ export interface RegistrarActuacionInput {
   descripcion: string
   estadoDesde: EstadoCasoJuridico | null
   estadoHasta: EstadoCasoJuridico | null
+  /** Auto, oficio o sentencia que respalda la actuación, en documentos — ver 20260908160000. */
+  documentoId: string | null
 }
 
 export interface RegistrarCostaInput {
@@ -182,6 +184,7 @@ export const useCasosJuridicosStore = defineStore('casosJuridicos', () => {
       descripcion: input.descripcion,
       estado_desde: input.estadoDesde,
       estado_hasta: input.estadoHasta,
+      documento_id: input.documentoId,
     })
     if (error) throw new Error(mensajeError(error, 'No se pudo registrar la actuación.'))
     await cargarActuaciones(casoId)

@@ -54,7 +54,7 @@ dependencias reales están en §3.
 |---|---|---|
 | 1 | Orquestación por lotes y reintentos — **hecho** (cartera-ejecutar-lote) | §18.4, `GAP-CAR-005` |
 | 2 | Agendamiento del job diario — **hecho** (pg_cron 11:00 UTC, solo calcula) | §18, `PRQ-CAR-010` |
-| 3 | Expediente probatorio — **COMPLETO**: §34.2/34.3/34.4/34.5, I-C23 y documento imprimible | **§34** |
+| 3 | Expediente probatorio — **COMPLETO para envíos/acuses** (§34.2/34.3/34.4/34.5, I-C23, documento imprimible). Dos huecos fuera de §34 encontrados y cerrados a nivel de esquema el 2026-08-29 — ver §3.2 | **§34**, §3.2 |
 | 4 | Canal email de cobranza — **hecho** (2026-08-29, Brevo real vía `despacho_cobranza.ts` — plantillas, acuses, hash de contenido, mismo tronco que SMS) | `GAP-CAR-005` |
 | 5 | Canal WhatsApp — **bloqueado, no de código**: `VER-CAR-08` (valor probatorio + habeas data) sigue abierto; la regla del propio documento (§24.2) prohíbe implementar sin ese concepto jurídico resuelto | `GAP-CAR-005`, `VER-CAR-08` |
 | 6 | Operador postal con guía rastreable — **sin empezar**: no hay proveedor elegido (ningún código lo contempla) | `PRQ-CAR-020` |
@@ -304,6 +304,62 @@ problema:
   deshabilite el trigger a propósito — decisión de gobernanza, no de
   implementación.
 · Sin verificar todavía si producción tiene el mismo problema.
+```
+
+---
+
+# 3.2 Evidencia documental fuera de §34 (2026-08-29)
+
+`[ARQ]` El usuario pidió analizar en qué pasos del proceso de cartera —no solo
+envíos/acuses, que ya cubre §34— hace falta recopilar documentos que
+soporten procedimientos y reclamaciones. Se revisó cada tabla del módulo
+contra el patrón evidencial ya establecido (`documento_id uuid references
+documentos(id)`, validado por tenant en el guard de inserción — el mismo
+que usan `acciones_cobranza_acuses`, `prescripcion_actos_interruptivos` y
+`inmueble_transferencias`). Dos huecos reales, dos ya construidos:
+
+```text
+✅ caso_juridico_actuaciones sin documento_id (20260908160000)
+   · Cada actuación (admisión de la demanda, mandamiento de pago, embargo,
+     sentencia...) era solo descripcion text — sin dónde colgar el auto o
+     la sentencia real. fn_compilar_expediente ya incluye estas filas en
+     el expediente; con esto pueden llevar su soporte. Nullable, mismo
+     criterio que prescripcion_actos_interruptivos: la actuación se
+     registra el mismo día, el escaneo puede llegar después.
+
+✅ acuerdos_pago.documento_url → documento_id (20260908170000)
+   · CAR §12.1 define el acuerdo de pago como negocio jurídico formal
+     ("Documento firmado"), pero la única columna que existía,
+     documento_url, era texto libre sin uso real: cero referencias en
+     promesasAcuerdos.ts, en promesas-acuerdos.vue o en ningún test — se
+     eliminó en vez de dejarla muerta en paralelo. documento_id sigue el
+     mismo patrón que el resto del módulo (append-only vía documentos,
+     protegible con documentos_legal_holds).
+```
+
+Lo que estas dos migraciones **NO** cierran, documentado para no repetir el
+hallazgo:
+
+```text
+⧗ Sin selector de documento en la pantalla — mismo estado que
+  /cartera/transferencias hoy: el store y el guard ya aceptan
+  documento_id, pero ningún formulario deja escoger o subir el archivo
+  todavía. Consistente con la decisión ya tomada para ese bloque (visual
+  al final, núcleo funcional primero) — no se improvisó aquí un selector
+  a medio construir.
+
+⧗ costas_judiciales.documento_fuente sigue siendo text, no documento_id
+  (CAR §16, I-C11). Menor prioridad: normalmente el soporte de la costa es
+  la misma actuación judicial que la liquidó — si se enlaza costas_id →
+  actuacion_id más adelante, este hueco se resuelve casi solo. No tocado
+  en este corte.
+
+⧗ GAP-CAR-007 sigue abierto, no confundir con lo de arriba: documentos.
+  caso_juridico_id existe desde 20260822340000 (documento a nivel del
+  EXPEDIENTE completo — poder, contrato con el abogado), pero
+  subir-documento todavía no acepta ese campo. Es un problema distinto de
+  documento_id en cada actuación puntual — los dos son necesarios, ninguno
+  sustituye al otro.
 ```
 
 ---

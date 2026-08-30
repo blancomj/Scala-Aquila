@@ -216,6 +216,9 @@ async function crearAcuerdo(): Promise<void> {
       montoCondonado: nuevoMontoCondonado.value ?? 0,
       interesDuranteAcuerdo: nuevoInteresDuranteAcuerdo.value,
       actaReferencia: nuevoActaReferencia.value.trim() || null,
+      // Sin selector de documento en pantalla todavía (mismo estado que
+      // /cartera/transferencias) — el acuerdo firmado se adjunta más adelante.
+      documentoId: null,
     })
     toast.add({ title: 'Acuerdo creado en borrador', color: 'success' })
     modalAcuerdoAbierto.value = false

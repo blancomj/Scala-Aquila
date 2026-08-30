@@ -10,6 +10,11 @@ const emit = defineEmits<{ cerrar: []; guardado: [] }>()
 
 const tenantStore = useTenantStore()
 const tercerosStore = useTercerosStore()
+const procedenciaStore = useTercerosContactoProcedenciaStore()
+// El store es un singleton (Pinia) pero cada apertura del modal es una
+// instancia nueva del componente (v-if en el padre) — limpia el historial
+// del tercero anterior para no mostrarlo mientras carga el de este.
+procedenciaStore.limpiar()
 
 const esCreacion = computed(() => !props.terceroId)
 
@@ -28,6 +33,14 @@ const email = ref('')
 const telefono = ref('')
 const direccion = ref('')
 const estadoId = ref<number | null>(null)
+
+// ── Procedencia del dato de contacto (CJ-9, sin decidir licitud — solo
+// registra el hecho si el usuario declara un origen). Se compara contra
+// el valor cargado para no reabrir la pregunta cuando nada cambió.
+const emailOriginal = ref('')
+const telefonoOriginal = ref('')
+const origenContactoId = ref<number | null>(null)
+const origenesContacto = shallowRef<{ id: number; codigo: string; nombre: string }[]>([])
 
 const guardando = ref(false)
 const error = ref<string | null>(null)
@@ -112,6 +125,8 @@ function precargar(): void {
   telefono.value = tercero.telefono ?? ''
   direccion.value = tercero.direccion ?? ''
   estadoId.value = tercero.estado_id
+  emailOriginal.value = email.value
+  telefonoOriginal.value = telefono.value
   if (tercero.tipo_persona === 'juridica') void alSeleccionarJuridica()
 }
 
@@ -122,8 +137,49 @@ watchEffect(async () => {
   if (estadoId.value === null) {
     estadoId.value = tercerosStore.estadosGenerales.find((e) => e.codigo === 'activo')?.id ?? null
   }
-  if (props.terceroId) precargar()
+  origenesContacto.value = await cargarListaTipos(tenantId, 'ORIGEN_CONTACTO_TERCERO')
+  if (props.terceroId) {
+    precargar()
+    await procedenciaStore.cargarProcedencia(tenantId, props.terceroId)
+  }
 })
+
+const opcionesOrigenContacto = computed(() =>
+  origenesContacto.value.map((o) => ({ valor: o.id, etiqueta: o.nombre })),
+)
+
+/** true = email o teléfono quedaron distintos de lo que había al abrir el modal
+ * (o, en creación, hay un valor nuevo) — es cuando tiene sentido preguntar el origen. */
+const contactoCambio = computed(
+  () =>
+    email.value.trim() !== emailOriginal.value || telefono.value.trim() !== telefonoOriginal.value,
+)
+
+function nombreOrigen(id: number): string {
+  return origenesContacto.value.find((o) => o.id === id)?.nombre ?? '—'
+}
+
+/** Una fila por campo que cambió y tiene valor — nunca se inventa procedencia
+ * para un campo que el usuario no tocó. Best-effort: si falla, no revierte el
+ * guardado del tercero (que ya ocurrió) — solo se ve reflejado en error. */
+async function registrarProcedenciaSiAplica(tenantId: string, terceroId: string): Promise<void> {
+  if (origenContactoId.value === null) return
+  const cambios: { campo: 'email' | 'telefono'; valor: string }[] = []
+  if (email.value.trim() && email.value.trim() !== emailOriginal.value) {
+    cambios.push({ campo: 'email', valor: email.value.trim() })
+  }
+  if (telefono.value.trim() && telefono.value.trim() !== telefonoOriginal.value) {
+    cambios.push({ campo: 'telefono', valor: telefono.value.trim() })
+  }
+  for (const cambio of cambios) {
+    await procedenciaStore.registrarProcedencia(tenantId, {
+      terceroId,
+      campo: cambio.campo,
+      valor: cambio.valor,
+      origenId: origenContactoId.value,
+    })
+  }
+}
 
 function validar(): string | null {
   if (tipoIdentificacionId.value === null) return 'Elige el tipo de identificación.'
@@ -151,38 +207,38 @@ async function guardar(): Promise<void> {
   guardando.value = true
   try {
     if (esCreacion.value) {
-      if (tipoPersona.value === 'natural') {
-        await tercerosStore.crearTercero({
-          tenantId,
-          tipoPersona: 'natural',
-          tipoIdentificacionId: tipoIdentificacionId.value as number,
-          numeroDocumento: numeroDocumento.value.trim(),
-          digitoVerificacion: esNit.value ? digitoVerificacion.value : undefined,
-          primerNombre: primerNombre.value.trim(),
-          segundoNombre: segundoNombre.value.trim() || undefined,
-          primerApellido: primerApellido.value.trim(),
-          segundoApellido: segundoApellido.value.trim() || undefined,
-          email: email.value.trim() || undefined,
-          telefono: telefono.value.trim() || undefined,
-          direccion: direccion.value.trim() || undefined,
-          estadoId: estadoId.value as number,
-        })
-      } else {
-        await tercerosStore.crearTercero({
-          tenantId,
-          tipoPersona: 'juridica',
-          tipoIdentificacionId: tipoIdentificacionId.value as number,
-          numeroDocumento: numeroDocumento.value.trim(),
-          digitoVerificacion: esNit.value ? digitoVerificacion.value : undefined,
-          razonSocial: razonSocial.value.trim(),
-          representanteLegalId: representanteLegalId.value || undefined,
-          pagadorId: pagadorId.value || undefined,
-          email: email.value.trim() || undefined,
-          telefono: telefono.value.trim() || undefined,
-          direccion: direccion.value.trim() || undefined,
-          estadoId: estadoId.value as number,
-        })
-      }
+      const creado =
+        tipoPersona.value === 'natural'
+          ? await tercerosStore.crearTercero({
+              tenantId,
+              tipoPersona: 'natural',
+              tipoIdentificacionId: tipoIdentificacionId.value as number,
+              numeroDocumento: numeroDocumento.value.trim(),
+              digitoVerificacion: esNit.value ? digitoVerificacion.value : undefined,
+              primerNombre: primerNombre.value.trim(),
+              segundoNombre: segundoNombre.value.trim() || undefined,
+              primerApellido: primerApellido.value.trim(),
+              segundoApellido: segundoApellido.value.trim() || undefined,
+              email: email.value.trim() || undefined,
+              telefono: telefono.value.trim() || undefined,
+              direccion: direccion.value.trim() || undefined,
+              estadoId: estadoId.value as number,
+            })
+          : await tercerosStore.crearTercero({
+              tenantId,
+              tipoPersona: 'juridica',
+              tipoIdentificacionId: tipoIdentificacionId.value as number,
+              numeroDocumento: numeroDocumento.value.trim(),
+              digitoVerificacion: esNit.value ? digitoVerificacion.value : undefined,
+              razonSocial: razonSocial.value.trim(),
+              representanteLegalId: representanteLegalId.value || undefined,
+              pagadorId: pagadorId.value || undefined,
+              email: email.value.trim() || undefined,
+              telefono: telefono.value.trim() || undefined,
+              direccion: direccion.value.trim() || undefined,
+              estadoId: estadoId.value as number,
+            })
+      await registrarProcedenciaSiAplica(tenantId, creado.id)
     } else if (props.terceroId) {
       await tercerosStore.actualizarTercero(props.terceroId, tenantId, {
         tipoIdentificacionId: tipoIdentificacionId.value as number,
@@ -201,6 +257,7 @@ async function guardar(): Promise<void> {
         direccion: direccion.value.trim() || null,
         estadoId: estadoId.value as number,
       })
+      await registrarProcedenciaSiAplica(tenantId, props.terceroId)
     }
     emit('guardado')
   } catch (excepcion) {
@@ -303,6 +360,29 @@ async function guardar(): Promise<void> {
         <UFormField label="Teléfono" name="telefono">
           <UInput v-model="telefono" type="text" placeholder="Ingrese el teléfono" class="w-full" />
         </UFormField>
+      </div>
+
+      <UFormField
+        v-if="contactoCambio"
+        label="Origen del dato de contacto"
+        name="origen_contacto_id"
+        help="Opcional — de dónde salió este email o teléfono (portería, asamblea, lo actualizó el propio tercero…). Queda en un registro aparte, no cambia si el dato se usa para cobranza."
+      >
+        <UiSelectorBuscable
+          v-model="origenContactoId"
+          :opciones="opcionesOrigenContacto"
+          placeholder="Sin declarar"
+        />
+      </UFormField>
+
+      <div v-if="!esCreacion && procedenciaStore.procedencias.length > 0" class="text-xs text-gray-500 space-y-1">
+        <p class="font-medium text-gray-600">Procedencia registrada</p>
+        <ul class="space-y-0.5">
+          <li v-for="p in procedenciaStore.procedencias" :key="p.id">
+            {{ p.campo === 'email' ? 'Email' : 'Teléfono' }} «{{ p.valor }}» — {{ nombreOrigen(p.origen_id) }} ·
+            {{ new Date(p.created_at).toLocaleDateString('es-CO') }}
+          </li>
+        </ul>
       </div>
       <UFormField label="Dirección" name="direccion">
         <UInput v-model="direccion" type="text" placeholder="Dirección de correspondencia" class="w-full" />
