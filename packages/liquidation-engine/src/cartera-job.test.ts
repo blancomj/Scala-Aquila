@@ -44,6 +44,7 @@ function entrada(over: Partial<EntradaJobCarteraInmueble> = {}): EntradaJobCarte
     relaciones: [],
     diasEnTramoActual: 0,
     deudaTotal: '0',
+    clasificacionAnterior: null,
     ...over,
   }
 }
@@ -131,6 +132,42 @@ describe('evaluarJobCarteraInmueble', () => {
       }),
     )
     expect(plan.acuerdoIncumplido).toBeNull()
+  })
+
+  // §18.2 paso 8 — CARTERA_CLASIFICACION_CAMBIO.
+  it('sin snapshot previo (clasificacionAnterior null), no hay cambio que reportar', () => {
+    const plan = evaluarJobCarteraInmueble(entrada({ diasMoraMaximo: 10, saldoVencido: 200_000 }))
+    expect(plan.clasificacion.codigo).toBe('MORA_TEMPRANA')
+    expect(plan.cambioClasificacion).toBeNull()
+  })
+
+  it('mismo código que ayer: no hay cambio, aunque sí hubo snapshot previo', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 10,
+        saldoVencido: 200_000,
+        clasificacionAnterior: { codigo: 'MORA_TEMPRANA', diasMora: 5 },
+      }),
+    )
+    expect(plan.clasificacion.codigo).toBe('MORA_TEMPRANA')
+    expect(plan.cambioClasificacion).toBeNull()
+  })
+
+  it('código distinto al de ayer: reporta el cambio con ambos códigos y ambos días de mora', () => {
+    const plan = evaluarJobCarteraInmueble(
+      entrada({
+        diasMoraMaximo: 61,
+        saldoVencido: 500_000,
+        clasificacionAnterior: { codigo: 'MORA_TEMPRANA', diasMora: 60 },
+      }),
+    )
+    expect(plan.clasificacion.codigo).toBe('MORA_AVANZADA')
+    expect(plan.cambioClasificacion).toEqual({
+      codigoAnterior: 'MORA_TEMPRANA',
+      diasMoraAnterior: 60,
+      codigoNuevo: 'MORA_AVANZADA',
+      diasMoraNuevo: 61,
+    })
   })
 })
 

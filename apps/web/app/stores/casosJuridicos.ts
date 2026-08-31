@@ -51,6 +51,8 @@ export interface RegistrarCostaInput {
   documentoFuente: string
   fechaDecision: string
   autoridad: string
+  /** Actuación que respalda la costa (típicamente el auto que la liquida) — ver 20260908190000. */
+  actuacionId: string | null
 }
 
 export const useCasosJuridicosStore = defineStore('casosJuridicos', () => {
@@ -211,6 +213,7 @@ export const useCasosJuridicosStore = defineStore('casosJuridicos', () => {
       documento_fuente: input.documentoFuente,
       fecha_decision: input.fechaDecision,
       autoridad: input.autoridad,
+      actuacion_id: input.actuacionId,
     })
     if (error) throw new Error(mensajeError(error, 'No se pudo registrar la costa.'))
     await cargarCostas(casoId)

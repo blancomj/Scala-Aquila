@@ -8,6 +8,7 @@ interface Barra {
   etapa: string
   label: string
   monto: number
+  cantidad: number
   pct: number
   color: string
 }
@@ -23,7 +24,9 @@ defineProps<{
     <li v-for="b in barras" :key="b.etapa" class="text-sm">
       <div class="mb-1 flex items-center justify-between gap-4">
         <span class="text-gray-600 dark:text-gray-300">{{ b.label }}</span>
-        <span class="shrink-0 text-gray-500">{{ formatoMoneda(b.monto) }} · {{ b.pct.toFixed(1) }}%</span>
+        <span class="shrink-0 text-gray-500">
+          {{ formatoMoneda(b.monto) }} · {{ b.cantidad }} inm. · {{ b.pct.toFixed(1) }}%
+        </span>
       </div>
       <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
         <div

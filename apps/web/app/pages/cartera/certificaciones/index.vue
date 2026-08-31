@@ -127,14 +127,16 @@ function fecha(iso: string | null): string {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Certificaciones de deuda</h1>
-      <p class="text-sm text-neutral-500 max-w-2xl">
+    <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Certificaciones de deuda</h1>
+      </template>
+      <template #descripcion>
         El artefacto del art. 48 de la Ley 675: acompañada del certificado de existencia y
         representación legal, presta mérito ejecutivo. Solo un administrador puede expedirla, y una
         vez expedida es inmutable — un error se anula y se expide una nueva.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert
       v-if="errorCarga"

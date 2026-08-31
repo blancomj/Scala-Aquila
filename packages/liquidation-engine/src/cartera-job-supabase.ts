@@ -19,7 +19,7 @@ import { obtenerHistorialAccionesCobranza } from './cartera-cobranza-supabase.js
 import { obtenerRelacionesInmueble } from './cartera-destinatarios-supabase.js'
 import { diasCalendario } from './cuenta-corriente.js'
 import type { ResumenAccion } from './cartera-escalamiento.js'
-import type { CuotaPendiente, EntradaJobCarteraInmueble, PromesaPendiente } from './cartera-job.js'
+import type { ClasificacionAnterior, CuotaPendiente, EntradaJobCarteraInmueble, PromesaPendiente } from './cartera-job.js'
 import type { PoliticaClasificacion } from './cartera.js'
 
 export async function obtenerInmueblesDelTenant(
@@ -265,7 +265,7 @@ export async function cargarEntradaJobCarteraInmueble(
     inmuebleId: opciones.inmuebleId,
   })
 
-  const diasEnTramoActual = await obtenerDiasEnTramoActual(cliente, {
+  const { diasEnTramoActual, clasificacionAnterior } = await obtenerHistoricoClasificacion(cliente, {
     tenantId: opciones.tenantId,
     inmuebleId: opciones.inmuebleId,
     clasificacionCodigo: opciones.clasificacionCodigo,
@@ -301,6 +301,7 @@ export async function cargarEntradaJobCarteraInmueble(
     historialAcciones,
     relaciones,
     diasEnTramoActual,
+    clasificacionAnterior,
     // El mínimo de CAR §9.3 ("no gastar una llamada en una deuda de
     // $2.000") se compara contra la deuda VENCIDA, no contra la total:
     // un inmueble al día con una cuota del próximo mes no debe disparar
@@ -310,22 +311,29 @@ export async function cargarEntradaJobCarteraInmueble(
 }
 
 /**
- * Días que el inmueble lleva en su clasificación actual, derivados de
- * `posiciones_cartera_snapshot` — que existe exactamente para esto
- * (CAR §6.3: "para BI, roll-rate y auditoría se necesita la foto de cada
- * día"). No hay columna de "fecha de ingreso al tramo" en el esquema y no
- * se inventa una: se cuenta hacia atrás la racha continua de snapshots con
- * la misma clasificación.
+ * Días que el inmueble lleva en su clasificación actual, MÁS la clasificación
+ * del snapshot inmediatamente anterior (§18.2 paso 8, CARTERA_CLASIFICACION_
+ * CAMBIO) — ambos derivados de `posiciones_cartera_snapshot` en la MISMA
+ * consulta (no dos lecturas separadas: la razón por la que cambiosClasificacion
+ * quedó en 0 durante F8 era justamente evitar una lectura extra por inmueble;
+ * reutilizar esta ya existente la evita del todo).
  *
- * Sin snapshots previos devuelve 0, que es la lectura correcta y no un
- * relleno: si nunca se fotografió este inmueble, hoy es el primer día del
- * que hay constancia en ese tramo. La consecuencia práctica —que en la
- * primera corrida solo disparen las estrategias con
- * `dias_desde_clasificacion = 0`— es deliberada: es preferible a fabricar
- * una antigüedad de tramo que nadie observó y disparar por ella un
- * requerimiento.
+ * "Días en tramo": no hay columna de "fecha de ingreso al tramo" en el
+ * esquema y no se inventa una — se cuenta hacia atrás la racha continua de
+ * snapshots con la misma clasificación. Sin snapshots previos devuelve 0, que
+ * es la lectura correcta y no un relleno: si nunca se fotografió este
+ * inmueble, hoy es el primer día del que hay constancia en ese tramo. La
+ * consecuencia práctica —que en la primera corrida solo disparen las
+ * estrategias con `dias_desde_clasificacion = 0`— es deliberada: preferible a
+ * fabricar una antigüedad de tramo que nadie observó.
+ *
+ * "Clasificación anterior": el snapshot más reciente ESTRICTAMENTE anterior a
+ * fechaCorte (no `<=`, a propósito — una segunda corrida el mismo día, tras
+ * persistir el snapshot de hoy, no debe comparar hoy contra sí mismo). null
+ * sin snapshot previo: no hay "cambio" que reportar sobre un inmueble que
+ * nunca se fotografió.
  */
-async function obtenerDiasEnTramoActual(
+async function obtenerHistoricoClasificacion(
   cliente: AquilaClient,
   opciones: {
     tenantId: string
@@ -333,10 +341,10 @@ async function obtenerDiasEnTramoActual(
     clasificacionCodigo: string
     fechaCorte: string
   },
-): Promise<number> {
+): Promise<{ readonly diasEnTramoActual: number; readonly clasificacionAnterior: ClasificacionAnterior | null }> {
   const { data, error } = await cliente
     .from('posiciones_cartera_snapshot')
-    .select('fecha_corte, clasificacion_codigo')
+    .select('fecha_corte, clasificacion_codigo, dias_mora_maximo')
     .eq('tenant_id', opciones.tenantId)
     .eq('inmueble_id', opciones.inmuebleId)
     .lte('fecha_corte', opciones.fechaCorte)
@@ -353,7 +361,12 @@ async function obtenerDiasEnTramoActual(
     if (fila.clasificacion_codigo !== opciones.clasificacionCodigo) break
     inicioRacha = fila.fecha_corte
   }
+  const diasEnTramoActual = inicioRacha === null ? 0 : diasCalendario(inicioRacha, opciones.fechaCorte)
 
-  if (inicioRacha === null) return 0
-  return diasCalendario(inicioRacha, opciones.fechaCorte)
+  const filaAnterior = data.find((fila) => fila.fecha_corte < opciones.fechaCorte) ?? null
+  const clasificacionAnterior: ClasificacionAnterior | null = filaAnterior
+    ? { codigo: filaAnterior.clasificacion_codigo, diasMora: filaAnterior.dias_mora_maximo }
+    : null
+
+  return { diasEnTramoActual, clasificacionAnterior }
 }

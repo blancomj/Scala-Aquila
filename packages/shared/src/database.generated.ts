@@ -2298,6 +2298,7 @@ export type Database = {
       }
       costas_judiciales: {
         Row: {
+          actuacion_id: string | null
           autoridad: string
           caso_id: string
           created_at: string
@@ -2312,6 +2313,7 @@ export type Database = {
           tipo_costa: Database["public"]["Enums"]["tipo_costa_t"]
         }
         Insert: {
+          actuacion_id?: string | null
           autoridad: string
           caso_id: string
           created_at?: string
@@ -2326,6 +2328,7 @@ export type Database = {
           tipo_costa: Database["public"]["Enums"]["tipo_costa_t"]
         }
         Update: {
+          actuacion_id?: string | null
           autoridad?: string
           caso_id?: string
           created_at?: string
@@ -2340,6 +2343,13 @@ export type Database = {
           tipo_costa?: Database["public"]["Enums"]["tipo_costa_t"]
         }
         Relationships: [
+          {
+            foreignKeyName: "costas_judiciales_actuacion_id_fkey"
+            columns: ["actuacion_id"]
+            isOneToOne: false
+            referencedRelation: "caso_juridico_actuaciones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "costas_judiciales_caso_id_fkey"
             columns: ["caso_id"]
@@ -2447,6 +2457,7 @@ export type Database = {
           caso_juridico_id: string | null
           created_at: string
           descripcion: string | null
+          envio_id: string | null
           fecha_vencimiento: string | null
           grupo_id: string
           id: string
@@ -2465,6 +2476,7 @@ export type Database = {
           caso_juridico_id?: string | null
           created_at?: string
           descripcion?: string | null
+          envio_id?: string | null
           fecha_vencimiento?: string | null
           grupo_id?: string
           id?: string
@@ -2483,6 +2495,7 @@ export type Database = {
           caso_juridico_id?: string | null
           created_at?: string
           descripcion?: string | null
+          envio_id?: string | null
           fecha_vencimiento?: string | null
           grupo_id?: string
           id?: string
@@ -2502,6 +2515,13 @@ export type Database = {
             columns: ["caso_juridico_id"]
             isOneToOne: false
             referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_envio_id_fkey"
+            columns: ["envio_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza_envios"
             referencedColumns: ["id"]
           },
           {
@@ -7271,6 +7291,7 @@ export type Database = {
           caso_juridico_id: string | null
           created_at: string | null
           descripcion: string | null
+          envio_id: string | null
           fecha_vencimiento: string | null
           grupo_id: string | null
           id: string | null
@@ -7290,6 +7311,13 @@ export type Database = {
             columns: ["caso_juridico_id"]
             isOneToOne: false
             referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_envio_id_fkey"
+            columns: ["envio_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza_envios"
             referencedColumns: ["id"]
           },
           {
@@ -7830,6 +7858,10 @@ export type Database = {
           p_tenant_total: number
         }
         Returns: Json
+      }
+      fn_crear_version_politica_clasificacion: {
+        Args: { p_politica_id: string }
+        Returns: string
       }
       fn_credenciales_pasarela_descifrables: {
         Args: { p_config_id: string; p_tenant_id: string }

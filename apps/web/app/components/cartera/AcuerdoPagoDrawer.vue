@@ -9,6 +9,7 @@ import {
   type AcuerdoPago,
   type EstadoCuotaAcuerdo,
 } from '~/stores/promesasAcuerdos'
+import { useDocumentosStore } from '~/stores/documentos'
 import { formatoMoneda } from '~/utils/formato'
 
 const props = defineProps<{ acuerdo: AcuerdoPago; inmuebleCodigo: string }>()
@@ -16,6 +17,7 @@ const emit = defineEmits<{ cerrar: [] }>()
 
 const tenantStore = useTenantStore()
 const gestionStore = useCarteraGestionStore()
+const documentosStore = useDocumentosStore()
 const toast = useToast()
 
 const esAdministrador = computed(() => tenantStore.role === 'administrador')
@@ -40,6 +42,28 @@ const ETIQUETA_ESTADO_CUOTA: Record<EstadoCuotaAcuerdo, string> = {
 const OPCIONES_ESTADO_CUOTA = Object.entries(ETIQUETA_ESTADO_CUOTA).map(([value, label]) => ({ value, label }))
 
 const acuerdoActual = computed(() => gestionStore.acuerdos.find((a) => a.id === props.acuerdo.id) ?? props.acuerdo)
+
+// El acuerdo firmado, si se adjuntó al crearlo (CAR §12.1) — documentosStore
+// se carga scoped al inmueble en onMounted, misma instancia compartida que
+// el resto de pantallas de documentos.
+const documentoAcuerdo = computed(() =>
+  documentosStore.documentos.find((d) => d.id === acuerdoActual.value.documento_id),
+)
+const descargandoDocumento = ref(false)
+
+async function descargarDocumentoAcuerdo(): Promise<void> {
+  const storagePath = documentoAcuerdo.value?.storage_path
+  if (!storagePath) return
+  descargandoDocumento.value = true
+  try {
+    const url = await documentosStore.urlDescarga(storagePath)
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toast.add({ title: 'No se pudo generar el enlace de descarga', color: 'error' })
+  } finally {
+    descargandoDocumento.value = false
+  }
+}
 
 async function cambiarEstado(estado: 'pendiente_aprobacion' | 'borrador' | 'vigente' | 'cancelado' | 'cumplido' | 'incumplido'): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -70,6 +94,10 @@ async function cambiarEstadoCuota(cuotaId: string, valor: EstadoCuotaAcuerdo): P
 
 onMounted(() => {
   void gestionStore.cargarCuotas(props.acuerdo.id)
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId && props.acuerdo.documento_id) {
+    void documentosStore.cargarDocumentos(tenantId, props.acuerdo.inmueble_id)
+  }
 })
 </script>
 
@@ -99,6 +127,17 @@ onMounted(() => {
           <dt class="font-medium">Total</dt>
           <dd class="text-right tabular-nums font-medium">{{ formatoMoneda(acuerdoActual.monto_total) }}</dd>
         </dl>
+        <UButton
+          v-if="acuerdoActual.documento_id"
+          size="xs"
+          variant="outline"
+          icon="i-lucide-file-check"
+          :loading="descargandoDocumento"
+          :disabled="!documentoAcuerdo"
+          @click="descargarDocumentoAcuerdo"
+        >
+          {{ documentoAcuerdo ? `Ver documento firmado (${documentoAcuerdo.nombre_archivo})` : 'Documento firmado adjunto' }}
+        </UButton>
         <p class="text-xs text-neutral-400">
           {{ acuerdoActual.fecha_inicio }} → {{ acuerdoActual.fecha_fin }} · {{ acuerdoActual.numero_cuotas }} cuota(s)
           <span v-if="!acuerdoActual.interes_durante_acuerdo">· sin causar interés durante el acuerdo</span>

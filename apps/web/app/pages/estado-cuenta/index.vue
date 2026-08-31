@@ -227,14 +227,16 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
       <div>
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
-        </div>
-        <p class="text-xs text-gray-500 mb-2">
-          El historial oficial — cada uno tiene su folio y hash propios y no cambia. Para
-          reenviar exactamente lo que ya se envió, usa "Reenviar" aquí en vez de generar uno
-          nuevo arriba.
-        </p>
+        <UiTituloDescripcion clase-descripcion="text-xs text-gray-500 mt-1 mb-2">
+          <template #titulo>
+            <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
+          </template>
+          <template #descripcion>
+            El historial oficial — cada uno tiene su folio y hash propios y no cambia. Para
+            reenviar exactamente lo que ya se envió, usa "Reenviar" aquí en vez de generar uno
+            nuevo arriba.
+          </template>
+        </UiTituloDescripcion>
         <UiTabla
           :columnas="[
             { clave: 'folio', etiqueta: 'Folio' },

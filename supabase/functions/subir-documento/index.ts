@@ -61,6 +61,8 @@ export default {
     const fechaVencimiento = form.get('fecha_vencimiento')
     const descripcionRaw = form.get('descripcion')
     const pagoIdRaw = form.get('pago_id')
+    const casoJuridicoIdRaw = form.get('caso_juridico_id')
+    const envioIdRaw = form.get('envio_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -77,11 +79,42 @@ export default {
         correlationId,
       )
     }
-    if (inmuebleId === null && (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))) {
+    // caso_juridico_id — nullable, mismo criterio que inmueble_id (CAR §15.4,
+    // GAP-CAR-007): un documento puede pertenecer al expediente de un caso
+    // jurídico en vez de (o además de) un inmueble/la copropiedad. Si viene
+    // y no hay inmueble_id, resuelve el tenant igual que inmueble_id lo hace
+    // — nunca se confía en un tenant_id enviado por el cliente cuando sí hay
+    // caso_juridico_id (ver resolución de tenantId más abajo).
+    const casoJuridicoId =
+      typeof casoJuridicoIdRaw === 'string' && casoJuridicoIdRaw.length > 0 ? casoJuridicoIdRaw : null
+    if (casoJuridicoId !== null && !UUID_RE.test(casoJuridicoId)) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id.',
+        'caso_juridico_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
+    // envio_id — PRQ-CAR-022 (CAR §24.1): un documento puede evidenciar un
+    // envío puntual de cobranza (constancia de entrega, acuse firmado del
+    // canal físico) — distinto de acciones_cobranza_acuses.documento_id,
+    // que cuelga del ACUSE (el evento), no del envío (el intento). Mismo
+    // criterio de resolución de tenant que inmueble_id/caso_juridico_id.
+    const envioId = typeof envioIdRaw === 'string' && envioIdRaw.length > 0 ? envioIdRaw : null
+    if (envioId !== null && !UUID_RE.test(envioId)) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'envio_id debe ser un uuid válido.', undefined, correlationId)
+    }
+    if (
+      inmuebleId === null &&
+      casoJuridicoId === null &&
+      envioId === null &&
+      (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
+    ) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id ni envio_id.',
         undefined,
         correlationId,
       )
@@ -199,6 +232,44 @@ export default {
         )
       }
       tenantId = inmueble.tenant_id
+    } else if (casoJuridicoId !== null) {
+      const { data: caso, error: errorCaso } = await ctx.supabase
+        .from('casos_juridicos')
+        .select('id, tenant_id')
+        .eq('id', casoJuridicoId)
+        .maybeSingle()
+      if (errorCaso) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorCaso.message, undefined, correlationId)
+      }
+      if (!caso) {
+        return errorResponse(
+          404,
+          'CASO_JURIDICO_NO_ENCONTRADO',
+          'El caso jurídico no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = caso.tenant_id
+    } else if (envioId !== null) {
+      const { data: envio, error: errorEnvio } = await ctx.supabase
+        .from('acciones_cobranza_envios')
+        .select('id, tenant_id')
+        .eq('id', envioId)
+        .maybeSingle()
+      if (errorEnvio) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorEnvio.message, undefined, correlationId)
+      }
+      if (!envio) {
+        return errorResponse(
+          404,
+          'ENVIO_NO_ENCONTRADO',
+          'El envío no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = envio.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -282,6 +353,11 @@ export default {
     consultaVigente =
       inmuebleId === null ? consultaVigente.is('inmueble_id', null) : consultaVigente.eq('inmueble_id', inmuebleId)
     consultaVigente = pagoId === null ? consultaVigente.is('pago_id', null) : consultaVigente.eq('pago_id', pagoId)
+    consultaVigente =
+      casoJuridicoId === null
+        ? consultaVigente.is('caso_juridico_id', null)
+        : consultaVigente.eq('caso_juridico_id', casoJuridicoId)
+    consultaVigente = envioId === null ? consultaVigente.is('envio_id', null) : consultaVigente.eq('envio_id', envioId)
     const { data: vigente, error: errorVigente } = await consultaVigente.maybeSingle()
     if (errorVigente) {
       return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
@@ -290,7 +366,14 @@ export default {
     const grupoId = vigente?.grupo_id ?? crypto.randomUUID()
     const version = (vigente?.version ?? 0) + 1
     const nombreSaneado = sanearNombreArchivo(archivo.name)
-    const storagePath = `${tenantId}/${inmuebleId ?? '_copropiedad'}/${grupoId}/${version}_${nombreSaneado}`
+    const carpetaAlcance =
+      inmuebleId ??
+      (casoJuridicoId !== null
+        ? `_caso-juridico/${casoJuridicoId}`
+        : envioId !== null
+          ? `_envio/${envioId}`
+          : '_copropiedad')
+    const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
     // documentos_inmueble, generalizada en 20260822130000) tienen política
@@ -317,6 +400,8 @@ export default {
         tenant_id: tenantId,
         inmueble_id: inmuebleId,
         pago_id: pagoId,
+        caso_juridico_id: casoJuridicoId,
+        envio_id: envioId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

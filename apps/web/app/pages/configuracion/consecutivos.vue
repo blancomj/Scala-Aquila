@@ -81,14 +81,16 @@ async function guardar(): Promise<void> {
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h1 class="text-xl font-semibold mb-1">Consecutivos de documento</h1>
-      <p class="text-sm text-neutral-500 max-w-2xl">
+    <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Consecutivos de documento</h1>
+      </template>
+      <template #descripcion>
         Numeración propia de esta copropiedad para cada tipo de documento contable — el prefijo
         y la cantidad de dígitos se aplican al PRÓXIMO documento que se emita, nunca a los ya
         expedidos.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 

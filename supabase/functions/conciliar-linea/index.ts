@@ -12,12 +12,17 @@
 // INSERT para authenticated, igual que en toda la plataforma).
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
+// Módulo concreto, NUNCA el barrel dist/index.js: conciliacion-supabase.js
+// (y conciliacion-matching.js, del que depende) ya no viven en el barrel
+// a propósito (ver cabecera de packages/liquidation-engine/src/index.ts,
+// CAR_08 §4) — esta función sí necesita "@aquila/payment-gateways" (ya
+// mapeado en su deno.json), así que importa directo.
 import {
   aplicarLineaAInmueble,
   crearSaldoAFavorDesdeLinea,
   descartarLinea,
   LineaYaResueltaError,
-} from '../../../packages/liquidation-engine/dist/index.js'
+} from '../../../packages/liquidation-engine/dist/conciliacion-supabase.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'

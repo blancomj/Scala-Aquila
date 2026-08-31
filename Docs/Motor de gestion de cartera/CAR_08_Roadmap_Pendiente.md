@@ -59,10 +59,10 @@ dependencias reales están en §3.
 | 5 | Canal WhatsApp — **bloqueado, no de código**: `VER-CAR-08` (valor probatorio + habeas data) sigue abierto; la regla del propio documento (§24.2) prohíbe implementar sin ese concepto jurídico resuelto | `GAP-CAR-005`, `VER-CAR-08` |
 | 6 | Operador postal con guía rastreable — **sin empezar**: no hay proveedor elegido (ningún código lo contempla) | `PRQ-CAR-020` |
 | 7 | Versionado recuperable de plantillas — **hecho** (2026-08-29): `plantillas_sms_versiones`/`plantillas_email_versiones` append-only, UI de historial en /configuracion/plantillas-sms y -email, `acciones_cobranza_envios.plantilla_version` ya no escribe 0 fijo | `PRQ-CAR-021` |
-| 8 | `subir-documento` acepta `envio_id` | `PRQ-CAR-022` |
+| 8 | `subir-documento` acepta `envio_id` — **hecho** (2026-08-30): `documentos.envio_id` nullable (20260908180000), guard de tenant, `_envio/<id>/` en Storage, widget de constancia manual en el drawer de /cartera/acciones (tipo + archivo + lista de adjuntos por envío). No sustituye `acciones_cobranza_acuses.documento_id` (el ACUSE), es el ENVÍO — ver cabecera de la migración | `PRQ-CAR-022` |
 | 9 | Certificación del art. 48 completa — **hecho** (5 rubros discriminados) | `GAP-CAR-011` |
 | 10 | Conciliación pago ↔ cuota de acuerdo — **hecha** (asociación explícita, registrar-pago) | `GAP-CAR-008` |
-| 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) | §18.2 paso 7 |
+| 11 | Comparación contra el snapshot anterior (`cambiosClasificacion`) — **hecho y desplegado (2026-08-30)**. `cargarEntradaJobCarteraInmueble` trae `clasificacionAnterior` reutilizando la misma consulta a `posiciones_cartera_snapshot` que ya calculaba `diasEnTramoActual` (sin lectura extra); `evaluarJobCarteraInmueble` deriva `cambioClasificacion` (null si no hubo snapshot previo o el código no cambió); `cartera-recalcular/index.ts` ya lo cuenta y emite `CARTERA_CLASIFICACION_CAMBIO` con `estado_anterior`/`estado_nuevo` (§19.3). 3 tests nuevos + `deno check` limpio + `pnpm build`/typecheck/lint en verde. **Desplegado vía `supabase functions deploy --use-api`** (CLI del proyecto, `npx supabase`, bundling server-side sin Docker — D-19 en `supabase/config.toml` ya documentaba este canal para Edge Functions, no `deploy_edge_function` de MCP que exige ensamblar el cierre transitivo a mano). El CLI resolvió solo el grafo completo de `dist/*.js` | §18.2 paso 8 |
 | 12 | Pago retroactivo y reproducibilidad histórica — **hecho** (evento PAGO_REGISTRADO, snapshots inmutables) | `GAP-CAR-003` |
 | 13 | Registro de actos interruptivos — **hecho en su parte factual** (2026-08-29, `20260907140000`, `/cartera/prescripcion`): bitácora append-only, sin calcular plazos. La alerta de riesgo de prescripción sigue **BLOCKED** — exige el término y el cómputo, que es justo lo que `VER-CAR-05` no ha verificado | `VER-CAR-05` |
 | 14 | Exclusión de la evidencia del job de purga — **cumplido por construcción**: forbid_mutation solo admite DELETE en audit_log | §34.6, `I-C25` |
@@ -87,7 +87,7 @@ tenían el detalle completamente muerto.
 | 20 | Casos jurídicos — **verificada** (2026-08-29): remisión completa desde una certificación vigente, caso `000001` creado en DEMO Bandeja Cobranza y drawer de detalle abierto |
 | 21 | Certificaciones de deuda — **verificada** (2026-08-29): guardas correctas y expedición real, certificación `000006` por $850.000 sobre TORRE-B-208. El documento imprimible del art. 48 **no era alcanzable** por el anidamiento de rutas de Nuxt; corregido en `6571dc2` |
 | 22 | Costas judiciales — **hecha** (verificado 2026-08-29): tabla `costas_judiciales` con guards y RLS, store, registro y cambio de estado dentro del detalle del caso jurídico, y consumo en /cartera/indicadores. La fila llevaba mal clasificada desde la auditoría del 29-08 (§3.1) |
-| 23 | Configuración — **hecha en su parte crítica** (/cartera/configuracion): siembra §8.4/§9.4, activación y encendido de estrategias. Falta editar tramos (exige versión nueva, §8.5) |
+| 23 | Configuración — **completa** (/cartera/configuracion, 2026-08-30): siembra §8.4/§9.4, activación, editar tramos vía versión nueva (§8.5, `fn_crear_version_politica_clasificacion`: clona tramos/estrategias de la vigente en un borrador, comparación lado a lado, activar con el patrón de dos UPDATE), y CRUD completo de estrategias (§9.3, crear/editar/eliminar) — sin guard de inmutabilidad, funciona igual con la política vigente que con un borrador |
 | 24 | Plantillas y canales — **hecha en su parte crítica**: versionado recuperable (`PRQ-CAR-021`). Sigue pendiente `PRQ-CAR-022` (`subir-documento` con `envio_id`) y los canales sin construir (WhatsApp/postal, bloques 5/6) |
 | 25 | Indicadores de cobranza y jurídicos — **hecha** (/cartera/indicadores): consume `cartera-indicadores` (ya existía completo, F9 parte 2+3+4) sin cambios de backend |
 
@@ -341,25 +341,39 @@ Lo que estas dos migraciones **NO** cierran, documentado para no repetir el
 hallazgo:
 
 ```text
-⧗ Sin selector de documento en la pantalla — mismo estado que
-  /cartera/transferencias hoy: el store y el guard ya aceptan
-  documento_id, pero ningún formulario deja escoger o subir el archivo
-  todavía. Consistente con la decisión ya tomada para ese bloque (visual
-  al final, núcleo funcional primero) — no se improvisó aquí un selector
-  a medio construir.
+✅ Selector de documento cerrado (2026-08-30) — CasoJuridicoDetalle.vue:
+  "Documento de soporte" (opcional) en el formulario de actuación, elige
+  entre lo ya subido en la librería del expediente (misma documentosStore
+  compartida, sin selector nuevo que subir por separado). promesas-
+  acuerdos.vue: "Acuerdo firmado" sube el archivo scoped al inmueble y
+  luego crea el acuerdo con ese documento_id (documentosStore.subirDocumento
+  ahora devuelve la fila creada, no solo void, para poder encadenar el
+  segundo insert). AcuerdoPagoDrawer.vue muestra el documento adjunto con
+  descarga. /cartera/transferencias sigue en el mismo estado que antes —
+  no se tocó, es un bloque aparte.
 
-⧗ costas_judiciales.documento_fuente sigue siendo text, no documento_id
-  (CAR §16, I-C11). Menor prioridad: normalmente el soporte de la costa es
-  la misma actuación judicial que la liquidó — si se enlaza costas_id →
-  actuacion_id más adelante, este hueco se resuelve casi solo. No tocado
-  en este corte.
+✅ costas_judiciales.actuacion_id (20260908190000, 2026-08-30) — se hizo
+  exactamente lo que este hueco anticipaba: costas_judiciales enlaza a
+  caso_juridico_actuaciones (nullable, valida mismo caso_id, inmutable
+  tras el insert — mismo régimen que documento_fuente/fecha_decision/
+  autoridad). documento_fuente NO se reemplazó por documento_id — sigue
+  siendo la cita obligatoria de I-C11; volverla documento_id habría
+  exigido construir antes un flujo de carga de archivo para costas (nadie
+  lo pidió, y hubiera roto registrarCosta() sin ese flujo). Selector de
+  actuación (opcional) en el formulario "Registrar costa" de
+  CasoJuridicoDetalle.vue. 3 tests RLS nuevos, todos en verde contra la
+  base real.
 
-⧗ GAP-CAR-007 sigue abierto, no confundir con lo de arriba: documentos.
-  caso_juridico_id existe desde 20260822340000 (documento a nivel del
-  EXPEDIENTE completo — poder, contrato con el abogado), pero
-  subir-documento todavía no acepta ese campo. Es un problema distinto de
-  documento_id en cada actuación puntual — los dos son necesarios, ninguno
-  sustituye al otro.
+✅ GAP-CAR-007 cerrado (2026-08-30) — no confundir con lo de arriba:
+  documentos.caso_juridico_id existe desde 20260822340000 (documento a
+  nivel del EXPEDIENTE completo — poder, contrato con el abogado);
+  subir-documento ya lo acepta (resuelve tenant contra el caso, organiza
+  Storage bajo `_caso-juridico/<id>/`), UiLibreriaDocumentos.vue lo
+  soporta como alcance, y CasoJuridicoDetalle.vue tiene su sección
+  "Documentos del expediente". Cubierto por 2 tests de integración nuevos
+  en tests/tenancy/subir-documento.test.ts, corridos contra la función ya
+  desplegada. Sigue siendo un problema distinto de documento_id en cada
+  actuación puntual — los dos eran necesarios, ninguno sustituye al otro.
 ```
 
 ---
@@ -371,10 +385,26 @@ hallazgo:
   de mora corre sobre una conversión IBC→mensual no validada. Es la deuda
   más cara del bloque y contradice la regla de bloqueo de §24.2.
 
-· El barrel de liquidation-engine arrastra su grafo completo a cada Edge
-  Function que lo importa. Ya rompió dos deploys (node:crypto y
-  @aquila/payment-gateways). Arreglo de fondo pendiente: importar el
-  módulo concreto en vez del barrel.
+· ~~El barrel de liquidation-engine arrastra su grafo completo...~~
+  ✅ **RESUELTO (2026-08-30).** Causa raíz confirmada en vivo con
+  `deno check`: `cartera-actividad-reciente/index.ts` (que no toca
+  conciliación) fallaba con `TS2307: Import "@aquila/payment-gateways"
+  not a dependency and not in import map` — el barrel reexportaba
+  `conciliacion-matching.js`/`conciliacion-supabase.js`, y el primero
+  importa `@aquila/payment-gateways` (bare specifier que Deno solo
+  resuelve con un import map explícito). `packages/liquidation-engine/
+  src/index.ts` ya no reexporta esos dos módulos; `conciliar-linea` e
+  `importar-extracto-bancario` (los dos únicos consumidores reales, con
+  `@aquila/payment-gateways` ya mapeado en su propio `deno.json`) pasaron
+  a importar directo de `dist/conciliacion-supabase.js` — mismo patrón
+  que `registrar-pago/index.ts` ya usaba. Verificado con `deno check`
+  contra los 18 Edge Functions que importaban el barrel: cero quedan con
+  el error. `pnpm build`/`typecheck`/lint limpios, 280 tests de
+  `packages/liquidation-engine` en verde. Las 18 funciones ya
+  desplegadas no cambiaron de comportamiento (mismos símbolos, solo
+  cambió la ruta de import) y no se redesplegaron — el beneficio es que
+  el PRÓXIMO redeploy de cualquiera de ellas, por el motivo que sea, ya
+  no va a romperse por esto.
 
 · Los mockups contienen decisiones que contradicen el rector. Ver
   CAR_09_Revision_Mockups.md antes de construir cualquier pantalla.

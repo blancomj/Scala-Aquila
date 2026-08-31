@@ -184,14 +184,18 @@ async function confirmarEliminar(): Promise<void> {
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start gap-3 bg-neutral-50 rounded-md px-3 py-2">
-      <h1 class="text-base font-semibold text-neutral-900 whitespace-nowrap">Zonas comunes</h1>
-      <p class="text-sm text-neutral-500 max-w-prose line-clamp-2">
-        Inventario de bienes comunes de la copropiedad — piscina, salón social, escaleras, redes
-        técnicas. Los no esenciales pueden asignarse en uso exclusivo a un inmueble (Art. 20, Ley
-        675/2001); nunca generan cobro propio, su sostenimiento se cubre con la cuota de
-        administración.
-      </p>
+    <div class="bg-neutral-50 rounded-md px-3 py-2">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-prose">
+        <template #titulo>
+          <h1 class="text-base font-semibold text-neutral-900 whitespace-nowrap">Zonas comunes</h1>
+        </template>
+        <template #descripcion>
+          Inventario de bienes comunes de la copropiedad — piscina, salón social, escaleras, redes
+          técnicas. Los no esenciales pueden asignarse en uso exclusivo a un inmueble (Art. 20, Ley
+          675/2001); nunca generan cobro propio, su sostenimiento se cubre con la cuota de
+          administración.
+        </template>
+      </UiTituloDescripcion>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />

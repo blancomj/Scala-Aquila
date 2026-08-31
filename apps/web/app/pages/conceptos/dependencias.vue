@@ -42,13 +42,15 @@ const ordenPorCodigo = computed(() => {
 <template>
   <div class="space-y-8">
     <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Dependencias e impacto</h1>
-        <p class="text-sm text-neutral-500">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Dependencias e impacto</h1>
+        </template>
+        <template #descripcion>
           Qué conceptos dependen de cuáles, y qué reglas usan cada Contract/Function — AEL-004 Fase
           5.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <NuxtLink to="/estado-cuenta/conceptos" class="text-sm text-primary hover:underline">
         ← Volver a conceptos
       </NuxtLink>
@@ -105,11 +107,15 @@ const ordenPorCodigo = computed(() => {
     </div>
 
     <div>
-      <h2 class="text-lg font-semibold mb-2">Impacto por Contract/Function</h2>
-      <p class="text-xs text-neutral-500 mb-2">
-        Antes de archivar o cambiar un concepto, qué otras reglas usan cada
-        PARAMETER/UNIT/CONCEPTO.campo o función — Doc 10 §79-80.
-      </p>
+      <UiTituloDescripcion clase-descripcion="text-xs text-neutral-500 mt-1 mb-2">
+        <template #titulo>
+          <h2 class="text-lg font-semibold">Impacto por Contract/Function</h2>
+        </template>
+        <template #descripcion>
+          Antes de archivar o cambiar un concepto, qué otras reglas usan cada
+          PARAMETER/UNIT/CONCEPTO.campo o función — Doc 10 §79-80.
+        </template>
+      </UiTituloDescripcion>
       <p v-if="impacto.length === 0" class="text-neutral-500 text-sm">Sin dependencias detectadas.</p>
       <UiTabla
         v-else

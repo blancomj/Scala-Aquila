@@ -66,10 +66,14 @@ const modulosCubiertos = computed(
     </div>
 
     <div>
-      <h2 class="text-base font-semibold mb-2">Roles funcionales</h2>
-      <p class="text-sm text-gray-500 mb-3">
-        Catálogo de plataforma, de solo lectura aquí — se asignan a cada miembro desde Usuarios.
-      </p>
+      <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1 mb-3">
+        <template #titulo>
+          <h2 class="text-base font-semibold">Roles funcionales</h2>
+        </template>
+        <template #descripcion>
+          Catálogo de plataforma, de solo lectura aquí — se asignan a cada miembro desde Usuarios.
+        </template>
+      </UiTituloDescripcion>
       <UiTabla
         :columnas="[
           { clave: 'nombre', etiqueta: 'Rol funcional' },

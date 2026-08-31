@@ -244,14 +244,16 @@ async function alEditarCuenta(): Promise<void> {
       v-if="!contabilidadStore.tienePlan"
       class="rounded-lg border border-default p-8 text-center space-y-4"
     >
-      <div>
-        <h2 class="font-semibold mb-1">Esta copropiedad todavía no tiene plan de cuentas</h2>
-        <p class="text-sm text-muted max-w-lg mx-auto">
+      <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1 max-w-lg mx-auto">
+        <template #titulo>
+          <h2 class="font-semibold">Esta copropiedad todavía no tiene plan de cuentas</h2>
+        </template>
+        <template #descripcion>
           Se instala una copia del catálogo base para propiedad horizontal colombiana (144
           cuentas). A partir de ahí es tuyo: puedes desactivar lo que no uses y agregar
           auxiliares propios.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <div class="flex items-center justify-center gap-2">
         <UButton :loading="trabajando" @click="instalar(false)">Instalar plan base</UButton>
         <UButton variant="ghost" :loading="trabajando" @click="instalar(true)">

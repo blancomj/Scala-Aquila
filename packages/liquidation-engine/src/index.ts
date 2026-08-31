@@ -249,28 +249,19 @@ export {
   type ParserExtracto,
 } from './conciliacion-parsers.js'
 
-export {
-  buscarReferenciaEnTexto,
-  evaluarLinea,
-  type CandidatoHeuristico,
-  type CandidatoPorMontoFecha,
-  type CandidatoPorReferencia,
-  type DecisionMatching,
-  type FactorExplicacion,
-  type LineaAConciliar,
-  type MetodoMatching,
-  type PropuestaCandidata,
-} from './conciliacion-matching.js'
-
-export {
-  aplicarLineaAInmueble,
-  ArchivoNoReconocidoError,
-  crearSaldoAFavorDesdeLinea,
-  descartarLinea,
-  importarExtracto,
-  LineaYaResueltaError,
-  medirAutoConciliacion,
-  resolverCandidatos,
-  type MetricaAutoConciliacion,
-  type ResumenImportacion,
-} from './conciliacion-supabase.js'
+// conciliacion-matching.js y conciliacion-supabase.js NO se re-exportan aquí
+// a propósito (CAR_08 §4, deuda conocida "el barrel arrastra su grafo
+// completo"): conciliacion-matching.js importa "@aquila/payment-gateways",
+// un bare specifier que Deno solo resuelve si el deno.json de la Edge
+// Function que importa tiene ese import map — la mayoría no lo tiene, porque
+// no necesitan conciliación bancaria. Cuando esos dos módulos vivían en este
+// barrel, CUALQUIER función que importara aunque fuera una sola cosa de aquí
+// (p.ej. calcularResultHash) arrastraba ese specifier sin resolver y fallaba
+// en `deno check`/deploy — confirmado en vivo (2026-08-30): `deno check` de
+// cartera-actividad-reciente/index.ts fallaba con
+// `TS2307: Import "@aquila/payment-gateways" not a dependency and not in
+// import map`, pese a que esa función no toca conciliación para nada.
+// Los dos únicos consumidores reales (conciliar-linea/index.ts,
+// importar-extracto-bancario/index.ts) ya tenían "@aquila/payment-gateways"
+// en su propio deno.json — importan estos dos módulos por ruta directa a
+// dist/, nunca por el barrel (mismo patrón que registrar-pago/index.ts).

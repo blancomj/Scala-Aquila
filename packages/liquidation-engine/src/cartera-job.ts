@@ -97,6 +97,20 @@ export interface CambioAcuerdo {
   readonly nuevoEstado: 'incumplido'
 }
 
+/** CAR §19.2/19.3 — insumo para el evento CARTERA_CLASIFICACION_CAMBIO (estado_anterior). */
+export interface ClasificacionAnterior {
+  readonly codigo: string
+  readonly diasMora: number
+}
+
+/** §18.2 paso 8. null = no hubo cambio (sin snapshot previo, o mismo código que hoy). */
+export interface CambioClasificacion {
+  readonly codigoAnterior: string
+  readonly diasMoraAnterior: number
+  readonly codigoNuevo: string
+  readonly diasMoraNuevo: number
+}
+
 // ── Orquestador por inmueble ─────────────────────────────────────────────
 
 export interface EntradaJobCarteraInmueble {
@@ -125,6 +139,10 @@ export interface EntradaJobCarteraInmueble {
   readonly diasEnTramoActual: number
   /** Decimal string — la deuda que compara contra monto_minimo_deuda. */
   readonly deudaTotal: string
+  /** §18.2 paso 8 — clasificación del snapshot inmediatamente anterior a fechaCorte
+   * (posiciones_cartera_snapshot). null = sin snapshot previo (primera corrida de este
+   * inmueble): no hay "cambio" que reportar, ninguna clasificación anterior que fabricar. */
+  readonly clasificacionAnterior: ClasificacionAnterior | null
 }
 
 /** Acción que corresponde disparar, ya con el "a quién" resuelto. */
@@ -163,6 +181,8 @@ export interface PlanJobCarteraInmueble {
   readonly promesasIncumplidas: readonly CambioPromesa[]
   readonly cuotasVencidas: readonly CambioCuota[]
   readonly acuerdoIncumplido: CambioAcuerdo | null
+  /** §18.2 paso 8 — CARTERA_CLASIFICACION_CAMBIO. null = sin cambio (o sin snapshot previo). */
+  readonly cambioClasificacion: CambioClasificacion | null
   /** §18.2 pasos 14-16 — lo que faltaba para que el job creara acciones. */
   readonly accionesPropuestas: readonly AccionConDestinatarios[]
   readonly accionesOmitidas: readonly AccionOmitida[]
@@ -208,6 +228,19 @@ export function evaluarJobCarteraInmueble(entrada: EntradaJobCarteraInmueble): P
         entrada.acuerdoVigenteId,
     )
       ? { acuerdoId: entrada.acuerdoVigenteId, nuevoEstado: 'incumplido' as const }
+      : null
+
+  // §18.2 paso 8 — CARTERA_CLASIFICACION_CAMBIO. Sin snapshot previo (primera
+  // corrida) no hay "cambio": lo correcto es no reportar nada, no fabricar un
+  // "anterior" que nadie observó (mismo criterio que diasEnTramoActual=0).
+  const cambioClasificacion: CambioClasificacion | null =
+    entrada.clasificacionAnterior !== null && entrada.clasificacionAnterior.codigo !== clasificacion.codigo
+      ? {
+          codigoAnterior: entrada.clasificacionAnterior.codigo,
+          diasMoraAnterior: entrada.clasificacionAnterior.diasMora,
+          codigoNuevo: clasificacion.codigo,
+          diasMoraNuevo: clasificacion.diasMora,
+        }
       : null
 
   // §18.2 pasos 14-16. Dos decisiones separadas y en este orden: primero
@@ -269,6 +302,7 @@ export function evaluarJobCarteraInmueble(entrada: EntradaJobCarteraInmueble): P
     promesasIncumplidas,
     cuotasVencidas,
     acuerdoIncumplido,
+    cambioClasificacion,
     accionesPropuestas,
     accionesOmitidas: evaluacion.omitidas,
     accionesBloqueadas,

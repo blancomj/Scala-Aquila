@@ -138,14 +138,16 @@ async function registrar(): Promise<void> {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="text-xl font-semibold">Tasas de referencia certificadas</h1>
-      <p class="text-sm text-neutral-500 mt-1 max-w-3xl">
+    <UiTituloDescripcion>
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Tasas de referencia certificadas</h1>
+      </template>
+      <template #descripcion>
         Interés bancario corriente que certifica la Superintendencia Financiera. Es el valor contra
         el que se valida el tope de mora de todas las copropiedades (art. 30 Ley 675 de 2001), así
         que es global y no pertenece a ninguna.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert
       v-if="!tasaVigenteHoy"
@@ -163,13 +165,15 @@ async function registrar(): Promise<void> {
     />
 
     <div class="border border-neutral-200 dark:border-neutral-800 rounded-lg p-5 space-y-4">
-      <div>
-        <h2 class="text-sm font-semibold">Registrar una resolución</h2>
-        <p class="text-xs text-neutral-500 mt-1 max-w-3xl">
+      <UiTituloDescripcion clase-descripcion="text-xs text-neutral-500 mt-1 max-w-3xl">
+        <template #titulo>
+          <h2 class="text-sm font-semibold">Registrar una resolución</h2>
+        </template>
+        <template #descripcion>
           El registro es definitivo: la tabla no admite editar ni borrar, y una vigencia ocupada no
           se puede volver a usar. Revisa los valores antes de confirmar.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="Tipo de tasa" name="tipo_tasa">

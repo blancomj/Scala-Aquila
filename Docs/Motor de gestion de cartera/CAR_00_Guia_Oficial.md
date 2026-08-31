@@ -794,6 +794,8 @@ Valores **por defecto sugeridos**, no impuestos. Cada copropiedad los ajusta por
 
 `[ARQ]` **Siembra (2026-08-29).** `fn_sembrar_configuracion_cartera(tenant)` crea esta política y las estrategias de §9.4 de un clic desde `/cartera/configuracion`. Nace en **borrador**: activarla es una decisión de quien administra, y una vigente ya no se corrige. Falla si la copropiedad ya tiene política — corregir es crear versión nueva, no re-sembrar. Antes de esto, encender el módulo en una copropiedad exigía escribir SQL a mano.
 
+`[ARQ]` **Versionado editable (2026-08-30, bloque 23).** `fn_crear_version_politica_clasificacion(politica_id)` clona los tramos y estrategias de una política existente (vigente o histórica) en una versión nueva, `estado='borrador'`, del mismo tenant — la vía real para la regla de §8.5. `/cartera/configuracion` la usa para mostrar el borrador editable junto a la vigente (comparación lado a lado, solo lectura para la vigente) y activarla con el mismo patrón de dos `UPDATE` secuenciales que `politicaFinanciera.activarPolitica` (retira la vigente actual a `historica`, promueve la nueva). Antes de esto, corregir tramos exigía escribir SQL a mano igual que la siembra inicial.
+
 ## 8.5 Regla de versionado
 
 `[ARQ]` **`REC-CAR-011`** — Igual que `guard_politica_inmutable` en `politicas_financieras`:
@@ -2399,7 +2401,7 @@ Certificaciones por vencer
 | `PRQ-CAR-019` | **Webhooks de acuse** del proveedor de envío | Infraestructura | ❌ **No existe.** Brevo los ofrece; no hay endpoint que los reciba | **Sí** para §34, canales con acuse técnico | Sin acuse no hay notificación acreditable |
 | `PRQ-CAR-020` | **Operador postal** con guía rastreable | Externo — proveedor | ❌ **No existe.** Ningún código lo contempla, pese a que el canal físico se ofrece en la interfaz | **Sí** para §34, canal físico | El envío físico es el de mayor peso probatorio |
 | `PRQ-CAR-021` | **Versionado recuperable de plantillas** | Este bloque + plantillas | ✅ **Resuelto** (2026-08-29, `20260907130000`) — `plantillas_sms_versiones`/`plantillas_email_versiones` append-only, `version` denormalizada en la fila viva, `acciones_cobranza_envios.plantilla_version` deja de escribir 0 fijo | **Sí** para §34 | Hay que aportar el texto exacto que se envió |
-| `PRQ-CAR-022` | `subir-documento` acepta `envio_id` | Este bloque | ⚠️ **Parcial** — la Edge Function existe (`GAP-CAR-007` resuelto), falta el campo | Sí para canal físico | Cargue del acuse escaneado |
+| `PRQ-CAR-022` | `subir-documento` acepta `envio_id` | Este bloque | ✅ **Resuelto** (2026-08-30) — `documentos.envio_id` + guard de tenant + widget de constancia manual en /cartera/acciones | Ya no bloquea | Cargue del acuse escaneado |
 
 ## 24.2 Regla de bloqueo
 

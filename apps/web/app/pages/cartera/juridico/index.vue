@@ -170,13 +170,15 @@ async function crearCaso(): Promise<void> {
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Casos jurídicos</h1>
-        <p class="text-sm text-neutral-500 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Casos jurídicos</h1>
+        </template>
+        <template #descripcion>
           Remisión a proceso ejecutivo (art. 422 y ss. CGP) desde una certificación de deuda
           vigente. Sin certificación no hay caso — la Ley 675 exige el título ejecutivo.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <UButton icon="i-lucide-scale" @click="abrirNuevo">Remitir a jurídico</UButton>
     </div>
 

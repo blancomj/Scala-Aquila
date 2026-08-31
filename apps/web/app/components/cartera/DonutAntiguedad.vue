@@ -10,6 +10,7 @@
 interface Bucket {
   label: string
   monto: number
+  cantidad: number
   color: string
 }
 
@@ -59,6 +60,9 @@ function pct(monto: number): string {
         </span>
         <span class="flex items-center gap-3 text-gray-500">
           <span>{{ formatoMoneda(b.monto) }}</span>
+          <span class="w-20 text-right tabular-nums" :title="`${b.cantidad} inmueble(s)`">
+            {{ b.cantidad }} inm.
+          </span>
           <span class="w-12 text-right">{{ pct(b.monto) }}</span>
         </span>
       </li>

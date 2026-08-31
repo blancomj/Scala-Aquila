@@ -139,14 +139,16 @@ async function exportar(): Promise<void> {
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Movimientos contables</h1>
-        <p class="text-sm text-muted max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Movimientos contables</h1>
+        </template>
+        <template #descripcion>
           Partida doble derivada de lo que ya está registrado: cuotas causadas, recaudos,
           ejecución presupuestal y movimientos de fondos. No se digita nada aquí — es la misma
           información, leída con criterio contable, lista para exportar a un sistema externo.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <div class="flex items-end gap-2">
         <UFormField label="Desde" name="desde">
           <UInput v-model="desde" type="date" />

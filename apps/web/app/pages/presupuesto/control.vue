@@ -32,13 +32,15 @@ const presupuestoSeleccionado = computed(
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Control y validaciones</h1>
-        <p class="text-sm text-neutral-500">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Control y validaciones</h1>
+        </template>
+        <template #descripcion>
           Verifica que los rubros y las fuentes de financiación cuadren con las reglas que se
           exigen para aprobar o activar el presupuesto.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <div class="flex items-end gap-3">
         <UBadge
           v-if="presupuestoSeleccionado"

@@ -645,5 +645,91 @@ d('CAR F7 — jurídico (§15-16)', () => {
       expect(data?.estado).toBe('recuperada')
       expect(data?.monto_recuperado).toBe(200000)
     })
+
+    // costas_judiciales.actuacion_id (20260908190000, roadmap §3.2).
+    async function crearActuacion(casoId: string): Promise<string> {
+      const tipoActuacionId = await listaTipoId(admin, 'TIPO_ACTUACION_JURIDICA', 'auto_judicial')
+      const clienteAgente = await clienteComo(env!, agente)
+      const { data, error } = await clienteAgente
+        .from('caso_juridico_actuaciones')
+        .insert({
+          tenant_id: tenant.id,
+          caso_id: casoId,
+          fecha: '2026-09-01',
+          tipo_actuacion_id: tipoActuacionId,
+          descripcion: 'Auto que liquida agencias en derecho, folio 12',
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (error) throw new Error(`fixture actuacion: ${error.message}`)
+      return data.id
+    }
+
+    it('control positivo: una costa puede enlazar la actuación que la respalda', async () => {
+      const casoId = await crearCasoParaCostas()
+      const actuacionId = await crearActuacion(casoId)
+      const clienteAgente = await clienteComo(env!, agente)
+      const { data, error } = await clienteAgente
+        .from('costas_judiciales')
+        .insert({
+          tenant_id: tenant.id,
+          caso_id: casoId,
+          tipo_costa: 'agencias_en_derecho',
+          monto: 100000,
+          documento_fuente: 'Auto de liquidación de costas No. 45',
+          fecha_decision: '2026-09-01',
+          autoridad: 'Juzgado 12 Civil Municipal',
+          actuacion_id: actuacionId,
+        })
+        .select('actuacion_id')
+        .single()
+      expect(error).toBeNull()
+      expect(data?.actuacion_id).toBe(actuacionId)
+    })
+
+    it('ACTUACION_INVALIDA: no se puede enlazar una actuación de OTRO caso', async () => {
+      const casoId = await crearCasoParaCostas()
+      const otroCasoId = await crearCasoParaCostas()
+      const actuacionDeOtroCaso = await crearActuacion(otroCasoId)
+      const clienteAgente = await clienteComo(env!, agente)
+      const { error } = await clienteAgente.from('costas_judiciales').insert({
+        tenant_id: tenant.id,
+        caso_id: casoId,
+        tipo_costa: 'agencias_en_derecho',
+        monto: 100000,
+        documento_fuente: 'Auto de liquidación de costas No. 45',
+        fecha_decision: '2026-09-01',
+        autoridad: 'Juzgado 12 Civil Municipal',
+        actuacion_id: actuacionDeOtroCaso,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toMatch(/ACTUACION_INVALIDA/)
+    })
+
+    it('COSTA_JUDICIAL_INMUTABLE: actuacion_id tampoco se puede cambiar después de creada', async () => {
+      const casoId = await crearCasoParaCostas()
+      const actuacionId = await crearActuacion(casoId)
+      const clienteAgente = await clienteComo(env!, agente)
+      const { data: costa } = await clienteAgente
+        .from('costas_judiciales')
+        .insert({
+          tenant_id: tenant.id,
+          caso_id: casoId,
+          tipo_costa: 'gasto_proceso',
+          monto: 50000,
+          documento_fuente: 'Recibo de consignación',
+          fecha_decision: '2026-09-01',
+          autoridad: 'Juzgado 12 Civil Municipal',
+        })
+        .select('id')
+        .single<{ id: string }>()
+
+      const { error } = await clienteAgente
+        .from('costas_judiciales')
+        .update({ actuacion_id: actuacionId })
+        .eq('id', costa!.id)
+      expect(error).not.toBeNull()
+      expect(error?.message).toMatch(/COSTA_JUDICIAL_INMUTABLE/)
+    })
   })
 })

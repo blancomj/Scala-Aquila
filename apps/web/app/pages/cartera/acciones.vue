@@ -20,6 +20,7 @@
 // Aquí se replican solo para no ofrecer botones que van a fallar, y cuando
 // el botón se deshabilita se dice POR QUÉ — un botón gris sin explicación
 // es peor que un error.
+import type { Database } from '@aquila/shared'
 import { formatoMoneda } from '~/utils/formato'
 import type { AccionBandeja, EnvioDetalle } from '~/stores/cobranza'
 import { CANALES_AUTOMATICOS, ETIQUETA_CANAL, textoLegible } from '~/utils/mensaje-cobranza'
@@ -27,9 +28,11 @@ import { CANALES_AUTOMATICOS, ETIQUETA_CANAL, textoLegible } from '~/utils/mensa
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
 type EstadoAccion = AccionBandeja['estado']
+type DocumentoRow = Database['public']['Views']['v_documento_vigente']['Row']
 
 const tenantStore = useTenantStore()
 const cobranzaStore = useCobranzaStore()
+const documentosStore = useDocumentosStore()
 const toast = useToast()
 const authStore = useAuthStore()
 
@@ -43,6 +46,19 @@ const detalleAbierto = ref(false)
 const accionDetalle = ref<AccionBandeja | null>(null)
 const enviosDetalle = ref<EnvioDetalle[]>([])
 const cargandoDetalle = ref(false)
+
+// ── evidencia manual por envío (PRQ-CAR-022) — constancia de entrega o
+// acuse firmado, sobre todo para el canal físico, donde no hay webhook
+// de proveedor que lo aporte solo. Mapas por envioId porque varios
+// intentos conviven en el mismo drawer y cada uno guarda su propia
+// evidencia (mismo criterio que "el intento 1 rebota, el 2 entrega" en
+// la cabecera de 20260906100000).
+const opcionesTipoDocumentoEvidencia = ref<{ valor: number; etiqueta: string }[]>([])
+const tipoEvidenciaPorEnvio = ref<Record<string, number | null>>({})
+const archivoEvidenciaPorEnvio = ref<Record<string, File | null>>({})
+const documentosPorEnvio = ref<Record<string, DocumentoRow[]>>({})
+const subiendoEvidenciaEnvioId = ref<string | null>(null)
+const descargandoEvidencia = ref<string | null>(null)
 
 const ESTADOS_FILTRO: { valor: EstadoAccion | 'todas'; etiqueta: string }[] = [
   { valor: 'todas', etiqueta: 'Todas' },
@@ -240,9 +256,27 @@ async function verDetalle(accion: AccionBandeja): Promise<void> {
   accionDetalle.value = accion
   detalleAbierto.value = true
   enviosDetalle.value = []
+  documentosPorEnvio.value = {}
+  tipoEvidenciaPorEnvio.value = {}
+  archivoEvidenciaPorEnvio.value = {}
   cargandoDetalle.value = true
   try {
     enviosDetalle.value = await cobranzaStore.cargarEnvios(accion.accionId)
+
+    const tenantId = tenantStore.activeTenant?.id
+    if (tenantId && enviosDetalle.value.length > 0) {
+      if (opcionesTipoDocumentoEvidencia.value.length === 0) {
+        const tipos = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
+        opcionesTipoDocumentoEvidencia.value = tipos.map((t) => ({ valor: t.id, etiqueta: t.nombre }))
+      }
+      const pares = await Promise.all(
+        enviosDetalle.value.map(async (envio) => {
+          const documentos = await documentosStore.cargarDocumentos(tenantId, null, undefined, envio.envioId)
+          return [envio.envioId, documentos] as const
+        }),
+      )
+      documentosPorEnvio.value = Object.fromEntries(pares)
+    }
   } catch (excepcion) {
     toast.add({
       title: 'No se pudo cargar la evidencia',
@@ -251,6 +285,56 @@ async function verDetalle(accion: AccionBandeja): Promise<void> {
     })
   } finally {
     cargandoDetalle.value = false
+  }
+}
+
+const MIME_EVIDENCIA_PERMITIDOS = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+const TAMANO_EVIDENCIA_MAXIMO = 15 * 1024 * 1024
+
+function elegirArchivoEvidencia(envioId: string, evento: Event): void {
+  const input = evento.target as HTMLInputElement
+  const archivo = input.files?.[0] ?? null
+  if (archivo && (!MIME_EVIDENCIA_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_EVIDENCIA_MAXIMO)) {
+    toast.add({ title: 'Archivo inválido', description: 'Solo PDF, JPG o PNG, hasta 15 MB.', color: 'warning' })
+    input.value = ''
+    return
+  }
+  archivoEvidenciaPorEnvio.value[envioId] = archivo
+}
+
+async function subirEvidencia(envioId: string): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  const tipoDocumentoId = tipoEvidenciaPorEnvio.value[envioId]
+  const archivo = archivoEvidenciaPorEnvio.value[envioId]
+  if (!tenantId || !tipoDocumentoId || !archivo) return
+
+  subiendoEvidenciaEnvioId.value = envioId
+  try {
+    await documentosStore.subirDocumento({ tenantId, inmuebleId: null, envioId, tipoDocumentoId, archivo })
+    documentosPorEnvio.value[envioId] = await documentosStore.cargarDocumentos(tenantId, null, undefined, envioId)
+    archivoEvidenciaPorEnvio.value[envioId] = null
+    toast.add({ title: 'Constancia adjuntada', color: 'success' })
+  } catch (excepcion) {
+    toast.add({
+      title: 'No se pudo adjuntar la constancia',
+      description: excepcion instanceof Error ? excepcion.message : 'Error inesperado.',
+      color: 'error',
+    })
+  } finally {
+    subiendoEvidenciaEnvioId.value = null
+  }
+}
+
+async function descargarEvidencia(storagePath: string | null): Promise<void> {
+  if (!storagePath) return
+  descargandoEvidencia.value = storagePath
+  try {
+    const url = await documentosStore.urlDescarga(storagePath)
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toast.add({ title: 'No se pudo generar el enlace de descarga', color: 'error' })
+  } finally {
+    descargandoEvidencia.value = null
   }
 }
 
@@ -564,6 +648,51 @@ function fechaHora(iso: string | null): string {
                   </UBadge>
                 </div>
                 <p v-else class="text-xs text-neutral-400">Sin acuses del proveedor todavía.</p>
+
+                <!-- constancia manual (PRQ-CAR-022) — sobre todo para el
+                     canal físico, sin webhook de proveedor que aporte
+                     acuse por sí solo. -->
+                <div class="pt-2 border-t border-neutral-100 dark:border-neutral-900 space-y-2">
+                  <div v-if="(documentosPorEnvio[envio.envioId]?.length ?? 0) > 0" class="flex flex-wrap gap-1.5">
+                    <UButton
+                      v-for="doc in documentosPorEnvio[envio.envioId]"
+                      :key="doc.id ?? undefined"
+                      size="xs"
+                      variant="soft"
+                      color="neutral"
+                      icon="i-lucide-paperclip"
+                      :disabled="descargandoEvidencia === doc.storage_path"
+                      @click="descargarEvidencia(doc.storage_path)"
+                    >
+                      {{ doc.nombre_archivo }}
+                    </UButton>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <UiSelectorBuscable
+                      :model-value="tipoEvidenciaPorEnvio[envio.envioId] ?? null"
+                      :opciones="opcionesTipoDocumentoEvidencia"
+                      placeholder="Tipo de constancia"
+                      class="w-44"
+                      @update:model-value="(v) => (tipoEvidenciaPorEnvio[envio.envioId] = v as number | null)"
+                    />
+                    <UInput
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      size="xs"
+                      class="max-w-[180px]"
+                      @change="(e: Event) => elegirArchivoEvidencia(envio.envioId, e)"
+                    />
+                    <UButton
+                      size="xs"
+                      variant="soft"
+                      :loading="subiendoEvidenciaEnvioId === envio.envioId"
+                      :disabled="!archivoEvidenciaPorEnvio[envio.envioId] || !tipoEvidenciaPorEnvio[envio.envioId]"
+                      @click="subirEvidencia(envio.envioId)"
+                    >
+                      Adjuntar constancia
+                    </UButton>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

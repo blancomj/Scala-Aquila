@@ -10,6 +10,7 @@ import {
   type EstadoAcuerdo,
 } from '~/stores/promesasAcuerdos'
 import { useCuentaCorrienteStore } from '~/stores/cuentaCorriente'
+import { useDocumentosStore } from '~/stores/documentos'
 import { formatoMoneda } from '~/utils/formato'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
@@ -17,6 +18,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const gestionStore = useCarteraGestionStore()
 const cuentaStore = useCuentaCorrienteStore()
+const documentosStore = useDocumentosStore()
 const toast = useToast()
 
 const errorCarga = ref<string | null>(null)
@@ -162,7 +164,27 @@ const nuevoMontoCondonado = ref<number | null>(null)
 const nuevoActaReferencia = ref('')
 const nuevoInteresDuranteAcuerdo = ref(true)
 
-function abrirNuevoAcuerdo(): void {
+// El acuerdo firmado (CAR §12.1, "Documento firmado") — se sube aquí mismo,
+// scoped al inmueble elegido, y se adjunta al crear (documento_id sigue el
+// patrón de 20260908170000: append-only, protegible con legal hold).
+const opcionesTipoDocumentoAcuerdo = ref<{ valor: number; etiqueta: string }[]>([])
+const nuevoDocumentoTipoId = ref<number | null>(null)
+const nuevoArchivoAcuerdo = ref<File | null>(null)
+const MIME_ACUERDO_PERMITIDOS = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+const TAMANO_ACUERDO_MAXIMO = 15 * 1024 * 1024
+
+function elegirArchivoAcuerdo(evento: Event): void {
+  const input = evento.target as HTMLInputElement
+  const archivo = input.files?.[0] ?? null
+  if (archivo && (!MIME_ACUERDO_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_ACUERDO_MAXIMO)) {
+    toast.add({ title: 'Archivo inválido', description: 'Solo PDF, JPG o PNG, hasta 15 MB.', color: 'warning' })
+    input.value = ''
+    return
+  }
+  nuevoArchivoAcuerdo.value = archivo
+}
+
+async function abrirNuevoAcuerdo(): Promise<void> {
   nuevoInmuebleId.value = null
   nuevaFechaAcuerdo.value = hoyISO()
   nuevaFechaInicio.value = hoyISO()
@@ -176,7 +198,15 @@ function abrirNuevoAcuerdo(): void {
   nuevoMontoCondonado.value = null
   nuevoActaReferencia.value = ''
   nuevoInteresDuranteAcuerdo.value = true
+  nuevoDocumentoTipoId.value = null
+  nuevoArchivoAcuerdo.value = null
   modalAcuerdoAbierto.value = true
+
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId && opcionesTipoDocumentoAcuerdo.value.length === 0) {
+    const tipos = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
+    opcionesTipoDocumentoAcuerdo.value = tipos.map((t) => ({ valor: t.id, etiqueta: t.nombre }))
+  }
 }
 
 watch(nuevoNumeroCuotas, (n) => {
@@ -195,13 +225,27 @@ const puedeCrearAcuerdo = computed(
     montoTotalNuevo.value > 0 &&
     nuevoNumeroCuotas.value > 0 &&
     nuevaFechaFin.value > nuevaFechaInicio.value &&
-    (!nuevoCondonaInteres.value || ((nuevoMontoCondonado.value ?? 0) > 0 && nuevoActaReferencia.value.trim().length > 0)),
+    (!nuevoCondonaInteres.value || ((nuevoMontoCondonado.value ?? 0) > 0 && nuevoActaReferencia.value.trim().length > 0)) &&
+    (!nuevoArchivoAcuerdo.value || nuevoDocumentoTipoId.value !== null),
 )
 
 async function crearAcuerdo(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || !nuevoInmuebleId.value || !puedeCrearAcuerdo.value) return
   try {
+    // El documento firmado, si se adjuntó, se sube primero: si falla, no se
+    // crea un acuerdo sin su soporte.
+    let documentoId: string | null = null
+    if (nuevoArchivoAcuerdo.value && nuevoDocumentoTipoId.value !== null) {
+      const documento = await documentosStore.subirDocumento({
+        tenantId,
+        inmuebleId: nuevoInmuebleId.value,
+        tipoDocumentoId: nuevoDocumentoTipoId.value,
+        archivo: nuevoArchivoAcuerdo.value,
+      })
+      documentoId = documento.id
+    }
+
     await gestionStore.crearAcuerdo(tenantId, {
       inmuebleId: nuevoInmuebleId.value,
       fechaAcuerdo: nuevaFechaAcuerdo.value,
@@ -216,9 +260,7 @@ async function crearAcuerdo(): Promise<void> {
       montoCondonado: nuevoMontoCondonado.value ?? 0,
       interesDuranteAcuerdo: nuevoInteresDuranteAcuerdo.value,
       actaReferencia: nuevoActaReferencia.value.trim() || null,
-      // Sin selector de documento en pantalla todavía (mismo estado que
-      // /cartera/transferencias) — el acuerdo firmado se adjunta más adelante.
-      documentoId: null,
+      documentoId,
     })
     toast.add({ title: 'Acuerdo creado en borrador', color: 'success' })
     modalAcuerdoAbierto.value = false
@@ -236,17 +278,58 @@ const acuerdoSeleccionado = ref<AcuerdoPago | null>(null)
 function abrirDetalleAcuerdo(acuerdo: AcuerdoPago): void {
   acuerdoSeleccionado.value = acuerdo
 }
+
+// ── pestañas: Promesas de pago / Acuerdos de pago ──────────────────────
+// Mismo patrón que pages/cartera/configuracion.vue y pages/presupuesto/index.vue
+// (tablist + tabindex itinerante, WAI-ARIA APG).
+type SeccionPago = 'promesas' | 'acuerdos'
+const SECCIONES_PAGO: ReadonlyArray<{ id: SeccionPago; etiqueta: string }> = [
+  { id: 'promesas', etiqueta: 'Promesas de pago' },
+  { id: 'acuerdos', etiqueta: 'Acuerdos de pago' },
+]
+const seccionActiva = ref<SeccionPago>('promesas')
+const botonesSeccion = ref<(HTMLButtonElement | null)[]>([])
+
+function irASeccion(indice: number): void {
+  const seccion = SECCIONES_PAGO[indice]
+  if (!seccion) return
+  seccionActiva.value = seccion.id
+  nextTick(() => botonesSeccion.value[indice]?.focus())
+}
+
+function onKeydownSeccion(evento: KeyboardEvent, indiceActual: number): void {
+  switch (evento.key) {
+    case 'ArrowRight':
+      evento.preventDefault()
+      irASeccion((indiceActual + 1) % SECCIONES_PAGO.length)
+      break
+    case 'ArrowLeft':
+      evento.preventDefault()
+      irASeccion((indiceActual - 1 + SECCIONES_PAGO.length) % SECCIONES_PAGO.length)
+      break
+    case 'Home':
+      evento.preventDefault()
+      irASeccion(0)
+      break
+    case 'End':
+      evento.preventDefault()
+      irASeccion(SECCIONES_PAGO.length - 1)
+      break
+  }
+}
 </script>
 
 <template>
   <div class="space-y-8">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Promesas y acuerdos de pago</h1>
-      <p class="text-sm text-neutral-500 max-w-2xl">
+    <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Promesas y acuerdos de pago</h1>
+      </template>
+      <template #descripcion>
         La promesa es informal y no cambia el escalamiento (§12.1); el acuerdo es un negocio
         jurídico formal — aprobarlo exige rol administrador y congela el calendario de cuotas.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert
       v-if="errorCarga"
@@ -257,8 +340,31 @@ function abrirDetalleAcuerdo(acuerdo: AcuerdoPago): void {
       :description="errorCarga"
     />
 
+    <!-- ── pestañas: promesas / acuerdos ────────────────────────────── -->
+    <nav class="flex gap-1 border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto" role="tablist" aria-label="Promesas y acuerdos de pago">
+      <button
+        v-for="(seccion, indice) in SECCIONES_PAGO"
+        :key="seccion.id"
+        :ref="(el) => { botonesSeccion[indice] = el as HTMLButtonElement | null }"
+        type="button"
+        role="tab"
+        :aria-selected="seccionActiva === seccion.id"
+        :tabindex="seccionActiva === seccion.id ? 0 : -1"
+        class="px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors"
+        :class="
+          seccionActiva === seccion.id
+            ? 'border-primary text-primary font-medium'
+            : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+        "
+        @click="seccionActiva = seccion.id"
+        @keydown="onKeydownSeccion($event, indice)"
+      >
+        {{ seccion.etiqueta }}
+      </button>
+    </nav>
+
     <!-- ── promesas ──────────────────────────────────────────────────── -->
-    <section class="space-y-3">
+    <section v-if="seccionActiva === 'promesas'" role="tabpanel" class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-sm font-semibold">Promesas de pago</h2>
         <UButton size="sm" variant="outline" icon="i-lucide-message-circle" @click="abrirNuevaPromesa">
@@ -310,7 +416,7 @@ function abrirDetalleAcuerdo(acuerdo: AcuerdoPago): void {
     </section>
 
     <!-- ── acuerdos ──────────────────────────────────────────────────── -->
-    <section class="space-y-3">
+    <section v-else-if="seccionActiva === 'acuerdos'" role="tabpanel" class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-sm font-semibold">Acuerdos de pago</h2>
         <UButton size="sm" icon="i-lucide-file-signature" @click="abrirNuevoAcuerdo">Nuevo acuerdo</UButton>
@@ -451,6 +557,20 @@ function abrirDetalleAcuerdo(acuerdo: AcuerdoPago): void {
               </UFormField>
             </div>
           </template>
+
+          <UFormField label="Acuerdo firmado (opcional)" name="acuerdo_documento" help="PDF, JPG o PNG, hasta 15 MB">
+            <div class="flex items-center gap-2">
+              <USelect
+                :model-value="nuevoDocumentoTipoId ?? undefined"
+                :items="opcionesTipoDocumentoAcuerdo.map((t) => ({ value: t.valor, label: t.etiqueta }))"
+                value-key="value"
+                placeholder="Tipo de documento"
+                class="w-48"
+                @update:model-value="(v) => (nuevoDocumentoTipoId = v as number)"
+              />
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-xs" @change="elegirArchivoAcuerdo">
+            </div>
+          </UFormField>
 
           <div class="flex justify-end gap-2 pt-2">
             <UButton variant="ghost" color="neutral" @click="modalAcuerdoAbierto = false">Cancelar</UButton>

@@ -245,13 +245,15 @@ async function exportarExcel(): Promise<void> {
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-1">Recaudo</h1>
-        <p class="text-sm text-neutral-500 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Recaudo</h1>
+        </template>
+        <template #descripcion>
           Pagos registrados en toda la copropiedad, con su recibo de caja. Una anulación queda
           como una reversa (nunca se borra) e inserta una fila propia con monto negativo.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
     </div>
 
     <div class="flex flex-wrap items-end gap-3">

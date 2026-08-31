@@ -146,13 +146,15 @@ const opcionesModo = [
 
 <template>
   <div class="space-y-6 max-w-3xl">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Pasarela de pago</h1>
-      <p class="text-sm text-muted">
+    <UiTituloDescripcion>
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Pasarela de pago</h1>
+      </template>
+      <template #descripcion>
         La copropiedad es el comercio: las credenciales son las de tu cuenta con el proveedor y el
         dinero llega directo a tu cuenta de recaudo. Aquila nunca custodia el dinero.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert
       color="info"

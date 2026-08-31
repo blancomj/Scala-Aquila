@@ -117,13 +117,15 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Mapeo contable</h1>
-        <p class="text-sm text-muted max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Mapeo contable</h1>
+        </template>
+        <template #descripcion>
           Dónde se refleja contablemente cada cosa que la copropiedad ya registra. Mientras
           queden pendientes, la exportación de movimientos queda bloqueada.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <UButton variant="ghost" icon="i-lucide-list-tree" to="/contabilidad/plan-de-cuentas">
         Ver plan de cuentas
       </UButton>
@@ -218,11 +220,15 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
 
     <!-- ══════ Eventos ══════ -->
     <section class="space-y-3">
-      <h2 class="text-sm font-semibold">Cuentas predeterminadas por evento</h2>
-      <p class="text-xs text-muted">
-        Lo que no nace del árbol presupuestal: la cartera que se debita al causar una cuota, el
-        banco donde entra un recaudo, la cuenta por pagar de un gasto pendiente.
-      </p>
+      <UiTituloDescripcion clase-descripcion="text-xs text-muted mt-1">
+        <template #titulo>
+          <h2 class="text-sm font-semibold">Cuentas predeterminadas por evento</h2>
+        </template>
+        <template #descripcion>
+          Lo que no nace del árbol presupuestal: la cartera que se debita al causar una cuota, el
+          banco donde entra un recaudo, la cuenta por pagar de un gasto pendiente.
+        </template>
+      </UiTituloDescripcion>
 
       <UiTabla
         :columnas="[

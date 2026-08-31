@@ -1,14 +1,18 @@
 <script setup lang="ts">
-// Librería de documentos — compartido por CopropiedadDocumentos.vue e
-// InmueblesInmuebleDocumentos.vue (antes cada uno tenía su propia copia
-// casi idéntica; se extrajo aquí para no mantener dos veces la misma
-// lógica de subida/versionado/listado). `inmuebleId` null = documentos de
-// la copropiedad misma (mismo criterio que documentosStore/subir-documento).
+// Librería de documentos — compartido por CopropiedadDocumentos.vue,
+// InmueblesInmuebleDocumentos.vue y CasoJuridicoDetalle.vue (antes cada uno
+// tenía su propia copia casi idéntica; se extrajo aquí para no mantener dos
+// veces la misma lógica de subida/versionado/listado). `inmuebleId` null =
+// documentos de la copropiedad misma (mismo criterio que
+// documentosStore/subir-documento). `casoJuridicoId`, si viene, reemplaza el
+// alcance por el expediente de ese caso jurídico (CAR §15.4) — `inmuebleId`
+// se ignora en ese caso.
 import type { Database } from '@aquila/shared'
 import type { ColumnaTabla } from '~/components/ui/UiTabla.vue'
 
 const props = defineProps<{
   inmuebleId: string | null
+  casoJuridicoId?: string
   descripcion: string
 }>()
 
@@ -74,6 +78,7 @@ async function subir(): Promise<void> {
     await documentosStore.subirDocumento({
       tenantId,
       inmuebleId: props.inmuebleId,
+      casoJuridicoId: props.casoJuridicoId,
       tipoDocumentoId: tipoSeleccionado.value,
       archivo: archivoSeleccionado.value,
       fechaVencimiento: fechaVencimiento.value || undefined,
@@ -116,7 +121,7 @@ watchEffect(async () => {
   if (!tenantId) return
   ;[tiposDocumento.value] = await Promise.all([
     cargarListaTipos(tenantId, 'TIPO_DOCUMENTO'),
-    documentosStore.cargarDocumentos(tenantId, props.inmuebleId),
+    documentosStore.cargarDocumentos(tenantId, props.inmuebleId, props.casoJuridicoId),
   ])
 })
 </script>

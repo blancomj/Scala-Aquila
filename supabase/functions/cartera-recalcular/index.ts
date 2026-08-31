@@ -18,11 +18,14 @@
 // hermanas de un mismo disparo se unen con grupo_envio_id (20260905110000)
 // conservando evidencia por persona.
 //
-// Sigue acotado en dos puntos: no compara contra el snapshot de ayer para
-// CARTERA_CLASIFICACION_CAMBIO (cambiosClasificacion queda en 0, requiere
-// leer el snapshot anterior — diferido), y no está agendada por pg_cron:
-// se invoca a mano, por un administrador — mismo criterio de "un humano
-// aprieta el botón" que el resto del bloque de cobranza.
+// Desde 2026-08-30 SÍ compara contra el snapshot de ayer y emite
+// CARTERA_CLASIFICACION_CAMBIO (§18.2 paso 8): cargarEntradaJobCarteraInmueble
+// trae clasificacionAnterior sin lectura extra (reutiliza la consulta que ya
+// calculaba diasEnTramoActual, ver cartera-job-supabase.ts).
+//
+// Sigue acotada en un punto: no está agendada por pg_cron — se invoca a
+// mano, por un administrador — mismo criterio de "un humano aprieta el
+// botón" que el resto del bloque de cobranza.
 //
 // Idempotencia (PH-C33): las escrituras de estado (cartera_etapas,
 // promesas_pago, acuerdo_pago_cuotas, acuerdos_pago) son idempotentes por
@@ -124,6 +127,54 @@ interface CambioAcuerdoLocal {
   readonly acuerdoId: string
   readonly nuevoEstado: 'incumplido'
 }
+interface CambioClasificacionLocal {
+  readonly codigoAnterior: string
+  readonly diasMoraAnterior: number
+  readonly codigoNuevo: string
+  readonly diasMoraNuevo: number
+}
+type TipoAccionCobranzaLocal =
+  | 'email'
+  | 'sms'
+  | 'whatsapp'
+  | 'llamada'
+  | 'carta'
+  | 'requerimiento_formal'
+  | 'aviso_prejuridico'
+  | 'publicacion_morosos'
+  | 'restriccion_servicios'
+  | 'visita'
+  | 'asignacion_abogado'
+  | 'remision_juridica'
+  | 'propuesta_acuerdo'
+  | 'revision_manual'
+type CanalCobranzaLocal = 'email' | 'sms' | 'whatsapp' | 'telefono' | 'fisico' | 'interno'
+// §18.2 pasos 14-16 — mismos "espejo local" que el resto del archivo:
+// dist/index.js pierde los exports type-only al compilar.
+interface DestinatarioResueltoLocal {
+  readonly terceroId: string
+  readonly rolCodigo: string
+  readonly contacto: string
+}
+interface AccionConDestinatariosLocal {
+  readonly estrategiaId: string
+  readonly tipoAccion: TipoAccionCobranzaLocal
+  readonly canal: CanalCobranzaLocal
+  readonly intentoNumero: number
+  readonly requiereAprobacion: boolean
+  readonly destinatarios: readonly DestinatarioResueltoLocal[]
+}
+interface AccionOmitidaLocal {
+  readonly estrategiaId: string
+  readonly motivo: string
+}
+interface AccionBloqueadaLocal {
+  readonly estrategiaId: string
+  readonly tipoAccion: TipoAccionCobranzaLocal
+  readonly canal: CanalCobranzaLocal
+  readonly causa: 'sin_destinatario' | 'contacto_faltante' | 'no_aplica'
+  readonly motivo: string
+}
 interface PlanJobCarteraInmuebleLocal {
   readonly inmuebleId: string
   readonly clasificacion: ResultadoClasificacionLocal
@@ -131,6 +182,10 @@ interface PlanJobCarteraInmuebleLocal {
   readonly promesasIncumplidas: readonly CambioPromesaLocal[]
   readonly cuotasVencidas: readonly CambioCuotaLocal[]
   readonly acuerdoIncumplido: CambioAcuerdoLocal | null
+  readonly cambioClasificacion: CambioClasificacionLocal | null
+  readonly accionesPropuestas: readonly AccionConDestinatariosLocal[]
+  readonly accionesOmitidas: readonly AccionOmitidaLocal[]
+  readonly accionesBloqueadas: readonly AccionBloqueadaLocal[]
 }
 
 export default {
@@ -290,6 +345,7 @@ export default {
             clasificacionCodigo: p.clasificacion.codigo,
             etapaCobranza: p.clasificacion.etapaCobranza,
             decisionEscalamiento: p.decisionEscalamiento,
+            cambioClasificacion: p.cambioClasificacion,
             promesasIncumplidas: p.promesasIncumplidas,
             cuotasVencidas: p.cuotasVencidas,
             acuerdoIncumplido: p.acuerdoIncumplido,
@@ -302,6 +358,7 @@ export default {
     }
 
     // ── modo: ejecución — persistir ─────────────────────────────────────
+    let cambiosClasificacionTotal = 0
     let cambiosEtapa = 0
     let candidatosEscalamiento = 0
     let accionesCreadasTotal = 0
@@ -435,6 +492,33 @@ export default {
 
       // eventos_cartera (I-C13, IDEM-03) — service_role, igual que posiciones_cartera_snapshot.
       const eventos: Database['public']['Tables']['eventos_cartera']['Insert'][] = []
+      // §18.2 paso 8 — CARTERA_CLASIFICACION_CAMBIO. Antes quedaba en 0
+      // porque comparar contra el snapshot de ayer exigía una lectura
+      // extra por inmueble; cargarEntradaJobCarteraInmueble ya la trae
+      // (reutiliza la consulta que calculaba diasEnTramoActual, ver
+      // cartera-job-supabase.ts) — aquí solo se traduce a evento y conteo.
+      if (plan.cambioClasificacion) {
+        cambiosClasificacionTotal += 1
+        const cambio = plan.cambioClasificacion
+        eventos.push({
+          tenant_id: tenantId,
+          tipo: 'CARTERA_CLASIFICACION_CAMBIO',
+          inmueble_id: plan.inmuebleId,
+          entidad_tipo: 'posiciones_cartera_snapshot',
+          fecha_corte: fechaCorte,
+          estado_anterior: { codigo: cambio.codigoAnterior, dias_mora: cambio.diasMoraAnterior },
+          estado_nuevo: { codigo: cambio.codigoNuevo, dias_mora: cambio.diasMoraNuevo },
+          motivo:
+            `La clasificación pasó de ${cambio.codigoAnterior} (${String(cambio.diasMoraAnterior)} días de mora) ` +
+            `a ${cambio.codigoNuevo} (${String(cambio.diasMoraNuevo)} días de mora) en la fecha de corte ${fechaCorte}.`,
+          politica_id: plan.clasificacion.politicaId,
+          politica_version: plan.clasificacion.politicaVersion,
+          origen: 'job',
+          actor_id: actorId,
+          ejecucion_id: ejecucionId,
+          dedup_key: `CARTERA_CLASIFICACION_CAMBIO:${plan.inmuebleId}:${fechaCorte}:${cambio.codigoNuevo}`,
+        })
+      }
       if (plan.decisionEscalamiento.tipo === 'escalar' || plan.decisionEscalamiento.tipo === 'desescalar') {
         const decision = plan.decisionEscalamiento
         eventos.push({
@@ -550,6 +634,7 @@ export default {
         fechaCorte,
         modo,
         inmueblesEvaluados: planes.length,
+        cambiosClasificacion: cambiosClasificacionTotal,
         cambiosEtapa,
         accionesCreadas: accionesCreadasTotal,
         accionesOmitidas: accionesOmitidasTotal,
@@ -578,7 +663,7 @@ export default {
         fechaCorte,
         modo,
         inmueblesEvaluados: planes.length,
-        cambiosClasificacion: 0, // diferido — requiere comparar contra el snapshot de ayer (ver cabecera).
+        cambiosClasificacion: cambiosClasificacionTotal,
         cambiosEtapa,
         accionesCreadas: accionesCreadasTotal,
         accionesOmitidas: accionesOmitidasTotal,

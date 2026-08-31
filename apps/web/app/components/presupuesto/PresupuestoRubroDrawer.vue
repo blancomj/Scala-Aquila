@@ -3,8 +3,9 @@
 // el resto), contenido en Nuxt UI (UFormField/UInput/USelect/UButton),
 // mismo criterio que politicas/PoliticasVersionDrawer.vue (23-08-2026).
 // Mismo patrón crear/editar que PresupuestoCuentaDrawer.vue (prop `rubro?`
-// opcional). USelect para cuenta/fundamento, no UiSelectorBuscable —
-// listas cortas que no necesitan búsqueda. Solo se listan cuentas hoja
+// opcional). USelect para fundamento (lista corta); UiSelectorBuscable para
+// cuenta — mismo criterio que PresupuestoEjecucionDrawer.vue, el plan de
+// cuentas puede tener decenas de hojas anidadas. Solo se listan cuentas hoja
 // (es_hoja) — guard_presupuesto_rubro_cuenta (E8) rechaza un rubro contra
 // una cuenta que agrupa subcuentas, así que ni se ofrecen como opción.
 import type { Database } from '@aquila/shared'
@@ -27,7 +28,7 @@ const modoEdicion = computed(() => props.rubro !== undefined)
 
 const codigo = ref(props.rubro?.codigo ?? '')
 const nombre = ref(props.rubro?.nombre ?? '')
-const cuentaId = ref<string | undefined>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? undefined)
+const cuentaId = ref<string | null>(props.rubro?.cuenta_id ?? props.cuentaIdInicial ?? null)
 const montoAnual = ref<number | null>(props.rubro ? Number(props.rubro.monto_anual) : null)
 const fundamentoNormativoId = ref<number | null>(props.rubro?.fundamento_normativo_id ?? null)
 const agrupacionId = ref<string | null>(props.rubro?.agrupacion_id ?? null)
@@ -72,8 +73,8 @@ const cuentasHoja = computed(() => {
   }
   return presupuestoStore.cuentas
     .filter((c) => c.es_hoja)
-    .map((c) => ({ value: c.id, label: `${rutaNombres(c)} (${c.naturaleza})` }))
-    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((c) => ({ valor: c.id, etiqueta: `${rutaNombres(c)} (${c.naturaleza})` }))
+    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
 })
 
 const opcionesFundamento = computed(() => [
@@ -85,7 +86,7 @@ async function guardar(): Promise<void> {
   error.value = null
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
-  if (!codigo.value || !nombre.value || cuentaId.value === undefined || montoAnual.value === null) {
+  if (!codigo.value || !nombre.value || cuentaId.value === null || montoAnual.value === null) {
     error.value = 'Completa código, nombre, cuenta y monto anual.'
     return
   }
@@ -144,7 +145,7 @@ async function guardar(): Promise<void> {
           </UFormField>
         </div>
         <UFormField label="Cuenta" name="cuenta_id">
-          <USelect v-model="cuentaId" :items="cuentasHoja" value-key="value" class="w-full" />
+          <UiSelectorBuscable v-model="cuentaId" :opciones="cuentasHoja" placeholder="Buscar cuenta…" />
         </UFormField>
         <UFormField label="Monto anual" name="monto_anual">
           <UInput v-model.number="montoAnual" type="number" min="0" class="w-full" />

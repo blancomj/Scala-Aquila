@@ -23,6 +23,7 @@ const emit = defineEmits<{ cerrar: []; actualizado: [] }>()
 
 const tenantStore = useTenantStore()
 const casosStore = useCasosJuridicosStore()
+const documentosStore = useDocumentosStore()
 const toast = useToast()
 
 const esAdministrador = computed(() => tenantStore.role === 'administrador')
@@ -141,7 +142,20 @@ const tiposActuacion = ref<{ id: number; nombre: string }[]>([])
 const nuevaActuacionFecha = ref(hoyISO())
 const nuevaActuacionTipoId = ref<number | null>(null)
 const nuevaActuacionDescripcion = ref('')
+const nuevaActuacionDocumentoId = ref<string | null>(null)
 const registrandoActuacion = ref(false)
+
+// El auto o la sentencia que respalda la actuación — se sube en la librería
+// del expediente de arriba (mismo alcance casoJuridicoId, misma
+// documentosStore compartida) y aquí solo se ELIGE de lo ya subido, igual
+// que "Actuación que respalda la costa" más abajo. Cierra el hueco que
+// roadmap §3.2 dejaba abierto (documentoId siempre null).
+const opcionesDocumentoCaso = computed(() =>
+  documentosStore.documentos.map((d) => ({
+    valor: d.id,
+    etiqueta: `${d.nombre_archivo} · v${d.version}`,
+  })),
+)
 
 async function registrarActuacion(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -154,11 +168,10 @@ async function registrarActuacion(): Promise<void> {
       descripcion: nuevaActuacionDescripcion.value.trim(),
       estadoDesde: null,
       estadoHasta: null,
-      // Sin selector de documento en pantalla todavía (mismo estado que
-      // /cartera/transferencias) — el auto o la sentencia se adjunta más adelante.
-      documentoId: null,
+      documentoId: nuevaActuacionDocumentoId.value,
     })
     nuevaActuacionDescripcion.value = ''
+    nuevaActuacionDocumentoId.value = null
     toast.add({ title: 'Actuación registrada', color: 'success' })
   } catch (excepcion) {
     toast.add({
@@ -179,7 +192,22 @@ const nuevaCostaMonto = ref<number | null>(null)
 const nuevaCostaDocumento = ref('')
 const nuevaCostaFecha = ref(hoyISO())
 const nuevaCostaAutoridad = ref('')
+const nuevaCostaActuacionId = ref<string | null>(null)
 const registrandoCosta = ref(false)
+
+// La actuación es normalmente el soporte real de la costa (CAR §16, roadmap
+// §3.2) — se ofrece como opcional, no se exige: no toda costa nace con la
+// actuación exacta ya identificada en pantalla.
+const actuacionEtiquetaPorId = computed(() => {
+  const mapa = new Map<string, string>()
+  for (const a of casosStore.actuaciones) {
+    mapa.set(a.id, `${a.fecha} · ${tipoActuacionPorId.value.get(a.tipo_actuacion_id) ?? '—'}`)
+  }
+  return mapa
+})
+const opcionesActuacionCosta = computed(() =>
+  casosStore.actuaciones.map((a) => ({ valor: a.id, etiqueta: actuacionEtiquetaPorId.value.get(a.id) ?? '—' })),
+)
 
 async function registrarCosta(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -200,10 +228,12 @@ async function registrarCosta(): Promise<void> {
       documentoFuente: nuevaCostaDocumento.value.trim(),
       fechaDecision: nuevaCostaFecha.value,
       autoridad: nuevaCostaAutoridad.value.trim(),
+      actuacionId: nuevaCostaActuacionId.value,
     })
     nuevaCostaMonto.value = null
     nuevaCostaDocumento.value = ''
     nuevaCostaAutoridad.value = ''
+    nuevaCostaActuacionId.value = null
     toast.add({ title: 'Costa registrada', color: 'success' })
   } catch (excepcion) {
     toast.add({
@@ -233,7 +263,11 @@ onMounted(async () => {
   if (!tenantId) return
   const tipos = await cargarListaTipos(tenantId, 'TIPO_ACTUACION_JURIDICA')
   tiposActuacion.value = tipos.map((t) => ({ id: t.id, nombre: t.nombre }))
-  await Promise.all([casosStore.cargarActuaciones(props.caso.id), casosStore.cargarCostas(props.caso.id)])
+  await Promise.all([
+    casosStore.cargarActuaciones(props.caso.id),
+    casosStore.cargarCostas(props.caso.id),
+    documentosStore.cargarDocumentos(tenantId, null, props.caso.id),
+  ])
 })
 </script>
 
@@ -305,6 +339,15 @@ onMounted(async () => {
         </template>
       </section>
 
+      <!-- ── documentos del expediente ──────────────────────────────── -->
+      <section class="pt-3 border-t border-neutral-200 dark:border-neutral-800">
+        <UiLibreriaDocumentos
+          :inmueble-id="null"
+          :caso-juridico-id="caso.id"
+          descripcion="Memoriales, autos, sentencias y demás piezas del expediente — versionadas por tipo de documento."
+        />
+      </section>
+
       <!-- ── actuaciones ────────────────────────────────────────────── -->
       <section class="space-y-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
         <h3 class="text-xs font-semibold uppercase text-neutral-400">Bitácora de actuaciones</h3>
@@ -312,6 +355,9 @@ onMounted(async () => {
           <div v-for="a in casosStore.actuaciones" :key="a.id" class="rounded-md border border-neutral-200 dark:border-neutral-800 p-2">
             <p class="text-xs text-neutral-400">{{ a.fecha }} · {{ tipoActuacionPorId.get(a.tipo_actuacion_id) ?? '—' }}</p>
             <p>{{ a.descripcion }}</p>
+            <p v-if="a.documento_id" class="text-xs text-neutral-400 mt-0.5">
+              Soporte: {{ documentosStore.documentos.find((d) => d.id === a.documento_id)?.nombre_archivo ?? a.documento_id }}
+            </p>
           </div>
           <p v-if="casosStore.actuaciones.length === 0" class="text-xs text-neutral-400">Sin actuaciones registradas.</p>
         </div>
@@ -332,6 +378,17 @@ onMounted(async () => {
         </div>
         <UFormField label="Descripción" name="actuacion_descripcion">
           <UTextarea v-model="nuevaActuacionDescripcion" class="w-full" :rows="2" />
+        </UFormField>
+        <UFormField
+          label="Documento de soporte"
+          name="actuacion_documento"
+          help="Opcional — el auto o la sentencia, ya subidos en Documentos del expediente arriba"
+        >
+          <UiSelectorBuscable
+            v-model="nuevaActuacionDocumentoId"
+            :opciones="opcionesDocumentoCaso"
+            placeholder="Sin documento asociado"
+          />
         </UFormField>
         <UButton
           size="sm"
@@ -354,6 +411,9 @@ onMounted(async () => {
               <span class="tabular-nums">{{ formatoMoneda(c.monto) }}</span>
             </div>
             <p class="text-xs text-neutral-400">{{ c.documento_fuente }} · {{ c.fecha_decision }} · {{ c.autoridad }}</p>
+            <p v-if="c.actuacion_id" class="text-xs text-neutral-400">
+              Actuación: {{ actuacionEtiquetaPorId.get(c.actuacion_id) ?? c.actuacion_id }}
+            </p>
             <USelect
               :model-value="c.estado"
               :items="OPCIONES_ESTADO_COSTA"
@@ -375,6 +435,13 @@ onMounted(async () => {
         </div>
         <UFormField label="Documento fuente" name="costa_documento">
           <UInput v-model="nuevaCostaDocumento" class="w-full" placeholder="Auto que liquida agencias en derecho, folio 12" />
+        </UFormField>
+        <UFormField label="Actuación que la respalda" name="costa_actuacion" help="Opcional — normalmente es el auto que liquida la costa">
+          <UiSelectorBuscable
+            v-model="nuevaCostaActuacionId"
+            :opciones="opcionesActuacionCosta"
+            placeholder="Sin actuación asociada"
+          />
         </UFormField>
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Fecha de la decisión" name="costa_fecha">

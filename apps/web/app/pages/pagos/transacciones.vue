@@ -47,14 +47,16 @@ function formatoFechaHora(iso: string): string {
 
 <template>
   <div class="space-y-6 max-w-5xl">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Transacciones de pasarela</h1>
-      <p class="text-sm text-muted">
+    <UiTituloDescripcion>
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Transacciones de pasarela</h1>
+      </template>
+      <template #descripcion>
         Cada fila es una intención de pago iniciada desde el estado de cuenta público o registrada
         en nombre de un residente. El pago real y su recibo de caja solo existen cuando el estado es
         «Aprobada» — el resto son intentos en curso o que no se completaron.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <USelect
       v-model="filtroEstado"

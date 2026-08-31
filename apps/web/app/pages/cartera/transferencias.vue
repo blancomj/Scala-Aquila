@@ -131,15 +131,17 @@ const columnas = [
 <template>
   <div class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-semibold mb-1">Transferencias de propiedad</h1>
-        <p class="text-sm text-gray-500 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Transferencias de propiedad</h1>
+        </template>
+        <template #descripcion>
           Bitácora de por qué cambió el titular de un inmueble (compraventa, remate judicial, donación, sucesión,
           adjudicación), con evidencia y la deuda conocida a la fecha. Registro puramente factual: esta pantalla
           <strong>no reasigna deuda ni cierra ningún cálculo</strong> — el titular vigente del inmueble lo resuelve
           la ficha de inmueble.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <UButton icon="i-lucide-plus" @click="abrirModal">Registrar transferencia</UButton>
     </div>
 

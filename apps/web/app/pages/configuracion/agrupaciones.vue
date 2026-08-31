@@ -448,13 +448,15 @@ async function confirmarEliminar(): Promise<void> {
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Agrupaciones</h1>
-        <p class="text-sm text-neutral-500 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Agrupaciones</h1>
+        </template>
+        <template #descripcion>
           Organiza los inmuebles en edificios, pisos, manzanas o zonas. Se definen una vez aquí y
           después quedan disponibles para asignarlos desde la ficha de cada inmueble.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />

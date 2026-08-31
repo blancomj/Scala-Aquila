@@ -136,6 +136,7 @@ const bucketsAntiguedad = computed(() => {
     label: b.label,
     color: b.color,
     monto: b.codigos.reduce((acc, c) => acc + Number(porCodigo.get(c)?.monto ?? 0), 0),
+    cantidad: b.codigos.reduce((acc, c) => acc + (porCodigo.get(c)?.cantidadInmuebles ?? 0), 0),
   }))
 })
 
@@ -168,6 +169,7 @@ const barrasEtapa = computed(() =>
     label: ETIQUETAS_ETAPA[e.etapa]?.label ?? e.etapa,
     color: ETIQUETAS_ETAPA[e.etapa]?.color ?? '#9ca3af',
     monto: Number(e.monto),
+    cantidad: e.cantidadInmuebles,
     pct: e.pctDelTotal,
   })),
 )
@@ -248,6 +250,12 @@ async function calcularIntereses(): Promise<void> {
   }
 }
 
+// Igual criterio que pages/inmuebles/index.vue: las tarjetas de resumen
+// parten colapsadas/expandidas según lo último que el usuario eligió,
+// persistido por cookie — el resto del dashboard (aging, etapas, top 10,
+// evolución, alertas, actividad) siempre queda visible.
+const resumenExpandido = useCookie<boolean>('cartera-dashboard-resumen-expandido', { default: () => true })
+
 const alertas = computed(() => {
   const a = carteraStore.alertas
   return [
@@ -295,7 +303,17 @@ const alertas = computed(() => {
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold mb-1">Dashboard de Cartera</h1>
-        <p class="text-sm text-gray-500">Vista general del estado de la cartera a la fecha de corte.</p>
+        <p class="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
+          Vista general del estado de la cartera a la fecha de corte.
+          <button
+            type="button"
+            class="flex items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            @click="resumenExpandido = !resumenExpandido"
+          >
+            <UIcon :name="resumenExpandido ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
+            {{ resumenExpandido ? 'Cerrar resumen' : 'Ver resumen' }}
+          </button>
+        </p>
       </div>
       <div class="flex items-end gap-3">
         <UFormField label="Corte de análisis">
@@ -326,7 +344,7 @@ const alertas = computed(() => {
 
     <template v-else-if="tarjetas">
       <!-- Tarjetas principales -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div v-if="resumenExpandido" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
           <div>
             <p class="text-sm text-gray-500">Cartera total</p>

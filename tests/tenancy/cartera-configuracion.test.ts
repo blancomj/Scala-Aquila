@@ -1,5 +1,9 @@
 /**
  * CAR §8.4/§9.4 — siembra de la configuración inicial de cartera (bloque 23).
+ * CAR §8.5 — versionado editable de una política vigente (bloque 23):
+ * fn_crear_version_politica_clasificacion clona tramos y estrategias de una
+ * política existente en un borrador nuevo, para editarlo sin tocar la
+ * vigente (REC-CAR-011: una política vigente es inmutable).
  *
  * Lo que se prueba es que una copropiedad nueva pueda encender el módulo
  * sin que nadie escriba SQL, y que lo sembrado cumpla los invariantes de
@@ -36,6 +40,7 @@ d('CAR §8.4 — configuración inicial de cartera', () => {
   let clienteAdministrador: Cliente
   let clienteAuxiliar: Cliente
   let politicaId: string
+  let versionNuevaId: string
 
   afterAll(async () => {
     await eliminarTenant(admin, tenant.id)
@@ -170,4 +175,185 @@ d('CAR §8.4 — configuración inicial de cartera', () => {
       await eliminarUsuario(admin, otro.id)
     }
   }, 90_000)
+
+  // ── §8.5 / bloque 23: versionado editable de la vigente ────────────────
+  it('crea una versión nueva en borrador, clonando tramos y estrategias de la vigente', async () => {
+    const { data, error } = await clienteAdministrador.rpc('fn_crear_version_politica_clasificacion', {
+      p_politica_id: politicaId,
+    })
+    expect(error).toBeNull()
+    versionNuevaId = data as unknown as string
+    expect(versionNuevaId).toBeTruthy()
+    expect(versionNuevaId).not.toBe(politicaId)
+
+    const { data: nueva } = await admin
+      .from('politicas_clasificacion_cartera')
+      .select('estado, version')
+      .eq('id', versionNuevaId)
+      .single<{ estado: string; version: number }>()
+    expect(nueva!.estado).toBe('borrador')
+    expect(nueva!.version).toBe(2)
+
+    const { data: tramosOrigen } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('codigo, dias_min, dias_max')
+      .eq('politica_id', politicaId)
+      .order('orden')
+    const { data: tramosClon } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('codigo, dias_min, dias_max')
+      .eq('politica_id', versionNuevaId)
+      .order('orden')
+    expect(tramosClon).toEqual(tramosOrigen)
+
+    const { data: estrategiasOrigen } = await admin
+      .from('estrategias_cobranza')
+      .select('codigo, tipo_accion')
+      .eq('politica_id', politicaId)
+      .order('codigo')
+    const { data: estrategiasClon } = await admin
+      .from('estrategias_cobranza')
+      .select('codigo, tipo_accion')
+      .eq('politica_id', versionNuevaId)
+      .order('codigo')
+    expect(estrategiasClon).toEqual(estrategiasOrigen)
+  }, 60_000)
+
+  it('el borrador se puede editar; la vigente sigue inmutable (REC-CAR-011)', async () => {
+    const { data: tramoBorrador } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('id')
+      .eq('politica_id', versionNuevaId)
+      .eq('codigo', 'MORA_TEMPRANA')
+      .single<{ id: string }>()
+
+    const { error: errorEditarBorrador } = await clienteAdministrador
+      .from('politica_clasificacion_tramos')
+      .update({ nombre: 'Mora temprana (editado)' })
+      .eq('id', tramoBorrador!.id)
+    expect(errorEditarBorrador).toBeNull()
+
+    const { data: tramoVigente } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('id')
+      .eq('politica_id', politicaId)
+      .eq('codigo', 'MORA_TEMPRANA')
+      .single<{ id: string }>()
+
+    const { error: errorEditarVigente } = await clienteAdministrador
+      .from('politica_clasificacion_tramos')
+      .update({ nombre: 'Mora temprana (editado)' })
+      .eq('id', tramoVigente!.id)
+    expect(errorEditarVigente).not.toBeNull()
+    expect(errorEditarVigente?.message ?? '').toMatch(/INMUTABLE/i)
+  }, 30_000)
+
+  it('activar la versión nueva retira la vigente actual a historica (patrón de dos UPDATE)', async () => {
+    const { error: errorRetiro } = await clienteAdministrador
+      .from('politicas_clasificacion_cartera')
+      .update({ estado: 'historica' })
+      .eq('id', politicaId)
+    expect(errorRetiro).toBeNull()
+
+    const { error: errorPromocion } = await clienteAdministrador
+      .from('politicas_clasificacion_cartera')
+      .update({ estado: 'vigente' })
+      .eq('id', versionNuevaId)
+    expect(errorPromocion).toBeNull()
+
+    const { data: estados } = await admin
+      .from('politicas_clasificacion_cartera')
+      .select('id, estado')
+      .in('id', [politicaId, versionNuevaId])
+    const porId = new Map((estados ?? []).map((p) => [p.id, p.estado]))
+    expect(porId.get(politicaId)).toBe('historica')
+    expect(porId.get(versionNuevaId)).toBe('vigente')
+  }, 30_000)
+
+  // ── §9.3: estrategias editables incluso con política vigente ───────────
+  it('crea, edita y elimina una estrategia con la política ya vigente (sin guard de inmutabilidad)', async () => {
+    const { data: tramo } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('id')
+      .eq('politica_id', versionNuevaId)
+      .eq('codigo', 'AL_DIA')
+      .single<{ id: string }>()
+
+    const { data: creada, error: errorCrear } = await clienteAdministrador
+      .from('estrategias_cobranza')
+      .insert({
+        tenant_id: tenant.id,
+        politica_id: versionNuevaId,
+        tramo_id: tramo!.id,
+        codigo: 'SALUDO-TEST',
+        nombre: 'Correo de bienvenida',
+        tipo_accion: 'email',
+        canal: 'email',
+        dias_desde_clasificacion: 0,
+        max_intentos: 1,
+        rol_minimo: 'auxiliar',
+        activa: true,
+        orden: 99,
+      })
+      .select('id, activa')
+      .single<{ id: string; activa: boolean }>()
+    // Estrategias SÍ se pueden crear con la política vigente — es la
+    // diferencia clave frente a los tramos (§8.5 solo aplica a tramos).
+    expect(errorCrear).toBeNull()
+    expect(creada!.activa).toBe(true)
+    const estrategiaId = creada!.id
+
+    const { error: errorEditar } = await clienteAdministrador
+      .from('estrategias_cobranza')
+      .update({ dias_desde_clasificacion: 7, requiere_aprobacion: true, monto_minimo_deuda: 50000 })
+      .eq('id', estrategiaId)
+    expect(errorEditar).toBeNull()
+
+    const { data: editada } = await admin
+      .from('estrategias_cobranza')
+      .select('dias_desde_clasificacion, requiere_aprobacion, monto_minimo_deuda')
+      .eq('id', estrategiaId)
+      .single<{ dias_desde_clasificacion: number; requiere_aprobacion: boolean; monto_minimo_deuda: string }>()
+    expect(editada!.dias_desde_clasificacion).toBe(7)
+    expect(editada!.requiere_aprobacion).toBe(true)
+    expect(Number(editada!.monto_minimo_deuda)).toBe(50000)
+
+    const { error: errorEliminar } = await clienteAdministrador
+      .from('estrategias_cobranza')
+      .delete()
+      .eq('id', estrategiaId)
+    expect(errorEliminar).toBeNull()
+
+    const { count } = await admin
+      .from('estrategias_cobranza')
+      .select('id', { count: 'exact', head: true })
+      .eq('id', estrategiaId)
+    expect(count).toBe(0)
+  }, 30_000)
+
+  it('el guard sigue exigiendo que tramo_id pertenezca a politica_id', async () => {
+    const { data: tramoDeOtraPolitica } = await admin
+      .from('politica_clasificacion_tramos')
+      .select('id')
+      .eq('politica_id', politicaId)
+      .eq('codigo', 'CRITICA')
+      .single<{ id: string }>()
+
+    const { error } = await clienteAdministrador.from('estrategias_cobranza').insert({
+      tenant_id: tenant.id,
+      politica_id: versionNuevaId,
+      tramo_id: tramoDeOtraPolitica!.id,
+      codigo: 'CRUZADA-TEST',
+      nombre: 'No debería crearse',
+      tipo_accion: 'email',
+      canal: 'email',
+      dias_desde_clasificacion: 0,
+      max_intentos: 1,
+      rol_minimo: 'auxiliar',
+      activa: true,
+      orden: 99,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/ESTRATEGIA_COBRANZA_TRAMO_AJENO/i)
+  }, 30_000)
 })

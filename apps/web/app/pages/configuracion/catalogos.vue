@@ -146,13 +146,15 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h1 class="text-xl font-semibold mb-1">Catálogos</h1>
-      <p class="text-sm text-neutral-500 max-w-2xl">
+    <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Catálogos</h1>
+      </template>
+      <template #descripcion>
         Cada familia mezcla los valores de plataforma (comunes a todos los tenants, solo lectura)
         con los que esta copropiedad agregó por su cuenta.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 

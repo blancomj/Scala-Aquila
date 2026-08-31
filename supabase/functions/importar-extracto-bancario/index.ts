@@ -12,13 +12,15 @@
 // propio en `pagos` — importarExtracto() (liquidation-engine) usa
 // registrarPago() para cualquier línea que auto-concilie.
 import { withSupabase } from '@supabase/server'
-// dist/index.js (compilado), no src/: Deno no resuelve especificadores .js
-// que en realidad apuntan a hermanos .ts — mismo motivo que registrar-pago.
-import {
-  ArchivoNoReconocidoError,
-  hashArchivo,
-  importarExtracto,
-} from '../../../packages/liquidation-engine/dist/index.js'
+// Módulos concretos, NUNCA el barrel dist/index.js: conciliacion-supabase.js
+// (y conciliacion-matching.js, del que depende) ya no viven en el barrel a
+// propósito (ver cabecera de packages/liquidation-engine/src/index.ts,
+// CAR_08 §4) — esta función sí necesita "@aquila/payment-gateways" (ya
+// mapeado en su deno.json), así que importa directo. hashArchivo no
+// depende de eso (conciliacion-parsers.js no importa payment-gateways),
+// pero se importa igual de forma directa por consistencia.
+import { ArchivoNoReconocidoError, importarExtracto } from '../../../packages/liquidation-engine/dist/conciliacion-supabase.js'
+import { hashArchivo } from '../../../packages/liquidation-engine/dist/conciliacion-parsers.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'

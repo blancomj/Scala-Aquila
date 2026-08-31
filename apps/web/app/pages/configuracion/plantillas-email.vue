@@ -190,13 +190,15 @@ function usarVersion(subject: string, htmlContent: string): void {
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Plantillas de correo</h1>
-      <p class="text-sm text-gray-500">
+    <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Plantillas de correo</h1>
+      </template>
+      <template #descripcion>
         Copia local de cada plantilla de correo transaccional, sincronizada con Brevo al guardar.
         Editar aquí no requiere despliegue.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <div class="flex gap-6 items-start">
       <!-- ── columna izquierda: lista ── -->

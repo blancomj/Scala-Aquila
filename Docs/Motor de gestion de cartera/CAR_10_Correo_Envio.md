@@ -1,20 +1,19 @@
 # Correo de presentación — envío de CAR-10 (bloque 26)
 
-> Borrador listo para copiar y pegar. Completa los datos entre `[corchetes]`
-> antes de enviar. Adjuntar `CAR_10_Consulta_Juridica.md` (o su versión en PDF)
-> al correo.
+> Borrador listo para copiar y pegar. Adjuntar `CAR_10_Consulta_Juridica.md`
+> (o su versión en PDF) al correo antes de enviar.
 
 ---
 
 **Asunto:** Solicitud de concepto jurídico — cobro de expensas comunes en software de administración PH (8 puntos, respuesta escrita)
 
-**Para:** [correo del abogado/firma]
+**Para:** blancomj@gmail.com
 
 **Cuerpo:**
 
-Estimado/a [nombre del abogado],
+Estimado/a JOHNNY MENDOZA BLANCO,
 
-Le escribo en nombre de [nombre de la empresa / proyecto] para solicitar un
+Le escribo en nombre de Conjunto residencial el Coral para solicitar un
 concepto jurídico escrito sobre ocho puntos puntuales relacionados con el
 cobro de expensas comunes bajo la Ley 675 de 2001, en el contexto de un
 software de administración de propiedad horizontal que estamos desarrollando.
@@ -58,9 +57,9 @@ Quedo atento/a a sus comentarios.
 
 Cordialmente,
 
-[Tu nombre]
-[Cargo / empresa]
-[Teléfono]
+Patricia Gomez
+Administrador del Conjunto — Conjunto residencial el Coral
+3107418731
 
 ---
 

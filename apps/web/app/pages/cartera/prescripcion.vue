@@ -103,15 +103,17 @@ const columnas = [
 <template>
   <div class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-semibold mb-1">Actos interruptivos de prescripción</h1>
-        <p class="text-sm text-gray-500 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Actos interruptivos de prescripción</h1>
+        </template>
+        <template #descripcion>
           Bitácora de hechos que podrían interrumpir la prescripción de la deuda — pagos, reconocimientos
           escritos, demandas, actuaciones judiciales. Registro puramente factual: esta pantalla
           <strong>no calcula plazos ni alerta de riesgo de prescripción</strong> (el término y el cómputo del
           régimen civil aplicable siguen sin verificar jurídicamente, VER-CAR-05).
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <UButton icon="i-lucide-plus" @click="abrirModal">Registrar acto</UButton>
     </div>
 

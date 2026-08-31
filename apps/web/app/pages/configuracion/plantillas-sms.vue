@@ -186,13 +186,15 @@ async function probarEnvio(): Promise<void> {
 
 <template>
   <div class="space-y-6 max-w-2xl">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Plantillas SMS</h1>
-      <p class="text-sm text-gray-500">
+    <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Plantillas SMS</h1>
+      </template>
+      <template #descripcion>
         Texto de cada SMS transaccional que envía la plataforma, por evento de cartera. Cambiar el
         texto aquí no requiere despliegue.
-      </p>
-    </div>
+      </template>
+    </UiTituloDescripcion>
 
     <div class="flex items-end gap-4">
       <UFormField label="Proceso" name="evento" class="flex-1">

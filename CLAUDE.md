@@ -124,6 +124,33 @@ Boundaries above are **enforced by `eslint.config.js`**, not just convention:
 - `propietarios`/residentes are domain data, not auth principals — no login, no own RLS (AD-26).
 - Subscriptions are billed per copropiedad, matching the tenant boundary exactly (AD-27).
 
+## UI conventions
+
+- **Título + descripción larga → colapsable.** Cuando un título de página o
+  de sección lleva un párrafo explicativo debajo que ocupa más de una línea,
+  o una sola línea que supera 1/4 del ancho de su contenedor, usar
+  `UiTituloDescripcion` (`apps/web/app/components/ui/UiTituloDescripcion.vue`)
+  en vez de un `<h1>`/`<h2>` + `<p>` sueltos. Mide el ancho real del texto en
+  runtime (no un umbral de caracteres) y decide sola si mostrar el chevron —
+  arranca siempre colapsada cuando aplica. Slots `#titulo` (conserva el tag y
+  las clases que ya tenía el heading) y `#descripcion` (soporta markup como
+  `<strong>`). Prop opcional `clase-descripcion` para no perder el tamaño/color
+  que ya tuviera el párrafo. No aplica a mensajes de estado vacío genéricos
+  ("todavía no hay X registrado") — solo a texto que explica qué es o para
+  qué sirve la pantalla.
+- **Selectores de catálogo: `USelect` vs `UiSelectorBuscable`.** `USelect`
+  para enumeraciones cortas y fijas (estados, tipos con pocas opciones,
+  banderas sí/no). `UiSelectorBuscable`
+  (`apps/web/app/components/ui/UiSelectorBuscable.vue`) para catálogos de
+  copropiedad que pueden tener varias decenas de opciones o rutas largas
+  (inmuebles, terceros, cuentas del plan de cuentas, agrupaciones,
+  documentos) — combobox propio con filtro local, sin depender de
+  `USelectMenu` (sin theming propio en este repo). No se necesita búsqueda
+  remota/debounced: por AD-24 el tenant es una sola copropiedad, así que
+  todo catálogo está acotado al tamaño real de un edificio. No convertir
+  selectores de enumeraciones fijas a `UiSelectorBuscable` solo por
+  uniformidad — evaluar caso por caso si el catálogo realmente es largo.
+
 ## Absolute prohibitions (PLAN §9.2 — no exceptions)
 
 ```
