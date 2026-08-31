@@ -95,7 +95,7 @@ async function guardar(): Promise<void> {
           {{ estado }}
         </UBadge>
 
-        <UFormField label="Tipo" name="tipo">
+        <UFormField label="Tipo" name="tipo" description="Categoría legal del fundamento">
           <USelect
             v-model="tipo"
             :disabled="soloLectura"
@@ -109,7 +109,7 @@ async function guardar(): Promise<void> {
           <UInput v-model="norma" :disabled="soloLectura" required class="w-full" />
         </UFormField>
 
-        <UFormField label="Artículo" name="articulo">
+        <UFormField label="Artículo" name="articulo" description="Ej: Art. 12, Art. 47 inc. 2">
           <UInput v-model="articulo" :disabled="soloLectura" class="w-full" />
         </UFormField>
 
@@ -117,11 +117,11 @@ async function guardar(): Promise<void> {
           <UTextarea v-model="descripcion" :disabled="soloLectura" class="w-full" :rows="5" autoresize :maxrows="14" />
         </UFormField>
 
-        <UFormField label="Referencia" name="referencia">
+        <UFormField label="Referencia" name="referencia" description="Clave interna o código de seguimiento (no es la norma)">
           <UInput v-model="referencia" :disabled="soloLectura" class="w-full" />
         </UFormField>
 
-        <UFormField label="Fuente URL" name="fuenteUrl">
+        <UFormField label="Fuente URL" name="fuenteUrl" description="Enlace a la norma oficial o documento">
           <UInput v-model="fuenteUrl" :disabled="soloLectura" class="w-full" placeholder="https://..." />
         </UFormField>
 
@@ -132,7 +132,7 @@ async function guardar(): Promise<void> {
           </div>
           <div>
             <p class="text-xs font-medium text-muted mb-1">Validado por</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ validadoPor || '—' }}</p>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400">{{ validadoPor || '—' }}</p>
           </div>
         </div>
       </div>

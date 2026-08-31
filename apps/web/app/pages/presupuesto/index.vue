@@ -152,12 +152,14 @@ const sumaFuentesAplicadas = computed(() =>
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Presupuesto</h1>
-        <p class="text-sm text-neutral-500">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Presupuesto</h1>
+        </template>
+        <template #descripcion>
           Presupuestos, rubros, fuentes de financiación y su reparto entre unidades.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <div class="flex items-end gap-3">
         <UBadge
           v-if="presupuestoSeleccionado"
@@ -180,8 +182,10 @@ const sumaFuentesAplicadas = computed(() =>
          vivía dentro de un v-else de este mismo estado vacío, dejando a un
          tenant nuevo sin ninguna forma de crear el primer presupuesto. -->
     <p v-if="presupuestoStore.presupuestos.length === 0" class="text-neutral-500 text-sm">
-      Esta copropiedad todavía no tiene un presupuesto registrado. Créalo desde la pestaña
-      "Presupuestos" de abajo.
+      Esta copropiedad todavía no tiene un presupuesto registrado.
+      <UButton size="sm" variant="link" class="p-0 h-auto" @click="tabActiva = 'presupuestos'">
+        Créalo en la pestaña "Presupuestos"
+      </UButton>
     </p>
 
     <!-- ── rastreador de ciclo ──────────────────────────────────────── -->

@@ -18,6 +18,28 @@ const fuenteUrl = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 
+const formularioSucio = computed(() =>
+  norma.value || articulo.value || descripcion.value || referencia.value || fuenteUrl.value,
+)
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (formularioSucio.value && !cargando.value) {
+    if (!window.confirm('Tienes cambios sin guardar. ¿Salir de todos modos?')) {
+      next(false)
+      return
+    }
+  }
+  next()
+})
+
+if (import.meta.client) {
+  window.addEventListener('beforeunload', (e) => {
+    if (formularioSucio.value && !cargando.value) {
+      e.preventDefault()
+    }
+  })
+}
+
 async function crear(): Promise<void> {
   error.value = null
   const tenantId = tenantStore.activeTenant?.id
@@ -50,13 +72,13 @@ async function crear(): Promise<void> {
   <div class="space-y-6 max-w-2xl">
     <div>
       <h1 class="text-xl font-semibold mb-1">Nuevo fundamento normativo</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">
         Registrar una referencia legal propia de esta copropiedad.
       </p>
     </div>
 
     <form class="space-y-4" @submit.prevent="crear">
-      <UFormField label="Tipo" name="tipo">
+      <UFormField label="Tipo" name="tipo" description="Categoría legal del fundamento">
         <USelect v-model="tipo" :items="TIPO_FUNDAMENTO_ITEMS" value-key="value" class="w-full" />
       </UFormField>
 
@@ -64,7 +86,7 @@ async function crear(): Promise<void> {
         <UInput v-model="norma" required class="w-full" placeholder="Ej: Reglamento Interno PH" />
       </UFormField>
 
-      <UFormField label="Artículo" name="articulo">
+      <UFormField label="Artículo" name="articulo" description="Ej: Art. 12, Art. 47 inc. 2">
         <UInput v-model="articulo" class="w-full" placeholder="Ej: Art. 12" />
       </UFormField>
 
@@ -72,11 +94,11 @@ async function crear(): Promise<void> {
         <UTextarea v-model="descripcion" class="w-full" :rows="5" autoresize :maxrows="14" placeholder="Resumen de la aplicación al sistema" />
       </UFormField>
 
-      <UFormField label="Referencia" name="referencia">
+      <UFormField label="Referencia" name="referencia" description="Clave interna o código de seguimiento (no es la norma)">
         <UInput v-model="referencia" class="w-full" placeholder="Clave interna" />
       </UFormField>
 
-      <UFormField label="Fuente URL" name="fuenteUrl">
+      <UFormField label="Fuente URL" name="fuenteUrl" description="Enlace a la norma oficial o documento">
         <UInput v-model="fuenteUrl" class="w-full" placeholder="https://..." />
       </UFormField>
 

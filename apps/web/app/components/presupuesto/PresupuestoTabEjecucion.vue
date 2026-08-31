@@ -538,6 +538,7 @@ function exportar(): void {
                 size="xs"
                 variant="ghost"
                 icon="i-lucide-x"
+                aria-label="Limpiar búsqueda"
                 title="Limpiar búsqueda"
                 @click="busquedaMovimientos = ''"
               />

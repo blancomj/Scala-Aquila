@@ -29,6 +29,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
+const toast = useToast()
 
 const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
 const tipoNovedadPorId = computed(
@@ -116,6 +117,7 @@ async function ejecutarAprobacion(novedadId: string): Promise<void> {
   accionEnCursoId.value = novedadId
   try {
     await cuentaStore.aprobarNovedad(novedadId, tenantId)
+    toast.add({ title: 'Novedad aprobada', color: 'success' })
   } catch (excepcion) {
     errorAccion.value = mensajeError(excepcion, 'No se pudo aprobar la novedad.')
   } finally {

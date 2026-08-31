@@ -23,12 +23,14 @@ const presupuestoSeleccionado = computed(
 <template>
   <div class="space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Periodos y vigencia</h1>
-        <p class="text-sm text-neutral-500">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1">
+        <template #titulo>
+          <h1 class="text-xl font-semibold">Periodos y vigencia</h1>
+        </template>
+        <template #descripcion>
           Vigencia del presupuesto seleccionado y los periodos de liquidación de su año fiscal.
-        </p>
-      </div>
+        </template>
+      </UiTituloDescripcion>
       <div class="flex items-end gap-3">
         <UBadge
           v-if="presupuestoSeleccionado"

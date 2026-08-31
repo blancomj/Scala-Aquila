@@ -64,6 +64,7 @@ const presupuestoStore = usePresupuestoStore()
 const conceptoStore = useConceptoStore()
 const liquidacionStore = useLiquidacionStore()
 
+const toast = useToast()
 const cargando = ref(false)
 const guardando = ref(false)
 const error = ref<string | null>(null)
@@ -222,6 +223,9 @@ function cuentaDeMotivo(motivoId: number | null): { nombre: string } | null {
 }
 
 const cuentaDelMotivo = computed(() => cuentaDeMotivo(tipoNovedadId.value))
+const opcionesMotivo = computed(() =>
+  cuentaStore.tiposNovedad.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+)
 const motivoNombre = computed(
   () => cuentaStore.tiposNovedad.find((t) => t.id === tipoNovedadId.value)?.nombre ?? null,
 )
@@ -296,6 +300,7 @@ async function guardar(): Promise<void> {
       prorrateable: repeticion.value === 'prorrateable',
       cuotasTotales: repeticion.value === 'prorrateable' ? cuotasTotales.value : null,
     })
+    toast.add({ title: 'Novedad creada', description: 'Queda pendiente de aprobación.', color: 'success' })
     await navigateTo(inmuebleIdInicial ? `/inmuebles/${inmuebleIdInicial}` : '/estado-cuenta/novedades')
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo crear la novedad.')
@@ -329,6 +334,7 @@ async function aprobar(): Promise<void> {
   accionEnCurso.value = true
   try {
     await cuentaStore.aprobarNovedad(props.novedadId, tenantId)
+    toast.add({ title: 'Novedad aprobada', description: 'El cargo se reflejó en la cuenta del inmueble.', color: 'success' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo aprobar la novedad.')
   } finally {
@@ -346,6 +352,7 @@ async function confirmarRechazo(): Promise<void> {
   accionEnCurso.value = true
   try {
     await cuentaStore.rechazarNovedad(props.novedadId, motivo, tenantId)
+    toast.add({ title: 'Novedad rechazada', color: 'warning' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo rechazar la novedad.')
   } finally {
@@ -362,6 +369,7 @@ async function confirmarInhabilitar(): Promise<void> {
   accionEnCurso.value = true
   try {
     await cuentaStore.inhabilitarNovedad(props.novedadId, tenantId)
+    toast.add({ title: 'Novedad inhabilitada', description: 'No generará cargos nuevos desde el próximo periodo.', color: 'warning' })
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo inhabilitar la novedad.')
   } finally {
@@ -421,10 +429,10 @@ const resumenGuardado = computed<string | null>(() => {
             {{ ETIQUETA_ESTADO_NOVEDAD[novedad.estado] ?? novedad.estado }}
           </UBadge>
         </div>
-        <p v-if="!soloLectura" class="text-sm text-gray-500 mt-1">
+        <p v-if="!soloLectura" class="text-sm text-neutral-500 mt-1">
           Queda pendiente de aprobación — no genera ningún cargo hasta que alguien la apruebe.
         </p>
-        <p v-else-if="novedad" class="text-sm text-gray-500 mt-1">
+        <p v-else-if="novedad" class="text-sm text-neutral-500 mt-1">
           {{ DESCRIPCION_ESTADO_NOVEDAD[novedad.estado] ?? '' }}
         </p>
       </div>
@@ -465,7 +473,7 @@ const resumenGuardado = computed<string | null>(() => {
       <USkeleton class="h-24 w-full rounded-lg" />
       <USkeleton class="h-24 w-full rounded-lg" />
     </div>
-    <p v-else-if="soloLectura && !novedad" class="text-sm text-gray-500">
+    <p v-else-if="soloLectura && !novedad" class="text-sm text-neutral-500">
       No se encontró esta novedad.
     </p>
 
@@ -473,11 +481,11 @@ const resumenGuardado = computed<string | null>(() => {
       <!-- ══ creación ══════════════════════════════════════════════ -->
       <div v-if="!soloLectura" class="space-y-4">
         <!-- 1. Qué pasó -->
-        <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+        <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
           <header
-            class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40"
+            class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">
               1 · Qué pasó
             </h3>
           </header>
@@ -494,7 +502,7 @@ const resumenGuardado = computed<string | null>(() => {
                 <template #label>
                   <span class="inline-flex items-baseline gap-1.5">
                     <span>Descripción</span>
-                    <span class="text-xs font-normal text-gray-400">
+                    <span class="text-xs font-normal text-neutral-400">
                       — visible al propietario en estado de cuenta
                     </span>
                   </span>
@@ -507,22 +515,21 @@ const resumenGuardado = computed<string | null>(() => {
               </UFormField>
             </div>
             <UFormField label="Motivo" name="motivo">
-              <select
+              <UiSelectorBuscable
                 v-model="tipoNovedadId"
-                class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
-              >
-                <option :value="null">— Sin clasificar —</option>
-                <option v-for="t in cuentaStore.tiposNovedad" :key="t.id" :value="t.id">
-                  {{ t.nombre }}
-                </option>
-              </select>
+                :opciones="opcionesMotivo"
+                placeholder="— Sin clasificar —"
+              />
               <template #help>
                 <span v-if="cuentaDelMotivo">
                   Se registrará bajo <strong>{{ cuentaDelMotivo.nombre }}</strong>.
                 </span>
                 <span v-else-if="tipoNovedadId !== null">
                   Este motivo todavía no tiene cuenta asignada — el cobro no se reflejará en la
-                  ejecución del presupuesto. Se configura en Ajustes › Motivos de novedad.
+                  ejecución del presupuesto. Se configura en
+                  <NuxtLink to="/configuracion/motivos-novedad" class="text-primary hover:underline"
+                    >Ajustes › Motivos de novedad</NuxtLink
+                  >.
                 </span>
                 <span v-else>La cuenta contable se asigna sola a partir del motivo.</span>
               </template>
@@ -531,18 +538,18 @@ const resumenGuardado = computed<string | null>(() => {
         </section>
 
         <!-- 2. Cuánto -->
-        <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+        <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
           <header
-            class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40"
+            class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">2 · Cuánto</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">2 · Cuánto</h3>
           </header>
           <div class="p-4 space-y-4">
             <div class="flex flex-wrap items-start gap-6">
               <div>
                 <p class="text-sm font-medium mb-1.5">Tipo</p>
                 <div
-                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm max-w-xs"
+                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm max-w-xs"
                 >
                   <button
                     v-for="opcion in (['cobro', 'reembolso'] as SignoNovedad[])"
@@ -552,15 +559,15 @@ const resumenGuardado = computed<string | null>(() => {
                     :aria-pressed="signo === opcion"
                     :class="
                       signo === opcion
-                        ? 'bg-white dark:bg-gray-900 shadow-sm font-medium'
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
+                        : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
                     "
                     @click="signo = opcion"
                   >
                     {{ ETIQUETA_SIGNO[opcion] }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-1.5 max-w-[220px]">{{ DESCRIPCION_SIGNO[signo] }}</p>
+                <p class="text-xs text-neutral-500 mt-1.5 max-w-[220px]">{{ DESCRIPCION_SIGNO[signo] }}</p>
               </div>
 
               <UFormField label="Valor" name="valor" class="w-40">
@@ -573,7 +580,7 @@ const resumenGuardado = computed<string | null>(() => {
                   @update:model-value="onMontoInput"
                 >
                   <template #leading>
-                    <span class="text-gray-400 text-sm">$</span>
+                    <span class="text-neutral-400 text-sm">$</span>
                   </template>
                 </UInput>
               </UFormField>
@@ -582,11 +589,11 @@ const resumenGuardado = computed<string | null>(() => {
         </section>
 
         <!-- 3. Cuándo y cada cuánto -->
-        <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+        <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
           <header
-            class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40"
+            class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">
               3 · Cuándo y cada cuánto
             </h3>
           </header>
@@ -595,7 +602,7 @@ const resumenGuardado = computed<string | null>(() => {
               <div>
                 <p class="text-sm font-medium mb-1.5">Frecuencia de cobro</p>
                 <div
-                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm"
+                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm"
                 >
                   <button
                     v-for="opcion in (['ninguna', 'permanente', 'prorrateable'] as RepeticionNovedad[])"
@@ -605,15 +612,15 @@ const resumenGuardado = computed<string | null>(() => {
                     :aria-pressed="repeticion === opcion"
                     :class="
                       repeticion === opcion
-                        ? 'bg-white dark:bg-gray-900 shadow-sm font-medium'
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
+                        : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
                     "
                     @click="repeticion = opcion"
                   >
                     {{ ETIQUETA_REPETICION[opcion] }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-1.5 max-w-[220px]">
+                <p class="text-xs text-neutral-500 mt-1.5 max-w-[220px]">
                   {{ DESCRIPCION_REPETICION[repeticion] }}
                 </p>
               </div>
@@ -636,7 +643,7 @@ const resumenGuardado = computed<string | null>(() => {
               <p class="text-sm font-medium mb-1.5">Periodo</p>
               <div class="flex flex-wrap items-start gap-4">
                 <div
-                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-sm max-w-xs"
+                  class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm max-w-xs"
                 >
                   <button
                     v-for="opcion in (['inmediato', 'programado'] as ModoPeriodo[])"
@@ -646,8 +653,8 @@ const resumenGuardado = computed<string | null>(() => {
                     :aria-pressed="modoPeriodo === opcion"
                     :class="
                       modoPeriodo === opcion
-                        ? 'bg-white dark:bg-gray-900 shadow-sm font-medium'
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
+                        : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
                     "
                     @click="modoPeriodo = opcion"
                   >
@@ -666,7 +673,7 @@ const resumenGuardado = computed<string | null>(() => {
                 </div>
               </div>
 
-              <p v-if="modoPeriodo === 'inmediato' && proximoPeriodoAbierto" class="text-xs text-gray-500 mt-1.5">
+              <p v-if="modoPeriodo === 'inmediato' && proximoPeriodoAbierto" class="text-xs text-neutral-500 mt-1.5">
                 Se aplicará en <strong>{{ mesAnioTexto(fechaEfectiva!) }}</strong> — la próxima
                 liquidación que sigue abierta.
               </p>
@@ -677,7 +684,7 @@ const resumenGuardado = computed<string | null>(() => {
                 <UIcon name="i-lucide-triangle-alert" class="size-4 shrink-0 mt-px" />
                 <span>No hay ningún periodo abierto todavía — usa «Programar» para elegir uno.</span>
               </p>
-              <p v-else class="text-xs text-gray-500 mt-1.5 max-w-sm">
+              <p v-else class="text-xs text-neutral-500 mt-1.5 max-w-sm">
                 La novedad se aplica sobre el periodo de ese mes; el día exacto no interviene. Si
                 todavía no existe un periodo creado para ese mes, la aprobación fallará hasta que
                 se cree.
@@ -700,15 +707,15 @@ const resumenGuardado = computed<string | null>(() => {
 
       <!-- ══ detalle ═══════════════════════════════════════════════ -->
       <div v-else-if="novedad" class="space-y-4">
-        <section class="rounded-lg border border-gray-200 dark:border-gray-800">
+        <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
           <header
-            class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40"
+            class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Detalle</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Detalle</h3>
           </header>
           <dl class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <div>
-              <dt class="text-gray-500 text-xs">Inmueble</dt>
+              <dt class="text-neutral-500 text-xs">Inmueble</dt>
               <dd>
                 {{
                   etiquetaInmueble(
@@ -719,29 +726,29 @@ const resumenGuardado = computed<string | null>(() => {
               </dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Periodo</dt>
+              <dt class="text-neutral-500 text-xs">Periodo</dt>
               <dd>{{ mesAnioTexto(novedad.fecha_efectiva) }}</dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Monto</dt>
+              <dt class="text-neutral-500 text-xs">Monto</dt>
               <dd
                 class="tabular-nums"
-                :class="Number(novedad.monto) < 0 ? 'text-green-600 dark:text-green-500' : ''"
+                :class="Number(novedad.monto) < 0 ? 'text-success-600 dark:text-success-500' : ''"
               >
                 {{ formatoMoneda(novedad.monto) }}
               </dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Clase</dt>
+              <dt class="text-neutral-500 text-xs">Clase</dt>
               <dd>
                 {{ ETIQUETA_TIPO_NOVEDAD[novedad.tipo as NovedadTipo] ?? novedad.tipo }}
-                <span class="text-gray-500">
+                <span class="text-neutral-500">
                   — {{ DESCRIPCION_TIPO_NOVEDAD[novedad.tipo as NovedadTipo] ?? '' }}
                 </span>
               </dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Motivo</dt>
+              <dt class="text-neutral-500 text-xs">Motivo</dt>
               <dd>
                 {{
                   novedad.tipo_novedad_id
@@ -752,7 +759,7 @@ const resumenGuardado = computed<string | null>(() => {
               </dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Cuenta de ingreso</dt>
+              <dt class="text-neutral-500 text-xs">Cuenta de ingreso</dt>
               <dd>
                 {{
                   novedad.presupuesto_cuenta_id
@@ -763,7 +770,7 @@ const resumenGuardado = computed<string | null>(() => {
               </dd>
             </div>
             <div>
-              <dt class="text-gray-500 text-xs">Repetición</dt>
+              <dt class="text-neutral-500 text-xs">Repetición</dt>
               <dd>
                 <template v-if="novedad.permanente">
                   {{ ETIQUETA_REPETICION.permanente
@@ -776,7 +783,7 @@ const resumenGuardado = computed<string | null>(() => {
               </dd>
             </div>
             <div v-if="progresoCuotas">
-              <dt class="text-gray-500 text-xs">Cuotas generadas</dt>
+              <dt class="text-neutral-500 text-xs">Cuotas generadas</dt>
               <dd>
                 {{ progresoCuotas.generadas }} de {{ progresoCuotas.total }} — saldo
                 {{ formatoMoneda(progresoCuotas.saldo) }}
@@ -785,7 +792,7 @@ const resumenGuardado = computed<string | null>(() => {
           </dl>
         </section>
 
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-neutral-500">
           Una novedad no se puede modificar después de creada: queda como registro del hecho y solo
           cambia de estado al aprobarse, rechazarse o inhabilitarse. Si hay un error, recházala y
           crea una nueva.
@@ -804,13 +811,13 @@ const resumenGuardado = computed<string | null>(() => {
             {{ resumenGuardado }}
           </p>
           <p v-else-if="resumen" class="p-4 text-sm leading-relaxed">{{ resumen }}</p>
-          <p v-else class="p-4 text-sm text-gray-500 leading-relaxed">
+          <p v-else class="p-4 text-sm text-neutral-500 leading-relaxed">
             Elige el inmueble y el valor para ver aquí el efecto exacto.
           </p>
 
           <p
             v-if="!soloLectura && resumen && motivoNombre"
-            class="px-4 py-3 text-xs border-t border-gray-200 dark:border-gray-800 text-gray-500"
+            class="px-4 py-3 text-xs border-t border-neutral-200 dark:border-neutral-800 text-neutral-500"
           >
             Motivo: {{ motivoNombre
             }}<template v-if="cuentaDelMotivo"> · cuenta {{ cuentaDelMotivo.nombre }}</template>
@@ -826,12 +833,12 @@ const resumenGuardado = computed<string | null>(() => {
       @update:open="(abierto) => { if (!abierto) pidiendoRechazo = false }"
     >
       <template #body>
-        <div v-if="novedad" class="space-y-3 text-sm">
+        <form v-if="novedad" class="space-y-3 text-sm" @submit.prevent="confirmarRechazo">
           <p>
             Vas a rechazar <strong>{{ novedad.descripcion }}</strong> por
             {{ formatoMoneda(novedad.monto) }}.
           </p>
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             No se generará ningún cargo. El rechazo queda registrado con su motivo y no se puede
             deshacer — si hiciera falta, habría que crear la novedad otra vez.
           </p>
@@ -842,7 +849,7 @@ const resumenGuardado = computed<string | null>(() => {
               class="w-full"
             />
           </UFormField>
-        </div>
+        </form>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -870,7 +877,7 @@ const resumenGuardado = computed<string | null>(() => {
             Vas a inhabilitar <strong>{{ novedad.descripcion }}</strong>, que hoy se cobra
             {{ formatoMoneda(novedad.monto) }} cada periodo.
           </p>
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             Deja de generar cargos desde el próximo periodo. Los cargos ya generados no se tocan.
             No se puede volver a activar — si vuelve a hacer falta, se crea una novedad nueva.
           </p>

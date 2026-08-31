@@ -72,22 +72,22 @@ const gruposFiltrados = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-3 space-y-3">
+  <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
     <p class="text-sm font-medium">Variables disponibles</p>
     <UInput v-model="busqueda" size="sm" placeholder="Buscar variable…" class="w-full" />
 
-    <p v-if="gruposFiltrados.length === 0" class="text-xs text-gray-400 italic">Sin resultados.</p>
+    <p v-if="gruposFiltrados.length === 0" class="text-xs text-neutral-400 italic">Sin resultados.</p>
 
     <div v-for="grupo in gruposFiltrados" :key="grupo.titulo" class="space-y-1">
-      <p class="text-[10px] font-medium uppercase text-gray-400">{{ grupo.titulo }}</p>
+      <p class="text-xs font-medium uppercase text-neutral-400">{{ grupo.titulo }}</p>
       <div
         v-for="item in grupo.items"
         :key="item.texto"
-        class="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-gray-50 dark:hover:bg-gray-900/40"
+        class="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-neutral-50 dark:hover:bg-neutral-900/40"
       >
         <div class="min-w-0">
           <p class="text-xs font-mono truncate" :title="item.texto">{{ item.etiqueta }}</p>
-          <p class="text-[10px] text-gray-400 truncate" :title="item.descripcion">
+          <p class="text-xs text-neutral-400 truncate" :title="item.descripcion">
             {{ item.descripcion }}
           </p>
         </div>

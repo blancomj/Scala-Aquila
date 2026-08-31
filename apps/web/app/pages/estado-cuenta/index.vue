@@ -11,6 +11,7 @@ const conceptoStore = useConceptoStore()
 const liquidacionStore = useLiquidacionStore()
 const inmueblesStore = useInmueblesStore()
 const copropiedadStore = useCopropiedadStore()
+const toast = useToast()
 
 const error = ref<string | null>(null)
 const inmuebleSeleccionadoId = ref<string | null>(null)
@@ -37,7 +38,7 @@ const opcionesInmueble = computed(() =>
   cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
 )
 
-await useAsyncData('cuenta-corriente-base', async () => {
+const { pending: cargandoBase } = await useAsyncData('cuenta-corriente-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
     await Promise.all([
@@ -65,6 +66,7 @@ watch(
     error.value = null
     const tenantId = tenantStore.activeTenant?.id
     if (!id || !tenantId) return
+    cargandoContenido.value = true
     try {
       await Promise.all([
         cuentaStore.cargarCargosAbiertos(tenantId, id),
@@ -73,6 +75,8 @@ watch(
       ])
     } catch (excepcion) {
       error.value = mensajeError(excepcion, 'No se pudo cargar la cuenta.')
+    } finally {
+      cargandoContenido.value = false
     }
   },
   { immediate: true },
@@ -98,6 +102,30 @@ const errorPdf = ref<string | null>(null)
 const ultimoComprobanteId = ref<string | null>(null)
 const enviandoId = ref<string | null>(null)
 const resultadoCorreo = ref<string | null>(null)
+const cargandoContenido = ref(false)
+
+// P0: confirmación antes de enviar correo
+const modalCorreoAbierto = ref(false)
+const comprobanteParaCorreo = ref<{ id: string; reenviar: boolean } | null>(null)
+const inmuebleActual = computed(() =>
+  cuentaStore.inmuebles.find((i) => i.id === inmuebleSeleccionadoId.value) ?? null,
+)
+
+function pedirConfirmacionCorreo(id: string, reenviar: boolean): void {
+  comprobanteParaCorreo.value = { id, reenviar }
+  modalCorreoAbierto.value = true
+}
+
+function cerrarModalCorreo(): void {
+  modalCorreoAbierto.value = false
+  comprobanteParaCorreo.value = null
+}
+
+async function confirmarEnvioCorreo(): Promise<void> {
+  const datos = comprobanteParaCorreo.value
+  cerrarModalCorreo()
+  if (datos) await enviarPorCorreo(datos.id, datos.reenviar)
+}
 
 async function generarEstadoCuenta(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -143,6 +171,7 @@ async function generarEstadoCuenta(): Promise<void> {
     })
     ultimoComprobanteId.value = id
     await cuentaStore.cargarComprobantesEmitidos(tenantId, inmueble.id)
+    toast.add({ title: 'Comprobante generado', color: 'success' })
     window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
     errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante de cuenta.')
@@ -182,6 +211,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         : null,
     ].filter(Boolean)
     resultadoCorreo.value = partes.join(' ')
+    toast.add({ title: 'Correo enviado', color: 'success' })
   } catch (excepcion) {
     resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo.')
   } finally {
@@ -191,31 +221,53 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold mb-2">Estado de cuenta</h1>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         Cargos pendientes e historial de pagos por inmueble.
       </p>
     </div>
 
-    <p v-if="cuentaStore.inmuebles.length === 0" class="text-gray-500 text-sm">
+    <p v-if="cuentaStore.inmuebles.length === 0 && !cargandoBase" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene inmuebles registrados.
     </p>
 
+    <!-- P1: skeleton mientras carga la base -->
+    <template v-else-if="cargandoBase">
+      <USkeleton class="h-10 w-72" />
+      <div class="flex gap-3">
+        <USkeleton class="h-9 w-40" />
+        <USkeleton class="h-9 w-56" />
+      </div>
+      <USkeleton class="h-48 w-full rounded-lg" />
+      <USkeleton class="h-64 w-full rounded-lg" />
+      <USkeleton class="h-48 w-full rounded-lg" />
+    </template>
+
     <template v-else>
-      <div class="flex items-end gap-3">
-        <UFormField label="Inmueble" name="inmueble">
-          <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" />
-        </UFormField>
-        <UButton variant="soft" :loading="generandoPdf" @click="generarEstadoCuenta">
+      <!-- selector de inmueble -->
+      <UFormField label="Inmueble" name="inmueble">
+        <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" class="w-64" />
+      </UFormField>
+
+      <!-- P2: botones de acción en fila separada -->
+      <div class="flex items-center gap-3">
+        <UButton
+          variant="soft"
+          :loading="generandoPdf"
+          title="Genera un PDF con el estado de cuenta del inmueble seleccionado"
+          @keydown.ctrl.enter="generarEstadoCuenta"
+          @click="generarEstadoCuenta"
+        >
           Generar comprobante de cuenta
         </UButton>
         <UButton
           variant="outline"
           :loading="enviandoId === ultimoComprobanteId && enviandoId !== null"
           :disabled="!ultimoComprobanteId"
-          @click="enviarPorCorreo(ultimoComprobanteId)"
+          title="Envía el comprobante generado a los propietarios registrados del inmueble"
+          @click="pedirConfirmacionCorreo(ultimoComprobanteId!, false)"
         >
           Enviar por correo al propietario
         </UButton>
@@ -223,11 +275,16 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
 
       <UAlert v-if="resultadoCorreo" color="info" variant="soft" :title="resultadoCorreo" />
 
-      <UAlert v-if="errorPdf" color="error" variant="soft" :title="errorPdf" />
+      <!-- P3: retry en error de PDF -->
+      <UAlert v-if="errorPdf" color="error" variant="soft" :title="errorPdf">
+        <template #actions>
+          <UButton size="xs" variant="soft" @click="generarEstadoCuenta">Reintentar</UButton>
+        </template>
+      </UAlert>
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
       <div>
-        <UiTituloDescripcion clase-descripcion="text-xs text-gray-500 mt-1 mb-2">
+        <UiTituloDescripcion clase-descripcion="text-xs text-neutral-500 mt-1 mb-2">
           <template #titulo>
             <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
           </template>
@@ -237,7 +294,13 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
             nuevo arriba.
           </template>
         </UiTituloDescripcion>
+        <template v-if="cargandoContenido">
+          <div class="space-y-2">
+            <USkeleton v-for="n in 3" :key="n" class="h-10 w-full rounded-lg" />
+          </div>
+        </template>
         <UiTabla
+          v-else
           :columnas="[
             { clave: 'folio', etiqueta: 'Folio' },
             { clave: 'periodo', etiqueta: 'Periodo' },
@@ -252,10 +315,10 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
             <span class="font-mono text-xs">{{ fila.folio ?? '—' }}</span>
           </template>
           <template #celda-periodo="{ fila }">
-            <span class="text-gray-500">{{ etiquetaPeriodoComprobante(fila.periodo_id) }}</span>
+            <span class="text-neutral-500">{{ etiquetaPeriodoComprobante(fila.periodo_id) }}</span>
           </template>
           <template #celda-generado="{ fila }">
-            <span class="text-gray-500">{{ new Date(fila.created_at).toLocaleString('es-CO') }}</span>
+            <span class="text-neutral-500">{{ new Date(fila.created_at).toLocaleString('es-CO') }}</span>
           </template>
           <template #celda-acciones="{ fila }">
             <div class="flex justify-end gap-2">
@@ -272,7 +335,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
                 size="xs"
                 variant="ghost"
                 :loading="enviandoId === fila.id"
-                @click="enviarPorCorreo(fila.id, true)"
+                @click="pedirConfirmacionCorreo(fila.id, true)"
               >
                 Reenviar
               </UButton>
@@ -284,9 +347,15 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
       <div>
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-lg font-semibold">Cargos pendientes</h2>
-          <p class="text-sm text-gray-500">Total: {{ formatoMoneda(totalPendiente) }}</p>
+          <p class="text-sm text-neutral-500">Total: {{ formatoMoneda(totalPendiente) }}</p>
         </div>
+        <template v-if="cargandoContenido">
+          <div class="space-y-2">
+            <USkeleton v-for="n in 5" :key="n" class="h-10 w-full rounded-lg" />
+          </div>
+        </template>
         <UiTabla
+          v-else
           :columnas="[
             { clave: 'categoria', etiqueta: 'Categoría' },
             { clave: 'origen', etiqueta: 'Concepto / origen' },
@@ -301,20 +370,26 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
           <template #celda-categoria="{ fila }">
             {{ fila.categoria ? (etiquetaCategoria[fila.categoria] ?? fila.categoria) : '—' }}
           </template>
-          <template #celda-origen="{ fila }"><span class="text-gray-500">{{ origenLegible(fila) }}</span></template>
+          <template #celda-origen="{ fila }"><span class="text-neutral-500">{{ origenLegible(fila) }}</span></template>
           <template #celda-periodo="{ fila }">
-            <span class="text-gray-500">{{ fila.periodo_id ? (periodoPorId.get(fila.periodo_id) ?? '—') : '—' }}</span>
+            <span class="text-neutral-500">{{ fila.periodo_id ? (periodoPorId.get(fila.periodo_id) ?? '—') : '—' }}</span>
           </template>
           <template #celda-pendiente="{ fila }">{{ formatoMoneda(fila.monto_pendiente ?? 0) }}</template>
           <template #celda-creado="{ fila }">
-            <span class="text-gray-500">{{ fila.created_at ? new Date(fila.created_at).toLocaleDateString('es-CO') : '—' }}</span>
+            <span class="text-neutral-500">{{ fila.created_at ? new Date(fila.created_at).toLocaleDateString('es-CO') : '—' }}</span>
           </template>
         </UiTabla>
       </div>
 
       <div>
         <h2 class="text-lg font-semibold mb-2">Pagos recientes</h2>
+        <template v-if="cargandoContenido">
+          <div class="space-y-2">
+            <USkeleton v-for="n in 3" :key="n" class="h-10 w-full rounded-lg" />
+          </div>
+        </template>
         <UiTabla
+          v-else
           :columnas="[
             { clave: 'fecha', etiqueta: 'Fecha' },
             { clave: 'monto', etiqueta: 'Monto' },
@@ -326,9 +401,28 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         >
           <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
           <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
-          <template #celda-referencia="{ fila }"><span class="text-gray-500">{{ fila.referencia ?? '—' }}</span></template>
+          <template #celda-referencia="{ fila }"><span class="text-neutral-500">{{ fila.referencia ?? '—' }}</span></template>
         </UiTabla>
       </div>
     </template>
+
+    <!-- P0: modal de confirmación antes de enviar correo -->
+    <UModal v-model:open="modalCorreoAbierto" title="Enviar comprobante por correo">
+      <template #body>
+        <p class="text-sm">
+          Se enviará el comprobante de cuenta a los propietarios de
+          <strong>{{ inmuebleActual?.codigo ?? '—' }}</strong>.
+        </p>
+        <p v-if="comprobanteParaCorreo?.reenviar" class="text-xs text-neutral-500 mt-2">
+          Es un reenvío — se abrirá el mismo documento sellado con un nuevo enlace.
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="outline" @click="cerrarModalCorreo">Cancelar</UButton>
+          <UButton @click="confirmarEnvioCorreo">Confirmar envío</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

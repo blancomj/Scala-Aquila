@@ -52,54 +52,52 @@ function cambiarCampo(campo: CampoCondicion): void {
 
 <template>
   <div class="flex items-center gap-2 flex-wrap">
-    <select
-      :value="modelValue.campo"
+    <USelect
+      :model-value="modelValue.campo"
+      :options="CAMPOS_ALCANCE.map(c => ({ value: c.campo, label: c.etiqueta }))"
+      size="sm"
       :disabled="readonly"
-      class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-      @change="cambiarCampo(($event.target as HTMLSelectElement).value as CampoCondicion)"
-    >
-      <option v-for="c in CAMPOS_ALCANCE" :key="c.campo" :value="c.campo">{{ c.etiqueta }}</option>
-    </select>
+      @update:model-value="cambiarCampo($event as CampoCondicion)"
+    />
 
-    <select
-      :value="modelValue.operador"
+    <USelect
+      :model-value="modelValue.operador"
+      :options="operadoresDisponibles.map(op => ({ value: op, label: ETIQUETA_OPERADOR[op] }))"
+      size="sm"
+      class="w-16"
       :disabled="readonly"
-      class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm w-16"
-      @change="actualizar({ operador: ($event.target as HTMLSelectElement).value as OperadorCondicion })"
-    >
-      <option v-for="op in operadoresDisponibles" :key="op" :value="op">{{ ETIQUETA_OPERADOR[op] }}</option>
-    </select>
+      @update:model-value="actualizar({ operador: $event as OperadorCondicion })"
+    />
 
-    <select
+    <UiSelectorBuscable
       v-if="meta.tipo === 'catalogo'"
-      :value="modelValue.valor"
+      :model-value="modelValue.valor"
+      :options="opcionesCatalogo.map(o => ({ value: o.valor, label: o.etiqueta }))"
+      placeholder="— Elegir —"
+      size="sm"
+      class="min-w-40"
       :disabled="readonly"
-      class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm min-w-40"
-      @change="actualizar({ valor: ($event.target as HTMLSelectElement).value })"
-    >
-      <option value="" disabled>— Elegir —</option>
-      <option v-for="op in opcionesCatalogo" :key="op.valor" :value="op.valor">{{ op.etiqueta }}</option>
-    </select>
+      @update:model-value="actualizar({ valor: $event })"
+    />
 
-    <select
+    <USelect
       v-else-if="meta.tipo === 'fijo'"
-      :value="modelValue.valor"
+      :model-value="modelValue.valor"
+      :options="(meta.opcionesFijas ?? []).map(o => ({ value: o.valor, label: o.etiqueta }))"
+      size="sm"
+      class="min-w-40"
       :disabled="readonly"
-      class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm min-w-40"
-      @change="actualizar({ valor: ($event.target as HTMLSelectElement).value })"
-    >
-      <option v-for="op in meta.opcionesFijas" :key="op.valor" :value="op.valor">{{ op.etiqueta }}</option>
-    </select>
+      @update:model-value="actualizar({ valor: $event })"
+    />
 
-    <select
+    <USelect
       v-else-if="meta.tipo === 'mes'"
-      :value="modelValue.valor"
+      :model-value="modelValue.valor"
+      :options="Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))"
+      size="sm"
       :disabled="readonly"
-      class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-      @change="actualizar({ valor: Number(($event.target as HTMLSelectElement).value) })"
-    >
-      <option v-for="mes in 12" :key="mes" :value="mes">{{ mes }}</option>
-    </select>
+      @update:model-value="actualizar({ valor: Number($event) })"
+    />
 
     <UInput
       v-else

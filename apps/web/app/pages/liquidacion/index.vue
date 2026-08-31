@@ -9,6 +9,8 @@
 // La lista se mantiene arriba, y no en una página aparte, porque liquidar es
 // una tarea mensual en la que interesa ver de un vistazo qué meses ya están
 // cerrados y cuál toca ahora — esa comparación se pierde si hay que navegar.
+import { MESES, ESTADO_UI } from '~/config/liquidacion-ui'
+
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
@@ -24,23 +26,6 @@ const nuevoMes = ref<number | undefined>(undefined)
 const nuevaFechaVencimiento = ref('')
 const creandoPeriodo = ref(false)
 const errorPeriodo = ref<string | null>(null)
-
-const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-const ESTADO_UI: Record<
-  string,
-  { etiqueta: string; color: 'success' | 'error' | 'warning' | 'info' | 'neutral' }
-> = {
-  pre_liquidada: { etiqueta: 'Pre-liquidada', color: 'warning' },
-  pendiente_aprobacion: { etiqueta: 'Pendiente', color: 'info' },
-  rechazada: { etiqueta: 'Rechazada', color: 'warning' },
-  aplicada: { etiqueta: 'Aplicada', color: 'success' },
-  anulada: { etiqueta: 'Anulada', color: 'error' },
-  fallida: { etiqueta: 'Fallida', color: 'error' },
-}
 
 await useAsyncData('liquidacion-periodos', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -158,7 +143,7 @@ async function recargar(): Promise<void> {
           v-for="p in liquidacionStore.periodos"
           :key="p.id"
           type="button"
-          class="shrink-0 rounded-md border px-3 py-2 text-left transition-colors"
+          class="shrink-0 rounded-sm border px-3 py-2 text-left transition-colors"
           :class="
             p.id === periodoSeleccionadoId
               ? 'border-primary bg-primary/5'

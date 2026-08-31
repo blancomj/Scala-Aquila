@@ -214,22 +214,9 @@ const gruposDeUnSoloHijo = computed(() => {
   return advertidos
 })
 
-const sumaEgresos = computed(() =>
-  presupuestoStore.rubros
-    .filter((r) => cuentaPorId.value.get(r.cuenta_id)?.naturaleza === 'egreso')
-    .reduce((acc, r) => acc + Number(r.monto_anual), 0),
-)
-
 const montoTotal = computed(() =>
   presupuestoSeleccionado.value ? Number(presupuestoSeleccionado.value.monto_total) : 0,
 )
-
-const faltante = computed(() => Math.max(montoTotal.value - sumaEgresos.value, 0))
-const reconciliado = computed(() => sumaEgresos.value === montoTotal.value)
-const porcentajeAsignado = computed(() =>
-  montoTotal.value === 0 ? 0 : Math.min((sumaEgresos.value / montoTotal.value) * 100, 100),
-)
-
 
 function porcentajeDelTotal(cuentaId: string): string {
   if (montoTotal.value === 0) return '—'
@@ -473,40 +460,6 @@ async function alternarActiva(cuenta: (typeof presupuestoStore.cuentas)[number])
       <p class="text-sm text-neutral-500">
         La estructura de cuentas es fija por copropiedad; los montos se asignan por cada
         presupuesto.
-      </p>
-    </div>
-
-    <div
-      v-if="presupuestoSeleccionado"
-      class="rounded-lg border p-4"
-      :class="
-        reconciliado
-          ? 'border-success-200 bg-success-50/50 dark:border-success-900 dark:bg-success-950/20'
-          : 'border-warning-200 bg-warning-50/50 dark:border-warning-900 dark:bg-warning-950/20'
-      "
-    >
-      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
-        <p class="text-sm">
-          <span class="text-xl font-semibold tabular-nums">{{ formatoMoneda(sumaEgresos) }}</span>
-          <span class="text-neutral-500"> asignados de {{ formatoMoneda(montoTotal) }} en rubros de egreso</span>
-        </p>
-      </div>
-      <div class="h-1.5 rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 overflow-hidden mb-2">
-        <div
-          class="h-full rounded-full transition-all"
-          :class="reconciliado ? 'bg-success-500' : 'bg-warning-500'"
-          :style="{ width: `${porcentajeAsignado}%` }"
-        />
-      </div>
-      <p class="text-xs" :class="reconciliado ? 'text-success-700 dark:text-success-400' : 'text-warning-700 dark:text-warning-400'">
-        <template v-if="reconciliado">
-          Los rubros de egreso cuadran con el monto total — este presupuesto puede activarse.
-        </template>
-        <template v-else>
-          Faltan <strong class="tabular-nums">{{ formatoMoneda(faltante) }}</strong> por distribuir. Para
-          activar este presupuesto, la suma de los rubros de egreso debe igualar el monto total
-          aprobado en asamblea.
-        </template>
       </p>
     </div>
 

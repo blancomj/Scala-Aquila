@@ -25,7 +25,15 @@ const todoLimpio = computed(() => props.hallazgos.length === 0)
       Verificación previa
     </h3>
 
-    <div v-if="cargando" class="text-sm text-muted">Comprobando…</div>
+    <div v-if="cargando" class="space-y-2">
+      <div v-for="i in 2" :key="i" class="flex items-start gap-3 px-3 py-2.5">
+        <USkeleton class="size-4 shrink-0" />
+        <div class="flex-1 space-y-1.5">
+          <USkeleton class="h-4 w-3/4" />
+          <USkeleton class="h-3 w-full" />
+        </div>
+      </div>
+    </div>
 
     <div
       v-else-if="todoLimpio"

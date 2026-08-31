@@ -55,10 +55,10 @@ function agregarGrupo(): void {
 </script>
 
 <template>
-  <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-3 space-y-2">
+  <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 space-y-2">
     <div class="flex items-center gap-2">
-      <span class="text-xs text-gray-500">Cumple</span>
-      <div class="inline-flex rounded-md border border-gray-300 dark:border-gray-700 overflow-hidden text-xs">
+      <span class="text-xs text-neutral-500">Cumple</span>
+      <div class="inline-flex rounded-md border border-neutral-300 dark:border-neutral-700 overflow-hidden text-xs">
         <button
           type="button"
           class="px-2 py-1"
@@ -80,14 +80,14 @@ function agregarGrupo(): void {
       </div>
     </div>
 
-    <p v-if="modelValue.condiciones.length === 0" class="text-xs text-gray-500">
+    <p v-if="modelValue.condiciones.length === 0" class="text-xs text-neutral-500">
       Sin condiciones — agrega al menos una.
     </p>
 
     <div
       v-for="(hijo, i) in modelValue.condiciones"
       :key="i"
-      class="pl-3 border-l-2 border-gray-200 dark:border-gray-800"
+      class="pl-3 border-l-2 border-neutral-200 dark:border-neutral-800"
     >
       <ConceptosCondicionHoja
         v-if="!esGrupo(hijo)"

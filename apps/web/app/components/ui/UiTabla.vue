@@ -14,6 +14,11 @@ export interface ColumnaTabla<TFila = unknown> {
   alinear?: 'derecha'
   /** Clase(s) extra para el <td> — p. ej. "mono" para columnas monoespaciadas. */
   claseCelda?: string
+  /** Clase(s) extra para el <th> — mismo mecanismo que claseCelda, pensado sobre todo para
+   * `sticky left-0` en la primera columna de tablas anchas que van a scrollear horizontal en
+   * mobile (necesita el mismo fondo/posición en th y td o el header y el body se desalinean
+   * al hacer scroll). */
+  claseEncabezado?: string
   /** Ancho fijo (CSS width, ej. "140px") aplicado a th y td — para alinear columnas entre dos
    * <table> separadas que deben leerse como una sola grilla (p. ej. secciones Egresos/Ingresos
    * de un mismo árbol de cuentas, cada una su propia UiTabla con auto-layout independiente). */
@@ -152,6 +157,7 @@ const columnasTrasGrupo = computed(() =>
             variante === 'tailwind'
               ? [encabezadoAlto ? 'py-2.5' : 'py-1', 'px-3 font-medium', col.alinear === 'derecha' ? 'text-right' : '']
               : '',
+            col.claseEncabezado,
           ]"
         >
           <button

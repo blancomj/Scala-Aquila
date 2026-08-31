@@ -16,6 +16,7 @@
 // mostrarle un botón que le va a fallar, nada más.
 import type { Database } from '@aquila/shared'
 import type { HallazgoPrevuelo } from '~/stores/liquidacion'
+import { MESES, ESTADO_UI } from '~/config/liquidacion-ui'
 
 type PeriodoRow = Database['public']['Tables']['periodos']['Row']
 type LiquidacionRow = Database['public']['Tables']['liquidaciones']['Row']
@@ -40,8 +41,27 @@ const aviso = ref<string | null>(null)
 const lineas = ref<Awaited<ReturnType<typeof liquidacionStore.cargarLineasDeLiquidacion>>>([])
 
 const dialogo = ref<'aplicar' | 'anular' | 'solicitar' | 'rechazar' | null>(null)
-const notaSolicitud = ref('')
-const motivoRechazo = ref('')
+const notaSolicitud = ref(
+  import.meta.client ? (localStorage.getItem(`liq-nota-${props.periodo.id}`) ?? '') : '',
+)
+const motivoRechazo = ref(
+  import.meta.client ? (localStorage.getItem(`liq-motivo-${props.periodo.id}`) ?? '') : '',
+)
+
+watch(notaSolicitud, (v) => {
+  if (import.meta.client) {
+    const key = `liq-nota-${props.periodo.id}`
+    if (v) localStorage.setItem(key, v)
+    else localStorage.removeItem(key)
+  }
+})
+watch(motivoRechazo, (v) => {
+  if (import.meta.client) {
+    const key = `liq-motivo-${props.periodo.id}`
+    if (v) localStorage.setItem(key, v)
+    else localStorage.removeItem(key)
+  }
+})
 
 // Mensaje de divulgación — llega a todos los destinatarios en el estado de
 // cuenta de este periodo (20260902130000). Editable solo mientras el
@@ -57,24 +77,6 @@ const etiquetaPeriodo = computed(
   () => `${MESES[props.periodo.mes - 1]} ${props.periodo.anio}`,
 )
 const confirmacionPeriodo = computed(() => etiquetaPeriodo.value.toUpperCase())
-
-const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-const ESTADO_UI: Record<
-  string,
-  { etiqueta: string; color: 'success' | 'error' | 'warning' | 'info' | 'neutral' }
-> = {
-  pre_liquidada: { etiqueta: 'Pre-liquidada', color: 'warning' },
-  pendiente_aprobacion: { etiqueta: 'Pendiente de aprobación', color: 'info' },
-  rechazada: { etiqueta: 'Rechazada', color: 'warning' },
-  aplicada: { etiqueta: 'Aplicada', color: 'success' },
-  anulada: { etiqueta: 'Anulada', color: 'error' },
-  descartada: { etiqueta: 'Descartada', color: 'neutral' },
-  fallida: { etiqueta: 'Fallida', color: 'error' },
-}
 
 const bloqueado = computed(() => hallazgos.value.some((h) => h.severidad === 'bloqueo'))
 const estado = computed(() => props.liquidacion?.estado ?? null)
@@ -135,6 +137,7 @@ async function refrescarLineas(): Promise<void> {
     lineas.value = await liquidacionStore.cargarLineasDeLiquidacion(props.liquidacion.id)
   } catch {
     lineas.value = []
+    error.value = 'No se pudo cargar el detalle de líneas.'
   }
 }
 
@@ -439,8 +442,8 @@ function descartar(): void {
         </p>
       </div>
       <div class="rounded-md border border-default p-3">
-        <p class="text-xs text-muted uppercase tracking-wide">Simulada</p>
-        <p class="text-sm font-medium">{{ liquidacion.simulada_at?.slice(0, 16).replace('T', ' ') }}</p>
+        <p class="text-xs text-muted uppercase tracking-wide">Última simulación</p>
+        <p class="text-sm font-medium">{{ liquidacion.simulada_at ? new Date(liquidacion.simulada_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—' }}</p>
       </div>
     </div>
 

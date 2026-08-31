@@ -55,6 +55,7 @@ const cuentaStore = useCuentaCorrienteStore()
 const liquidacionStore = useLiquidacionStore()
 const politicaFinancieraStore = usePoliticaFinancieraStore()
 const presupuestoStore = usePresupuestoStore()
+const toast = useToast()
 
 const editandoId = ref<string | null>(null)
 const codigo = ref('')
@@ -728,26 +729,27 @@ async function guardar(): Promise<void> {
   guardando.value = true
   try {
     if (editandoId.value) {
-      await conceptoStore.actualizarConcepto({
-        id: editandoId.value,
-        tenantId,
-        nombre: nombre.value,
-        modoCalculo: modoCalculo.value,
-        modoValor: modoValor.value,
-        formulaAel: modoValor.value === 'formulado' ? formulaAel.value : null,
-        valorFijo: modoValor.value === 'fijo' ? valorFijo.value : null,
-        prioridad: prioridad.value,
-        tipoRecurrencia: tipoRecurrencia.value,
-        fechaInicioAnio: esNovedad ? null : fechaInicioAnio.value,
-        fechaInicioMes: esNovedad ? null : fechaInicioMes.value,
-        fechaFinAnio: esPorPeriodo ? fechaFinAnio.value : null,
-        fechaFinMes: esPorPeriodo ? fechaFinMes.value : null,
-        periodicidad: esRecurrente ? periodicidad.value : null,
-        alcance: alcance.value,
-        alcanceCondiciones: alcanceCondiciones.value,
-        presupuestoCuentaId: presupuestoCuentaId.value,
-      })
-    } else {
+        await conceptoStore.actualizarConcepto({
+          id: editandoId.value,
+          tenantId,
+          nombre: nombre.value,
+          modoCalculo: modoCalculo.value,
+          modoValor: modoValor.value,
+          formulaAel: modoValor.value === 'formulado' ? formulaAel.value : null,
+          valorFijo: modoValor.value === 'fijo' ? valorFijo.value : null,
+          prioridad: prioridad.value,
+          tipoRecurrencia: tipoRecurrencia.value,
+          fechaInicioAnio: esNovedad ? null : fechaInicioAnio.value,
+          fechaInicioMes: esNovedad ? null : fechaInicioMes.value,
+          fechaFinAnio: esPorPeriodo ? fechaFinAnio.value : null,
+          fechaFinMes: esPorPeriodo ? fechaFinMes.value : null,
+          periodicidad: esRecurrente ? periodicidad.value : null,
+          alcance: alcance.value,
+          alcanceCondiciones: alcanceCondiciones.value,
+          presupuestoCuentaId: presupuestoCuentaId.value,
+        })
+        toast.add({ title: 'Concepto actualizado', color: 'success' })
+      } else {
       const creado = await conceptoStore.crearConcepto({
         tenantId,
         codigo: codigo.value,
@@ -770,6 +772,7 @@ async function guardar(): Promise<void> {
       // Tras crear, se navega al editor del concepto recién creado — ahí
       // (no antes) quedan disponibles versiones/casos de prueba, que
       // requieren un id ya persistido.
+      toast.add({ title: 'Concepto creado', color: 'success' })
       await router.push(`/conceptos/${creado.id}`)
       return
     }
@@ -872,7 +875,7 @@ async function probar(): Promise<void> {
             </h1>
             <span
               v-if="editandoId"
-              class="font-mono text-xs px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500"
+              class="font-mono text-xs px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 text-neutral-500"
             >
               {{ codigo }}
             </span>
@@ -905,7 +908,7 @@ async function probar(): Promise<void> {
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
       <!-- ── pestañas ────────────────────────────────────────────────── -->
-      <nav class="flex gap-1 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+      <nav class="flex gap-1 border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
         <button
           v-for="tab in TABS_CONCEPTO"
           :key="tab.id"
@@ -914,7 +917,7 @@ async function probar(): Promise<void> {
           :class="
             tabActiva === tab.id
               ? 'border-blue-600 text-blue-600 font-medium'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
           "
           @click="tabActiva = tab.id"
         >
@@ -979,11 +982,11 @@ async function probar(): Promise<void> {
 
             <pre
               v-if="mostrarIr"
-              class="mt-2 max-h-64 overflow-auto rounded-md border border-gray-200 bg-gray-50 p-2 text-[10px] dark:border-gray-800 dark:bg-gray-900/40"
+              class="mt-2 max-h-64 overflow-auto rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-800 dark:bg-neutral-900/40"
             >{{ astActual ? JSON.stringify(astActual, null, 2) : 'La fórmula no parsea — no hay IR que mostrar.' }}</pre>
 
             <div v-if="diagnosticosFormula.length > 0" class="space-y-1">
-              <p class="text-xs font-medium text-gray-500">
+              <p class="text-xs font-medium text-neutral-500">
                 {{ diagnosticosFormula.length }}
                 {{ diagnosticosFormula.length === 1 ? 'diagnóstico' : 'diagnósticos' }}
               </p>
@@ -1002,9 +1005,9 @@ async function probar(): Promise<void> {
             <AelCapabilityView :formula-ael="formulaAel" />
           </div>
 
-          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
+          <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-3">
             <p class="text-sm font-medium">Prueba de fórmula</p>
-            <p class="text-xs text-gray-500">
+            <p class="text-xs text-neutral-500">
               Evalúa el texto de arriba (guardado o no) contra un inmueble y periodo reales —
               AEL-004 Fase 1.
             </p>
@@ -1042,7 +1045,7 @@ async function probar(): Promise<void> {
               <p v-if="resultadoPrueba.valido">
                 Resultado:
                 <span class="font-medium">{{ resultadoPrueba.resultado }}</span>
-                <span class="text-gray-500">
+                <span class="text-neutral-500">
                   ({{
                     resultadoPrueba.tipo
                       ? (etiquetaTipo[resultadoPrueba.tipo] ?? resultadoPrueba.tipo)
@@ -1072,16 +1075,16 @@ async function probar(): Promise<void> {
 
               <div
                 v-if="mostrarTraza && resultadoPrueba.traza.length > 0"
-                class="mt-2 rounded-lg border border-gray-200 dark:border-gray-800 p-3 space-y-1"
+                class="mt-2 rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 space-y-1"
               >
-                <p class="text-xs font-medium text-gray-500 mb-1">Detalle del cálculo</p>
+                <p class="text-xs font-medium text-neutral-500 mb-1">Detalle del cálculo</p>
                 <div
                   v-for="(paso, i) in resultadoPrueba.traza"
                   :key="i"
                   class="flex items-baseline justify-between gap-4 text-xs"
-                  :class="paso.nombre === null ? 'pt-1 mt-1 border-t border-gray-200 dark:border-gray-800 font-medium' : ''"
+                  :class="paso.nombre === null ? 'pt-1 mt-1 border-t border-neutral-200 dark:border-neutral-800 font-medium' : ''"
                 >
-                  <span class="font-mono text-gray-500 truncate">
+                  <span class="font-mono text-neutral-500 truncate">
                     {{ i + 1 }}. {{ paso.nombre === null ? 'RETORNAR' : paso.nombre }} =
                     {{ paso.expresionTexto }}
                   </span>
@@ -1098,12 +1101,12 @@ async function probar(): Promise<void> {
 
         <div v-if="editandoId">
           <h2 class="text-lg font-semibold mb-2">Casos de prueba</h2>
-          <p class="text-xs text-gray-500 mb-3">
+          <p class="text-xs text-neutral-500 mb-3">
             Ejecuta la fórmula de arriba (guardada o no) contra insumos fijos — reproducible, sin
             tocar Supabase. AEL-004 Fase 6.
           </p>
 
-          <p v-if="conceptoStore.casosPrueba.length === 0" class="text-gray-500 text-sm mb-4">
+          <p v-if="conceptoStore.casosPrueba.length === 0" class="text-neutral-500 text-sm mb-4">
             Sin casos de prueba todavía.
           </p>
           <template v-else>
@@ -1127,7 +1130,7 @@ async function probar(): Promise<void> {
             >
               <template #celda-nombre="{ fila }">{{ fila.nombre }}</template>
               <template #celda-esperado="{ fila }">
-                <span class="text-gray-500">
+                <span class="text-neutral-500">
                   {{ fila.tipoEsperado
                   }}<template v-if="fila.resultadoEsperado && fila.resultadoEsperado.tipo !== 'NULO'">
                     = {{ fila.resultadoEsperado.valor }}</template
@@ -1146,7 +1149,7 @@ async function probar(): Promise<void> {
                   {{ resultadosEjecucion[fila.id]?.estado }} —
                   {{ resultadosEjecucion[fila.id]?.mensaje }}
                 </span>
-                <span v-else class="text-gray-400">sin ejecutar</span>
+                <span v-else class="text-neutral-400">sin ejecutar</span>
               </template>
               <template #celda-acciones="{ fila }">
                 <UButton size="xs" variant="ghost" color="error" @click="eliminarCaso(fila)">
@@ -1156,7 +1159,7 @@ async function probar(): Promise<void> {
             </UiTabla>
           </template>
 
-          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3 max-w-lg">
+          <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-3 max-w-lg">
             <p class="text-sm font-medium">Nuevo caso de prueba</p>
 
             <UFormField label="Nombre" name="caso_nombre">
@@ -1164,7 +1167,7 @@ async function probar(): Promise<void> {
             </UFormField>
 
             <div v-if="camposFormulaActual.length > 0" class="space-y-2">
-              <p class="text-xs font-medium text-gray-500">Insumos</p>
+              <p class="text-xs font-medium text-neutral-500">Insumos</p>
               <div
                 v-for="campo in camposFormulaActual"
                 :key="claveCampo(campo)"
@@ -1176,7 +1179,7 @@ async function probar(): Promise<void> {
                 <select
                   v-if="campo.tipo === 'BOOLEAN'"
                   v-model="entradasNuevoCasoBool[claveCampo(campo)]"
-                  class="rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+                  class="rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5 text-sm"
                 >
                   <option :value="true">verdadero</option>
                   <option :value="false">falso</option>
@@ -1190,7 +1193,7 @@ async function probar(): Promise<void> {
                 />
               </div>
             </div>
-            <p v-else class="text-xs text-gray-500">
+            <p v-else class="text-xs text-neutral-500">
               Esta fórmula no referencia PARAMETER/UNIT/CONCEPTO.
             </p>
 
@@ -1198,7 +1201,7 @@ async function probar(): Promise<void> {
               <UFormField label="Tipo esperado" name="caso_tipo">
                 <select
                   v-model="nuevoCasoTipoEsperado"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
                 >
                   <option value="MONEY">MONEY</option>
                   <option value="NUMBER">NUMBER</option>
@@ -1213,7 +1216,7 @@ async function probar(): Promise<void> {
               >
                 <select
                   v-model="nuevoCasoResultadoBool"
-                  class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
                 >
                   <option :value="true">verdadero</option>
                   <option :value="false">falso</option>
@@ -1247,9 +1250,9 @@ async function probar(): Promise<void> {
         <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
           <div class="space-y-4">
             <!-- Identificación -->
-            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
-              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Identificación</h3>
+            <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <header class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Identificación</h3>
               </header>
               <div class="p-4 space-y-3">
                 <div class="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
@@ -1270,24 +1273,24 @@ async function probar(): Promise<void> {
                 <p v-if="codigoDuplicado" class="text-xs text-red-500">
                   Ya existe un concepto con este código.
                 </p>
-                <p v-else-if="editandoId" class="text-xs text-gray-500">
+                <p v-else-if="editandoId" class="text-xs text-neutral-500">
                   El código queda fijo una vez creado el concepto.
                 </p>
               </div>
             </section>
 
             <!-- Cómo se calcula -->
-            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
-              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Cómo se calcula</h3>
+            <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <header class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cómo se calcula</h3>
               </header>
               <div class="p-4 space-y-4">
                 <div class="space-y-1.5">
-                  <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span class="flex items-center gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">
                     Modo de cálculo
                     <button
                       type="button"
-                      class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                      class="size-4 shrink-0 rounded-full border border-neutral-300 dark:border-neutral-600 text-xs leading-none text-neutral-500 hover:border-primary hover:text-primary"
                       :aria-expanded="ayudasAbiertas.has('calculo')"
                       aria-label="Explicar modo de cálculo"
                       @click="alternarAyuda('calculo')"
@@ -1295,7 +1298,7 @@ async function probar(): Promise<void> {
                   </span>
                   <!-- Segmentado en vez de <select>: con solo dos opciones, un
                        desplegable esconde la mitad de la decisión tras un clic. -->
-                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800">
                     <button
                       v-for="opcion in [
                         { v: 'distribucion', t: 'Distribución' },
@@ -1308,15 +1311,15 @@ async function probar(): Promise<void> {
                       class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
                       :class="
                         modoCalculo === opcion.v
-                          ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
-                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                          ? 'bg-white dark:bg-neutral-900 font-medium shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                       "
                       @click="modoCalculo = opcion.v as 'distribucion' | 'directo'"
                     >
                       {{ opcion.t }}
                     </button>
                   </div>
-                  <p class="text-xs text-gray-500">
+                  <p class="text-xs text-neutral-500">
                     {{
                       modoCalculo === 'distribucion'
                         ? 'Un total para toda la copropiedad, repartido por coeficiente.'
@@ -1325,7 +1328,7 @@ async function probar(): Promise<void> {
                   </p>
                   <p
                     v-if="ayudasAbiertas.has('calculo')"
-                    class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                    class="text-xs text-neutral-600 dark:text-neutral-300 border-l-2 border-neutral-200 dark:border-neutral-700 pl-3 py-2 bg-neutral-50 dark:bg-neutral-900/40 rounded-r"
                   >
                     <strong>Distribución:</strong> la fórmula calcula un solo total para toda la
                     copropiedad — el motor lo reparte automáticamente por periodo y luego por
@@ -1338,8 +1341,8 @@ async function probar(): Promise<void> {
 
                 <div v-if="tipoRecurrencia !== 'novedad'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
-                    <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Modo de valor</span>
-                    <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                    <span class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Modo de valor</span>
+                    <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800">
                       <button
                         v-for="opcion in [
                           { v: 'fijo', t: 'Fijo' },
@@ -1352,8 +1355,8 @@ async function probar(): Promise<void> {
                         class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
                         :class="
                           modoValor === opcion.v
-                            ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                            ? 'bg-white dark:bg-neutral-900 font-medium shadow-sm'
+                            : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                         "
                         @click="modoValor = opcion.v as 'fijo' | 'formulado'"
                       >
@@ -1366,7 +1369,7 @@ async function probar(): Promise<void> {
                     <UInput v-model="valorFijo" type="number" step="0.01" :disabled="soloLectura" class="w-full" />
                   </UFormField>
                   <div v-else class="space-y-1.5">
-                    <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Fórmula</span>
+                    <span class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Fórmula</span>
                     <UButton variant="soft" size="sm" class="w-full justify-center" @click="tabActiva = 'formula'">
                       Construir y probar →
                     </UButton>
@@ -1376,9 +1379,9 @@ async function probar(): Promise<void> {
             </section>
 
             <!-- Cuándo se cobra -->
-            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
-              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Cuándo se cobra</h3>
+            <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <header class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cuándo se cobra</h3>
               </header>
               <div class="p-4 space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1386,7 +1389,7 @@ async function probar(): Promise<void> {
                     <select
                       v-model="tipoRecurrencia"
                       :disabled="soloLectura"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                      class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
                     >
                       <option value="recurrente">Recurrente (cada ciclo, desde una fecha)</option>
                       <option value="unico">Único (una sola vez)</option>
@@ -1401,7 +1404,7 @@ async function probar(): Promise<void> {
                     <select
                       v-model="periodicidad"
                       :disabled="soloLectura"
-                      class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                      class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
                     >
                       <option value="mensual">Mensual</option>
                       <option value="bimensual">Bimensual</option>
@@ -1412,10 +1415,10 @@ async function probar(): Promise<void> {
                   </UFormField>
                 </div>
 
-                <p v-if="existeSingletonNovedad && tipoRecurrencia !== 'novedad'" class="text-xs text-gray-500">
+                <p v-if="existeSingletonNovedad && tipoRecurrencia !== 'novedad'" class="text-xs text-neutral-500">
                   Ya existe un concepto Novedad para esta copropiedad — solo puede haber uno.
                 </p>
-                <p v-else-if="tipoRecurrencia === 'novedad'" class="text-xs text-gray-500">
+                <p v-else-if="tipoRecurrencia === 'novedad'" class="text-xs text-neutral-500">
                   No tiene fórmula ni fecha propias — cada novedad capturada en un inmueble elige
                   este concepto para clasificarse como "Novedad" en la liquidación.
                 </p>
@@ -1448,11 +1451,11 @@ async function probar(): Promise<void> {
                 <UAlert v-if="errorTemporal" color="error" variant="soft" :title="errorTemporal" />
 
                 <div class="max-w-[180px] space-y-1.5">
-                  <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span class="flex items-center gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">
                     Prioridad
                     <button
                       type="button"
-                      class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                      class="size-4 shrink-0 rounded-full border border-neutral-300 dark:border-neutral-600 text-xs leading-none text-neutral-500 hover:border-primary hover:text-primary"
                       :aria-expanded="ayudasAbiertas.has('prioridad')"
                       aria-label="Explicar prioridad"
                       @click="alternarAyuda('prioridad')"
@@ -1462,7 +1465,7 @@ async function probar(): Promise<void> {
                 </div>
                 <p
                   v-if="ayudasAbiertas.has('prioridad')"
-                  class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                  class="text-xs text-neutral-600 dark:text-neutral-300 border-l-2 border-neutral-200 dark:border-neutral-700 pl-3 py-2 bg-neutral-50 dark:bg-neutral-900/40 rounded-r"
                 >
                   Define el orden de evaluación cuando varios conceptos concurren en la misma
                   liquidación — menor número se calcula antes.
@@ -1471,14 +1474,14 @@ async function probar(): Promise<void> {
             </section>
 
             <!-- A quién aplica (antes la pestaña "Alcance") -->
-            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
-              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">A quién aplica</h3>
+            <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <header class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">A quién aplica</h3>
               </header>
               <div class="p-4 space-y-3">
                 <div class="max-w-sm space-y-1.5">
-                  <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alcance</span>
-                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
+                  <span class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Alcance</span>
+                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800">
                     <button
                       v-for="opcion in [
                         { v: 'todos', t: 'Todos los inmuebles' },
@@ -1491,8 +1494,8 @@ async function probar(): Promise<void> {
                       class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
                       :class="
                         alcance === opcion.v
-                          ? 'bg-white dark:bg-gray-900 font-medium shadow-sm'
-                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                          ? 'bg-white dark:bg-neutral-900 font-medium shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                       "
                       @click="alcance = opcion.v as 'todos' | 'calculado'"
                     >
@@ -1506,7 +1509,7 @@ async function probar(): Promise<void> {
                   v-model="alcanceCondiciones"
                   :readonly="soloLectura"
                 />
-                <p v-if="alcance === 'calculado'" class="text-xs text-gray-500">
+                <p v-if="alcance === 'calculado'" class="text-xs text-neutral-500">
                   En modo <code>distribución</code>, el reparto se recalcula solo entre los
                   inmuebles que cumplen.
                 </p>
@@ -1515,18 +1518,18 @@ async function probar(): Promise<void> {
             </section>
 
             <!-- Clasificación contable -->
-            <section class="rounded-lg border border-gray-200 dark:border-gray-800">
-              <header class="px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <section class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <header class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">
                   Clasificación contable
                 </h3>
               </header>
               <div class="p-4 space-y-1.5">
-                <span class="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span class="flex items-center gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">
                   Cuenta presupuestal de ingreso
                   <button
                     type="button"
-                    class="size-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-600 text-[10px] leading-none text-gray-500 hover:border-primary hover:text-primary"
+                    class="size-4 shrink-0 rounded-full border border-neutral-300 dark:border-neutral-600 text-xs leading-none text-neutral-500 hover:border-primary hover:text-primary"
                     :aria-expanded="ayudasAbiertas.has('cuenta')"
                     aria-label="Explicar cuenta presupuestal"
                     @click="alternarAyuda('cuenta')"
@@ -1535,7 +1538,7 @@ async function probar(): Promise<void> {
                 <select
                   v-model="presupuestoCuentaId"
                   :disabled="soloLectura"
-                  class="w-full max-w-sm rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5"
+                  class="w-full max-w-sm rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
                 >
                   <option :value="null">— Sin clasificar —</option>
                   <option v-for="c in opcionesCuentaPresupuestal" :key="c.id" :value="c.id">
@@ -1544,7 +1547,7 @@ async function probar(): Promise<void> {
                 </select>
                 <p
                   v-if="ayudasAbiertas.has('cuenta')"
-                  class="text-xs text-gray-600 dark:text-gray-300 border-l-2 border-primary pl-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-r"
+                  class="text-xs text-neutral-600 dark:text-neutral-300 border-l-2 border-neutral-200 dark:border-neutral-700 pl-3 py-2 bg-neutral-50 dark:bg-neutral-900/40 rounded-r"
                 >
                   Bajo qué cuenta de ingreso del presupuesto se clasifica lo que cobra este
                   concepto — su ejecutado se suma ahí automáticamente (Σ cargos facturados).
@@ -1572,7 +1575,7 @@ async function probar(): Promise<void> {
               </p>
               <p
                 v-if="faltaCuentaPresupuestal"
-                class="flex gap-2 px-4 py-3 text-xs leading-relaxed border-t border-gray-200 dark:border-gray-800 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                class="flex gap-2 px-4 py-3 text-xs leading-relaxed border-t border-neutral-200 dark:border-neutral-800 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
               >
                 <UIcon name="i-lucide-triangle-alert" class="size-4 shrink-0 mt-px" />
                 <span>
@@ -1587,12 +1590,12 @@ async function probar(): Promise<void> {
 
       <!-- ── Auditoría ───────────────────────────────────────────────── -->
       <div v-else-if="tabActiva === 'auditoria'">
-        <p v-if="!editandoId" class="text-sm text-gray-500">
+        <p v-if="!editandoId" class="text-sm text-neutral-500">
           El estado, el flujo de aprobación y el historial de versiones están disponibles después
           de crear el concepto.
         </p>
         <template v-else>
-          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4 mb-6">
+          <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 mb-6">
             <div class="flex items-center justify-between flex-wrap gap-2">
               <p class="text-sm font-medium">Estado: {{ conceptoEnEdicion?.estado }}</p>
               <div class="flex items-center gap-2 flex-wrap">
@@ -1626,7 +1629,7 @@ async function probar(): Promise<void> {
           </div>
 
           <h2 class="text-lg font-semibold mb-2">Historial de versiones</h2>
-          <p v-if="conceptoStore.versiones.length === 0" class="text-gray-500 text-sm">
+          <p v-if="conceptoStore.versiones.length === 0" class="text-neutral-500 text-sm">
             Sin versiones registradas todavía.
           </p>
           <template v-else>
@@ -1641,8 +1644,8 @@ async function probar(): Promise<void> {
               :clave-fila="(v) => v.id"
             >
               <template #celda-version="{ fila }">{{ fila.version }}</template>
-              <template #celda-fecha="{ fila }"><span class="text-gray-500">{{ new Date(fila.created_at).toLocaleString() }}</span></template>
-              <template #celda-estado="{ fila }"><span class="text-gray-500">{{ fila.estado_concepto }}</span></template>
+              <template #celda-fecha="{ fila }"><span class="text-neutral-500">{{ new Date(fila.created_at).toLocaleString() }}</span></template>
+              <template #celda-estado="{ fila }"><span class="text-neutral-500">{{ fila.estado_concepto }}</span></template>
             </UiTabla>
 
             <div class="flex items-end gap-4 flex-wrap mb-2">
@@ -1656,7 +1659,7 @@ async function probar(): Promise<void> {
 
             <div v-if="versionA && versionB" class="space-y-2">
               <div class="flex items-center justify-between">
-                <p class="text-xs text-gray-500">
+                <p class="text-xs text-neutral-500">
                   Comparando versión {{ versionA.version }} (izquierda/original) → versión
                   {{ versionB.version }} (derecha/nueva).
                 </p>
@@ -1686,21 +1689,21 @@ async function probar(): Promise<void> {
                 :modificado="versionB.formula_ael ?? ''"
               />
               <div v-else-if="diffBloques" class="grid grid-cols-2 gap-3">
-                <div class="rounded-lg border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-900/20">
-                  <p class="mb-2 text-[10px] font-medium uppercase text-gray-400">Original</p>
+                <div class="rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 dark:border-neutral-800 dark:bg-neutral-900/20">
+                  <p class="mb-2 text-xs font-medium uppercase text-neutral-400">Original</p>
                   <AelBlockInstruccionDiff :instrucciones="diffBloques.original" :catalogo="catalogoBloques" />
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-900/20">
-                  <p class="mb-2 text-[10px] font-medium uppercase text-gray-400">Nueva</p>
+                <div class="rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 dark:border-neutral-800 dark:bg-neutral-900/20">
+                  <p class="mb-2 text-xs font-medium uppercase text-neutral-400">Nueva</p>
                   <AelBlockInstruccionDiff :instrucciones="diffBloques.nueva" :catalogo="catalogoBloques" />
                 </div>
               </div>
-              <p v-else class="text-xs text-gray-400 italic">
+              <p v-else class="text-xs text-neutral-400 italic">
                 Alguna de las dos versiones tiene errores de sintaxis — corrígelo en modo texto
                 para ver el diff como bloques.
               </p>
             </div>
-            <p v-else class="text-xs text-gray-500">Elige una versión A y una B para ver el diff.</p>
+            <p v-else class="text-xs text-neutral-500">Elige una versión A y una B para ver el diff.</p>
           </template>
         </template>
       </div>

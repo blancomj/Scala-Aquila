@@ -79,8 +79,8 @@ const filtroEstadoModelo = computed({
 })
 
 const columnasCatalogo = [
-  { clave: 'tipo', etiqueta: 'Tipo' },
-  { clave: 'norma', etiqueta: 'Norma' },
+  { clave: 'tipo', etiqueta: 'Tipo', ordenar: (f: any) => f.tipo },
+  { clave: 'norma', etiqueta: 'Norma', ordenar: (f: any) => f.norma },
   { clave: 'articulo', etiqueta: 'Artículo' },
   { clave: 'descripcion', etiqueta: 'Descripción' },
   { clave: 'fuente', etiqueta: 'Fuente' },
@@ -176,11 +176,11 @@ async function confirmarRechazo(): Promise<void> {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <!-- Encabezado -->
     <div>
       <h1 class="text-xl font-semibold mb-1">Fundamentos normativos</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">
         Referencias legales reutilizables asociables a reglas del sistema.
       </p>
     </div>
@@ -199,6 +199,7 @@ async function confirmarRechazo(): Promise<void> {
               size="xs"
               variant="ghost"
               icon="i-lucide-x"
+              aria-label="Limpiar búsqueda"
               title="Limpiar búsqueda"
               @click="fundamentoStore.busqueda = ''"
             />
@@ -241,11 +242,11 @@ async function confirmarRechazo(): Promise<void> {
             </span>
           </template>
           <template #celda-articulo="{ fila }">
-            <span class="text-gray-500 dark:text-gray-400">{{ fila.articulo ?? '—' }}</span>
+            <span class="text-neutral-500 dark:text-neutral-400">{{ fila.articulo ?? '—' }}</span>
           </template>
           <template #celda-descripcion="{ fila }">
             <div
-              class="max-w-xs cursor-pointer hover:underline text-gray-800 dark:text-gray-200"
+              class="max-w-xs cursor-pointer hover:underline text-neutral-800 dark:text-neutral-200"
               @click="toggleDescripcion(fila.id)"
             >
               <span v-if="!descripcionesExpandidas.has(fila.id)" class="truncate block">{{ fila.descripcion ?? '—' }}</span>
@@ -254,16 +255,16 @@ async function confirmarRechazo(): Promise<void> {
           </template>
           <template #celda-fuente="{ fila }">
             <UTooltip v-if="fila.fuente_url" :text="fila.fuente_url">
-              <UButton size="xs" variant="ghost" icon="i-lucide-link" :to="fila.fuente_url" target="_blank" rel="noopener noreferrer" />
+              <UButton size="xs" variant="ghost" icon="i-lucide-link" aria-label="Abrir fuente externa" :to="fila.fuente_url" target="_blank" rel="noopener noreferrer" />
             </UTooltip>
-            <span v-else class="text-gray-500 dark:text-gray-400">—</span>
+            <span v-else class="text-neutral-500 dark:text-neutral-400">—</span>
           </template>
           <template #celda-accion="{ fila }">
             <UTooltip v-if="!fila._es_plataforma" text="Ver detalle / Editar">
-              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="fundamentoSeleccionadoId = fila.id" />
+              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" aria-label="Ver detalle / Editar" @click="fundamentoSeleccionadoId = fila.id" />
             </UTooltip>
             <UTooltip v-else-if="!esPlataforma" text="Proponer cambio a este fundamento">
-              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="abrirPropuesta(fila)" />
+              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" aria-label="Proponer cambio" @click="abrirPropuesta(fila)" />
             </UTooltip>
           </template>
         </UiTabla>
@@ -277,7 +278,7 @@ async function confirmarRechazo(): Promise<void> {
             <span class="font-medium">{{ fila.norma }}</span>
           </template>
           <template #celda-articulo="{ fila }">
-            <span class="text-gray-500 dark:text-gray-400">{{ fila.articulo ?? '—' }}</span>
+            <span class="text-neutral-500 dark:text-neutral-400">{{ fila.articulo ?? '—' }}</span>
           </template>
           <template #celda-estado="{ fila }">
             <UBadge :color="COLOR_ESTADO_PROPUESTA[fila.estado] ?? 'neutral'" variant="subtle">
@@ -285,7 +286,7 @@ async function confirmarRechazo(): Promise<void> {
             </UBadge>
           </template>
           <template #celda-fecha="{ fila }">
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ new Date(fila.creado_at).toLocaleDateString('es-CO') }}</span>
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ new Date(fila.creado_at).toLocaleDateString('es-CO') }}</span>
           </template>
           <template #celda-acciones="{ fila }">
             <div v-if="fila.estado === 'pendiente'" class="flex justify-end gap-2">
@@ -309,7 +310,7 @@ async function confirmarRechazo(): Promise<void> {
     <!-- Modal propuesta -->
     <UModal v-model:open="propuestaAbierta" title="Proponer cambio">
       <template #body>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
           Propones un cambio al fundamento: <strong>{{ propuestaOriginal?.norma }}</strong>
           {{ propuestaOriginal?.articulo ? `(${propuestaOriginal.articulo})` : '' }}
         </p>
@@ -334,7 +335,7 @@ async function confirmarRechazo(): Promise<void> {
     <UModal title="Rechazar propuesta" :open="propuestaRechazoId !== null" @update:open="(v: boolean) => { if (!v) propuestaRechazoId = null }">
       <template #body>
         <UFormField label="Motivo del rechazo" name="motivo">
-          <UInput v-model="propuestaRechazoMotivo" class="w-full" placeholder="Indica por qué se rechaza..." />
+          <UTextarea v-model="propuestaRechazoMotivo" class="w-full" placeholder="Indica por qué se rechaza..." :rows="3" autoresize />
         </UFormField>
         <div class="flex justify-end gap-2 pt-4">
           <UButton variant="soft" @click="propuestaRechazoId = null">Cancelar</UButton>

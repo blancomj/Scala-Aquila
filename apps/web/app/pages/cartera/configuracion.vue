@@ -587,11 +587,16 @@ async function agregarTramo(): Promise<void> {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="text-xl font-semibold mb-2">Configuración de cartera</h1>
-      <p class="text-sm text-neutral-500">
-        Cómo se clasifica la mora y qué gestión corresponde a cada tramo.
-      </p>
+    <div class="mb-8">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 max-w-2xl">
+        <template #titulo>
+          <h1 class="text-2xl font-semibold tracking-tight">Configuración de cartera</h1>
+        </template>
+        <template #descripcion>
+          Define los criterios de clasificación de la mora y las estrategias de gestión
+          correspondientes a cada tramo de antigüedad.
+        </template>
+      </UiTituloDescripcion>
     </div>
 
     <UAlert
@@ -604,177 +609,199 @@ async function agregarTramo(): Promise<void> {
     />
 
     <!-- ── copropiedad sin configurar ───────────────────────────────── -->
-    <div v-if="sinConfigurar && !configStore.loading" class="rounded-md border border-neutral-200 dark:border-neutral-800 p-6 space-y-4">
-      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+    <div v-if="sinConfigurar && !configStore.loading"
+         class="flex flex-col items-center justify-center py-12 px-6 text-center max-w-3xl mx-auto space-y-6">
+      <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 text-primary rounded-full flex items-center justify-center mb-2">
+        <UIcon name="i-lucide-sparkles" class="w-8 h-8" />
+      </div>
+      <UiTituloDescripcion clase-descripcion="text-base text-neutral-500 max-w-xl mx-auto">
         <template #titulo>
-          <h2 class="font-semibold">Esta copropiedad todavía no tiene política de cartera</h2>
+          <h2 class="text-2xl font-semibold">La copropiedad no tiene política de cartera</h2>
         </template>
         <template #descripcion>
-          Sin política de clasificación, la corrida diaria no clasifica nada ni genera gestión de
-          cobro: el módulo queda inactivo. Puedes partir de la configuración sugerida —ocho tramos
-          de mora y las estrategias de cobranza correspondientes— y ajustarla antes de activarla.
+          Sin una política de clasificación, el módulo de cartera permanece inactivo.
+          No se clasificará la mora ni se generarán acciones de cobro automáticamente.
         </template>
       </UiTituloDescripcion>
-      <UButton icon="i-lucide-sparkles" :loading="sembrando" @click="sembrar">
-        Crear configuración sugerida
-      </UButton>
-      <p class="text-xs text-neutral-400">
-        Se crea en borrador. Nada empieza a funcionar hasta que la actives.
-      </p>
+      <div class="flex flex-col items-center gap-3">
+        <UButton
+          size="lg"
+          icon="i-lucide-wand-2"
+          :loading="sembrando"
+          @click="sembrar"
+          class="px-8"
+        >
+          Crear configuración sugerida
+        </UButton>
+        <p class="text-xs text-neutral-400">
+          Se crea un borrador basado en el rector. Nada se activa hasta que lo revises.
+        </p>
+      </div>
     </div>
 
     <template v-else-if="politica">
       <!-- ── estado de la política ──────────────────────────────────── -->
-      <div class="rounded-md border border-neutral-200 dark:border-neutral-800 p-4 flex flex-wrap items-center gap-3">
-        <div class="flex-1 min-w-64">
-          <div class="flex items-center gap-2">
-            <span class="font-medium">{{ politica.nombre }}</span>
-            <UBadge size="sm" variant="subtle" :color="esBorrador ? 'warning' : 'success'">
-              {{ esBorrador ? 'Borrador' : 'Vigente' }}
-            </UBadge>
-            <span class="text-xs text-neutral-400">versión {{ politica.version }}</span>
+      <div class="bg-neutral-50 dark:bg-neutral-900/50 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="p-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+            <UIcon :name="esBorrador ? 'i-lucide-file-edit' : 'i-lucide-shield-check'"
+                   :class="esBorrador ? 'text-warning' : 'text-success'"
+                   class="w-5 h-5" />
           </div>
-          <p v-if="esBorrador" class="text-sm text-neutral-500 mt-1">
-            Todavía no rige. La corrida diaria seguirá sin clasificar hasta que la actives.
-          </p>
-          <p v-else class="text-sm text-neutral-500 mt-1">
-            Una política vigente no se puede modificar: corregirla es crear una versión nueva.
-          </p>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-neutral-900 dark:text-white">{{ politica.nombre }}</span>
+              <UBadge size="xs" variant="solid" :color="esBorrador ? 'warning' : 'success'" class="rounded-full px-2">
+                {{ esBorrador ? 'Borrador' : 'Vigente' }}
+              </UBadge>
+              <span class="text-[10px] font-medium uppercase tracking-wider text-neutral-400">versión {{ politica.version }}</span>
+            </div>
+            <p class="text-xs text-neutral-500 mt-0.5">
+              {{ esBorrador
+                ? 'La corrida diaria seguirá sin clasificar hasta que actives esta política.'
+                : 'Política activa. Para realizar ajustes, debes crear una versión nueva.'
+              }}
+            </p>
+          </div>
         </div>
-        <UButton
-          v-if="esBorrador"
-          icon="i-lucide-check"
-          :loading="activando === politica.id"
-          @click="activar(politica.id)"
-        >
-          Activar política
-        </UButton>
-        <UButton
-          v-else-if="!enEdicion"
-          icon="i-lucide-git-branch-plus"
-          variant="outline"
-          :loading="creandoVersion"
-          @click="crearVersion"
-        >
-          Crear versión nueva para editar
-        </UButton>
+        <div class="flex items-center gap-2">
+          <UButton
+            v-if="esBorrador"
+            icon="i-lucide-check"
+            size="sm"
+            :loading="activando === politica.id"
+            @click="activar(politica.id)"
+            class="shadow-sm"
+          >
+            Activar política
+          </UButton>
+          <UButton
+            v-else-if="!enEdicion"
+            icon="i-lucide-git-branch-plus"
+            size="sm"
+            variant="outline"
+            :loading="creandoVersion"
+            @click="crearVersion"
+            class="shadow-sm"
+          >
+            Crear versión nueva
+          </UButton>
+        </div>
       </div>
 
       <!-- ── nueva versión en edición (§8.5, bloque 23) ─────────────────── -->
-      <div v-if="enEdicion" class="rounded-md border border-primary-300 dark:border-primary-800 p-4 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ enEdicion.nombre }}</span>
-              <UBadge size="sm" variant="subtle" color="warning">Borrador — versión {{ enEdicion.version }}</UBadge>
+      <div v-if="enEdicion" class="rounded-xl border border-primary-200 dark:border-primary-900/50 overflow-hidden bg-white dark:bg-neutral-900 shadow-sm">
+        <div class="bg-primary-50 dark:bg-primary-900/20 p-4 border-b border-primary-100 dark:border-primary-900/30 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="p-1.5 rounded-md bg-primary-500 text-white">
+              <UIcon name="i-lucide-edit-3" class="w-4 h-4" />
             </div>
-            <p class="text-sm text-neutral-500 mt-1">
-              Edita sus tramos y compáralos contra la vigente. Nada cambia para la vigente hasta que
-              actives esta versión.
-            </p>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-primary-900 dark:text-primary-100">{{ enEdicion.nombre }}</span>
+                <UBadge size="xs" variant="solid" color="warning" class="rounded-full">Borrador v{{ enEdicion.version }}</UBadge>
+              </div>
+              <p class="text-xs text-primary-600 dark:text-primary-400 mt-0.5">
+                Modificando tramos de clasificación. Los cambios no afectan la operación hasta la activación.
+              </p>
+            </div>
           </div>
-          <UButton icon="i-lucide-check" :loading="activando === enEdicion.id" @click="activar(enEdicion.id)">
-            Activar esta versión
+          <UButton icon="i-lucide-check" size="sm" :loading="activando === enEdicion.id" @click="activar(enEdicion.id)" class="bg-primary-600 hover:bg-primary-700 text-white">
+            Activar versión
           </UButton>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-2">
-          <div>
-            <h3 class="text-xs font-semibold text-neutral-500 mb-2">Vigente hoy (solo lectura)</h3>
-            <div class="space-y-1.5">
+        <div class="grid gap-0 lg:grid-cols-2">
+          <!-- Vigente: Read-only Pane -->
+          <div class="p-4 bg-neutral-50/50 dark:bg-neutral-800/30 border-r border-neutral-100 dark:border-neutral-800">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
+              <UIcon name="i-lucide-lock" class="w-3 h-3" />
+              Vigente hoy
+            </h3>
+            <div class="space-y-2">
               <div
                 v-for="tramo in configStore.tramos"
                 :key="tramo.id"
-                class="rounded-md border border-neutral-200 dark:border-neutral-800 p-2.5 text-sm"
+                class="group rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900 transition-colors hover:border-neutral-300 dark:hover:border-neutral-700"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-medium">{{ tramo.nombre }}</span>
-                  <UBadge size="sm" variant="subtle" :color="COLOR_RIESGO[tramo.nivelRiesgo] ?? 'neutral'">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="font-medium text-sm">{{ tramo.nombre }}</span>
+                  <UBadge size="xs" variant="subtle" :color="COLOR_RIESGO[tramo.nivelRiesgo] ?? 'neutral'" class="rounded-md">
                     {{ tramo.nivelRiesgo }}
                   </UBadge>
                 </div>
-                <p class="text-xs text-neutral-400">
-                  {{ rangoDias(tramo.diasMin, tramo.diasMax) }} · {{ ETIQUETA_ETAPA[tramo.etapaCobranza] ?? tramo.etapaCobranza }}
-                </p>
+                <div class="flex items-center gap-2 text-[11px] text-neutral-500">
+                  <span class="font-medium">{{ rangoDias(tramo.diasMin, tramo.diasMax) }}</span>
+                  <span class="text-neutral-300">•</span>
+                  <span>{{ ETIQUETA_ETAPA[tramo.etapaCobranza] ?? tramo.etapaCobranza }}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div>
-            <h3 class="text-xs font-semibold text-neutral-500 mb-2">Borrador (editable)</h3>
-            <div class="space-y-2">
+          <!-- Borrador: Workspace Pane -->
+          <div class="p-4 bg-white dark:bg-neutral-900">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest text-primary-500 mb-4 flex items-center gap-2">
+              <UIcon name="i-lucide-pencil" class="w-3 h-3" />
+              Espacio de trabajo (Editable)
+            </h3>
+            <div class="space-y-3">
               <div
                 v-for="tramo in configStore.tramosBorrador"
                 :key="tramo.id"
-                class="rounded-md border border-neutral-200 dark:border-neutral-800 p-2.5 space-y-2"
+                class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500"
               >
-                <div v-if="draftsTramo[tramo.id]" class="space-y-2">
-                  <div class="flex gap-2">
-                    <UInput v-model="draftsTramo[tramo.id]!.nombre" size="xs" class="flex-1" placeholder="Nombre" />
-                    <span class="text-xs text-neutral-400 self-center">{{ tramo.codigo }}</span>
+                <div v-if="draftsTramo[tramo.id]" class="space-y-3">
+                  <div class="flex gap-2 items-center">
+                    <UInput v-model="draftsTramo[tramo.id]!.nombre" size="xs" class="flex-1 font-medium" placeholder="Nombre del tramo" />
+                    <span class="text-[10px] font-mono text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">{{ tramo.codigo }}</span>
                   </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <UInput v-model.number="draftsTramo[tramo.id]!.diasMin" type="number" size="xs" class="w-20" />
-                    <span class="text-xs text-neutral-400">a</span>
-                    <UInput
-                      v-model.number="draftsTramo[tramo.id]!.diasMax"
-                      type="number"
-                      size="xs"
-                      class="w-20"
-                      :disabled="draftsTramo[tramo.id]!.sinTope"
-                    />
-                    <label class="flex items-center gap-1 text-xs text-neutral-500">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="flex items-center gap-2">
+                      <UInput v-model.number="draftsTramo[tramo.id]!.diasMin" type="number" size="xs" class="w-full" placeholder="Min" />
+                      <span class="text-xs text-neutral-400">a</span>
+                      <UInput
+                        v-model.number="draftsTramo[tramo.id]!.diasMax"
+                        type="number"
+                        size="xs"
+                        class="w-full"
+                        :disabled="draftsTramo[tramo.id]!.sinTope"
+                        placeholder="Max"
+                      />
+                    </div>
+                    <label class="flex items-center gap-2 text-xs text-neutral-500 justify-end">
                       <UCheckbox v-model="draftsTramo[tramo.id]!.sinTope" />
                       Sin tope
                     </label>
                   </div>
-                  <div class="flex flex-wrap gap-2">
-                    <USelect
-                      v-model="draftsTramo[tramo.id]!.nivelRiesgo"
-                      :items="OPCIONES_RIESGO"
-                      size="xs"
-                      class="w-28"
-                    />
-                    <USelect
-                      v-model="draftsTramo[tramo.id]!.etapaCobranza"
-                      :items="OPCIONES_ETAPA"
-                      size="xs"
-                      class="w-36"
-                    />
+                  <div class="flex gap-2">
+                    <USelect v-model="draftsTramo[tramo.id]!.nivelRiesgo" :items="OPCIONES_RIESGO" size="xs" class="flex-1" />
+                    <USelect v-model="draftsTramo[tramo.id]!.etapaCobranza" :items="OPCIONES_ETAPA" size="xs" class="flex-1" />
                   </div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-between pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                    <div class="flex items-center gap-1">
+                      <UButton
+                        size="xs"
+                        variant="ghost"
+                        color="error"
+                        icon="i-lucide-trash-2"
+                        @click="confirmandoEliminarId = tramo.id"
+                      >
+                        Eliminar
+                      </UButton>
+                      <template v-if="confirmandoEliminarId === tramo.id">
+                        <UButton size="xs" variant="solid" color="error" @click="eliminarTramo(tramo.id)">Confirmar</UButton>
+                        <UButton size="xs" variant="ghost" @click="confirmandoEliminarId = null">Cancelar</UButton>
+                      </template>
+                    </div>
                     <UButton
                       size="xs"
                       icon="i-lucide-save"
                       :loading="guardandoTramoId === tramo.id"
                       @click="guardarTramo(tramo.id)"
+                      class="font-medium"
                     >
-                      Guardar
-                    </UButton>
-                    <template v-if="confirmandoEliminarId === tramo.id">
-                      <span class="text-xs text-neutral-500">¿Eliminar este tramo?</span>
-                      <UButton
-                        size="xs"
-                        color="error"
-                        variant="outline"
-                        :loading="eliminandoTramoId === tramo.id"
-                        @click="eliminarTramo(tramo.id)"
-                      >
-                        Sí, eliminar
-                      </UButton>
-                      <UButton size="xs" variant="ghost" color="neutral" @click="confirmandoEliminarId = null">
-                        Cancelar
-                      </UButton>
-                    </template>
-                    <UButton
-                      v-else
-                      size="xs"
-                      variant="ghost"
-                      color="error"
-                      icon="i-lucide-trash-2"
-                      @click="confirmandoEliminarId = tramo.id"
-                    >
-                      Eliminar
+                      Guardar cambios
                     </UButton>
                   </div>
                 </div>
@@ -782,34 +809,37 @@ async function agregarTramo(): Promise<void> {
             </div>
 
             <!-- ── agregar tramo ─────────────────────────────────────── -->
-            <div class="rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 p-2.5 space-y-2 mt-2">
-              <p class="text-xs font-medium text-neutral-500">Agregar tramo</p>
-              <div class="flex gap-2">
-                <UInput v-model="nuevoTramo.codigo" size="xs" class="w-28" placeholder="Código" />
-                <UInput v-model="nuevoTramo.nombre" size="xs" class="flex-1" placeholder="Nombre" />
+            <div class="mt-6 p-4 rounded-xl border-2 border-dashed border-neutral-200 dark:border-neutral-800 bg-neutral-50/30 dark:bg-neutral-800/20 space-y-3">
+              <div class="flex items-center gap-2 mb-1">
+                <UIcon name="i-lucide-plus-circle" class="w-4 h-4 text-primary-500" />
+                <p class="text-xs font-bold uppercase tracking-wider text-neutral-500">Nuevo Tramo</p>
               </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <UInput v-model.number="nuevoTramo.diasMin" type="number" size="xs" class="w-20" placeholder="Desde" />
+              <div class="grid grid-cols-2 gap-2">
+                <UInput v-model="nuevoTramo.codigo" size="xs" placeholder="Cód." class="w-20" />
+                <UInput v-model="nuevoTramo.nombre" size="xs" placeholder="Nombre del nuevo tramo" class="flex-1" />
+              </div>
+              <div class="flex items-center gap-2">
+                <UInput v-model.number="nuevoTramo.diasMin" type="number" size="xs" class="w-full" placeholder="Días Min" />
                 <span class="text-xs text-neutral-400">a</span>
                 <UInput
                   v-model.number="nuevoTramo.diasMax"
                   type="number"
                   size="xs"
-                  class="w-20"
+                  class="w-full"
                   :disabled="nuevoTramo.sinTope"
-                  placeholder="Hasta"
+                  placeholder="Días Max"
                 />
-                <label class="flex items-center gap-1 text-xs text-neutral-500">
+                <label class="flex items-center gap-1 text-xs text-neutral-500 whitespace-nowrap">
                   <UCheckbox v-model="nuevoTramo.sinTope" />
                   Sin tope
                 </label>
               </div>
-              <div class="flex flex-wrap gap-2">
-                <USelect v-model="nuevoTramo.nivelRiesgo" :items="OPCIONES_RIESGO" size="xs" class="w-28" />
-                <USelect v-model="nuevoTramo.etapaCobranza" :items="OPCIONES_ETAPA" size="xs" class="w-36" />
+              <div class="flex gap-2">
+                <USelect v-model="nuevoTramo.nivelRiesgo" :items="OPCIONES_RIESGO" size="xs" class="flex-1" />
+                <USelect v-model="nuevoTramo.etapaCobranza" :items="OPCIONES_ETAPA" size="xs" class="flex-1" />
               </div>
-              <UButton size="xs" icon="i-lucide-plus" :loading="creandoTramo" @click="agregarTramo">
-                Agregar
+              <UButton size="xs" icon="i-lucide-plus" :loading="creandoTramo" @click="agregarTramo" class="w-full justify-center">
+                Añadir a la política
               </UButton>
             </div>
           </div>
@@ -880,9 +910,11 @@ async function agregarTramo(): Promise<void> {
             {{ ETIQUETA_ETAPA[fila.tramo.etapaCobranza] ?? fila.tramo.etapaCobranza }}
           </template>
           <template #celda-acciones="{ fila }">
-            <span class="text-sm tabular-nums">
-              {{ fila.estrategias.filter((e) => e.activa).length }} activa(s)
-            </span>
+            <div class="flex items-center justify-end gap-2">
+              <UBadge size="xs" variant="subtle" color="primary" class="font-medium tabular-nums">
+                {{ fila.estrategias.filter((e) => e.activa).length }} activa(s)
+              </UBadge>
+            </div>
           </template>
         </UiTabla>
       </div>
@@ -907,55 +939,99 @@ async function agregarTramo(): Promise<void> {
 
         <div
           v-if="agregandoEstrategia && nuevaEstrategia"
-          class="rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 p-3 space-y-2 mb-4"
+          class="rounded-xl border border-primary-200 dark:border-primary-900/50 overflow-hidden bg-white dark:bg-neutral-900 shadow-sm mb-6"
         >
-          <div class="flex flex-wrap gap-2">
-            <USelect v-model="nuevaEstrategia.tramoId" :items="opcionesTramoEstrategia" size="xs" class="w-48" placeholder="Tramo" />
-            <UInput v-model="nuevaEstrategia.codigo" size="xs" class="w-28" placeholder="Código" />
-            <UInput v-model="nuevaEstrategia.nombre" size="xs" class="flex-1 min-w-40" placeholder="Nombre" />
+          <div class="bg-primary-50 dark:bg-primary-900/20 p-3 border-b border-primary-100 dark:border-primary-900/30 flex items-center gap-3">
+            <div class="p-1.5 rounded-md bg-primary-500 text-white">
+              <UIcon name="i-lucide-plus-circle" class="w-4 h-4" />
+            </div>
+            <span class="text-sm font-semibold text-primary-900 dark:text-primary-100">Nueva Estrategia de Gestión</span>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <USelect v-model="nuevaEstrategia.tipoAccion" :items="OPCIONES_TIPO_ACCION" size="xs" class="w-48" />
-            <USelect v-model="nuevaEstrategia.canal" :items="OPCIONES_CANAL" size="xs" class="w-32" />
-            <USelect v-model="nuevaEstrategia.rolMinimo" :items="OPCIONES_ROL" size="xs" class="w-32" />
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-neutral-500">Días desde clasificar</span>
-            <UInput v-model.number="nuevaEstrategia.diasDesdeClasificacion" type="number" size="xs" class="w-20" />
-            <span class="text-xs text-neutral-500">Frecuencia</span>
-            <UInput
-              v-model.number="nuevaEstrategia.frecuenciaDias"
-              type="number"
-              size="xs"
-              class="w-20"
-              :disabled="nuevaEstrategia.sinFrecuencia"
-            />
-            <label class="flex items-center gap-1 text-xs text-neutral-500">
-              <UCheckbox v-model="nuevaEstrategia.sinFrecuencia" />
-              Una sola vez
-            </label>
-            <span class="text-xs text-neutral-500">Máx. intentos</span>
-            <UInput v-model.number="nuevaEstrategia.maxIntentos" type="number" size="xs" class="w-16" min="1" />
-          </div>
-          <label class="flex items-center gap-1 text-xs text-neutral-500">
-            <UCheckbox v-model="nuevaEstrategia.requiereAprobacion" />
-            Exige aprobación
-          </label>
-          <div class="flex items-center gap-2">
-            <UButton size="xs" icon="i-lucide-plus" :loading="creandoEstrategia" @click="agregarEstrategia">
-              Agregar
-            </UButton>
-            <UButton size="xs" variant="ghost" color="neutral" @click="cerrarNuevaEstrategia">
-              Cancelar
-            </UButton>
+          <div class="p-4 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Tramo</label>
+                <USelect v-model="nuevaEstrategia.tramoId" :items="opcionesTramoEstrategia" size="xs" class="w-full" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Código</label>
+                <UInput v-model="nuevaEstrategia.codigo" size="xs" placeholder="Ej: COR-01" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Nombre</label>
+                <UInput v-model="nuevaEstrategia.nombre" size="xs" placeholder="Ej: Correo primer aviso" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Tipo de Acción</label>
+                <USelect v-model="nuevaEstrategia.tipoAccion" :items="OPCIONES_TIPO_ACCION" size="xs" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Canal</label>
+                <USelect v-model="nuevaEstrategia.canal" :items="OPCIONES_CANAL" size="xs" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Rol Mínimo</label>
+                <USelect v-model="nuevaEstrategia.rolMinimo" :items="OPCIONES_ROL" size="xs" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Días Desde</label>
+                <UInput v-model.number="nuevaEstrategia.diasDesdeClasificacion" type="number" size="xs" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Frecuencia</label>
+                <div class="flex gap-1">
+                  <UInput v-model.number="nuevaEstrategia.frecuenciaDias" type="number" size="xs" :disabled="nuevaEstrategia.sinFrecuencia" />
+                  <UCheckbox v-model="nuevaEstrategia.sinFrecuencia" title="Una vez" />
+                </div>
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Intentos</label>
+                <UInput v-model.number="nuevaEstrategia.maxIntentos" type="number" size="xs" min="1" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase text-neutral-400">Monto Mín.</label>
+                <div class="flex gap-1">
+                  <UInput v-model.number="nuevaEstrategia.montoMinimoDeuda" type="number" size="xs" :disabled="nuevaEstrategia.sinMontoMinimo" />
+                  <UCheckbox v-model="nuevaEstrategia.sinMontoMinimo" title="Sin mín." />
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <label class="flex items-center gap-2 text-xs text-neutral-500">
+                <UCheckbox v-model="nuevaEstrategia.requiereAprobacion" />
+                Exige aprobación de administrador
+              </label>
+              <div class="flex gap-2">
+                <UButton size="xs" variant="ghost" color="neutral" @click="cerrarNuevaEstrategia">Cancelar</UButton>
+                <UButton
+                  size="xs"
+                  icon="i-lucide-plus"
+                  :loading="creandoEstrategia"
+                  @click="agregarEstrategia"
+                  class="font-medium bg-primary-600 hover:bg-primary-700 text-white"
+                >
+                  Añadir estrategia
+                </UButton>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="space-y-4">
-          <div v-for="grupo in porTramo" :key="grupo.tramo.id">
-            <p class="text-xs font-medium text-neutral-500 mb-1.5">
-              {{ grupo.tramo.nombre }} · {{ rangoDias(grupo.tramo.diasMin, grupo.tramo.diasMax) }}
-            </p>
+        <div class="space-y-8">
+          <div v-for="grupo in porTramo" :key="grupo.tramo.id" class="space-y-3">
+            <div class="flex items-center gap-2 py-2 border-b border-neutral-200 dark:border-neutral-800">
+              <div class="w-1 h-4 bg-primary-500 rounded-full"></div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                {{ grupo.tramo.nombre }}
+              </h3>
+              <UBadge size="xs" variant="subtle" color="neutral" class="ml-1 font-mono">
+                {{ rangoDias(grupo.tramo.diasMin, grupo.tramo.diasMax) }}
+              </UBadge>
+            </div>
 
             <div v-if="grupo.estrategias.length > 0" class="space-y-1.5 mb-2">
               <div
@@ -979,52 +1055,58 @@ async function agregarTramo(): Promise<void> {
                            acción se crea igual, pero el envío es manual. -->
                       <UBadge
                         v-if="!CANALES_AUTOMATICOS.has(estrategia.canal)"
-                        size="sm"
+                        size="xs"
                         variant="subtle"
                         color="neutral"
+                        class="flex-shrink-0"
                         title="La acción se crea igual y queda en la bandeja; el envío se gestiona a mano."
                       >
                         Gestión manual
                       </UBadge>
                     </div>
-                    <p class="text-xs text-neutral-400 mt-0.5">
-                      A los {{ estrategia.diasDesdeClasificacion }} día(s) de clasificar ·
-                      {{ estrategia.frecuenciaDias === null ? 'una sola vez' : `cada ${String(estrategia.frecuenciaDias)} días` }}
-                      · máximo {{ estrategia.maxIntentos }} intento(s)
-                      <template v-if="estrategia.montoMinimoDeuda !== null">
-                        · desde {{ formatoMoneda(estrategia.montoMinimoDeuda) }}
-                      </template>
-                      · rol mínimo {{ estrategia.rolMinimo }}
-                    </p>
+                      <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-[11px] text-neutral-500">
+                        <div class="flex items-center gap-1">
+                          <UIcon name="i-lucide-calendar" class="w-3 h-3 opacity-60" />
+                          <span>{{ estrategia.diasDesdeClasificacion }} días</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <UIcon name="i-lucide-repeat" class="w-3 h-3 opacity-60" />
+                          <span>{{ estrategia.frecuenciaDias === null ? 'Una sola vez' : `Cada ${String(estrategia.frecuenciaDias)} días` }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <UIcon name="i-lucide-list-ordered" class="w-3 h-3 opacity-60" />
+                          <span>Máx. {{ estrategia.maxIntentos }} intentos</span>
+                        </div>
+                        <div v-if="estrategia.montoMinimoDeuda !== null" class="flex items-center gap-1">
+                          <UIcon name="i-lucide-circle-dollar-sign" class="w-3 h-3 opacity-60" />
+                          <span>Desde {{ formatoMoneda(estrategia.montoMinimoDeuda) }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <UIcon name="i-lucide-user-check" class="w-3 h-3 opacity-60" />
+                          <span>Rol: {{ estrategia.rolMinimo }}</span>
+                        </div>
+                      </div>
                   </div>
 
-                  <div class="flex items-center gap-1.5">
+                  <div class="flex items-center gap-1.5 shrink-0">
                     <UButton
                       size="xs"
                       :variant="estrategia.activa ? 'outline' : 'solid'"
                       :color="estrategia.activa ? 'neutral' : 'primary'"
                       :loading="cambiando === estrategia.id"
                       @click="alternar(estrategia)"
+                      class="min-w-[80px]"
                     >
                       {{ estrategia.activa ? 'Desactivar' : 'Activar' }}
                     </UButton>
-                    <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="editarEstrategia(estrategia)">
-                      Editar
+                    <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="editarEstrategia(estrategia)" class="p-1.5">
+                      <span class="hidden md:inline ml-1">Editar</span>
                     </UButton>
                     <template v-if="confirmandoEliminarEstrategiaId === estrategia.id">
-                      <span class="text-xs text-neutral-500">¿Eliminar?</span>
-                      <UButton
-                        size="xs"
-                        color="error"
-                        variant="outline"
-                        :loading="eliminandoEstrategiaId === estrategia.id"
-                        @click="eliminarEstrategia(estrategia.id)"
-                      >
-                        Sí
-                      </UButton>
-                      <UButton size="xs" variant="ghost" color="neutral" @click="confirmandoEliminarEstrategiaId = null">
-                        No
-                      </UButton>
+                      <div class="flex items-center gap-1 ml-1">
+                        <UButton size="xs" color="error" variant="outline" :loading="eliminandoEstrategiaId === estrategia.id" @click="eliminarEstrategia(estrategia.id)">Sí</UButton>
+                        <UButton size="xs" variant="ghost" color="neutral" @click="confirmandoEliminarEstrategiaId = null">No</UButton>
+                      </div>
                     </template>
                     <UButton
                       v-else
@@ -1033,77 +1115,68 @@ async function agregarTramo(): Promise<void> {
                       color="error"
                       icon="i-lucide-trash-2"
                       @click="confirmandoEliminarEstrategiaId = estrategia.id"
+                      class="p-1.5"
                     >
-                      Eliminar
                     </UButton>
                   </div>
                 </div>
 
                 <!-- ── edición ────────────────────────────────────────── -->
-                <div v-else-if="draftsEstrategia[estrategia.id]" class="space-y-2">
+                <div v-else-if="draftsEstrategia[estrategia.id]" class="p-3 space-y-3">
                   <div class="flex gap-2">
-                    <UInput v-model="draftsEstrategia[estrategia.id]!.nombre" size="xs" class="flex-1" placeholder="Nombre" />
-                    <span class="text-xs text-neutral-400 self-center">{{ estrategia.codigo }}</span>
+                    <UInput v-model="draftsEstrategia[estrategia.id]!.nombre" size="xs" class="flex-1 font-medium" placeholder="Nombre" />
+                    <span class="text-xs text-neutral-400 self-center bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">{{ estrategia.codigo }}</span>
                   </div>
-                  <div class="flex flex-wrap gap-2">
-                    <USelect v-model="draftsEstrategia[estrategia.id]!.tipoAccion" :items="OPCIONES_TIPO_ACCION" size="xs" class="w-48" />
-                    <USelect v-model="draftsEstrategia[estrategia.id]!.canal" :items="OPCIONES_CANAL" size="xs" class="w-32" />
-                    <USelect v-model="draftsEstrategia[estrategia.id]!.rolMinimo" :items="OPCIONES_ROL" size="xs" class="w-32" />
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <USelect v-model="draftsEstrategia[estrategia.id]!.tipoAccion" :items="OPCIONES_TIPO_ACCION" size="xs" />
+                    <USelect v-model="draftsEstrategia[estrategia.id]!.canal" :items="OPCIONES_CANAL" size="xs" />
+                    <USelect v-model="draftsEstrategia[estrategia.id]!.rolMinimo" :items="OPCIONES_ROL" size="xs" />
                   </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs text-neutral-500">Días desde clasificar</span>
-                    <UInput v-model.number="draftsEstrategia[estrategia.id]!.diasDesdeClasificacion" type="number" size="xs" class="w-20" />
-                    <span class="text-xs text-neutral-500">Frecuencia</span>
-                    <UInput
-                      v-model.number="draftsEstrategia[estrategia.id]!.frecuenciaDias"
-                      type="number"
-                      size="xs"
-                      class="w-20"
-                      :disabled="draftsEstrategia[estrategia.id]!.sinFrecuencia"
-                    />
-                    <label class="flex items-center gap-1 text-xs text-neutral-500">
-                      <UCheckbox v-model="draftsEstrategia[estrategia.id]!.sinFrecuencia" />
-                      Una sola vez
-                    </label>
-                    <span class="text-xs text-neutral-500">Máx. intentos</span>
-                    <UInput v-model.number="draftsEstrategia[estrategia.id]!.maxIntentos" type="number" size="xs" class="w-16" min="1" />
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                    <div class="space-y-1">
+                      <label class="text-[10px] font-bold uppercase text-neutral-400">DíasDesde</label>
+                      <UInput v-model.number="draftsEstrategia[estrategia.id]!.diasDesdeClasificacion" type="number" size="xs" />
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[10px] font-bold uppercase text-neutral-400">Frecuencia</label>
+                      <div class="flex gap-1">
+                        <UInput v-model.number="draftsEstrategia[estrategia.id]!.frecuenciaDias" type="number" size="xs" :disabled="draftsEstrategia[estrategia.id]!.sinFrecuencia" />
+                        <UCheckbox v-model="draftsEstrategia[estrategia.id]!.sinFrecuencia" title="Una sola vez" />
+                      </div>
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[10px] font-bold uppercase text-neutral-400">Intentos</label>
+                      <UInput v-model.number="draftsEstrategia[estrategia.id]!.maxIntentos" type="number" size="xs" min="1" />
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[10px] font-bold uppercase text-neutral-400">Monto Mín.</label>
+                      <div class="flex gap-1">
+                        <UInput v-model.number="draftsEstrategia[estrategia.id]!.montoMinimoDeuda" type="number" size="xs" :disabled="draftsEstrategia[estrategia.id]!.sinMontoMinimo" />
+                        <UCheckbox v-model="draftsEstrategia[estrategia.id]!.sinMontoMinimo" title="Sin mín." />
+                      </div>
+                    </div>
                   </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs text-neutral-500">Monto mínimo de deuda</span>
-                    <UInput
-                      v-model.number="draftsEstrategia[estrategia.id]!.montoMinimoDeuda"
-                      type="number"
-                      size="xs"
-                      class="w-28"
-                      :disabled="draftsEstrategia[estrategia.id]!.sinMontoMinimo"
-                    />
-                    <label class="flex items-center gap-1 text-xs text-neutral-500">
-                      <UCheckbox v-model="draftsEstrategia[estrategia.id]!.sinMontoMinimo" />
-                      Sin mínimo
-                    </label>
-                    <label class="flex items-center gap-1 text-xs text-neutral-500">
+                  <div class="space-y-1">
+                    <label class="text-[10px] font-bold uppercase text-neutral-400">Plantilla de mensaje</label>
+                    <UInput v-model="draftsEstrategia[estrategia.id]!.plantillaCodigo" size="xs" placeholder="Código de plantilla (opcional)" />
+                  </div>
+                  <div class="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                    <label class="flex items-center gap-2 text-xs text-neutral-500">
                       <UCheckbox v-model="draftsEstrategia[estrategia.id]!.requiereAprobacion" />
-                      Exige aprobación
+                      Exige aprobación de administrador
                     </label>
-                  </div>
-                  <UInput
-                    v-model="draftsEstrategia[estrategia.id]!.plantillaCodigo"
-                    size="xs"
-                    class="w-full"
-                    placeholder="Código de plantilla (opcional)"
-                  />
-                  <div class="flex items-center gap-2">
-                    <UButton
-                      size="xs"
-                      icon="i-lucide-save"
-                      :loading="guardandoEstrategiaId === estrategia.id"
-                      @click="guardarEstrategia(estrategia.id)"
-                    >
-                      Guardar
-                    </UButton>
-                    <UButton size="xs" variant="ghost" color="neutral" @click="editandoEstrategiaId = null">
-                      Cancelar
-                    </UButton>
+                    <div class="flex gap-2">
+                      <UButton size="xs" variant="ghost" color="neutral" @click="editandoEstrategiaId = null">Cancelar</UButton>
+                      <UButton
+                        size="xs"
+                        icon="i-lucide-save"
+                        :loading="guardandoEstrategiaId === estrategia.id"
+                        @click="guardarEstrategia(estrategia.id)"
+                        class="font-medium"
+                      >
+                        Guardar cambios
+                      </UButton>
+                    </div>
                   </div>
                 </div>
               </div>

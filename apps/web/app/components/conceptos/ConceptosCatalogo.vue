@@ -67,10 +67,6 @@ const conteoPorFiltro = computed<Record<ClaveFiltro, number>>(() => ({
   todos: conceptoStore.conceptos.length,
 }))
 
-const opcionesFiltro = computed(() =>
-  FILTROS.map((f) => ({ label: `${f.etiqueta} (${conteoPorFiltro.value[f.clave]})`, value: f.clave })),
-)
-
 const conceptosFiltrados = computed<Concepto[]>(() => {
   const porEstado = conceptoStore.conceptos.filter((c) => {
     if (filtro.value === 'en_uso') return c.estado !== 'archivado'
@@ -151,6 +147,25 @@ async function confirmarArchivar(): Promise<void> {
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
+      <div
+        class="flex flex-wrap gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm"
+      >
+        <button
+          v-for="opcion in FILTROS"
+          :key="opcion.clave"
+          type="button"
+          class="px-3 py-1 rounded transition-colors whitespace-nowrap"
+          :aria-pressed="filtro === opcion.clave"
+          :class="
+            filtro === opcion.clave
+              ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
+              : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+          "
+          @click="filtro = opcion.clave"
+        >
+          {{ opcion.etiqueta }} ({{ conteoPorFiltro[opcion.clave] }})
+        </button>
+      </div>
       <UInput
         v-model="busqueda"
         icon="i-lucide-search"
@@ -158,7 +173,6 @@ async function confirmarArchivar(): Promise<void> {
         size="sm"
         class="w-64"
       />
-      <USelect v-model="filtro" :items="opcionesFiltro" value-key="value" size="sm" class="w-44" />
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
@@ -166,9 +180,17 @@ async function confirmarArchivar(): Promise<void> {
     <div v-if="cargando && conceptoStore.conceptos.length === 0" class="space-y-2">
       <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
     </div>
-    <p v-else-if="conceptoStore.conceptos.length === 0" class="text-neutral-500 text-sm">
-      Esta copropiedad todavía no tiene conceptos registrados.
-    </p>
+    <div v-else-if="conceptoStore.conceptos.length === 0" class="space-y-3">
+      <p class="text-neutral-500 text-sm">
+        Esta copropiedad todavía no tiene conceptos registrados.
+      </p>
+      <p class="text-xs text-neutral-400">
+        Los conceptos definen <strong>qué</strong> se cobra (expensa, agua, parqueadero…),
+        <strong>cómo se calcula</strong> (fórmula o monto fijo) y <strong>a quién aplica</strong>
+        (todos los inmuebles o solo los que cumplan condiciones).
+      </p>
+      <UButton size="sm" variant="soft" @click="nuevo">Crear primer concepto</UButton>
+    </div>
     <p v-else-if="conceptosFiltrados.length === 0" class="text-neutral-500 text-sm">
       Ningún concepto coincide con este filtro.
     </p>
