@@ -15,8 +15,10 @@ const moneda = ref('COP')
 const zonaHoraria = ref('America/Bogota')
 const diaFacturacion = ref<number | null>(null)
 const canalNotificacion = ref<string | null>(null)
+const compositorCorreoActivo = ref(false)
 
 const guardando = ref(false)
+const guardandoCompositor = ref(false)
 const error = ref<string | null>(null)
 
 watch(
@@ -27,6 +29,7 @@ watch(
     zonaHoraria.value = t.zona_horaria
     diaFacturacion.value = t.dia_facturacion
     canalNotificacion.value = t.canal_notificacion ?? null
+    compositorCorreoActivo.value = (t as Record<string, unknown>).compositor_correo_activo === true
   },
   { immediate: true },
 )
@@ -94,6 +97,26 @@ async function subirLogo(): Promise<void> {
     subiendoLogo.value = false
   }
 }
+
+async function toggleCompositor(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  guardandoCompositor.value = true
+  try {
+    const cliente = useSupabaseClient()
+    const { error: errorFn } = await cliente.functions.invoke('toggle-compositor-correo', {
+      body: { tenant_id: tenantId, activo: compositorCorreoActivo.value },
+    })
+    if (errorFn) throw await extraerErrorFuncion(errorFn)
+    // El botón flotante depende del tenant activo del selector global.
+    tenantStore.actualizarTenantActivo({ compositor_correo_activo: compositorCorreoActivo.value })
+  } catch (excepcion) {
+    compositorCorreoActivo.value = !compositorCorreoActivo.value
+    error.value = mensajeError(excepcion, 'No se pudo cambiar el compositor de correo.')
+  } finally {
+    guardandoCompositor.value = false
+  }
+}
 </script>
 
 <template>
@@ -130,6 +153,12 @@ async function subirLogo(): Promise<void> {
           />
         </UFormField>
       </div>
+      <UFormField label="Compositor de correo" name="compositor_correo_activo" help="Botón flotante para enviar correos rápidos a terceros.">
+        <div class="flex items-center gap-3">
+          <USwitch v-model="compositorCorreoActivo" :disabled="guardandoCompositor" @update:model-value="toggleCompositor" />
+          <span class="text-sm text-neutral-500">{{ compositorCorreoActivo ? 'Activo' : 'Inactivo' }}</span>
+        </div>
+      </UFormField>
       <UFormField label="Logo" name="logo">
         <div class="flex items-center gap-3 border border-neutral-200 rounded-sm p-3">
           <img

@@ -1,26 +1,37 @@
 <script setup lang="ts">
-// Plantillas de correo (Brevo) — editor por evento, spec del módulo (§11):
-// dos columnas (lista a la izquierda, editor a la derecha), insignia de
-// sincronización siempre visible, botón de reintento solo si is_synced=0,
-// chips que insertan {{ params.campo }} completo, vista previa en diálogo
-// con overrides editables e iframe sandbox, editor <textarea> monoespaciado.
+// Plantillas de correo — pestaña dual:
+//   1. Plantillas Brevo (transaccionales, sync con Brevo)
+//   2. Plantillas compositor (flotante, envío manual ad-hoc)
 import {
   EMAIL_EVENT_LABELS,
   EMAIL_FIELD_REGISTRY,
   EmailValidationError,
   validateEmailTemplateBody,
+  COMPOSITOR_FIELD_REGISTRY,
+  validateCompositorBody,
 } from '@aquila/shared'
 import type { ResultadoPruebaEmail, ResultadoSyncEmail } from '~/stores/plantillasEmail'
+import type { PlantillaCompositorItem } from '~/stores/plantillasCompositor'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'settings:manage' })
 
 const tenantStore = useTenantStore()
 const plantillasStore = usePlantillasEmailStore()
+const compositorStore = usePlantillasCompositorStore()
+const toast = useToast()
+
+const pestanaActiva = ref<'brevo' | 'compositor'>('brevo')
 
 await useAsyncData('plantillas-email', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return []
   return plantillasStore.cargarPlantillas(tenantId)
+})
+
+await useAsyncData('plantillas-compositor', async () => {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return []
+  return compositorStore.cargarPlantillas(tenantId)
 })
 
 const eventos = computed(() => plantillasStore.plantillas.map((p) => p.eventType))
@@ -186,6 +197,94 @@ function usarVersion(subject: string, htmlContent: string): void {
   cuerpoEditado.value = htmlContent
   historialAbierto.value = false
 }
+
+// ── Compositor: editor de plantillas ──────────────────────────────────
+const editorCompositorAbierto = ref(false)
+const compositorEditandoId = ref<string | null>(null)
+const compositorNombre = ref('')
+const compositorAsunto = ref('')
+const compositorCuerpo = ref('')
+const guardandoCompositor = ref(false)
+const textareaCompositorEl = ref<HTMLTextAreaElement | null>(null)
+
+const errorValidacionCompositor = computed(() => {
+  if (!compositorAsunto.value && !compositorCuerpo.value) return null
+  try {
+    validateCompositorBody(compositorAsunto.value, compositorCuerpo.value)
+    return null
+  } catch (e: unknown) {
+    return e instanceof Error ? e.message : 'Error de validación'
+  }
+})
+
+function abrirEditorCompositor(plantilla: PlantillaCompositorItem | null): void {
+  if (plantilla) {
+    compositorEditandoId.value = plantilla.id
+    compositorNombre.value = plantilla.nombre
+    compositorAsunto.value = plantilla.asunto
+    compositorCuerpo.value = plantilla.cuerpo
+  } else {
+    compositorEditandoId.value = null
+    compositorNombre.value = ''
+    compositorAsunto.value = ''
+    compositorCuerpo.value = ''
+  }
+  editorCompositorAbierto.value = true
+}
+
+function insertarCampoCompositor(campo: string): void {
+  const marcador = `{{ params.${campo} }}`
+  const el = textareaCompositorEl.value
+  if (!el) {
+    compositorCuerpo.value += marcador
+    return
+  }
+  const inicio = el.selectionStart ?? compositorCuerpo.value.length
+  const fin = el.selectionEnd ?? compositorCuerpo.value.length
+  compositorCuerpo.value = compositorCuerpo.value.slice(0, inicio) + marcador + compositorCuerpo.value.slice(fin)
+  nextTick(() => {
+    el.focus()
+    const posicion = inicio + marcador.length
+    el.setSelectionRange(posicion, posicion)
+  })
+}
+
+async function guardarPlantillaCompositor(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || errorValidacionCompositor.value) return
+  guardandoCompositor.value = true
+  try {
+    await compositorStore.guardar(tenantId, compositorNombre.value, compositorAsunto.value, compositorCuerpo.value)
+    editorCompositorAbierto.value = false
+    toast.add({ title: 'Plantilla guardada', color: 'success' })
+  } catch (excepcion) {
+    toast.add({ title: mensajeError(excepcion, 'No se pudo guardar.'), color: 'error' })
+  } finally {
+    guardandoCompositor.value = false
+  }
+}
+
+async function togglePlantillaCompositor(plantilla: PlantillaCompositorItem): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  try {
+    await compositorStore.toggleActiva(tenantId, plantilla.id, !plantilla.activa)
+    toast.add({ title: plantilla.activa ? 'Plantilla desactivada' : 'Plantilla activada', color: 'success' })
+  } catch (excepcion) {
+    toast.add({ title: mensajeError(excepcion, 'No se pudo cambiar el estado.'), color: 'error' })
+  }
+}
+
+async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  try {
+    await compositorStore.eliminar(tenantId, plantilla.id)
+    toast.add({ title: 'Plantilla eliminada', color: 'success' })
+  } catch (excepcion) {
+    toast.add({ title: mensajeError(excepcion, 'No se pudo eliminar.'), color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -200,6 +299,32 @@ function usarVersion(subject: string, htmlContent: string): void {
       </template>
     </UiTituloDescripcion>
 
+    <!-- Tabs -->
+    <div class="flex gap-1 border-b border-neutral-200 dark:border-neutral-700">
+      <button
+        type="button"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        :class="pestanaActiva === 'brevo'
+          ? 'border-brand text-brand'
+          : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="pestanaActiva = 'brevo'"
+      >
+        Plantillas Brevo
+      </button>
+      <button
+        type="button"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        :class="pestanaActiva === 'compositor'
+          ? 'border-brand text-brand'
+          : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="pestanaActiva = 'compositor'"
+      >
+        Plantillas compositor
+      </button>
+    </div>
+
+    <!-- ═══ Pestaña Brevo ═══ -->
+    <template v-if="pestanaActiva === 'brevo'">
     <div class="flex gap-6 items-start">
       <!-- ── columna izquierda: lista ── -->
       <div class="w-64 shrink-0 border border-gray-200 dark:border-gray-800 rounded-md divide-y divide-gray-200 dark:divide-gray-800">
@@ -400,5 +525,109 @@ function usarVersion(subject: string, htmlContent: string): void {
         <UButton variant="ghost" @click="historialAbierto = false">Cerrar</UButton>
       </template>
     </UModal>
+    </template>
+
+    <!-- ═══ Pestaña Compositor ═══ -->
+    <template v-else>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-neutral-500">
+            Plantillas para el compositor de correo flotante. Cada plantilla puede ser elegida por cualquier
+            usuario al redactar un correo rápido.
+          </p>
+          <UButton size="sm" variant="soft" @click="abrirEditorCompositor(null)">
+            Nueva plantilla
+          </UButton>
+        </div>
+
+        <div v-if="compositorStore.plantillas.length === 0" class="text-sm text-neutral-500 py-8 text-center">
+          Sin plantillas todavía. Crea la primera con "Nueva plantilla".
+        </div>
+
+        <div v-else class="space-y-2">
+          <div
+            v-for="plantilla in compositorStore.plantillas"
+            :key="plantilla.id"
+            class="flex items-center justify-between gap-3 rounded-md border border-neutral-200 dark:border-neutral-700 px-4 py-3"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">{{ plantilla.nombre }}</span>
+                <span
+                  v-if="plantilla.activa"
+                  class="inline-flex items-center rounded-full bg-success-100 dark:bg-success-900/30 px-2 py-0.5 text-[11px] text-success-700 dark:text-success-400"
+                >Activa</span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[11px] text-neutral-500"
+                >Inactiva</span>
+              </div>
+              <p class="text-xs text-neutral-500 mt-0.5 truncate">{{ plantilla.asunto }}</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <UButton size="xs" variant="ghost" @click="abrirEditorCompositor(plantilla)">Editar</UButton>
+              <UButton
+                size="xs"
+                variant="ghost"
+                :color="plantilla.activa ? 'warning' : 'success'"
+                @click="togglePlantillaCompositor(plantilla)"
+              >
+                {{ plantilla.activa ? 'Desactivar' : 'Activar' }}
+              </UButton>
+              <UButton size="xs" variant="ghost" color="error" @click="eliminarPlantillaCompositor(plantilla)">Eliminar</UButton>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor de plantilla compositor -->
+      <UModal v-model:open="editorCompositorAbierto" title="Plantilla compositor" :ui="{ content: 'max-w-2xl' }">
+        <template #body>
+          <div class="space-y-4">
+            <UFormField label="Nombre" name="nombre-compositor">
+              <UInput v-model="compositorNombre" placeholder="Ej: Cobro de mora — Primer aviso" />
+            </UFormField>
+            <UFormField label="Asunto" name="asunto-compositor">
+              <UInput v-model="compositorAsunto" placeholder="Asunto del correo (admite {{ params.campo }})" />
+            </UFormField>
+            <div>
+              <p class="text-xs text-neutral-500 mb-1.5">Campos disponibles — clic para insertar</p>
+              <div class="flex flex-wrap gap-1.5">
+                <UButton
+                  v-for="campo in COMPOSITOR_FIELD_REGISTRY"
+                  :key="campo.field"
+                  size="xs"
+                  variant="soft"
+                  color="neutral"
+                  :title="campo.description"
+                  @click="insertarCampoCompositor(campo.field)"
+                >
+                  {{ campo.field }} · {{ campo.description }}
+                </UButton>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-neutral-500 mb-1">Cuerpo del correo</p>
+              <textarea
+                ref="textareaCompositorEl"
+                v-model="compositorCuerpo"
+                rows="12"
+                class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-3 py-2 text-xs font-mono"
+                placeholder="Escribe el mensaje aquí..."
+              />
+            </div>
+            <UAlert v-if="errorValidacionCompositor" color="error" variant="soft" :title="errorValidacionCompositor" />
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton variant="ghost" @click="editorCompositorAbierto = false">Cancelar</UButton>
+            <UButton :loading="guardandoCompositor" :disabled="!!errorValidacionCompositor" @click="guardarPlantillaCompositor">
+              Guardar
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+    </template>
   </div>
 </template>

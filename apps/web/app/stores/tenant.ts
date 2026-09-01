@@ -122,6 +122,18 @@ export const useTenantStore = defineStore('tenant', () => {
     }
   }
 
+  /** Actualiza el tenant embebido que consumen los componentes globales. */
+  function actualizarTenantActivo(cambios: Partial<TenantRow>): void {
+    const tenantId = activeTenant.value?.id
+    if (!tenantId) return
+
+    memberships.value = memberships.value.map((membresia) =>
+      membresia.tenant_id === tenantId
+        ? { ...membresia, tenant: { ...membresia.tenant, ...cambios } }
+        : membresia,
+    )
+  }
+
   async function crearTenant(nombre: string, slug: string): Promise<TenantRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorCrear } = await cliente.functions.invoke<CrearTenantRespuesta>(
@@ -175,6 +187,7 @@ export const useTenantStore = defineStore('tenant', () => {
     puede,
     puedeVerModulo,
     cargarMemberships,
+    actualizarTenantActivo,
     crearTenant,
     cambiarTenant,
     actualizarTenantPredeterminado,

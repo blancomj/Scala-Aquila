@@ -233,3 +233,16 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/expirar-intenciones-pago/deno.json"
 entrypoint = "./functions/expirar-intenciones-pago/index.ts"
+
+# Compositor de correo: ambas rutas requieren una sesión de usuario válida.
+[functions.toggle-compositor-correo]
+enabled = true
+verify_jwt = true
+import_map = "./functions/toggle-compositor-correo/deno.json"
+entrypoint = "./functions/toggle-compositor-correo/index.ts"
+
+[functions.enviar-correo-compositor]
+enabled = true
+verify_jwt = true
+import_map = "./functions/enviar-correo-compositor/deno.json"
+entrypoint = "./functions/enviar-correo-compositor/index.ts"

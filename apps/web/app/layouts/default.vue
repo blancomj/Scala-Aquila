@@ -67,5 +67,6 @@ await useAsyncData('memberships', () => tenantStore.cargarMemberships())
         <slot />
       </main>
     </div>
+    <CompositorCorreoFlotante />
   </div>
 </template>

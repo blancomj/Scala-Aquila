@@ -20,6 +20,11 @@ export {
 } from './sms.js'
 export { numeroEnteroALetras, montoEnLetras } from './numero-a-letras.js'
 export {
+  COMPOSITOR_FIELD_REGISTRY,
+  validateCompositorBody,
+  renderCompositorPreview,
+} from './compositor.js'
+export {
   EMAIL_FIELD_REGISTRY,
   EMAIL_ACTIVE_EVENT_TYPES,
   EMAIL_EVENT_LABELS,

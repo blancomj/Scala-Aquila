@@ -108,18 +108,19 @@ export class EmailValidationError extends Error {
 }
 
 /**
- * Valida asunto + cuerpo a la vez (el asunto también admite variables y
- * se olvida siempre, spec §6) contra el registro de campos del evento.
+ * Valida asunto + cuerpo contra un registro de campos genérico.
+ * Extraído para reutilizar entre email_templates (por event_type) y
+ * plantillas_compositor (registro plano sin eventos).
  */
-export function validateEmailTemplateBody(eventType: string, subject: string, htmlContent: string): void {
-  const campos = EMAIL_FIELD_REGISTRY[eventType]
-  if (!campos) {
-    throw new EmailValidationError('EMAIL_UNKNOWN_EVENT', `Evento desconocido: ${eventType}`)
-  }
-
+export function validateTemplateBodyAgainstRegistry(
+  campos: EmailFieldDef[],
+  subject: string,
+  htmlContent: string,
+  errorPrefix: string,
+): void {
   if (htmlContent.trim().length < LONGITUD_MINIMA) {
     throw new EmailValidationError(
-      'EMAIL_BODY_TOO_SHORT',
+      `${errorPrefix}_BODY_TOO_SHORT`,
       `El contenido del correo es demasiado corto (mínimo ${String(LONGITUD_MINIMA)} caracteres útiles).`,
     )
   }
@@ -129,7 +130,7 @@ export function validateEmailTemplateBody(eventType: string, subject: string, ht
   const [primerCampoSinPrefijo] = extraerCamposSinPrefijo(textoCompleto)
   if (primerCampoSinPrefijo !== undefined) {
     throw new EmailValidationError(
-      'EMAIL_MISSING_PARAMS_PREFIX',
+      `${errorPrefix}_MISSING_PARAMS_PREFIX`,
       `Usa {{ params.${primerCampoSinPrefijo} }}, no {{ ${primerCampoSinPrefijo} }} — sin el prefijo el campo se envía vacío.`,
     )
   }
@@ -140,10 +141,22 @@ export function validateEmailTemplateBody(eventType: string, subject: string, ht
   )
   if (desconocidos.length > 0) {
     throw new EmailValidationError(
-      'EMAIL_UNKNOWN_FIELDS',
-      `Campos desconocidos para este evento: ${desconocidos.join(', ')}`,
+      `${errorPrefix}_UNKNOWN_FIELDS`,
+      `Campos desconocidos: ${desconocidos.join(', ')}`,
     )
   }
+}
+
+/**
+ * Valida asunto + cuerpo a la vez (el asunto también admite variables y
+ * se olvida siempre, spec §6) contra el registro de campos del evento.
+ */
+export function validateEmailTemplateBody(eventType: string, subject: string, htmlContent: string): void {
+  const campos = EMAIL_FIELD_REGISTRY[eventType]
+  if (!campos) {
+    throw new EmailValidationError('EMAIL_UNKNOWN_EVENT', `Evento desconocido: ${eventType}`)
+  }
+  validateTemplateBodyAgainstRegistry(campos, subject, htmlContent, 'EMAIL')
 }
 
 /** Filtra overrides de vista previa contra el registro — nunca renderiza campos no declarados (spec §8). */

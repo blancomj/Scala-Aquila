@@ -769,6 +769,780 @@ export type Database = {
           },
         ]
       }
+      auditoria_acciones: {
+        Row: {
+          accion: string
+          created_at: string
+          created_by: string
+          estado: string
+          evidencia_cierre: string[] | null
+          fecha_compromiso: string | null
+          fecha_inicio: string | null
+          hallazgo_id: string
+          id: string
+          prioridad: string | null
+          responsable: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          accion: string
+          created_at?: string
+          created_by: string
+          estado?: string
+          evidencia_cierre?: string[] | null
+          fecha_compromiso?: string | null
+          fecha_inicio?: string | null
+          hallazgo_id: string
+          id?: string
+          prioridad?: string | null
+          responsable?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          accion?: string
+          created_at?: string
+          created_by?: string
+          estado?: string
+          evidencia_cierre?: string[] | null
+          fecha_compromiso?: string | null
+          fecha_inicio?: string | null
+          hallazgo_id?: string
+          id?: string
+          prioridad?: string | null
+          responsable?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_acciones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_acciones_hallazgo_id_fkey"
+            columns: ["hallazgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_hallazgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_acciones_responsable_fkey"
+            columns: ["responsable"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_acciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_acciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_catalogo_riesgos: {
+        Row: {
+          activo: boolean
+          categoria: string
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          categoria: string
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      auditoria_controles: {
+        Row: {
+          automatizado: boolean
+          codigo_automatico: string | null
+          created_at: string
+          created_by: string
+          evidencia: string[] | null
+          frecuencia: string | null
+          id: string
+          manual: boolean
+          nombre: string
+          objetivo: string | null
+          proceso: string | null
+          responsable: string | null
+          riesgo_id: string
+          tenant_id: string
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          automatizado?: boolean
+          codigo_automatico?: string | null
+          created_at?: string
+          created_by: string
+          evidencia?: string[] | null
+          frecuencia?: string | null
+          id?: string
+          manual?: boolean
+          nombre: string
+          objetivo?: string | null
+          proceso?: string | null
+          responsable?: string | null
+          riesgo_id: string
+          tenant_id: string
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          automatizado?: boolean
+          codigo_automatico?: string | null
+          created_at?: string
+          created_by?: string
+          evidencia?: string[] | null
+          frecuencia?: string | null
+          id?: string
+          manual?: boolean
+          nombre?: string
+          objetivo?: string | null
+          proceso?: string | null
+          responsable?: string | null
+          riesgo_id?: string
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_controles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_controles_riesgo_id_fkey"
+            columns: ["riesgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_riesgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_controles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_controles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_ejecuciones: {
+        Row: {
+          created_at: string
+          ejecutado_at: string
+          ejecutado_por: string
+          engagement_id: string
+          id: string
+          observaciones: string | null
+          procedimiento_id: string | null
+          resultado: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          ejecutado_at?: string
+          ejecutado_por: string
+          engagement_id: string
+          id?: string
+          observaciones?: string | null
+          procedimiento_id?: string | null
+          resultado?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          ejecutado_at?: string
+          ejecutado_por?: string
+          engagement_id?: string
+          id?: string
+          observaciones?: string | null
+          procedimiento_id?: string | null
+          resultado?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_ejecuciones_ejecutado_por_fkey"
+            columns: ["ejecutado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_ejecuciones_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_ejecuciones_procedimiento_id_fkey"
+            columns: ["procedimiento_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_procedimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_ejecuciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_ejecuciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_engagements: {
+        Row: {
+          alcance: string | null
+          conclusion: string | null
+          created_at: string
+          created_by: string
+          estado: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          nombre: string
+          objetivo: string | null
+          origen_id: string | null
+          origen_tipo: string | null
+          periodo: string | null
+          prioridad: string | null
+          responsable: string | null
+          tenant_id: string
+          tipo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alcance?: string | null
+          conclusion?: string | null
+          created_at?: string
+          created_by: string
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          nombre: string
+          objetivo?: string | null
+          origen_id?: string | null
+          origen_tipo?: string | null
+          periodo?: string | null
+          prioridad?: string | null
+          responsable?: string | null
+          tenant_id: string
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alcance?: string | null
+          conclusion?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          nombre?: string
+          objetivo?: string | null
+          origen_id?: string | null
+          origen_tipo?: string | null
+          periodo?: string | null
+          prioridad?: string | null
+          responsable?: string | null
+          tenant_id?: string
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_engagements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_engagements_responsable_fkey"
+            columns: ["responsable"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_engagements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_engagements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_evidencias: {
+        Row: {
+          archivo_path: string | null
+          created_at: string
+          descripcion: string | null
+          fecha: string
+          hallazgo_id: string
+          hash: string | null
+          id: string
+          origen: string | null
+          tenant_id: string
+          tipo: string
+          usuario_id: string
+        }
+        Insert: {
+          archivo_path?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha?: string
+          hallazgo_id: string
+          hash?: string | null
+          id?: string
+          origen?: string | null
+          tenant_id: string
+          tipo: string
+          usuario_id: string
+        }
+        Update: {
+          archivo_path?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha?: string
+          hallazgo_id?: string
+          hash?: string | null
+          id?: string
+          origen?: string | null
+          tenant_id?: string
+          tipo?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_evidencias_hallazgo_id_fkey"
+            columns: ["hallazgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_hallazgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_evidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_evidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_evidencias_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_hallazgos: {
+        Row: {
+          causa: string | null
+          condicion: string | null
+          created_at: string
+          created_by: string
+          criterio: string | null
+          efecto: string | null
+          engagement_id: string
+          estado: string
+          evidencia: string[] | null
+          fecha_compromiso: string | null
+          id: string
+          nivel: string
+          proceso: string
+          recomendacion: string | null
+          responsable: string | null
+          riesgo_id: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          causa?: string | null
+          condicion?: string | null
+          created_at?: string
+          created_by: string
+          criterio?: string | null
+          efecto?: string | null
+          engagement_id: string
+          estado?: string
+          evidencia?: string[] | null
+          fecha_compromiso?: string | null
+          id?: string
+          nivel?: string
+          proceso: string
+          recomendacion?: string | null
+          responsable?: string | null
+          riesgo_id?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          causa?: string | null
+          condicion?: string | null
+          created_at?: string
+          created_by?: string
+          criterio?: string | null
+          efecto?: string | null
+          engagement_id?: string
+          estado?: string
+          evidencia?: string[] | null
+          fecha_compromiso?: string | null
+          id?: string
+          nivel?: string
+          proceso?: string
+          recomendacion?: string | null
+          responsable?: string | null
+          riesgo_id?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_hallazgos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_responsable_fkey"
+            columns: ["responsable"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_riesgo_id_fkey"
+            columns: ["riesgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_riesgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_muestras: {
+        Row: {
+          cantidad: number
+          created_at: string
+          created_by: string
+          criterio: string
+          ejecucion_id: string
+          id: string
+          poblacion: number
+          seleccion: string[] | null
+          semilla: number | null
+          tenant_id: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          created_by: string
+          criterio: string
+          ejecucion_id: string
+          id?: string
+          poblacion: number
+          seleccion?: string[] | null
+          semilla?: number | null
+          tenant_id: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          created_by?: string
+          criterio?: string
+          ejecucion_id?: string
+          id?: string
+          poblacion?: number
+          seleccion?: string[] | null
+          semilla?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_muestras_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_muestras_ejecucion_id_fkey"
+            columns: ["ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_ejecuciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_muestras_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_muestras_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_procedimientos: {
+        Row: {
+          control_id: string
+          created_at: string
+          created_by: string
+          criterio_muestreo: string | null
+          id: string
+          nombre: string
+          objetivo: string | null
+          prueba_type: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          control_id: string
+          created_at?: string
+          created_by: string
+          criterio_muestreo?: string | null
+          id?: string
+          nombre: string
+          objetivo?: string | null
+          prueba_type: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          control_id?: string
+          created_at?: string
+          created_by?: string
+          criterio_muestreo?: string | null
+          id?: string
+          nombre?: string
+          objetivo?: string | null
+          prueba_type?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_procedimientos_control_id_fkey"
+            columns: ["control_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_controles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_procedimientos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_procedimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_procedimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_riesgos: {
+        Row: {
+          categoria: string
+          created_at: string
+          created_by: string
+          descripcion: string | null
+          id: string
+          impacto: number
+          nombre: string
+          probabilidad: number
+          riesgo_inherente: number | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          created_by: string
+          descripcion?: string | null
+          id?: string
+          impacto: number
+          nombre: string
+          probabilidad: number
+          riesgo_inherente?: number | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          created_by?: string
+          descripcion?: string | null
+          id?: string
+          impacto?: number
+          nombre?: string
+          probabilidad?: number
+          riesgo_inherente?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_riesgos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_tipo_auditoria: {
+        Row: {
+          activo: boolean
+          area: string | null
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          area?: string | null
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          area?: string | null
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
       cargos: {
         Row: {
           cargo_capital_origen_id: string | null
@@ -5188,6 +5962,64 @@ export type Database = {
           },
         ]
       }
+      plantillas_compositor: {
+        Row: {
+          activa: boolean
+          asunto: string
+          creado_por: string | null
+          created_at: string
+          cuerpo: string
+          id: string
+          nombre: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          asunto: string
+          creado_por?: string | null
+          created_at?: string
+          cuerpo: string
+          id?: string
+          nombre: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          asunto?: string
+          creado_por?: string | null
+          created_at?: string
+          cuerpo?: string
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_compositor_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_compositor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_compositor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plantillas_email_versiones: {
         Row: {
           creado_por: string | null
@@ -6702,6 +7534,7 @@ export type Database = {
         Row: {
           canal_notificacion: string | null
           ciudad: string | null
+          compositor_correo_activo: boolean
           contacto_email: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
@@ -6729,6 +7562,7 @@ export type Database = {
         Insert: {
           canal_notificacion?: string | null
           ciudad?: string | null
+          compositor_correo_activo?: boolean
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -6756,6 +7590,7 @@ export type Database = {
         Update: {
           canal_notificacion?: string | null
           ciudad?: string | null
+          compositor_correo_activo?: boolean
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -7498,6 +8333,15 @@ export type Database = {
           id: string
         }[]
       }
+      auditoria_control_ejecutar: {
+        Args: { p_control_id: string; p_engagement_id: string }
+        Returns: {
+          conteo: number
+          ejecucion_id: string
+          hallazgo_id: string
+          resultado: string
+        }[]
+      }
       cartera_etapa_requiere_aprobacion: {
         Args: {
           p_desde: Database["public"]["Enums"]["etapa_cobranza_t"]
@@ -7559,6 +8403,7 @@ export type Database = {
         Returns: {
           canal_notificacion: string | null
           ciudad: string | null
+          compositor_correo_activo: boolean
           contacto_email: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
@@ -8255,6 +9100,10 @@ export type Database = {
         }[]
       }
       fn_tipo_division_default: { Args: never; Returns: number }
+      fn_toggle_compositor_correo: {
+        Args: { p_activo: boolean; p_tenant_id: string }
+        Returns: undefined
+      }
       fn_toggle_plantilla_sms: {
         Args: { p_activo: boolean; p_event_type: string; p_tenant_id: string }
         Returns: {

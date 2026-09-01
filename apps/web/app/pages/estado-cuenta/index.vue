@@ -74,7 +74,7 @@ watch(
         cuentaStore.cargarComprobantesEmitidos(tenantId, id),
       ])
     } catch (excepcion) {
-      error.value = mensajeError(excepcion, 'No se pudo cargar la cuenta.')
+      error.value = mensajeError(excepcion, 'No se pudieron cargar los datos del inmueble. Verifica tu conexión y vuelve a intentar.')
     } finally {
       cargandoContenido.value = false
     }
@@ -171,10 +171,10 @@ async function generarEstadoCuenta(): Promise<void> {
     })
     ultimoComprobanteId.value = id
     await cuentaStore.cargarComprobantesEmitidos(tenantId, inmueble.id)
-    toast.add({ title: 'Comprobante generado', color: 'success' })
+    toast.add({ title: 'Comprobante generado — se abrió en una nueva pestaña.', color: 'success' })
     window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
-    errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante de cuenta.')
+    errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante. Intenta de nuevo; si persiste, contacta al administrador.')
   } finally {
     generandoPdf.value = false
   }
@@ -211,9 +211,9 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         : null,
     ].filter(Boolean)
     resultadoCorreo.value = partes.join(' ')
-    toast.add({ title: 'Correo enviado', color: 'success' })
+    toast.add({ title: `Correo enviado a ${data.enviados.length} destinatario(s).`, color: 'success' })
   } catch (excepcion) {
-    resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo.')
+    resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo. Verifica que el propietario tenga email registrado e intenta de nuevo.')
   } finally {
     enviandoId.value = null
   }
@@ -256,7 +256,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         <UButton
           variant="soft"
           :loading="generandoPdf"
-          title="Genera un PDF con el estado de cuenta del inmueble seleccionado"
+          title="Genera un comprobante de cuenta (PDF) del inmueble seleccionado. Se abrirá en una nueva pestaña."
           @keydown.ctrl.enter="generarEstadoCuenta"
           @click="generarEstadoCuenta"
         >
@@ -289,9 +289,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
             <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
           </template>
           <template #descripcion>
-            El historial oficial — cada uno tiene su folio y hash propios y no cambia. Para
-            reenviar exactamente lo que ya se envió, usa "Reenviar" aquí en vez de generar uno
-            nuevo arriba.
+            Documentos emitidos — cada uno tiene folio y hash propios. Usa "Reenviar" para reenviar el mismo documento sin regenerarlo.
           </template>
         </UiTituloDescripcion>
         <template v-if="cargandoContenido">
@@ -309,7 +307,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
           ]"
           :filas="cuentaStore.comprobantesEmitidos"
           :clave-fila="(c) => c.id"
-          vacio="Todavía no se ha emitido ningún comprobante para este inmueble."
+          vacio="Sin comprobantes. Genera el primero con el botón de arriba."
         >
           <template #celda-folio="{ fila }">
             <span class="font-mono text-xs">{{ fila.folio ?? '—' }}</span>
@@ -365,7 +363,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
           ]"
           :filas="cuentaStore.cargosAbiertos"
           :clave-fila="(cargo, i) => cargo.id ?? i"
-          vacio="Sin saldo pendiente."
+          vacio="No hay saldos pendientes para este inmueble."
         >
           <template #celda-categoria="{ fila }">
             {{ fila.categoria ? (etiquetaCategoria[fila.categoria] ?? fila.categoria) : '—' }}
@@ -397,7 +395,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
           ]"
           :filas="cuentaStore.pagos"
           :clave-fila="(pago) => pago.id"
-          vacio="Sin pagos registrados todavía."
+          vacio="Sin pagos registrados para este inmueble."
         >
           <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
           <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
