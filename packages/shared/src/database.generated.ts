@@ -1403,6 +1403,87 @@ export type Database = {
           },
         ]
       }
+      auditoria_normativa: {
+        Row: {
+          created_at: string
+          created_by: string
+          criterio: string
+          engagement_id: string
+          evidencia: string[] | null
+          fundamento_normativo_id: number
+          id: string
+          observaciones: string | null
+          resultado: string
+          tenant_id: string
+          updated_at: string | null
+          vigencia: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          criterio: string
+          engagement_id: string
+          evidencia?: string[] | null
+          fundamento_normativo_id: number
+          id?: string
+          observaciones?: string | null
+          resultado?: string
+          tenant_id: string
+          updated_at?: string | null
+          vigencia: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          criterio?: string
+          engagement_id?: string
+          evidencia?: string[] | null
+          fundamento_normativo_id?: number
+          id?: string
+          observaciones?: string | null
+          resultado?: string
+          tenant_id?: string
+          updated_at?: string | null
+          vigencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_normativa_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_normativa_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_normativa_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_normativa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_normativa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_plan_items: {
         Row: {
           created_at: string

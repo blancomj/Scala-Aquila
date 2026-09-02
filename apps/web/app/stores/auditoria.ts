@@ -28,6 +28,7 @@ type AuditoriaTipoAuditoria = Database['public']['Tables']['auditoria_tipo_audit
 type AuditoriaCatalogoRiesgo = Database['public']['Tables']['auditoria_catalogo_riesgos']['Row']
 type AuditoriaPlan = Database['public']['Tables']['auditoria_planes']['Row']
 type AuditoriaPlanItem = Database['public']['Tables']['auditoria_plan_items']['Row']
+type AuditoriaNormativa = Database['public']['Tables']['auditoria_normativa']['Row']
 
 /** Fila de public.fn_sugerir_plan_anual() — señales reales para priorizar el plan (§30). */
 export interface SugerenciaPlanAnual {
@@ -544,6 +545,63 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     return (data ?? []) as SugerenciaPlanAnual[]
   }
 
+  // ── NORMATIVA (§65) ─────────────────────────────────────────────────────
+  const normativa = shallowRef<AuditoriaNormativa[]>([])
+
+  async function cargarNormativaPorEngagement(tenantId: string, engagementId: string): Promise<AuditoriaNormativa[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_normativa')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('engagement_id', engagementId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    normativa.value = data ?? []
+    return normativa.value
+  }
+
+  async function crearNormativa(
+    tenantId: string,
+    datos: Omit<AuditoriaNormativa, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at'>
+  ): Promise<AuditoriaNormativa> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_normativa')
+      .insert({ tenant_id: tenantId, created_by: requireProfileId(), ...datos })
+      .select()
+      .single()
+    if (error) throw error
+    normativa.value = [data!, ...normativa.value]
+    return data!
+  }
+
+  async function actualizarNormativa(
+    tenantId: string,
+    normativaId: string,
+    datos: Partial<Pick<AuditoriaNormativa, 'resultado' | 'observaciones' | 'evidencia'>>
+  ): Promise<AuditoriaNormativa> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_normativa')
+      .update(datos)
+      .eq('tenant_id', tenantId)
+      .eq('id', normativaId)
+      .select()
+      .single()
+    if (error) throw error
+    const index = normativa.value.findIndex((n) => n.id === normativaId)
+    if (index >= 0) normativa.value = [...normativa.value.slice(0, index), data!, ...normativa.value.slice(index + 1)]
+    return data!
+  }
+
+  async function eliminarNormativa(tenantId: string, normativaId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.from('auditoria_normativa').delete().eq('tenant_id', tenantId).eq('id', normativaId)
+    if (error) throw error
+    normativa.value = normativa.value.filter((n) => n.id !== normativaId)
+  }
+
   // ── ESTADÍSTICAS / DASHBOARD ───────────────────────────────────────────
   const estadisticas = computed(() => {
     const tenantId = tenantStore.activeTenant?.id
@@ -586,6 +644,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     riesgoSeleccionado.value = null
     planes.value = []
     planItems.value = []
+    normativa.value = []
   }
 
   return {
@@ -602,6 +661,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     acciones,
     planes,
     planItems,
+    normativa,
     estadisticas,
     riesgoSeleccionado,
 
@@ -655,6 +715,12 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     crearPlanItem,
     eliminarPlanItem,
     sugerirPlanAnual,
+
+    // normativa
+    cargarNormativaPorEngagement,
+    crearNormativa,
+    actualizarNormativa,
+    eliminarNormativa,
 
     // limpieza
     limpiar,

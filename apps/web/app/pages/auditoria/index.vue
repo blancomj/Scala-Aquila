@@ -8,7 +8,7 @@ definePageMeta({
 const tenantStore = useTenantStore()
 const auditoriaStore = useAuditoriaStore()
 
-const pestanaActiva = ref<'resumen' | 'riesgos' | 'controles' | 'engagements' | 'hallazgos' | 'acciones' | 'mi-panel' | 'plan-anual'>('resumen')
+const pestanaActiva = ref<'resumen' | 'riesgos' | 'controles' | 'engagements' | 'hallazgos' | 'acciones' | 'mi-panel' | 'plan-anual' | 'normativa'>('resumen')
 
 const PESTANAS = [
   { value: 'resumen', label: 'Resumen' },
@@ -18,6 +18,7 @@ const PESTANAS = [
   { value: 'hallazgos', label: 'Hallazgos' },
   { value: 'acciones', label: 'Acciones' },
   { value: 'plan-anual', label: 'Plan anual' },
+  { value: 'normativa', label: 'Normativa' },
   { value: 'mi-panel', label: 'Mi panel' },
 ] as const
 
@@ -70,6 +71,7 @@ await useAsyncData('auditoria-carga', async () => {
     <AuditoriaFindingPanel v-if="pestanaActiva === 'hallazgos'" />
     <AuditoriaActionPlan v-if="pestanaActiva === 'acciones'" />
     <AuditoriaPlanAnual v-if="pestanaActiva === 'plan-anual'" />
+    <AuditoriaNormativaCumplimiento v-if="pestanaActiva === 'normativa'" />
     <AuditoriaPerfilAuditor v-if="pestanaActiva === 'mi-panel'" />
   </div>
 </template>
