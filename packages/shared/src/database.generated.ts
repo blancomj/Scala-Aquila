@@ -1403,6 +1403,169 @@ export type Database = {
           },
         ]
       }
+      auditoria_plan_items: {
+        Row: {
+          created_at: string
+          created_by: string
+          engagement_id: string | null
+          frecuencia: string | null
+          id: string
+          periodo: string | null
+          plan_id: string
+          prioridad: string
+          proceso: string | null
+          responsable: string | null
+          riesgo_id: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          engagement_id?: string | null
+          frecuencia?: string | null
+          id?: string
+          periodo?: string | null
+          plan_id: string
+          prioridad: string
+          proceso?: string | null
+          responsable?: string | null
+          riesgo_id?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          engagement_id?: string | null
+          frecuencia?: string | null
+          id?: string
+          periodo?: string | null
+          plan_id?: string
+          prioridad?: string
+          proceso?: string | null
+          responsable?: string | null
+          riesgo_id?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_plan_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_responsable_fkey"
+            columns: ["responsable"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_riesgo_id_fkey"
+            columns: ["riesgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_riesgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_plan_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditoria_planes: {
+        Row: {
+          anio: number
+          aprobado_at: string | null
+          aprobado_por: string | null
+          created_at: string
+          created_by: string
+          estado: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          created_at?: string
+          created_by: string
+          estado?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_planes_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_planes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_planes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_planes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_procedimientos: {
         Row: {
           control_id: string
@@ -9130,6 +9293,21 @@ export type Database = {
           codigo: string
           inmueble_id: string
           similitud: number
+        }[]
+      }
+      fn_sugerir_plan_anual: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          categoria: string
+          frecuencias: string
+          hallazgos_abiertos: number
+          hallazgos_criticos: number
+          procesos: string
+          riesgo_id: string
+          riesgo_inherente: number
+          riesgo_nombre: string
+          score: number
+          tiene_control_automatico: boolean
         }[]
       }
       fn_tipo_division_default: { Args: never; Returns: number }

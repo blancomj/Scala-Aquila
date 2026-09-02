@@ -26,6 +26,22 @@ type AuditoriaMuestra = Database['public']['Tables']['auditoria_muestras']['Row'
 type AuditoriaEvidencia = Database['public']['Tables']['auditoria_evidencias']['Row']
 type AuditoriaTipoAuditoria = Database['public']['Tables']['auditoria_tipo_auditoria']['Row']
 type AuditoriaCatalogoRiesgo = Database['public']['Tables']['auditoria_catalogo_riesgos']['Row']
+type AuditoriaPlan = Database['public']['Tables']['auditoria_planes']['Row']
+type AuditoriaPlanItem = Database['public']['Tables']['auditoria_plan_items']['Row']
+
+/** Fila de public.fn_sugerir_plan_anual() — señales reales para priorizar el plan (§30). */
+export interface SugerenciaPlanAnual {
+  riesgo_id: string
+  riesgo_nombre: string
+  categoria: string
+  riesgo_inherente: number
+  hallazgos_abiertos: number
+  hallazgos_criticos: number
+  tiene_control_automatico: boolean
+  procesos: string | null
+  frecuencias: string | null
+  score: number
+}
 
 /** Lista cerrada — debe reflejar el CHECK de auditoria_controles.codigo_automatico (PROMPT AUDITORÍA §15). */
 export const CONTROLES_AUTOMATICOS = [
@@ -441,6 +457,93 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     return data ?? []
   }
 
+  // ── PLAN ANUAL (§30) ────────────────────────────────────────────────────
+  const planes = shallowRef<AuditoriaPlan[]>([])
+  const planItems = shallowRef<AuditoriaPlanItem[]>([])
+
+  async function cargarPlanes(tenantId: string): Promise<AuditoriaPlan[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_planes')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('anio', { ascending: false })
+    if (error) throw error
+    planes.value = data ?? []
+    return planes.value
+  }
+
+  async function crearPlan(tenantId: string, anio: number): Promise<AuditoriaPlan> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_planes')
+      .insert({ tenant_id: tenantId, anio, created_by: requireProfileId() })
+      .select()
+      .single()
+    if (error) throw error
+    planes.value = [data!, ...planes.value]
+    return data!
+  }
+
+  /** Aprobación explícita y separada — nunca automática (§30: "No aprobar automáticamente el plan"). */
+  async function aprobarPlan(tenantId: string, planId: string): Promise<AuditoriaPlan> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_planes')
+      .update({ estado: 'APROBADO', aprobado_por: requireProfileId(), aprobado_at: new Date().toISOString() })
+      .eq('tenant_id', tenantId)
+      .eq('id', planId)
+      .select()
+      .single()
+    if (error) throw error
+    const index = planes.value.findIndex((p) => p.id === planId)
+    if (index >= 0) planes.value = [...planes.value.slice(0, index), data!, ...planes.value.slice(index + 1)]
+    return data!
+  }
+
+  async function cargarPlanItems(tenantId: string, planId: string): Promise<AuditoriaPlanItem[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_plan_items')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('plan_id', planId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    planItems.value = data ?? []
+    return planItems.value
+  }
+
+  async function crearPlanItem(
+    tenantId: string,
+    datos: Omit<AuditoriaPlanItem, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at'>
+  ): Promise<AuditoriaPlanItem> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_plan_items')
+      .insert({ tenant_id: tenantId, created_by: requireProfileId(), ...datos })
+      .select()
+      .single()
+    if (error) throw error
+    planItems.value = [data!, ...planItems.value]
+    return data!
+  }
+
+  async function eliminarPlanItem(tenantId: string, itemId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.from('auditoria_plan_items').delete().eq('tenant_id', tenantId).eq('id', itemId)
+    if (error) throw error
+    planItems.value = planItems.value.filter((i) => i.id !== itemId)
+  }
+
+  /** Sugerencias para armar el plan — riesgo_inherente, historial de hallazgos, control automático (§30). */
+  async function sugerirPlanAnual(tenantId: string): Promise<SugerenciaPlanAnual[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente.rpc('fn_sugerir_plan_anual', { p_tenant_id: tenantId })
+    if (error) throw error
+    return (data ?? []) as SugerenciaPlanAnual[]
+  }
+
   // ── ESTADÍSTICAS / DASHBOARD ───────────────────────────────────────────
   const estadisticas = computed(() => {
     const tenantId = tenantStore.activeTenant?.id
@@ -481,6 +584,8 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     hallazgos.value = []
     acciones.value = []
     riesgoSeleccionado.value = null
+    planes.value = []
+    planItems.value = []
   }
 
   return {
@@ -495,6 +600,8 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     ejecuciones,
     hallazgos,
     acciones,
+    planes,
+    planItems,
     estadisticas,
     riesgoSeleccionado,
 
@@ -539,6 +646,15 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     // evidencias
     subirEvidencia,
     cargarEvidenciasPorHallazgo,
+
+    // plan anual
+    cargarPlanes,
+    crearPlan,
+    aprobarPlan,
+    cargarPlanItems,
+    crearPlanItem,
+    eliminarPlanItem,
+    sugerirPlanAnual,
 
     // limpieza
     limpiar,
