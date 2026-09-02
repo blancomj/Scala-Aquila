@@ -48,6 +48,7 @@ async function guardar(): Promise<void> {
       probabilidad: probabilidad.value,
       impacto: impacto.value,
       prioridad: null,
+      version: 1,
     })
     modalAbierto.value = false
   } catch (error) {
@@ -225,6 +226,7 @@ function fecha(iso: string): string {
             <p v-if="riesgo.descripcion" class="text-xs text-neutral-500 dark:text-neutral-400">{{ riesgo.descripcion }}</p>
             <div class="flex flex-wrap gap-1.5">
               <UBadge color="neutral" variant="subtle" size="xs">{{ riesgo.categoria }}</UBadge>
+              <UBadge color="neutral" variant="subtle" size="xs">v{{ riesgo.version }}</UBadge>
               <UBadge v-if="riesgo.prioridad" :color="COLOR_PRIORIDAD[riesgo.prioridad] ?? 'neutral'" variant="subtle" size="xs">
                 Prioridad {{ riesgo.prioridad }}
               </UBadge>

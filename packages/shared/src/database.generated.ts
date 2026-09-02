@@ -1227,6 +1227,7 @@ export type Database = {
           busqueda_tsv: unknown
           causa: string | null
           causa_comun: string | null
+          causa_raiz: string | null
           condicion: string | null
           control_id: string | null
           created_at: string
@@ -1245,6 +1246,7 @@ export type Database = {
           reincidente: boolean
           responsable: string | null
           riesgo_id: string | null
+          riesgo_version_utilizada: number | null
           tenant_id: string
           updated_at: string | null
         }
@@ -1252,6 +1254,7 @@ export type Database = {
           busqueda_tsv?: unknown
           causa?: string | null
           causa_comun?: string | null
+          causa_raiz?: string | null
           condicion?: string | null
           control_id?: string | null
           created_at?: string
@@ -1270,6 +1273,7 @@ export type Database = {
           reincidente?: boolean
           responsable?: string | null
           riesgo_id?: string | null
+          riesgo_version_utilizada?: number | null
           tenant_id: string
           updated_at?: string | null
         }
@@ -1277,6 +1281,7 @@ export type Database = {
           busqueda_tsv?: unknown
           causa?: string | null
           causa_comun?: string | null
+          causa_raiz?: string | null
           condicion?: string | null
           control_id?: string | null
           created_at?: string
@@ -1295,6 +1300,7 @@ export type Database = {
           reincidente?: boolean
           responsable?: string | null
           riesgo_id?: string | null
+          riesgo_version_utilizada?: number | null
           tenant_id?: string
           updated_at?: string | null
         }
@@ -1830,6 +1836,7 @@ export type Database = {
           riesgo_inherente: number | null
           tenant_id: string
           updated_at: string | null
+          version: number
         }
         Insert: {
           busqueda_tsv?: unknown
@@ -1845,6 +1852,7 @@ export type Database = {
           riesgo_inherente?: number | null
           tenant_id: string
           updated_at?: string | null
+          version?: number
         }
         Update: {
           busqueda_tsv?: unknown
@@ -1860,6 +1868,7 @@ export type Database = {
           riesgo_inherente?: number | null
           tenant_id?: string
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {

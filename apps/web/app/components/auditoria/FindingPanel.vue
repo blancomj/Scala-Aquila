@@ -15,6 +15,7 @@ const riesgoId = ref<string | undefined>(undefined)
 const criterio = ref('')
 const condicion = ref('')
 const causa = ref('')
+const causaRaiz = ref<'PERSONA' | 'PROCESO' | 'TECNOLOGIA' | 'DATOS' | 'POLITICA' | 'CONTROL' | 'NORMATIVA' | 'INTEGRACION' | 'CONFIGURACION' | undefined>(undefined)
 const efecto = ref('')
 const nivel = ref<'CRITICO' | 'ALTO' | 'MEDIO' | 'BAJO' | 'OBSERVACION'>('MEDIO')
 const recomendacion = ref('')
@@ -28,6 +29,19 @@ const NIVEL_ITEMS = [
   { label: 'Medio', value: 'MEDIO' },
   { label: 'Bajo', value: 'BAJO' },
   { label: 'Observación', value: 'OBSERVACION' },
+]
+
+// §62 — clasificación estructurada, distinta de `causa` (texto libre); nunca obligatoria.
+const CAUSA_RAIZ_ITEMS = [
+  { label: 'Persona', value: 'PERSONA' },
+  { label: 'Proceso', value: 'PROCESO' },
+  { label: 'Tecnología', value: 'TECNOLOGIA' },
+  { label: 'Datos', value: 'DATOS' },
+  { label: 'Política', value: 'POLITICA' },
+  { label: 'Control', value: 'CONTROL' },
+  { label: 'Normativa', value: 'NORMATIVA' },
+  { label: 'Integración', value: 'INTEGRACION' },
+  { label: 'Configuración', value: 'CONFIGURACION' },
 ]
 
 const engagementItems = computed(() =>
@@ -56,6 +70,7 @@ function abrirModal(): void {
   criterio.value = ''
   condicion.value = ''
   causa.value = ''
+  causaRaiz.value = undefined
   efecto.value = ''
   nivel.value = 'MEDIO'
   recomendacion.value = ''
@@ -83,6 +98,7 @@ async function guardar(): Promise<void> {
       criterio: criterio.value.trim() || null,
       condicion: condicion.value.trim() || null,
       causa: causa.value.trim() || null,
+      causa_raiz: causaRaiz.value ?? null,
       efecto: efecto.value.trim() || null,
       nivel: nivel.value,
       recomendacion: recomendacion.value.trim() || null,
@@ -94,6 +110,8 @@ async function guardar(): Promise<void> {
       reincidente: reincidente.value,
       hallazgo_anterior_id: reincidente.value ? (hallazgoAnteriorId.value ?? null) : null,
       causa_comun: reincidente.value ? causaComun.value.trim() : null,
+      // Lo congela auditoria_hallazgos_congelar_version_riesgo_trigger (§64) al insertar.
+      riesgo_version_utilizada: null,
     })
     modalAbierto.value = false
   } catch (error) {
@@ -157,6 +175,7 @@ async function cerrar(hallazgoId: string): Promise<void> {
           </span>
           <UBadge color="neutral" variant="subtle" size="xs">{{ hallazgo.estado.replace('_', ' ') }}</UBadge>
           <UBadge v-if="hallazgo.reincidente" color="error" variant="subtle" size="xs">Reincidente</UBadge>
+          <UBadge v-if="hallazgo.causa_raiz" color="neutral" variant="subtle" size="xs">Causa raíz: {{ hallazgo.causa_raiz }}</UBadge>
         </div>
         <p v-if="hallazgo.reincidente && hallazgo.causa_comun" class="text-xs text-neutral-500 dark:text-neutral-400">
           Causa común: {{ hallazgo.causa_comun }}
@@ -188,6 +207,9 @@ async function cerrar(hallazgoId: string): Promise<void> {
           </UFormField>
           <UFormField label="Causa" name="causa">
             <UTextarea v-model="causa" class="w-full" :rows="2" autoresize />
+          </UFormField>
+          <UFormField label="Causa raíz" name="causaRaiz" help="Opcional — no la exijas para observaciones menores (§62).">
+            <USelect v-model="causaRaiz" :items="CAUSA_RAIZ_ITEMS" value-key="value" class="w-full" />
           </UFormField>
           <UFormField label="Efecto" name="efecto">
             <UTextarea v-model="efecto" class="w-full" :rows="2" autoresize />

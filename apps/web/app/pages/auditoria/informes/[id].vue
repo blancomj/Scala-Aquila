@@ -257,7 +257,10 @@ function imprimir(): void {
           <dl class="datos datos-hallazgo">
             <template v-if="hallazgo.riesgo_id && riesgosPorId.get(hallazgo.riesgo_id)">
               <dt>Riesgo</dt>
-              <dd>{{ riesgosPorId.get(hallazgo.riesgo_id)!.nombre }}</dd>
+              <dd>
+                {{ riesgosPorId.get(hallazgo.riesgo_id)!.nombre }}
+                <span v-if="hallazgo.riesgo_version_utilizada"> (versión {{ hallazgo.riesgo_version_utilizada }})</span>
+              </dd>
             </template>
             <template v-if="hallazgo.control_id && controlesPorId.get(hallazgo.control_id)">
               <dt>Control</dt>
@@ -268,7 +271,10 @@ function imprimir(): void {
             <dt>Condición</dt>
             <dd>{{ hallazgo.condicion ?? '—' }}</dd>
             <dt v-if="hallazgo.causa">Causa</dt>
-            <dd v-if="hallazgo.causa">{{ hallazgo.causa }}</dd>
+            <dd v-if="hallazgo.causa">
+              {{ hallazgo.causa }}
+              <span v-if="hallazgo.causa_raiz"> ({{ hallazgo.causa_raiz }})</span>
+            </dd>
             <dt v-if="hallazgo.efecto">Efecto</dt>
             <dd v-if="hallazgo.efecto">{{ hallazgo.efecto }}</dd>
             <dt>Recomendación</dt>
