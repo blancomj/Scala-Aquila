@@ -119,7 +119,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
 
   async function crearRiesgo(
     tenantId: string,
-    datos: Omit<AuditoriaRiesgo, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at' | 'riesgo_inherente'>
+    datos: Omit<AuditoriaRiesgo, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at' | 'riesgo_inherente' | 'busqueda_tsv'>
   ): Promise<AuditoriaRiesgo> {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente
@@ -160,7 +160,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
 
   async function crearControl(
     tenantId: string,
-    datos: Omit<AuditoriaControl, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at'>
+    datos: Omit<AuditoriaControl, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at' | 'busqueda_tsv'>
   ): Promise<AuditoriaControl> {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente
@@ -327,7 +327,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
 
   async function crearHallazgo(
     tenantId: string,
-    datos: Omit<AuditoriaHallazgo, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at'>
+    datos: Omit<AuditoriaHallazgo, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'updated_at' | 'busqueda_tsv'>
   ): Promise<AuditoriaHallazgo> {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente
@@ -417,7 +417,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
   async function subirEvidencia(
     tenantId: string,
     hallazgoId: string,
-    datos: Omit<AuditoriaEvidencia, 'id' | 'tenant_id' | 'hallazgo_id' | 'usuario_id' | 'created_at'>
+    datos: Omit<AuditoriaEvidencia, 'id' | 'tenant_id' | 'hallazgo_id' | 'usuario_id' | 'created_at' | 'busqueda_tsv'>
   ): Promise<AuditoriaEvidencia> {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente

@@ -886,6 +886,7 @@ export type Database = {
       auditoria_controles: {
         Row: {
           automatizado: boolean
+          busqueda_tsv: unknown
           codigo_automatico: string | null
           created_at: string
           created_by: string
@@ -904,6 +905,7 @@ export type Database = {
         }
         Insert: {
           automatizado?: boolean
+          busqueda_tsv?: unknown
           codigo_automatico?: string | null
           created_at?: string
           created_by: string
@@ -922,6 +924,7 @@ export type Database = {
         }
         Update: {
           automatizado?: boolean
+          busqueda_tsv?: unknown
           codigo_automatico?: string | null
           created_at?: string
           created_by?: string
@@ -1142,6 +1145,7 @@ export type Database = {
       auditoria_evidencias: {
         Row: {
           archivo_path: string | null
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           fecha: string
@@ -1155,6 +1159,7 @@ export type Database = {
         }
         Insert: {
           archivo_path?: string | null
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           fecha?: string
@@ -1168,6 +1173,7 @@ export type Database = {
         }
         Update: {
           archivo_path?: string | null
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           fecha?: string
@@ -1212,6 +1218,7 @@ export type Database = {
       }
       auditoria_hallazgos: {
         Row: {
+          busqueda_tsv: unknown
           causa: string | null
           condicion: string | null
           control_id: string | null
@@ -1233,6 +1240,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          busqueda_tsv?: unknown
           causa?: string | null
           condicion?: string | null
           control_id?: string | null
@@ -1254,6 +1262,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          busqueda_tsv?: unknown
           causa?: string | null
           condicion?: string | null
           control_id?: string | null
@@ -1464,6 +1473,7 @@ export type Database = {
       }
       auditoria_riesgos: {
         Row: {
+          busqueda_tsv: unknown
           categoria: string
           created_at: string
           created_by: string
@@ -1477,6 +1487,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          busqueda_tsv?: unknown
           categoria: string
           created_at?: string
           created_by: string
@@ -1490,6 +1501,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          busqueda_tsv?: unknown
           categoria?: string
           created_at?: string
           created_by?: string

@@ -21,6 +21,10 @@ const ETIQUETA_CATEGORIA: Record<CategoriaBusqueda, string> = {
   caso_juridico: 'Casos jurídicos',
   agrupacion: 'Agrupaciones',
   zona_comun: 'Zonas comunes',
+  riesgo: 'Riesgos',
+  control: 'Controles',
+  hallazgo: 'Hallazgos',
+  evidencia: 'Evidencias',
 }
 
 // Orden fijo (no el de aparición) — mismo orden que el selector de
@@ -35,6 +39,10 @@ const ORDEN_CATEGORIAS: CategoriaBusqueda[] = [
   'caso_juridico',
   'agrupacion',
   'zona_comun',
+  'riesgo',
+  'control',
+  'hallazgo',
+  'evidencia',
 ]
 
 const grupos = computed(() => {
@@ -62,6 +70,10 @@ function irA(resultado: ResultadoBusqueda): void {
     caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
     agrupacion: '/configuracion/agrupaciones',
     zona_comun: '/configuracion/zonas-comunes',
+    riesgo: '/auditoria',
+    control: '/auditoria',
+    hallazgo: '/auditoria',
+    evidencia: '/auditoria',
   }
   const ruta = primaria[resultado.categoria]
   if (ruta) emit('navegar', ruta)

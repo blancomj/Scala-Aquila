@@ -70,6 +70,25 @@ const CONFIG: Record<ResultadoBusqueda['categoria'], ConfigCategoria> = {
     icono: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7ZM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
     primaria: () => ({ label: 'Ver zonas comunes', to: '/configuracion/zonas-comunes' }),
   },
+  // Sin ficha propia todavía (riesgo/control/hallazgo/evidencia se gestionan
+  // dentro de las pestañas de /auditoria, no en una página por registro) —
+  // mismo "to" genérico que agrupacion/zona_comun/cuenta_presupuestal.
+  riesgo: {
+    icono: 'M12 9v4m0 4h.01M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z',
+    primaria: () => ({ label: 'Ver en Auditoría', to: '/auditoria' }),
+  },
+  control: {
+    icono: 'M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4Z',
+    primaria: () => ({ label: 'Ver en Auditoría', to: '/auditoria' }),
+  },
+  hallazgo: {
+    icono: 'M11 3a8 8 0 1 0 5.3 14.02l3.34 3.34a1 1 0 0 0 1.41-1.41l-3.34-3.34A8 8 0 0 0 11 3Z',
+    primaria: () => ({ label: 'Ver en Auditoría', to: '/auditoria' }),
+  },
+  evidencia: {
+    icono: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8ZM14 3v5h5M9 13l2 2 4-4',
+    primaria: () => ({ label: 'Ver en Auditoría', to: '/auditoria' }),
+  },
 }
 
 const config = computed(() => CONFIG[props.resultado.categoria])

@@ -79,6 +79,10 @@ function onEnter(): void {
     caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
     agrupacion: '/configuracion/agrupacion',
     zona_comun: '/configuracion/zonas-comunes',
+    riesgo: '/auditoria',
+    control: '/auditoria',
+    hallazgo: '/auditoria',
+    evidencia: '/auditoria',
   }
   const ruta = rutas[resultado.categoria]
   if (ruta) navegar(ruta)
@@ -193,6 +197,10 @@ onUnmounted(() => {
             <option value="caso_juridico">Casos jurídicos</option>
             <option value="agrupacion">Agrupaciones</option>
             <option value="zona_comun">Zonas comunes</option>
+            <option value="riesgo">Riesgos (auditoría)</option>
+            <option value="control">Controles (auditoría)</option>
+            <option value="hallazgo">Hallazgos (auditoría)</option>
+            <option value="evidencia">Evidencias (auditoría)</option>
           </select>
         </div>
       </div>
