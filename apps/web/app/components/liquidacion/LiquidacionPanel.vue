@@ -281,6 +281,15 @@ function descartar(): void {
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
+        <AuditoriaAuditarAhoraBoton
+          v-if="liquidacion"
+          origen-tipo="liquidacion"
+          :origen-id="liquidacion.id"
+          :nombre-sugerido="`Auditoría — ${etiquetaPeriodo}`"
+          objetivo-sugerido="Evaluar el proceso, los controles y la evidencia de esta liquidación."
+          tipo-sugerido="LIQUIDACION"
+          :periodo-sugerido="`${periodo.anio}-${String(periodo.mes).padStart(2, '0')}`"
+        />
         <UButton
           v-if="liquidacion && (estado === 'pre_liquidada' || estado === 'rechazada')"
           color="neutral"
