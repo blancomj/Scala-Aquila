@@ -18,6 +18,9 @@ const causa = ref('')
 const efecto = ref('')
 const nivel = ref<'CRITICO' | 'ALTO' | 'MEDIO' | 'BAJO' | 'OBSERVACION'>('MEDIO')
 const recomendacion = ref('')
+const reincidente = ref(false)
+const hallazgoAnteriorId = ref<string | undefined>(undefined)
+const causaComun = ref('')
 
 const NIVEL_ITEMS = [
   { label: 'Crítico', value: 'CRITICO' },
@@ -34,6 +37,9 @@ const riesgoItems = computed(() => [
   { label: 'Sin riesgo asociado', value: undefined },
   ...auditoriaStore.riesgos.map((r) => ({ label: r.nombre, value: r.id })),
 ])
+const hallazgoAnteriorItems = computed(() =>
+  auditoriaStore.hallazgos.map((h) => ({ label: `${h.proceso}${h.condicion ? ' · ' + h.condicion : ''}`, value: h.id })),
+)
 
 const COLOR_NIVEL: Record<string, 'error' | 'warning' | 'neutral' | 'success'> = {
   CRITICO: 'error',
@@ -53,6 +59,9 @@ function abrirModal(): void {
   efecto.value = ''
   nivel.value = 'MEDIO'
   recomendacion.value = ''
+  reincidente.value = false
+  hallazgoAnteriorId.value = undefined
+  causaComun.value = ''
   errorGuardado.value = null
   modalAbierto.value = true
 }
@@ -60,6 +69,7 @@ function abrirModal(): void {
 async function guardar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || !engagementId.value || !proceso.value.trim()) return
+  if (reincidente.value && (!hallazgoAnteriorId.value || !causaComun.value.trim())) return
   guardando.value = true
   errorGuardado.value = null
   try {
@@ -80,6 +90,10 @@ async function guardar(): Promise<void> {
       fecha_compromiso: null,
       estado: 'ABIERTO',
       evidencia: null,
+      // HALLAZGO_REINCIDENTE (§61) — lo marca el auditor, no se infiere.
+      reincidente: reincidente.value,
+      hallazgo_anterior_id: reincidente.value ? (hallazgoAnteriorId.value ?? null) : null,
+      causa_comun: reincidente.value ? causaComun.value.trim() : null,
     })
     modalAbierto.value = false
   } catch (error) {
@@ -142,7 +156,11 @@ async function cerrar(hallazgoId: string): Promise<void> {
             Fecha límite: {{ hallazgo.fecha_compromiso ? new Date(hallazgo.fecha_compromiso).toLocaleDateString('es-CO') : 'No definida' }}
           </span>
           <UBadge color="neutral" variant="subtle" size="xs">{{ hallazgo.estado.replace('_', ' ') }}</UBadge>
+          <UBadge v-if="hallazgo.reincidente" color="error" variant="subtle" size="xs">Reincidente</UBadge>
         </div>
+        <p v-if="hallazgo.reincidente && hallazgo.causa_comun" class="text-xs text-neutral-500 dark:text-neutral-400">
+          Causa común: {{ hallazgo.causa_comun }}
+        </p>
         <div v-if="puedeEscribir && hallazgo.estado !== 'CERRADO' && hallazgo.estado !== 'RECHAZADO'" class="pt-1">
           <UButton size="xs" color="neutral" variant="outline" @click="cerrar(hallazgo.id)">Cerrar hallazgo</UButton>
           <p v-if="erroresCierre[hallazgo.id]" class="text-xs text-error-600 mt-1">{{ erroresCierre[hallazgo.id] }}</p>
@@ -180,12 +198,32 @@ async function cerrar(hallazgoId: string): Promise<void> {
           <UFormField label="Recomendación" name="recomendacion">
             <UTextarea v-model="recomendacion" class="w-full" :rows="2" autoresize />
           </UFormField>
+          <UCheckbox v-model="reincidente" label="Es reincidencia de un hallazgo anterior (HALLAZGO_REINCIDENTE, §61)" />
+          <template v-if="reincidente">
+            <UFormField label="Hallazgo anterior" name="hallazgoAnteriorId" required>
+              <USelect v-model="hallazgoAnteriorId" :items="hallazgoAnteriorItems" value-key="value" class="w-full" />
+            </UFormField>
+            <UFormField
+              label="Causa común"
+              name="causaComun"
+              required
+              help="La recurrencia debe subir la prioridad del riesgo — revísala en la pestaña Riesgos."
+            >
+              <UTextarea v-model="causaComun" class="w-full" :rows="2" autoresize />
+            </UFormField>
+          </template>
           <p v-if="errorGuardado" class="text-sm text-error-600">{{ errorGuardado }}</p>
         </div>
       </template>
       <template #footer>
         <UButton color="neutral" variant="ghost" @click="modalAbierto = false">Cancelar</UButton>
-        <UButton :loading="guardando" :disabled="!engagementId || !proceso.trim()" @click="guardar">Guardar</UButton>
+        <UButton
+          :loading="guardando"
+          :disabled="!engagementId || !proceso.trim() || (reincidente && (!hallazgoAnteriorId || !causaComun.trim()))"
+          @click="guardar"
+        >
+          Guardar
+        </UButton>
       </template>
     </UModal>
   </div>

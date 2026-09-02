@@ -1226,6 +1226,7 @@ export type Database = {
         Row: {
           busqueda_tsv: unknown
           causa: string | null
+          causa_comun: string | null
           condicion: string | null
           control_id: string | null
           created_at: string
@@ -1236,10 +1237,12 @@ export type Database = {
           estado: string
           evidencia: string[] | null
           fecha_compromiso: string | null
+          hallazgo_anterior_id: string | null
           id: string
           nivel: string
           proceso: string
           recomendacion: string | null
+          reincidente: boolean
           responsable: string | null
           riesgo_id: string | null
           tenant_id: string
@@ -1248,6 +1251,7 @@ export type Database = {
         Insert: {
           busqueda_tsv?: unknown
           causa?: string | null
+          causa_comun?: string | null
           condicion?: string | null
           control_id?: string | null
           created_at?: string
@@ -1258,10 +1262,12 @@ export type Database = {
           estado?: string
           evidencia?: string[] | null
           fecha_compromiso?: string | null
+          hallazgo_anterior_id?: string | null
           id?: string
           nivel?: string
           proceso: string
           recomendacion?: string | null
+          reincidente?: boolean
           responsable?: string | null
           riesgo_id?: string | null
           tenant_id: string
@@ -1270,6 +1276,7 @@ export type Database = {
         Update: {
           busqueda_tsv?: unknown
           causa?: string | null
+          causa_comun?: string | null
           condicion?: string | null
           control_id?: string | null
           created_at?: string
@@ -1280,10 +1287,12 @@ export type Database = {
           estado?: string
           evidencia?: string[] | null
           fecha_compromiso?: string | null
+          hallazgo_anterior_id?: string | null
           id?: string
           nivel?: string
           proceso?: string
           recomendacion?: string | null
+          reincidente?: boolean
           responsable?: string | null
           riesgo_id?: string | null
           tenant_id?: string
@@ -1309,6 +1318,13 @@ export type Database = {
             columns: ["engagement_id"]
             isOneToOne: false
             referencedRelation: "auditoria_engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_hallazgos_hallazgo_anterior_id_fkey"
+            columns: ["hallazgo_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_hallazgos"
             referencedColumns: ["id"]
           },
           {
@@ -1724,6 +1740,81 @@ export type Database = {
           },
         ]
       }
+      auditoria_riesgo_residual_historial: {
+        Row: {
+          accion_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          impacto: number
+          motivo: string
+          probabilidad: number
+          riesgo_id: string
+          riesgo_residual: number | null
+          tenant_id: string
+        }
+        Insert: {
+          accion_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          impacto: number
+          motivo: string
+          probabilidad: number
+          riesgo_id: string
+          riesgo_residual?: number | null
+          tenant_id: string
+        }
+        Update: {
+          accion_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          impacto?: number
+          motivo?: string
+          probabilidad?: number
+          riesgo_id?: string
+          riesgo_residual?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_riesgo_residual_historial_accion_id_fkey"
+            columns: ["accion_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_acciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgo_residual_historial_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgo_residual_historial_riesgo_id_fkey"
+            columns: ["riesgo_id"]
+            isOneToOne: false
+            referencedRelation: "auditoria_riesgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgo_residual_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_riesgo_residual_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_riesgos: {
         Row: {
           busqueda_tsv: unknown
@@ -1734,6 +1825,7 @@ export type Database = {
           id: string
           impacto: number
           nombre: string
+          prioridad: string | null
           probabilidad: number
           riesgo_inherente: number | null
           tenant_id: string
@@ -1748,6 +1840,7 @@ export type Database = {
           id?: string
           impacto: number
           nombre: string
+          prioridad?: string | null
           probabilidad: number
           riesgo_inherente?: number | null
           tenant_id: string
@@ -1762,6 +1855,7 @@ export type Database = {
           id?: string
           impacto?: number
           nombre?: string
+          prioridad?: string | null
           probabilidad?: number
           riesgo_inherente?: number | null
           tenant_id?: string

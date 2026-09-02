@@ -29,6 +29,7 @@ type AuditoriaCatalogoRiesgo = Database['public']['Tables']['auditoria_catalogo_
 type AuditoriaPlan = Database['public']['Tables']['auditoria_planes']['Row']
 type AuditoriaPlanItem = Database['public']['Tables']['auditoria_plan_items']['Row']
 type AuditoriaNormativa = Database['public']['Tables']['auditoria_normativa']['Row']
+type AuditoriaRiesgoResidual = Database['public']['Tables']['auditoria_riesgo_residual_historial']['Row']
 
 /** Fila de public.fn_matriz_trazabilidad() — Riesgo→Control→Prueba→Evidencia→Hallazgo→Acción→Seguimiento→Cierre (§91). */
 export interface FilaMatrizTrazabilidad {
@@ -165,6 +166,59 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
       .single()
     if (error) throw error
     riesgos.value = [data!, ...riesgos.value]
+    return data!
+  }
+
+  /** Edición de un riesgo existente — ej. subir `prioridad` tras una reincidencia (§61). */
+  async function actualizarRiesgo(
+    tenantId: string,
+    riesgoId: string,
+    datos: Partial<Pick<AuditoriaRiesgo, 'probabilidad' | 'impacto' | 'prioridad' | 'descripcion'>>
+  ): Promise<AuditoriaRiesgo> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_riesgos')
+      .update(datos)
+      .eq('tenant_id', tenantId)
+      .eq('id', riesgoId)
+      .select()
+      .single()
+    if (error) throw error
+    const index = riesgos.value.findIndex((r) => r.id === riesgoId)
+    if (index >= 0) riesgos.value = [...riesgos.value.slice(0, index), data!, ...riesgos.value.slice(index + 1)]
+    return data!
+  }
+
+  // ── RIESGO RESIDUAL (§63) ────────────────────────────────────────────────
+  const residualHistorial = shallowRef<AuditoriaRiesgoResidual[]>([])
+
+  /** Historial insert-only de reevaluaciones — la fila más reciente es el residual vigente. */
+  async function cargarResidualHistorial(tenantId: string, riesgoId: string): Promise<AuditoriaRiesgoResidual[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_riesgo_residual_historial')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('riesgo_id', riesgoId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    residualHistorial.value = data ?? []
+    return residualHistorial.value
+  }
+
+  /** Nunca actualiza ni borra una fila anterior — cada recálculo agrega una fila nueva (§63). */
+  async function registrarResidual(
+    tenantId: string,
+    datos: Omit<AuditoriaRiesgoResidual, 'id' | 'tenant_id' | 'created_by' | 'created_at' | 'riesgo_residual'>
+  ): Promise<AuditoriaRiesgoResidual> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_riesgo_residual_historial')
+      .insert({ tenant_id: tenantId, created_by: requireProfileId(), ...datos })
+      .select()
+      .single()
+    if (error) throw error
+    residualHistorial.value = [data!, ...residualHistorial.value]
     return data!
   }
 
@@ -703,6 +757,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     planItems.value = []
     normativa.value = []
     muestras.value = []
+    residualHistorial.value = []
   }
 
   return {
@@ -721,6 +776,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     planItems,
     normativa,
     muestras,
+    residualHistorial,
     estadisticas,
     riesgoSeleccionado,
 
@@ -731,6 +787,11 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     // riesgos
     cargarRiesgos,
     crearRiesgo,
+    actualizarRiesgo,
+
+    // riesgo residual
+    cargarResidualHistorial,
+    registrarResidual,
 
     // controles
     cargarControles,
