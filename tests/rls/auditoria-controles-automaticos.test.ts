@@ -404,6 +404,68 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     await eliminarUsuario(admin, auditor.id)
   }, 30_000)
 
+  it('correr el mismo control dos veces no duplica el hallazgo (necesario para que el cron diario no inunde la bandeja)', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-dedup')
+    const tenant = await crearTenant(admin, 'ccm-dedup', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const inmueble = await crearInmuebleFixture(admin, tenant.id)
+    const formaPagoId = await listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'CARTERA_ANTICIPOS_SIN_APLICAR')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const fechaAntigua = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const { error: errorPago } = await admin.from('pagos').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmueble,
+      monto: 100000,
+      fecha_pago: fechaAntigua,
+      forma_pago_id: formaPagoId,
+    })
+    if (errorPago) throw new Error(errorPago.message)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const primera = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+    expect(primera.error).toBeNull()
+    const resultado1 = primera.data![0]
+    expect(resultado1.resultado).toBe('FAIL')
+    expect(resultado1.hallazgo_id).not.toBeNull()
+
+    const segunda = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+    expect(segunda.error).toBeNull()
+    const resultado2 = segunda.data![0]
+    expect(resultado2.resultado).toBe('FAIL')
+    // Mismo hallazgo reutilizado, no uno nuevo — la excepción sigue sin
+    // resolver, no hace falta una segunda fila para decirlo otra vez.
+    expect(resultado2.hallazgo_id).toBe(resultado1.hallazgo_id)
+    expect(resultado2.ejecucion_id).not.toBe(resultado1.ejecucion_id)
+
+    const { data: hallazgos } = await admin
+      .from('auditoria_hallazgos')
+      .select('id')
+      .eq('control_id', controlId)
+    expect(hallazgos).toHaveLength(1)
+
+    const { data: ejecuciones } = await admin
+      .from('auditoria_ejecuciones')
+      .select('origen, ejecutado_por')
+      .eq('engagement_id', engagementId)
+      .order('created_at', { ascending: true })
+    expect(ejecuciones).toHaveLength(2)
+    for (const ejecucion of ejecuciones ?? []) {
+      expect(ejecucion.origen).toBe('manual')
+      expect(ejecucion.ejecutado_por).toBe(auditor.id)
+    }
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
   it('BANCOS_CONCILIACION_PENDIENTE: detecta una línea de extracto sin conciliar hace más de 15 días', async () => {
     const auditor = await crearUsuario(admin, 'ccm-banco')
     const tenant = await crearTenant(admin, 'ccm-banco', auditor.id)
