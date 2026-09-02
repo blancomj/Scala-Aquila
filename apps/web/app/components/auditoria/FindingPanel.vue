@@ -67,6 +67,9 @@ async function guardar(): Promise<void> {
       engagement_id: engagementId.value,
       proceso: proceso.value.trim(),
       riesgo_id: riesgoId.value ?? null,
+      // Solo auditoria_control_ejecutar() lo llena (§76-79) — un hallazgo
+      // creado a mano por un auditor no viene de un control automático.
+      control_id: null,
       criterio: criterio.value.trim() || null,
       condicion: condicion.value.trim() || null,
       causa: causa.value.trim() || null,

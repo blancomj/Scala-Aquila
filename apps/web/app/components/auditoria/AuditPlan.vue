@@ -106,9 +106,21 @@ const COLOR_ESTADO: Record<string, 'success' | 'warning' | 'error' | 'neutral' |
               </UBadge>
             </div>
           </div>
-          <UBadge :color="COLOR_ESTADO[engagement.estado] ?? 'info'" variant="subtle">
-            {{ engagement.estado.replace('_', ' ') }}
-          </UBadge>
+          <div class="flex items-center gap-2">
+            <UBadge :color="COLOR_ESTADO[engagement.estado] ?? 'info'" variant="subtle">
+              {{ engagement.estado.replace('_', ' ') }}
+            </UBadge>
+            <UButton
+              :to="`/auditoria/informes/${engagement.id}`"
+              target="_blank"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-file-text"
+            >
+              Informe
+            </UButton>
+          </div>
         </div>
       </div>
     </div>
