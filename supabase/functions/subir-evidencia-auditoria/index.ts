@@ -166,6 +166,18 @@ export default {
       .from(BUCKET)
       .upload(storagePath, archivo, { contentType: archivo.type, upsert: false })
     if (errorUpload) {
+      // storagePath es determinístico (tenant+hallazgo+hash+nombre): el mismo
+      // archivo ya adjuntado a este hallazgo choca aquí, no en el unique
+      // constraint del insert (que nunca llega a ejecutarse).
+      if ('statusCode' in errorUpload && errorUpload.statusCode === '409') {
+        return errorResponse(
+          409,
+          'EVIDENCIA_DUPLICADA',
+          'Este archivo ya fue adjuntado como evidencia de este hallazgo.',
+          undefined,
+          correlationId,
+        )
+      }
       logEvent({
         level: 'error',
         action: 'subir_evidencia_auditoria.storage_fallido',

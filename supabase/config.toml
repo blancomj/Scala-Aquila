@@ -246,3 +246,12 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/enviar-correo-compositor/deno.json"
 entrypoint = "./functions/enviar-correo-compositor/index.ts"
+
+# Único punto de escritura hacia auditoria_evidencias y el bucket privado
+# auditoria-evidencias (PROMPT AUDITORÍA §34, §70) — requiere sesión de
+# usuario real (auth: 'user'), de ahí verify_jwt = true.
+[functions.subir-evidencia-auditoria]
+enabled = true
+verify_jwt = true
+import_map = "./functions/subir-evidencia-auditoria/deno.json"
+entrypoint = "./functions/subir-evidencia-auditoria/index.ts"
