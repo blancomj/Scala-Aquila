@@ -40,6 +40,7 @@ const errorCarga = ref<string | null>(null)
 const filtroEstado = ref<EstadoAccion | 'todas'>('todas')
 const busqueda = ref('')
 const procesando = ref<string | null>(null)
+const resumenExpandido = ref(true)
 
 // ── detalle probatorio ────────────────────────────────────────────────
 const detalleAbierto = ref(false)
@@ -372,15 +373,25 @@ function fechaHora(iso: string | null): string {
 <template>
   <div class="space-y-6">
     <div class="mb-8">
-      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 max-w-2xl">
-        <template #titulo>
-          <h1 class="text-2xl font-semibold tracking-tight">Acciones de cobranza</h1>
-        </template>
-        <template #descripcion>
-          Cola de gestión: supervisión de envíos, autorizaciones de alto impacto
-          y acreditación de pruebas para procesos judiciales.
-        </template>
-      </UiTituloDescripcion>
+      <div class="flex items-start justify-between gap-4">
+        <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 max-w-2xl">
+          <template #titulo>
+            <h1 class="text-2xl font-semibold tracking-tight">Acciones de cobranza</h1>
+          </template>
+          <template #descripcion>
+            Cola de gestión: supervisión de envíos, autorizaciones de alto impacto
+            y acreditación de pruebas para procesos judiciales.
+          </template>
+        </UiTituloDescripcion>
+        <button
+          type="button"
+          class="mt-1 flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+          @click="resumenExpandido = !resumenExpandido"
+        >
+          <UIcon :name="resumenExpandido ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'" class="size-4" />
+          {{ resumenExpandido ? 'Cerrar resumen' : 'Ver resumen' }}
+        </button>
+      </div>
     </div>
 
     <UAlert
@@ -393,7 +404,7 @@ function fechaHora(iso: string | null): string {
     />
 
     <!-- ── resumen de colas ─────────────────────────────────────────── -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+    <div v-if="resumenExpandido" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
       <button
         type="button"
         class="text-left rounded-xl border p-4 transition-all group"
@@ -429,6 +440,37 @@ function fechaHora(iso: string | null): string {
 
     <!-- ── filtros ──────────────────────────────────────────────────── -->
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div class="flex items-center gap-2 w-full sm:w-auto order-first sm:order-none">
+        <UInput
+          v-model="busqueda"
+          placeholder="Buscar unidad o destinatario"
+          icon="i-lucide-search"
+          size="sm"
+          class="w-full sm:w-80"
+          :ui="{ trailing: 'pr-8' }"
+        >
+          <template v-if="busqueda" #trailing>
+            <button
+              type="button"
+              class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+              @click="busqueda = ''"
+            >
+              <UIcon name="i-lucide-x" class="size-3.5" />
+            </button>
+          </template>
+        </UInput>
+        <UButton
+          icon="i-lucide-refresh-cw"
+          size="sm"
+          variant="ghost"
+          color="neutral"
+          :loading="cobranzaStore.loading"
+          @click="cargar"
+        >
+          Actualizar
+        </UButton>
+      </div>
+
       <!-- overflow-x-auto en vez de dejar que el flex encoja los botones: en
            375px de ancho las 7 pestañas no caben, y encogerlas trunca el
            texto ("Despachadas" → "De…") en vez de dejarlas leerse con un
@@ -447,26 +489,6 @@ function fechaHora(iso: string | null): string {
           @click="filtroEstado = opcion.valor"
         >
           {{ opcion.etiqueta }}
-        </UButton>
-      </div>
-
-      <div class="flex items-center gap-2 w-full sm:w-auto">
-        <UInput
-          v-model="busqueda"
-          placeholder="Buscar unidad o destinatario"
-          icon="i-lucide-search"
-          size="sm"
-          class="w-full sm:w-64"
-        />
-        <UButton
-          icon="i-lucide-refresh-cw"
-          size="sm"
-          variant="ghost"
-          color="neutral"
-          :loading="cobranzaStore.loading"
-          @click="cargar"
-        >
-          Actualizar
         </UButton>
       </div>
     </div>

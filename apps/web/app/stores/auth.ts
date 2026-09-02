@@ -11,6 +11,13 @@ import type { Database } from '@aquila/shared'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 
+export interface Shortcut {
+  to: string
+  label: string
+  icono: string
+  orden: number
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const profile = ref<ProfileRow | null>(null)
   const loading = ref(false)
@@ -117,9 +124,55 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = data
   }
 
+  // ── Accesos directos del sidebar ──────────────────────────────────
+  // Guardados como JSONB en profiles.navigation_shortcuts — misma tabla,
+  // misma RLS (profiles_update_propio), sin tabla nueva.
+
+  const shortcuts = computed<Shortcut[]>(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw: any = profile.value?.navigation_shortcuts
+    if (!Array.isArray(raw)) return []
+    return raw.filter(
+      (s: unknown): s is Shortcut =>
+        typeof s === 'object' &&
+        s !== null &&
+        'to' in s &&
+        'label' in s &&
+        'orden' in s,
+    )
+  })
+
+  async function actualizarShortcuts(items: Shortcut[]): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const {
+      data: { user: usuario },
+    } = await cliente.auth.getUser()
+    if (!usuario) throw new Error('Sesión inválida.')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (cliente
+      .from('profiles')
+      .update({ navigation_shortcuts: items as any })
+      .eq('id', usuario.id)
+      .select('*')
+      .single())
+    if (error) throw error
+    profile.value = data
+  }
+
   function limpiar(): void {
     profile.value = null
   }
 
-  return { profile, loading, isPlatformAdmin, cargarPerfil, actualizarPerfil, subirAvatar, limpiar }
+  return {
+    profile,
+    loading,
+    isPlatformAdmin,
+    shortcuts,
+    cargarPerfil,
+    actualizarPerfil,
+    subirAvatar,
+    actualizarShortcuts,
+    limpiar,
+  }
 })

@@ -74,7 +74,17 @@ const gruposFiltrados = computed(() => {
 <template>
   <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
     <p class="text-sm font-medium">Variables disponibles</p>
-    <UInput v-model="busqueda" size="sm" placeholder="Buscar variable…" class="w-full" />
+    <UInput v-model="busqueda" size="sm" placeholder="Buscar variable…" class="w-full" :ui="{ trailing: 'pr-8' }">
+      <template v-if="busqueda" #trailing>
+        <button
+          type="button"
+          class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          @click="busqueda = ''"
+        >
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </button>
+      </template>
+    </UInput>
 
     <p v-if="gruposFiltrados.length === 0" class="text-xs text-neutral-400 italic">Sin resultados.</p>
 

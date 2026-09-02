@@ -217,7 +217,18 @@ async function confirmarEliminar(): Promise<void> {
             icon="i-lucide-search"
             placeholder="Buscar por código, nombre, descripción o inmueble asignado…"
             class="w-80"
-          />
+            :ui="{ trailing: 'pr-8' }"
+          >
+            <template v-if="busqueda" #trailing>
+              <button
+                type="button"
+                class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                @click="busqueda = ''"
+              >
+                <UIcon name="i-lucide-x" class="size-3.5" />
+              </button>
+            </template>
+          </UInput>
           <USelect
             v-model="filtroTipoId"
             :items="[{ label: 'Todos los tipos', value: null }, ...zonasStore.tiposZonaComun.map((t) => ({ label: t.nombre, value: t.id }))]"

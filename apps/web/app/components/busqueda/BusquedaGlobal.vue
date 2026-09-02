@@ -7,19 +7,16 @@ const router = useRouter()
 
 const query = ref('')
 const categoriaSeleccionada = ref<CategoriaBusqueda | 'todos'>('todos')
-const abierto = ref(false)
+const expandido = ref(false)
 const indiceActivo = ref(-1)
 const inputRef = ref<HTMLInputElement | null>(null)
 const contenedorRef = ref<HTMLElement | null>(null)
 
-const mostrarAccesos = computed(() => abierto.value && query.value.trim().length === 0)
-const mostrarPanel = computed(() => abierto.value && (mostrarAccesos.value || query.value.trim().length > 0))
+const mostrarAccesos = computed(() => expandido.value && query.value.trim().length === 0)
+const mostrarPanel = computed(() => expandido.value && (mostrarAccesos.value || query.value.trim().length > 0))
 
 let debounceId: ReturnType<typeof setTimeout> | undefined
 
-// Debounce vive aquí, no en el store (§6.3 del prompt: "el store no sabe
-// de tiempo, solo de datos"). Cambio de categoría con texto ya escrito =
-// re-consulta inmediata, sin esperar el debounce (§7).
 function onInput(): void {
   indiceActivo.value = -1
   if (debounceId) clearTimeout(debounceId)
@@ -50,20 +47,14 @@ function limpiar(): void {
   inputRef.value?.focus()
 }
 
-function alEnfocar(): void {
-  abierto.value = true
-}
-
 function alPerderFoco(evento: FocusEvent): void {
-  // Si el foco se mueve DENTRO del propio contenedor (un link del panel),
-  // no cerrar — solo cerrar cuando realmente sale del componente.
   const siguiente = evento.relatedTarget as Node | null
   if (siguiente && contenedorRef.value?.contains(siguiente)) return
-  abierto.value = false
+  expandido.value = false
 }
 
 function navegar(ruta: string): void {
-  abierto.value = false
+  expandido.value = false
   router.push(ruta)
 }
 
@@ -86,7 +77,7 @@ function onEnter(): void {
     concepto: `/conceptos/${resultado.entidadId}`,
     cuenta_presupuestal: '/presupuesto',
     caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
-    agrupacion: '/configuracion/agrupaciones',
+    agrupacion: '/configuracion/agrupacion',
     zona_comun: '/configuracion/zonas-comunes',
   }
   const ruta = rutas[resultado.categoria]
@@ -94,7 +85,7 @@ function onEnter(): void {
 }
 
 function onEscape(): void {
-  abierto.value = false
+  expandido.value = false
   inputRef.value?.blur()
 }
 
@@ -102,7 +93,31 @@ function onAtajoGlobal(evento: KeyboardEvent): void {
   const esCtrlK = (evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === 'k'
   if (!esCtrlK) return
   evento.preventDefault()
-  inputRef.value?.focus()
+  if (expandido.value) {
+    inputRef.value?.focus()
+  } else {
+    expandido.value = true
+    nextTick(() => inputRef.value?.focus())
+  }
+}
+
+function alEntrarMouse(): void {
+  if (!expandido.value) expandido.value = true
+}
+
+function alSalirMouse(): void {
+  if (query.value.trim()) return
+  if (document.activeElement === inputRef.value) return
+  expandido.value = false
+}
+
+function alClickIcono(): void {
+  if (expandido.value) {
+    inputRef.value?.focus()
+  } else {
+    expandido.value = true
+    nextTick(() => inputRef.value?.focus())
+  }
 }
 
 onMounted(() => window.addEventListener('keydown', onAtajoGlobal))
@@ -113,56 +128,77 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="contenedorRef" class="relative flex-1 max-w-xl" @focusout="alPerderFoco">
-    <div
-      class="flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-3.5 pr-1.5 py-1.5 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 dark:focus-within:ring-primary-900 focus-within:bg-white dark:focus-within:bg-gray-900"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="w-4 h-4 text-gray-400 shrink-0">
-        <circle cx="11" cy="11" r="7" />
-        <path d="M21 21l-4.3-4.3" />
-      </svg>
-      <input
-        ref="inputRef"
-        v-model="query"
-        type="text"
-        placeholder="Buscar inmuebles, terceros, documentos…"
-        class="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-gray-400"
-        @input="onInput"
-        @focus="alEnfocar"
-        @keydown.down.prevent="onArrow(1)"
-        @keydown.up.prevent="onArrow(-1)"
-        @keydown.enter.prevent="onEnter"
-        @keydown.esc="onEscape"
+  <div
+    ref="contenedorRef"
+    class="relative flex-1 max-w-xl"
+    @focusout="alPerderFoco"
+    @mouseenter="alEntrarMouse"
+    @mouseleave="alSalirMouse"
+  >
+    <div class="flex items-center">
+      <!-- Lupa DENTRO de la pill, animada junto con el borde -->
+      <div
+        class="flex items-center rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-all duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 dark:focus-within:ring-primary-900 focus-within:bg-white dark:focus-within:bg-gray-900"
+        :class="expandido ? 'w-full' : 'w-9'"
       >
-      <span v-if="!query" class="text-[10.5px] font-mono text-gray-400 border border-gray-300 dark:border-gray-700 rounded px-1.5 py-0.5 shrink-0">
-        Ctrl K
-      </span>
-      <button
-        v-else
-        type="button"
-        class="text-xs text-primary-600 dark:text-primary-400 shrink-0 px-1"
-        @click="limpiar"
-      >
-        Limpiar
-      </button>
-      <select
-        v-model="categoriaSeleccionada"
-        class="text-xs bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-gray-700 pl-2 pr-1 py-1 text-gray-500 outline-none shrink-0"
-        @change="onCambioCategoria"
-      >
-        <option value="todos">Todas las categorías</option>
-        <option value="tercero">Terceros</option>
-        <option value="inmueble">Inmuebles</option>
-        <option value="documento">Documentos</option>
-        <option value="novedad">Novedades</option>
-        <option value="concepto">Conceptos</option>
-        <option value="cuenta_presupuestal">Cuentas presupuestales</option>
-        <option value="caso_juridico">Casos jurídicos</option>
-        <option value="agrupacion">Agrupaciones</option>
-        <option value="zona_comun">Zonas comunes</option>
-      </select>
+        <!-- Lupa: siempre visible, dentro del borde de la pill -->
+        <button
+          type="button"
+          class="flex items-center justify-center size-9 shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          @click="alClickIcono"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="w-4 h-4">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+        </button>
+
+        <!-- Contenido: aparece cuando expandido -->
+        <div class="flex items-center gap-2 min-w-0 pr-1.5 whitespace-nowrap" :class="expandido ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">
+          <input
+            ref="inputRef"
+            v-model="query"
+            type="text"
+            placeholder="Buscar inmuebles, terceros, documentos…"
+            class="flex-1 min-w-0 w-56 bg-transparent outline-none text-sm placeholder:text-gray-400"
+            @input="onInput"
+            @keydown.down.prevent="onArrow(1)"
+            @keydown.up.prevent="onArrow(-1)"
+            @keydown.enter.prevent="onEnter"
+            @keydown.esc="onEscape"
+          >
+          <span v-if="!query" class="text-[10.5px] font-mono text-gray-400 border border-gray-300 dark:border-gray-700 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">
+            Ctrl K
+          </span>
+          <button
+            v-else
+            type="button"
+            class="text-xs text-primary-600 dark:text-primary-400 shrink-0 px-1 whitespace-nowrap"
+            @click="limpiar"
+          >
+            Limpiar
+          </button>
+          <select
+            v-model="categoriaSeleccionada"
+            class="text-xs bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-gray-700 pl-2 pr-1 py-1 text-gray-500 outline-none shrink-0"
+            @change="onCambioCategoria"
+          >
+            <option value="todos">Todas las categorías</option>
+            <option value="tercero">Terceros</option>
+            <option value="inmueble">Inmuebles</option>
+            <option value="documento">Documentos</option>
+            <option value="novedad">Novedades</option>
+            <option value="concepto">Conceptos</option>
+            <option value="cuenta_presupuestal">Cuentas presupuestales</option>
+            <option value="caso_juridico">Casos jurídicos</option>
+            <option value="agrupacion">Agrupaciones</option>
+            <option value="zona_comun">Zonas comunes</option>
+          </select>
+        </div>
+      </div>
     </div>
 
+    <!-- Panel de resultados: fuera del overflow, posicionado absoluto -->
     <BusquedaResultados
       v-if="mostrarPanel"
       :resultados="busquedaStore.resultados"

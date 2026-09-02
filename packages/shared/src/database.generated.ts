@@ -7129,6 +7129,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_platform_admin: boolean
+          navigation_shortcuts: Json
           phone: string | null
           status: Database["public"]["Enums"]["user_status_t"]
           tenant_predeterminado_id: string | null
@@ -7142,6 +7143,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_platform_admin?: boolean
+          navigation_shortcuts?: Json
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status_t"]
           tenant_predeterminado_id?: string | null
@@ -7155,6 +7157,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_platform_admin?: boolean
+          navigation_shortcuts?: Json
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status_t"]
           tenant_predeterminado_id?: string | null
@@ -8315,6 +8318,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_platform_admin: boolean
+          navigation_shortcuts: Json
           phone: string | null
           status: Database["public"]["Enums"]["user_status_t"]
           tenant_predeterminado_id: string | null

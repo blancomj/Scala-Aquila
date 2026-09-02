@@ -545,10 +545,24 @@ async function confirmarEliminar(): Promise<void> {
             <UBadge :color="fila.nivel === 1 ? 'primary' : 'neutral'" variant="subtle" size="sm">
               {{ fila.tipoNombre }}
             </UBadge>
-            <span :class="fila.activa ? '' : 'text-neutral-400 line-through'">{{ fila.nombre }}</span>
+            <button
+              type="button"
+              class="hover:underline hover:text-primary rounded-sm text-left"
+              @click="abrirEdicion(fila)"
+            >
+              <span :class="fila.activa ? '' : 'text-neutral-400 line-through'">{{ fila.nombre }}</span>
+            </button>
             <UBadge v-if="!fila.activa" color="neutral" variant="subtle" size="sm">
               Inactiva
             </UBadge>
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-plus"
+              aria-label="Agregar dentro"
+              class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              @click="abrirNueva(fila.id)"
+            />
           </div>
         </template>
         <template #celda-descripcion="{ fila }">
@@ -571,13 +585,6 @@ async function confirmarEliminar(): Promise<void> {
         </template>
         <template #celda-acciones="{ fila }">
           <div class="flex justify-end gap-1">
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-plus"
-              title="Agregar dentro"
-              @click="abrirNueva(fila.id)"
-            />
             <UButton
               size="xs"
               variant="ghost"

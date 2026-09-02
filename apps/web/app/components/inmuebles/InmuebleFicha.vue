@@ -184,6 +184,10 @@ const tabItems = computed(() =>
                 {{ TIPO_ETIQUETA[inmueble.estado] ?? inmueble.estado }}
               </UBadge>
             </div>
+            <p v-if="nombrePropietario" class="text-sm text-neutral-500 whitespace-nowrap shrink-0 ml-2">
+              <UIcon name="i-lucide-user" class="size-3.5 align-[-2px]" />
+              {{ nombrePropietario }}
+            </p>
           </div>
         </div>
 
@@ -246,10 +250,6 @@ const tabItems = computed(() =>
           class="flex-1 min-w-0"
           @update:model-value="(v) => irATab(v as Tab)"
         />
-        <p v-if="nombrePropietario" class="text-sm text-neutral-500 whitespace-nowrap shrink-0">
-          <UIcon name="i-lucide-user" class="size-3.5 align-[-2px]" />
-          {{ nombrePropietario }}
-        </p>
       </div>
       <p v-if="esCreacion" class="create-hint">
         Disponibles después de guardar: cartera, novedades, liquidaciones, históricos y

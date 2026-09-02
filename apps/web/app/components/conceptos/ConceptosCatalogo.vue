@@ -172,7 +172,18 @@ async function confirmarArchivar(): Promise<void> {
         placeholder="Buscar por código o nombre…"
         size="sm"
         class="w-64"
-      />
+        :ui="{ trailing: 'pr-8' }"
+      >
+        <template v-if="busqueda" #trailing>
+          <button
+            type="button"
+            class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            @click="busqueda = ''"
+          >
+            <UIcon name="i-lucide-x" class="size-3.5" />
+          </button>
+        </template>
+      </UInput>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />

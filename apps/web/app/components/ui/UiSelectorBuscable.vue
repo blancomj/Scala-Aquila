@@ -148,18 +148,33 @@ watch(indiceActivo, (i) => {
       class="selector-buscable-panel"
       :class="variante === 'ficha' ? 'is-ficha' : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg'"
     >
-      <input
-        ref="inputBusquedaRef"
-        v-model="busqueda"
-        type="text"
-        placeholder="Buscar…"
-        class="selector-buscable-busqueda"
-        :class="variante === 'ficha' ? 'is-ficha' : 'border-b border-neutral-200 dark:border-neutral-800 px-2.5 py-1.5 text-sm'"
-        @keydown.down.prevent="onArrow(1)"
-        @keydown.up.prevent="onArrow(-1)"
-        @keydown.enter.prevent="onEnter"
-        @keydown.esc="onEscape"
-      >
+      <div class="relative">
+        <input
+          ref="inputBusquedaRef"
+          v-model="busqueda"
+          type="text"
+          placeholder="Buscar…"
+          class="selector-buscable-busqueda"
+          :class="[
+            variante === 'ficha' ? 'is-ficha' : 'border-b border-neutral-200 dark:border-neutral-800 px-2.5 py-1.5 text-sm',
+            busqueda ? 'pr-7' : '',
+          ]"
+          @keydown.down.prevent="onArrow(1)"
+          @keydown.up.prevent="onArrow(-1)"
+          @keydown.enter.prevent="onEnter"
+          @keydown.esc="onEscape"
+        >
+        <button
+          v-if="busqueda"
+          type="button"
+          class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          @click="busqueda = ''"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
       <ul class="selector-buscable-lista" role="listbox">
         <li
           v-for="(op, i) in opcionesFiltradas"

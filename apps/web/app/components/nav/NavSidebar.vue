@@ -58,7 +58,7 @@ const gruposVisibles = computed(() =>
 )
 
 function activo(to: string): boolean {
-  return route.path === to || route.path.startsWith(`${to}/`)
+  return route.path === to
 }
 
 // Sidebar oscuro fijo (no sigue el tema claro/oscuro de la app, a
@@ -96,7 +96,7 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
     ]"
     @keydown.esc="mobileAbierto = false"
   >
-    <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+    <nav class="flex-1 min-h-0 overflow-y-auto py-3 px-2 space-y-4 sidebar-scroll">
       <div class="space-y-0.5">
         <NuxtLink
           v-for="item in [NAV_INICIO, NAV_COPROPIEDADES]"
@@ -210,6 +210,9 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
       </div>
     </nav>
 
+    <!-- Accesos directos: solo cuando el sidebar está expandido -->
+    <NavShortcuts v-if="!colapsado" />
+
     <button
       type="button"
       class="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 border-t border-slate-800 py-2"
@@ -232,3 +235,23 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
     </button>
   </aside>
 </template>
+
+<style scoped>
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.3);
+  border-radius: 9999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.5);
+}
+</style>

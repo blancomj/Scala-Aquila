@@ -5,6 +5,8 @@
 // actualizarPerfil/subirAvatar, SEC-06) — email es espejo de auth.users,
 // is_platform_admin/status quedan fuera por diseño.
 import { ROL_LABEL } from '~/utils/rol-labels'
+import { useShortcuts } from '~/composables/useShortcuts'
+import { SHORTCUT_ICONOS } from '~/utils/shortcut-icons'
 
 definePageMeta({ layout: 'default' })
 
@@ -264,6 +266,53 @@ async function elegirPredeterminada(tenantId: string): Promise<void> {
     guardandoPredeterminada.value = false
   }
 }
+
+// ── Accesos directos del sidebar ──────────────────────────────────
+const {
+  shortcuts: shortcutsUsuario,
+  itemsDisponibles: shortcutsDisponibles,
+  puedeAgregar: puedeAgregarShortcut,
+  iconoPath: shortcutIconoPath,
+  agregar: agregarShortcut,
+  eliminar: eliminarShortcut,
+  mover: moverShortcut,
+  MAX_SHORTCUTS,
+} = useShortcuts()
+
+const busquedaShortcut = ref('')
+const guardandoShortcut = ref(false)
+const modalShortcutAbierto = ref(false)
+
+const shortcutsFiltrados = computed(() => {
+  const q = busquedaShortcut.value.toLowerCase()
+  return shortcutsDisponibles.value.filter(
+    (item) => item.label.toLowerCase().includes(q) || item.to.toLowerCase().includes(q),
+  )
+})
+
+async function agregarShortcutPerfil(item: { to: string; label: string; icono: string }): Promise<void> {
+  guardandoShortcut.value = true
+  try {
+    await agregarShortcut(item)
+    modalShortcutAbierto.value = false
+    busquedaShortcut.value = ''
+    toast.add({ title: 'Acceso directo agregado.', color: 'success' })
+  } catch (excepcion) {
+    toast.add({ title: mensajeError(excepcion, 'No se pudo agregar.'), color: 'error' })
+  } finally {
+    guardandoShortcut.value = false
+  }
+}
+
+async function eliminarShortcutPerfil(to: string): Promise<void> {
+  guardandoShortcut.value = true
+  try {
+    await eliminarShortcut(to)
+    toast.add({ title: 'Acceso directo eliminado.', color: 'success' })
+  } finally {
+    guardandoShortcut.value = false
+  }
+}
 </script>
 
 <template>
@@ -500,6 +549,123 @@ async function elegirPredeterminada(tenantId: string): Promise<void> {
         </li>
       </ul>
       <UAlert v-if="errorPredeterminada" color="error" variant="soft" :title="errorPredeterminada" class="mt-3" />
+    </div>
+
+    <div class="border-t border-default pt-6">
+      <h2 class="flex items-center gap-3 text-lg font-semibold mb-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-cyan-500 shrink-0">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+        Accesos directos
+      </h2>
+      <p class="text-xs text-muted mb-3">
+        Atajos en el sidebar para llegar rápido a las páginas que más usas. Máximo {{ MAX_SHORTCUTS }}.
+      </p>
+
+      <ul v-if="shortcutsUsuario.length > 0" class="divide-y divide-default border border-default rounded-md mb-3">
+        <li
+          v-for="shortcut in shortcutsUsuario"
+          :key="shortcut.to"
+          class="px-3 py-2.5 flex items-center justify-between gap-3 text-sm"
+        >
+          <div class="flex items-center gap-2.5 min-w-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4 shrink-0 text-cyan-500">
+              <path :d="shortcutIconoPath(shortcut.icono)" />
+            </svg>
+            <span class="truncate">{{ shortcut.label }}</span>
+            <span class="text-xs text-muted truncate hidden sm:inline">{{ shortcut.to }}</span>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-heroicons-arrow-up"
+              :disabled="shortcutsUsuario.indexOf(shortcut) === 0 || guardandoShortcut"
+              @click="moverShortcut(shortcut.to, 'arriba')"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-heroicons-arrow-down"
+              :disabled="shortcutsUsuario.indexOf(shortcut) === shortcutsUsuario.length - 1 || guardandoShortcut"
+              @click="moverShortcut(shortcut.to, 'abajo')"
+            />
+            <UButton
+              size="xs"
+              color="error"
+              variant="ghost"
+              icon="i-heroicons-trash"
+              :disabled="guardandoShortcut"
+              @click="eliminarShortcutPerfil(shortcut.to)"
+            />
+          </div>
+          <span class="truncate text-muted text-xs">{{ shortcut.to }}</span>
+        </li>
+      </ul>
+      <p v-else class="text-xs text-muted mb-3">No tienes accesos directos configurados.</p>
+
+      <UModal v-model:open="modalShortcutAbierto" title="Agregar acceso directo">
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="subtle"
+          :disabled="!puedeAgregarShortcut"
+          icon="i-heroicons-plus"
+          @click="modalShortcutAbierto = true"
+        >
+          Agregar
+        </UButton>
+        <template #content>
+          <div class="p-4">
+            <UInput
+              v-model="busquedaShortcut"
+              placeholder="Buscar página..."
+              class="w-full mb-3"
+              autofocus
+              :ui="{ trailing: 'pr-8' }"
+            >
+              <template v-if="busquedaShortcut" #trailing>
+                <button
+                  type="button"
+                  class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                  @click="busquedaShortcut = ''"
+                >
+                  <UIcon name="i-lucide-x" class="size-3.5" />
+                </button>
+              </template>
+            </UInput>
+            <ul class="max-h-64 overflow-y-auto space-y-0.5">
+              <li v-if="shortcutsFiltrados.length === 0" class="text-sm text-muted py-2">
+                Sin resultados
+              </li>
+              <li
+                v-for="item in shortcutsFiltrados"
+                :key="item.to"
+              >
+                <button
+                  type="button"
+                  class="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-default flex items-center gap-3"
+                  :disabled="guardandoShortcut"
+                  @click="agregarShortcutPerfil(item)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4 shrink-0 text-muted">
+                    <path :d="shortcutIconoPath(item.icono)" />
+                  </svg>
+                  <div class="min-w-0">
+                    <p class="truncate">{{ item.label }}</p>
+                    <p class="text-xs text-muted truncate">{{ item.to }}</p>
+                  </div>
+                </button>
+              </li>
+            </ul>
+            <p class="text-xs text-muted mt-2">
+              {{ shortcutsUsuario.length }}/{{ MAX_SHORTCUTS }}
+            </p>
+          </div>
+        </template>
+      </UModal>
     </div>
   </div>
 </template>
