@@ -30,6 +30,25 @@ type AuditoriaPlan = Database['public']['Tables']['auditoria_planes']['Row']
 type AuditoriaPlanItem = Database['public']['Tables']['auditoria_plan_items']['Row']
 type AuditoriaNormativa = Database['public']['Tables']['auditoria_normativa']['Row']
 
+/** Fila de public.fn_matriz_trazabilidad() — Riesgo→Control→Prueba→Evidencia→Hallazgo→Acción→Seguimiento→Cierre (§91). */
+export interface FilaMatrizTrazabilidad {
+  riesgo_id: string | null
+  riesgo_nombre: string | null
+  riesgo_inherente: number | null
+  control_id: string | null
+  control_nombre: string | null
+  control_automatizado: boolean | null
+  hallazgo_id: string | null
+  hallazgo_proceso: string | null
+  hallazgo_nivel: string | null
+  hallazgo_estado: string | null
+  cerrado: boolean | null
+  pruebas_count: number
+  evidencias_count: number
+  acciones_count: number
+  acciones_abiertas: number
+}
+
 /** Fila de public.fn_sugerir_plan_anual() — señales reales para priorizar el plan (§30). */
 export interface SugerenciaPlanAnual {
   riesgo_id: string
@@ -277,6 +296,20 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     return ejecuciones.value
   }
 
+  /** Ejecuciones (workpapers) de un procedimiento manual — §35. */
+  async function cargarEjecucionesPorProcedimiento(tenantId: string, procedimientoId: string): Promise<AuditoriaEjecucion[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_ejecuciones')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('procedimiento_id', procedimientoId)
+      .order('ejecutado_at', { ascending: false })
+    if (error) throw error
+    ejecuciones.value = data ?? []
+    return ejecuciones.value
+  }
+
   async function registrarEjecucion(
     tenantId: string,
     datos: Omit<AuditoriaEjecucion, 'id' | 'tenant_id' | 'ejecutado_por' | 'created_at' | 'updated_at'>
@@ -309,6 +342,21 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
   }
 
   // ── MUESTRAS ────────────────────────────────────────────────────────────
+  const muestras = shallowRef<AuditoriaMuestra[]>([])
+
+  async function cargarMuestrasPorEjecucion(tenantId: string, ejecucionId: string): Promise<AuditoriaMuestra[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('auditoria_muestras')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('ejecucion_id', ejecucionId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    muestras.value = data ?? []
+    return muestras.value
+  }
+
   async function registrarMuestra(
     tenantId: string,
     datos: Omit<AuditoriaMuestra, 'id' | 'tenant_id' | 'created_by' | 'created_at'>
@@ -320,6 +368,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
       .select()
       .single()
     if (error) throw error
+    muestras.value = [data!, ...muestras.value]
     return data!
   }
 
@@ -545,6 +594,14 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     return (data ?? []) as SugerenciaPlanAnual[]
   }
 
+  // ── MATRIZ DE TRAZABILIDAD (§91) ────────────────────────────────────────
+  async function cargarMatrizTrazabilidad(tenantId: string): Promise<FilaMatrizTrazabilidad[]> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente.rpc('fn_matriz_trazabilidad', { p_tenant_id: tenantId })
+    if (error) throw error
+    return (data ?? []) as FilaMatrizTrazabilidad[]
+  }
+
   // ── NORMATIVA (§65) ─────────────────────────────────────────────────────
   const normativa = shallowRef<AuditoriaNormativa[]>([])
 
@@ -645,6 +702,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     planes.value = []
     planItems.value = []
     normativa.value = []
+    muestras.value = []
   }
 
   return {
@@ -662,6 +720,7 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     planes,
     planItems,
     normativa,
+    muestras,
     estadisticas,
     riesgoSeleccionado,
 
@@ -689,7 +748,9 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
 
     // ejecuciones / muestras
     cargarEjecucionesPorEngagement,
+    cargarEjecucionesPorProcedimiento,
     registrarEjecucion,
+    cargarMuestrasPorEjecucion,
     registrarMuestra,
     ejecutarControlAutomatico,
 
@@ -715,6 +776,9 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     crearPlanItem,
     eliminarPlanItem,
     sugerirPlanAnual,
+
+    // matriz de trazabilidad
+    cargarMatrizTrazabilidad,
 
     // normativa
     cargarNormativaPorEngagement,

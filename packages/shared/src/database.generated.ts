@@ -974,10 +974,12 @@ export type Database = {
       }
       auditoria_ejecuciones: {
         Row: {
+          conclusion: string | null
           created_at: string
           ejecutado_at: string
           ejecutado_por: string | null
           engagement_id: string
+          evidencia: string[] | null
           id: string
           observaciones: string | null
           origen: string
@@ -987,10 +989,12 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          conclusion?: string | null
           created_at?: string
           ejecutado_at?: string
           ejecutado_por?: string | null
           engagement_id: string
+          evidencia?: string[] | null
           id?: string
           observaciones?: string | null
           origen?: string
@@ -1000,10 +1004,12 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          conclusion?: string | null
           created_at?: string
           ejecutado_at?: string
           ejecutado_por?: string | null
           engagement_id?: string
+          evidencia?: string[] | null
           id?: string
           observaciones?: string | null
           origen?: string
@@ -1652,6 +1658,7 @@ export type Database = {
           control_id: string
           created_at: string
           created_by: string
+          criterio: string
           criterio_muestreo: string | null
           id: string
           nombre: string
@@ -1664,6 +1671,7 @@ export type Database = {
           control_id: string
           created_at?: string
           created_by: string
+          criterio: string
           criterio_muestreo?: string | null
           id?: string
           nombre: string
@@ -1676,6 +1684,7 @@ export type Database = {
           control_id?: string
           created_at?: string
           created_by?: string
+          criterio?: string
           criterio_muestreo?: string | null
           id?: string
           nombre?: string
@@ -9244,6 +9253,26 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      fn_matriz_trazabilidad: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          acciones_abiertas: number
+          acciones_count: number
+          cerrado: boolean
+          control_automatizado: boolean
+          control_id: string
+          control_nombre: string
+          evidencias_count: number
+          hallazgo_estado: string
+          hallazgo_id: string
+          hallazgo_nivel: string
+          hallazgo_proceso: string
+          pruebas_count: number
+          riesgo_id: string
+          riesgo_inherente: number
+          riesgo_nombre: string
+        }[]
       }
       fn_panel_acciones_cartera: {
         Args: { p_fecha_referencia: string; p_tenant_id: string }
