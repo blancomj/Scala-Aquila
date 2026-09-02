@@ -100,6 +100,18 @@ async function crearEngagementFixture(admin: Cliente, tenantId: string, creadoPo
   return data.id
 }
 
+async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', tipo)
+    .eq('codigo', codigo)
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture lista_tipos ${tipo}.${codigo}: ${error.message}`)
+  return data.id
+}
+
 d('Controles automáticos — Continuous Control Monitoring', () => {
   const admin = clienteAdmin(env!)
 
@@ -316,5 +328,230 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     await eliminarTenant(admin, tenantB.id)
     await eliminarUsuario(admin, auditorA.id)
     await eliminarUsuario(admin, auditorB.id)
+  }, 30_000)
+
+  it('CARTERA_ANTICIPOS_SIN_APLICAR: detecta un pago con remanente sin aplicar desde hace más de 30 días', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-anticipo')
+    const tenant = await crearTenant(admin, 'ccm-anticipo', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const inmueble = await crearInmuebleFixture(admin, tenant.id)
+    const formaPagoId = await listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'CARTERA_ANTICIPOS_SIN_APLICAR')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const fechaAntigua = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const { error: errorPago } = await admin.from('pagos').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmueble,
+      monto: 100000,
+      fecha_pago: fechaAntigua,
+      forma_pago_id: formaPagoId,
+    })
+    if (errorPago) throw new Error(errorPago.message)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]
+    expect(resultado.resultado).toBe('FAIL')
+    expect(resultado.conteo).toBe(1)
+
+    const { data: hallazgo } = await admin
+      .from('auditoria_hallazgos')
+      .select('nivel')
+      .eq('id', resultado.hallazgo_id!)
+      .single()
+    expect(hallazgo?.nivel).toBe('MEDIO')
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('CARTERA_ANTICIPOS_SIN_APLICAR: un pago reciente o ya aplicado no cuenta como excepción', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-anticipo-limpio')
+    const tenant = await crearTenant(admin, 'ccm-anticipo-limpio', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const inmueble = await crearInmuebleFixture(admin, tenant.id)
+    const formaPagoId = await listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'CARTERA_ANTICIPOS_SIN_APLICAR')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const { error: errorPago } = await admin.from('pagos').insert({
+      tenant_id: tenant.id,
+      inmueble_id: inmueble,
+      monto: 100000,
+      fecha_pago: new Date().toISOString().slice(0, 10),
+      forma_pago_id: formaPagoId,
+    })
+    if (errorPago) throw new Error(errorPago.message)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('BANCOS_CONCILIACION_PENDIENTE: detecta una línea de extracto sin conciliar hace más de 15 días', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-banco')
+    const tenant = await crearTenant(admin, 'ccm-banco', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'BANCOS_CONCILIACION_PENDIENTE')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const sello = String(Date.now())
+    const { data: extracto, error: errorExtracto } = await admin
+      .from('extracto_bancario')
+      .insert({
+        tenant_id: tenant.id,
+        nombre_archivo: 'extracto-prueba.csv',
+        hash_archivo: `hash-extracto-${sello}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorExtracto) throw new Error(errorExtracto.message)
+
+    const fechaAntigua = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const { error: errorLinea } = await admin.from('extracto_linea').insert({
+      extracto_id: extracto.id,
+      tenant_id: tenant.id,
+      fecha_movimiento: fechaAntigua,
+      monto: 250000,
+      descripcion_banco: 'Consignación sin identificar',
+      hash_linea: `hash-linea-${sello}`,
+    })
+    if (errorLinea) throw new Error(errorLinea.message)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]
+    expect(resultado.resultado).toBe('FAIL')
+    expect(resultado.conteo).toBe(1)
+
+    const { data: hallazgo } = await admin
+      .from('auditoria_hallazgos')
+      .select('nivel')
+      .eq('id', resultado.hallazgo_id!)
+      .single()
+    expect(hallazgo?.nivel).toBe('MEDIO')
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('TERCEROS_PROVEEDOR_DUPLICADO: reporta como REVIEW un mismo documento con dos tipos de identificación, nunca crea hallazgo', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-proveedor')
+    const tenant = await crearTenant(admin, 'ccm-proveedor', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'TERCEROS_PROVEEDOR_DUPLICADO')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const tipoCedula = await listaTipoId(admin, 'TIPO_IDENTIFICACION', 'cedula')
+    const tipoNit = await listaTipoId(admin, 'TIPO_IDENTIFICACION', 'nit')
+    const estadoActivo = await listaTipoId(admin, 'ESTADO_TERCERO', 'activo')
+    const rolProveedor = await listaTipoId(admin, 'PERSONA_COPROPIEDAD', 'proveedor')
+    const sello = String(Date.now())
+
+    const { data: terceroA, error: errorA } = await admin
+      .from('terceros')
+      .insert({
+        tenant_id: tenant.id,
+        tipo_identificacion_id: tipoCedula,
+        numero_documento: sello,
+        tipo_persona: 'natural',
+        primer_nombre: 'Proveedor',
+        primer_apellido: 'DuplicadoA',
+        email: `prov-a-${sello}@example.test`,
+        estado_id: estadoActivo,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorA) throw new Error(`fixture terceroA: ${errorA.message}`)
+
+    const { data: terceroB, error: errorB } = await admin
+      .from('terceros')
+      .insert({
+        tenant_id: tenant.id,
+        tipo_identificacion_id: tipoNit,
+        numero_documento: sello,
+        tipo_persona: 'juridica',
+        razon_social: 'Proveedor Duplicado B S.A.S.',
+        email: `prov-b-${sello}@example.test`,
+        estado_id: estadoActivo,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorB) throw new Error(`fixture terceroB: ${errorB.message}`)
+
+    for (const terceroId of [terceroA.id, terceroB.id]) {
+      const { error: errorRol } = await admin.from('tenant_tercero_rol').insert({
+        tenant_id: tenant.id,
+        tercero_id: terceroId,
+        rol_id: rolProveedor,
+        vigente_desde: '2026-01-01',
+      })
+      if (errorRol) throw new Error(`fixture tenant_tercero_rol: ${errorRol.message}`)
+    }
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]
+    expect(resultado.resultado).toBe('REVIEW')
+    expect(resultado.conteo).toBe(1)
+    expect(resultado.hallazgo_id).toBeNull()
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('GUARDAS_INMUTABILIDAD_DESHABILITADAS: sobre el estado real de la base, PASS y no crea hallazgo', async () => {
+    // No se induce el FAIL desde este test: forzarlo requeriría deshabilitar
+    // de verdad un trigger de inmutabilidad (cargos_append_only, etc.) sobre
+    // la base compartida de desarrollo, el mismo riesgo operativo por el que
+    // CARTERA_SOBREAPLICACION tampoco fuerza su propio guard aquí. Este test
+    // sí confirma que la consulta corre y que, con las guardas intactas
+    // (el estado real de este proyecto), el resultado es el esperado.
+    const auditor = await crearUsuario(admin, 'ccm-guardas')
+    const tenant = await crearTenant(admin, 'ccm-guardas', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'GUARDAS_INMUTABILIDAD_DESHABILITADAS')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+    expect(resultado.hallazgo_id).toBeNull()
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
   }, 30_000)
 })

@@ -34,6 +34,10 @@ export const CONTROLES_AUTOMATICOS = [
   { value: 'PRESUPUESTO_VIGENTE_SIN_RUBROS', label: 'Presupuesto vigente sin rubros' },
   { value: 'CONTABILIDAD_DESCUADRE', label: 'Descuadre / parametrización contable pendiente' },
   { value: 'SEGURIDAD_CAMBIOS_PRIVILEGIOS', label: 'Cambios de rol o privilegio (informativo)' },
+  { value: 'CARTERA_ANTICIPOS_SIN_APLICAR', label: 'Anticipos de cartera sin aplicar (+30 días)' },
+  { value: 'BANCOS_CONCILIACION_PENDIENTE', label: 'Conciliación bancaria pendiente (+15 días)' },
+  { value: 'TERCEROS_PROVEEDOR_DUPLICADO', label: 'Proveedor con documento duplicado (informativo)' },
+  { value: 'GUARDAS_INMUTABILIDAD_DESHABILITADAS', label: 'Guardas de inmutabilidad deshabilitadas' },
 ] as const
 
 export interface ResultadoEjecucionControl {
