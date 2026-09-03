@@ -7,6 +7,7 @@
  * del maker-checker vivan en la base y no en la interfaz. Un botón
  * deshabilitado es una cortesía; el trigger es la barrera.
  */
+import type { Database } from '@aquila/shared'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   clienteAdmin,
@@ -76,7 +77,7 @@ d('CAR §23.5 — bandeja de acciones de cobranza', () => {
 
   async function crearAccion(
     inmuebleId: string,
-    tipoAccion: string,
+    tipoAccion: Database['public']['Tables']['acciones_cobranza']['Insert']['tipo_accion'],
     estado: 'programada' | 'pendiente_aprobacion',
     diasMora: number,
   ): Promise<string> {

@@ -142,3 +142,33 @@ export function clienteAnonimo(env: Entorno): Cliente {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
+
+/**
+ * Id de una fila global del catálogo `lista_tipos` (las que tienen
+ * `tenant_id is null`).
+ *
+ * Vivía duplicado dentro de auditoria-controles-automaticos.test.ts. Se sube
+ * aquí porque `pagos.forma_pago_id` pasó a NOT NULL
+ * (20260903100000_pagos_medio_recaudo.sql:126) y cuatro suites seguían
+ * insertando pagos sin él: la fixture necesita resolver el id de la forma de
+ * pago, y eso no se puede hardcodear —`lista_tipos.id` es un bigint de
+ * secuencia, distinto en cada base—.
+ */
+export async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', tipo)
+    .eq('codigo', codigo)
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture lista_tipos ${tipo}.${codigo}: ${error.message}`)
+  return data.id
+}
+
+/** Forma de pago «efectivo»: la única que no arrastra cuenta bancaria, así que
+ * es la fixture correcta para pruebas que no tratan sobre el medio de recaudo
+ * (efectivo debita CAJA_GENERAL; cualquier otra exige identificar el banco). */
+export async function formaPagoEfectivo(admin: Cliente): Promise<number> {
+  return listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
+}

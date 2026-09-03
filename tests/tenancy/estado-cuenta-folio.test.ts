@@ -14,6 +14,7 @@
  * auditoría) se valida post-despliegue; los helpers puros que usa están
  * cubiertos por deno test en supabase/functions/_shared/*.test.ts.
  */
+import type { Json } from '@aquila/shared'
 import { afterAll, describe, expect, it } from 'vitest'
 import 'dotenv/config'
 import {
@@ -39,7 +40,9 @@ if (!env) {
 
 const FOLIO_RE = /^EDC-\d{6}-\d{6}$/
 
-function datosEjemplo(inmuebleCodigo: string): Record<string, unknown> {
+/** Rama de objeto de `Json`: asignable a la columna jsonb y además
+ * esparcible, cosa que la unión completa no permite. */
+function datosEjemplo(inmuebleCodigo: string): { [clave: string]: Json | undefined } {
   return {
     tenant_nombre: 'Copropiedad Test',
     tenant_nit: null,

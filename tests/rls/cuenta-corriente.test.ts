@@ -13,6 +13,7 @@ import {
   clienteAdmin,
   clienteComo,
   crearMembership,
+  formaPagoEfectivo,
   crearTenant,
   crearUsuario,
   eliminarTenant,
@@ -136,6 +137,7 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
   let agenteB: UsuarioPrueba
   let tenantA: TenantPrueba
   let tenantB: TenantPrueba
+  let formaPagoId: number
   let clienteAgentA: Cliente
   let clienteAuditorA: Cliente
   let clienteAgentB: Cliente
@@ -143,6 +145,7 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
   let cargoAId: string
 
   beforeAll(async () => {
+    formaPagoId = await formaPagoEfectivo(admin)
     agenteA = await crearUsuario(admin, 'cc-agent-a')
     auditorA = await crearUsuario(admin, 'cc-auditor-a')
     agenteB = await crearUsuario(admin, 'cc-agent-b')
@@ -210,6 +213,8 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
       inmueble_id: inmuebleAId,
       monto: 1000,
       fecha_pago: '2027-01-15',
+      fecha_registro: '2027-01-15',
+      forma_pago_id: formaPagoId,
     }
     const { error: errAgent } = await clienteAgentA.from('pagos').insert(filaPago)
     expect(errAgent).not.toBeNull()
@@ -237,6 +242,8 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
         inmueble_id: inmuebleAId,
         monto: 200_000,
         fecha_pago: '2027-01-15',
+        fecha_registro: '2027-01-15',
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()
@@ -259,6 +266,8 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
         inmueble_id: inmuebleAId,
         monto: 40_000,
         fecha_pago: '2027-01-16',
+        fecha_registro: '2027-01-16',
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()

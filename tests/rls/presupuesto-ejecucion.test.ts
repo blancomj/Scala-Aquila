@@ -261,7 +261,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('agent A puede registrar e insertar un movimiento en su tenant', async () => {
     const { data, error } = await clienteAgentA
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 100 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 100, liquidacion: 'pagado_caja' })
       .select('id')
       .single()
     expect(error).toBeNull()
@@ -287,7 +287,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
 
     const escritura = await clienteAuditorA
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 50 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 50, liquidacion: 'pagado_caja' })
     expect(escritura.error).not.toBeNull()
   })
 
@@ -298,6 +298,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: '00000000-0000-0000-0000-000000000000',
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_INEXISTENTE/)
   })
@@ -308,6 +309,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoB.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_TENANT_INCONSISTENTE/)
   })
@@ -321,6 +323,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: grupo.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_NO_ES_HOJA/)
   })
@@ -331,6 +334,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: '00000000-0000-0000-0000-000000000000',
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/PERIODO_INEXISTENTE/)
   })
@@ -341,6 +345,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoB,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/PERIODO_TENANT_INCONSISTENTE/)
   })
@@ -413,6 +418,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: hoja.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_CONCEPTO_AUTOMATICO/)
   })
@@ -480,6 +486,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/REVERSION_SIN_ORIGEN/)
   })
@@ -490,6 +497,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: '00000000-0000-0000-0000-000000000000',
     })
     expect(error?.message).toMatch(/MOVIMIENTO_INEXISTENTE/)
@@ -498,7 +506,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('MOVIMIENTO_TENANT_INCONSISTENTE: no se puede revertir un movimiento de otro tenant', async () => {
     const { data: movimientoB } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantB.id, cuenta_id: cuentaEgresoB.id, periodo_id: periodoB, monto: 500 })
+      .insert({ tenant_id: tenantB.id, cuenta_id: cuentaEgresoB.id, periodo_id: periodoB, monto: 500, liquidacion: 'pagado_caja' })
       .select('id')
       .single<{ id: string }>()
 
@@ -507,6 +515,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: movimientoB!.id,
     })
     expect(error?.message).toMatch(/MOVIMIENTO_TENANT_INCONSISTENTE/)
@@ -516,7 +525,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     const otraCuenta = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'egreso', codigo: 'pej-otra-cuenta' })
     const { data: original } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 200 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 200, liquidacion: 'pagado_caja' })
       .select('id')
       .single<{ id: string }>()
 
@@ -525,6 +534,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: otraCuenta.id,
       periodo_id: periodoA,
       monto: -200,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: original!.id,
     })
     expect(error?.message).toMatch(/REVERSION_CUENTA_DISTINTA/)
@@ -534,7 +544,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     const cuenta = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'egreso', codigo: 'pej-reversion-ok' })
     const { data: original, error: errOriginal } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuenta.id, periodo_id: periodoA, monto: 300 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuenta.id, periodo_id: periodoA, monto: 300, liquidacion: 'pagado_caja' })
       .select('id')
       .single<{ id: string }>()
     expect(errOriginal).toBeNull()
@@ -544,6 +554,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuenta.id,
       periodo_id: periodoA,
       monto: -300,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: original!.id,
     })
     expect(errReversion).toBeNull()
@@ -561,7 +572,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('APPEND_ONLY: no admite UPDATE mientras el tenant existe', async () => {
     const { data: movimiento } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10, liquidacion: 'pagado_caja' })
       .select('id')
       .single<{ id: string }>()
 
@@ -575,7 +586,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('APPEND_ONLY: no admite DELETE mientras el tenant existe', async () => {
     const { data: movimiento } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10, liquidacion: 'pagado_caja' })
       .select('id')
       .single<{ id: string }>()
 

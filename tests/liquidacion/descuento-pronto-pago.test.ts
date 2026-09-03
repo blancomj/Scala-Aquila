@@ -21,6 +21,7 @@ import 'dotenv/config'
 import {
   clienteAdmin,
   crearMembership,
+  formaPagoEfectivo,
   crearTenant,
   crearUsuario,
   eliminarTenant,
@@ -45,9 +46,11 @@ const FECHA_VENCIMIENTO = '2031-01-10'
 d('Descuento por pronto pago (D3)', () => {
   const admin = clienteAdmin(env!)
   let creador: UsuarioPrueba
+  let formaPagoId: number
   const tenants: TenantPrueba[] = []
 
   beforeAll(async () => {
+    formaPagoId = await formaPagoEfectivo(admin)
     creador = await crearUsuario(admin, 'd3-creador')
   })
 
@@ -205,6 +208,8 @@ d('Descuento por pronto pago (D3)', () => {
         inmueble_id: fixture.inmuebleId,
         monto,
         fecha_pago: fechaPago,
+        fecha_registro: fechaPago,
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()
@@ -241,7 +246,7 @@ d('Descuento por pronto pago (D3)', () => {
 
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
   })
 
   it('saldo_a_favor: pagar solo el neto NO alcanza — hay que cubrir la cuota completa', async () => {
@@ -265,7 +270,7 @@ d('Descuento por pronto pago (D3)', () => {
 
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
   })
 
   it('fuera del plazo: cubrir el neto después del tope no emite descuento', async () => {
@@ -301,7 +306,7 @@ d('Descuento por pronto pago (D3)', () => {
     await pagar(admin, fixture, 45_000, '2031-01-05')
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
 
     // Un tercer pago (p.ej. el residual que cubre lo que falta del capital
     // completo) no debe duplicar el descuento — not exists en

@@ -37,6 +37,7 @@ import {
   clienteAdmin,
   clienteComo,
   crearMembership,
+  formaPagoEfectivo,
   crearTenant,
   crearUsuario,
   eliminarTenant,
@@ -150,7 +151,14 @@ async function crearPoliticaFinancieraVigente(admin: Cliente, tenantId: string):
 /** Cargo llevado a saldo 0 con un único pago — fixture de Average Days to Recovery. */
 async function crearCargoSaldado(
   admin: Cliente,
-  opciones: { tenantId: string; inmuebleId: string; fechaVencimiento: string; montoOriginal: number; fechaPago: string },
+  opciones: {
+    tenantId: string
+    inmuebleId: string
+    fechaVencimiento: string
+    montoOriginal: number
+    fechaPago: string
+    formaPagoId: number
+  },
 ): Promise<void> {
   const { data: periodo, error: errPeriodo } = await admin
     .from('periodos')
@@ -217,7 +225,7 @@ async function crearCargoSaldado(
   if (errCargo) throw new Error(`fixture cargo (cargo saldado): ${errCargo.message}`)
   const { data: pago, error: errPago } = await admin
     .from('pagos')
-    .insert({ tenant_id: opciones.tenantId, inmueble_id: opciones.inmuebleId, monto: opciones.montoOriginal, fecha_pago: opciones.fechaPago })
+    .insert({ tenant_id: opciones.tenantId, inmueble_id: opciones.inmuebleId, monto: opciones.montoOriginal, fecha_pago: opciones.fechaPago, forma_pago_id: opciones.formaPagoId })
     .select('id')
     .single<{ id: string }>()
   if (errPago) throw new Error(`fixture pago (cargo saldado): ${errPago.message}`)
@@ -229,6 +237,7 @@ async function crearCargoSaldado(
 
 d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
   const admin = clienteAdmin(env!)
+  let formaPagoId: number
   let agente: UsuarioPrueba
   let administrador: UsuarioPrueba
   let tenant: TenantPrueba
@@ -247,6 +256,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
   })
 
   it('setup', async () => {
+    formaPagoId = await formaPagoEfectivo(admin)
     agente = await crearUsuario(admin, 'ci-agent')
     administrador = await crearUsuario(admin, 'ci-admin')
     tenant = await crearTenant(admin, 'ci', agente.id)
@@ -344,7 +354,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     // Recovery Rate: pago aplicado DENTRO del período a un cargo vencido AL INICIO del período.
     const { data: pago, error: errPago } = await admin
       .from('pagos')
-      .insert({ tenant_id: tenant.id, inmueble_id: inmuebleRealId, monto: 40_000, fecha_pago: '2026-02-15' })
+      .insert({ tenant_id: tenant.id, inmueble_id: inmuebleRealId, monto: 40_000, fecha_pago: '2026-02-15', forma_pago_id: formaPagoId })
       .select('id')
       .single<{ id: string }>()
     if (errPago) throw new Error(`fixture pago: ${errPago.message}`)
@@ -572,6 +582,7 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
       fechaVencimiento: '2026-02-05',
       montoOriginal: 30_000,
       fechaPago: '2026-02-20',
+      formaPagoId,
     })
   }, 30_000)
 

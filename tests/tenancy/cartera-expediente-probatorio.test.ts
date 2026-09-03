@@ -16,6 +16,7 @@
  * existen — I-C23 en la función de escalamiento y fn_compilar_expediente
  * de §34.5 — y se prueban cuando se construyan.
  */
+import type { Database } from '@aquila/shared'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   clienteAdmin,
@@ -85,7 +86,7 @@ d('CAR §34 — expediente probatorio: envíos, acuses y acreditación', () => {
   })
 
   /** Crea una acción de cobranza mínima con contexto congelado válido. */
-  async function crearAccion(tipoAccion: string, fechaProgramada = '2026-02-15'): Promise<string> {
+  async function crearAccion(tipoAccion: Database['public']['Tables']['acciones_cobranza']['Insert']['tipo_accion'], fechaProgramada = '2026-02-15'): Promise<string> {
     const { data, error } = await admin
       .from('acciones_cobranza')
       .insert({

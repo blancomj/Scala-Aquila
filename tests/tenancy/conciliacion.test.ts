@@ -142,7 +142,6 @@ d('conciliación bancaria (Edge Functions)', () => {
   let agente: UsuarioPrueba
   let auditor: UsuarioPrueba
   let clienteAgent: Cliente
-  let clienteAuditor: Cliente
   let ctx: ContextoTenant
 
   beforeAll(async () => {
@@ -153,7 +152,6 @@ d('conciliación bancaria (Edge Functions)', () => {
     await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
-    clienteAuditor = await clienteComo(env!, auditor)
 
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({
       tenant_id: tenant.id,

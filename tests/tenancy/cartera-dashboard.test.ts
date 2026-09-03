@@ -18,6 +18,7 @@ import {
   clienteAdmin,
   clienteComo,
   crearMembership,
+  formaPagoEfectivo,
   crearTenant,
   crearUsuario,
   eliminarTenant,
@@ -146,6 +147,7 @@ d('cartera-dashboard (Edge Function, CAR §23.1/§23.2)', () => {
   let agenteOtro: UsuarioPrueba
   let tenant: TenantPrueba
   let tenantOtro: TenantPrueba
+  let formaPagoId: number
   let clienteAgent: Cliente
   let clienteAgentOtro: Cliente
   let inmueble1Id: string
@@ -161,6 +163,7 @@ d('cartera-dashboard (Edge Function, CAR §23.1/§23.2)', () => {
   })
 
   it('setup', async () => {
+    formaPagoId = await formaPagoEfectivo(admin)
     agente = await crearUsuario(admin, 'cd-agent')
     agenteOtro = await crearUsuario(admin, 'cd-agent-otro')
     tenant = await crearTenant(admin, 'cd', agente.id)
@@ -201,7 +204,7 @@ d('cartera-dashboard (Edge Function, CAR §23.1/§23.2)', () => {
     // inmueble2: sobrepago sin aplicar → saldo_credito.
     const { error: errPago } = await admin
       .from('pagos')
-      .insert({ tenant_id: tenant.id, inmueble_id: inmueble2Id, monto: 50_000, fecha_pago: '2026-02-01' })
+      .insert({ tenant_id: tenant.id, inmueble_id: inmueble2Id, monto: 50_000, fecha_pago: '2026-02-01', forma_pago_id: formaPagoId })
     if (errPago) throw new Error(`fixture pago: ${errPago.message}`)
   }, 30_000)
 

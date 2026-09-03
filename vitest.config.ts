@@ -36,6 +36,17 @@ export default defineConfig({
       'apps/web/app/**/*.{test,spec}.ts',
     ],
     setupFiles: ['tests/setup/nuxt-auto-imports.ts'],
+    // El default de Vitest son 5 s, pensado para pruebas en memoria. La mayor
+    // parte de esta suite habla con un Supabase REMOTO (D-08), donde un caso
+    // normal tarda 3-4,5 s: con 5 s el resultado depende de la latencia de la
+    // red, no del código. Ya había 245 pruebas declarando `}, 30_000` a mano y
+    // 71 con 60_000 — la convención existía, solo que aplicada una por una, y
+    // las que se olvidaron quedaban intermitentes (visto en
+    // presupuesto-ejecucion: mismos casos pasando y fallando entre corridas).
+    // Se sube el default a esa misma cifra; quien necesite más sigue teniendo
+    // su override explícito.
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
     // Los tests RLS golpean un proyecto Supabase remoto (D-08): en serie,
     // para que dos runs paralelos no se pisen los fixtures.
     fileParallelism: false,
