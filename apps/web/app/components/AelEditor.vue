@@ -49,6 +49,14 @@ function codigosConceptos(): readonly string[] {
   return props.conceptosDisponibles ?? []
 }
 
+/** Texto del hover y del autocompletado para cada contrato. UNIT decía «sin
+ * datos cableados en liquidar-periodo todavía (D-13)», que además de jerga era
+ * FALSO: D-13 se revirtió y snapshot-supabase.ts sí puebla área y coeficiente
+ * por inmueble (ver cabecera de ael-catalogo.ts). */
+const INFO_PARAMETER = 'Valores que salen del presupuesto y la política vigentes de la copropiedad.'
+const INFO_UNIT = 'Datos del inmueble que se está liquidando: áreas y coeficiente.'
+const INFO_CONCEPTO = 'El resultado de otro concepto ya calculado en este mismo periodo.'
+
 const CONTRATOS = ['PARAMETER', 'UNIT', 'CONCEPTO'] as const
 type NombreContrato = (typeof CONTRATOS)[number]
 
@@ -105,17 +113,17 @@ function fuenteAutocompletado(context: CompletionContext): CompletionResult | nu
     {
       label: 'PARAMETER',
       type: 'namespace',
-      info: 'Parámetros derivados del presupuesto/política vigente.',
+      info: INFO_PARAMETER,
     },
     {
       label: 'UNIT',
       type: 'namespace',
-      info: 'Campos del inmueble — sin datos cableados en liquidar-periodo todavía (D-13).',
+      info: INFO_UNIT,
     },
     {
       label: 'CONCEPTO',
       type: 'namespace',
-      info: 'Resultado de otro concepto ya evaluado en este periodo.',
+      info: INFO_CONCEPTO,
     },
   ]
   return { from: palabra.from, options: opciones }
@@ -158,10 +166,10 @@ function crearHoverTooltip() {
         (CONTRATOS as readonly string[]).includes(token.lexema)
       ) {
         if (token.lexema === 'PARAMETER')
-          texto = 'Parámetros derivados del presupuesto/política vigente.'
+          texto = INFO_PARAMETER
         else if (token.lexema === 'UNIT')
-          texto = 'Campos del inmueble — sin datos cableados en liquidar-periodo todavía (D-13).'
-        else texto = 'Resultado de otro concepto ya evaluado en este periodo.'
+          texto = INFO_UNIT
+        else texto = INFO_CONCEPTO
       } else if (token.lexema in FUNCIONES_CATALOGO) {
         const f = FUNCIONES_CATALOGO[token.lexema]!
         texto = `${f.firma} — ${f.descripcion}`
@@ -289,6 +297,6 @@ defineExpose({ irAPosicion, insertarTexto })
 <template>
   <div
     ref="contenedor"
-    class="rounded-md border border-gray-300 dark:border-gray-700 overflow-hidden"
+    class="rounded-md border border-neutral-300 dark:border-neutral-700 overflow-hidden"
   />
 </template>

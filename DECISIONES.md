@@ -1246,3 +1246,142 @@ explícitamente):**
 ✗ PayU, ePayco, Bold — siguen en NO_IMPLEMENTADO, como exige §0 del prompt
 ```
 
+
+## D-33 — Tests de componente Vue con Vitest, sin levantar Nuxt
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | AEL-004 Fase 8 (revisión del constructor visual)   |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (pregunta explícita, opción "environmentMatchGlob") |
+
+**Contexto.** El monorepo no tenía **ninguna** infraestructura para montar un
+`.vue` en un test: ni `@vue/test-utils`, ni un entorno DOM, ni
+`@vitejs/plugin-vue` declarados en ningún `package.json`, y ningún test
+montaba un componente. La cobertura del 80 % se cumple sobre `packages/*/src`
+y `apps/web/app/types/permissions.ts` — los `.vue` quedan fuera de
+`coverage.include`, así que el render nunca estuvo cubierto.
+
+El rediseño del constructor visual de fórmulas (Fase 8) reescribe la
+presentación de cuatro componentes. Hacerlo sin red es exactamente donde se
+cuelan las regresiones, así que la infraestructura se monta **antes** del
+primer cambio de presentación.
+
+**Decisión.**
+
+1. Cuatro devDependencies en la raíz: `@vue/test-utils`, `happy-dom`,
+   `@vitejs/plugin-vue` y `vue` (esta última porque con pnpm estricto el
+   código de la raíz no resuelve `vue` desde `apps/web`). Se fija
+   `@vitejs/plugin-vue@^5` para emparejar con el Vite 5 que trae Vitest 2 —
+   `apps/web` corre sobre Vite 8 vía Nuxt, pero ese árbol es independiente.
+2. `vitest.config.ts` gana `plugins: [vue()]` y el alias `~`/`@` →
+   `apps/web/app`, replicando el `srcDir` de Nuxt 4.
+3. **No** se usa `@nuxt/test-utils`: arranca un Nuxt por suite y estos son
+   tests unitarios de render, no de integración con el runtime de Nuxt.
+4. Los auto-imports de Nuxt se cubren con un puente mínimo
+   (`tests/setup/nuxt-auto-imports.ts`) que expone **solo** las APIs de Vue
+   que esos SFC usan sin importar (`computed`, `inject`, `provide`…). No se
+   replican composables de Nuxt (`useState`, `useRoute`): su comportamiento
+   depende del runtime y un test unitario no debe fingirlo.
+
+**Desvío respecto de lo aprobado.** Se aprobó acotar el entorno DOM con
+`environmentMatchGlob`. No funciona en este repo: Vitest compara el patrón
+contra la **ruta absoluta** del archivo, que en Windows lleva `\`, así que
+ningún glob con `/` matchea — el test cae en el entorno `node` por defecto y
+falla con `document is not defined` sin explicar la causa. Se usa en su lugar
+el docblock por archivo `// @vitest-environment happy-dom`, que consigue el
+mismo alcance acotado (el entorno por defecto sigue siendo `node` para
+`packages/`, `tests/` y `apps/web/app/utils/`) sin depender del separador de
+rutas. El puente de auto-imports se guarda con `typeof globalThis.window` para
+quedar inerte fuera del DOM: los tests en `node` no ven ningún global nuevo y
+no pueden empezar a depender de él por accidente.
+
+**Consecuencia.** Un test de componente nuevo necesita el docblock en su
+primera línea. Si falta, falla con `document is not defined` — mensaje
+suficientemente característico como para no perder tiempo.
+
+## D-34 — La tabla de precedencia del lienzo se contrasta contra el printer real
+
+|            |                                                  |
+| ---------- | ------------------------------------------------ |
+| **Fase**   | AEL-004 Fase 8 (movimiento 01)                   |
+| **Estado** | Aceptada                                         |
+| **Decide** | Agente (consecuencia técnica del movimiento 01)  |
+
+**Contexto.** El constructor visual dibujaba toda `ExpresionBinaria` plana,
+con la misma separación a cualquier profundidad: `(a - b) / 12` y
+`a - (b / 12)` se leían igual. El anidamiento **sí** estaba en el DOM —cada
+binaria envuelve a sus operandos— pero ese envoltorio no tenía borde, fondo ni
+relleno, así que era invisible. En solo lectura, además, el diff de versiones
+(`AelBlockInstruccionDiff`, que reutiliza `AelBlockExpresion` en `readonly`)
+no podía mostrar un cambio de agrupamiento: marcaba la instrucción en ámbar
+sobre dos líneas indistinguibles, en la pantalla donde se aprueba o rechaza.
+
+**Decisión.** El lienzo encajona un operando exactamente cuando
+`imprimirOperando()` de `packages/ael-language/src/printer.ts` pondría un
+paréntesis — misma tabla de precedencia y mismo tratamiento del lado derecho
+asociativo por la izquierda. La caja aparece donde iría el paréntesis, ni más
+ni menos, de modo que el lienzo y el texto digan literalmente lo mismo.
+
+Se descartó encajonar **toda** binaria anidada: llenaría de cajas expresiones
+como `a + b * c`, donde la precedencia aritmética es la que cualquiera espera
+y el texto tampoco lleva paréntesis.
+
+**Por qué se duplica la tabla.** `necesitaAgrupador()` vive en
+`apps/web/app/utils/ael-bloques.ts` con su propia copia de `PRECEDENCIA`.
+Importar el valor desde `@aquila/ael-language` arrastraría el paquete al
+bundle del cliente por una constante. La duplicación se paga con un test que
+recorre las **200 combinaciones** de operador externo × interno × lado y exige
+`caja ⇔ paréntesis` contra el printer real
+(`apps/web/app/utils/ael-bloques.test.ts`). Si alguna de las dos tablas cambia
+sin la otra, CI lo dice.
+
+**Consecuencia.** `AelBlockExpresion` recibe dos props nuevas
+(`precedenciaPadre`, `esLadoDerecho`) que se propagan hacia los operandos. El
+operando de una unaria recibe `Infinity`, igual que en el printer; los
+argumentos de una llamada no reciben nada (nunca llevan paréntesis). El nodo
+agrupado lleva `data-agrupado` como punto de anclaje estable para los tests,
+que así no dependen de las clases concretas —importante, porque los
+movimientos 02/03/10 van a reestilizar estos mismos componentes.
+
+## D-35 — Dentro de una expresión AEL van controles nativos, no componentes Nuxt UI
+
+|            |                                                  |
+| ---------- | ------------------------------------------------ |
+| **Fase**   | AEL-004 Fase 8 (movimiento 10)                   |
+| **Estado** | Aceptada                                         |
+| **Decide** | Agente (desvío consciente, se registra para que se pueda revertir) |
+
+**Contexto.** El movimiento 10 de la Fase 8 se planteó como «entrar al sistema
+de diseño», y `DESIGN_SYSTEM.md` es explícito: preferir siempre un componente
+`U*` antes que un elemento HTML crudo. El constructor de fórmulas usaba
+`<select>`, `<input>` y `<button>` a mano en todas partes.
+
+**Decisión.** Se distingue por contexto:
+
+- **Alrededor** del lienzo sí manda el sistema: el interruptor Texto/Bloques
+  pasó a un segmentado con `aria-pressed` —el mismo patrón que ya usa «Modo de
+  cálculo» en la pestaña Definición—, y los botones sueltos siguen siendo
+  `UButton`.
+- **Dentro** de una expresión se conservan `<select>`/`<input>` nativos,
+  estilizados con los tokens (`neutral-*`, mínimo 12 px, píldoras de ~28 px de
+  alto).
+
+**Por qué.** `USelect` y `UInput` están dimensionados para formularios: traen
+su propio borde, relleno y alto mínimo de ~36 px. Una sola expresión contiene
+entre 5 y 15 de ellos **en la misma línea**. Sustituirlos multiplicaría el
+ancho de cada fila y agravaría justo el hallazgo A7, que este mismo movimiento
+existe para arreglar (medido antes: 937 px de fila en un lienzo de 494). Sería
+cumplir la letra de la regla rompiendo su propósito.
+
+**Consecuencia.** `apps/web/app/components/AelBlock*.vue` son los únicos
+`.vue` donde un `<select>`/`<input>` crudo es la opción correcta y no deuda.
+El resto del estándar sí se aplicó: se retiraron los `text-[9px]`/`text-[10px]`,
+se migró `gray-*` → `neutral-*` y **los ocho `components/Ael*.vue` salieron de
+`ARCHIVOS_LEGADO_GRAY`** en `tests/governance/design-system-coverage.test.ts`,
+así que a partir de ahora un `gray-*` nuevo ahí rompe CI.
+
+**Cómo revertirlo si cambia el criterio.** Los controles ya están centralizados
+en dos constantes de clase (`CLASE_PILDORA`, `CLASE_CAMPO` en
+`AelBlockExpresion.vue`): cambiarlos por componentes es un reemplazo acotado,
+no una reescritura.

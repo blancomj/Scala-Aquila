@@ -7,15 +7,32 @@
 // snapshot-supabase.ts) — mostrar categorías vacías o campos ficticios
 // engañaría al usuario sobre qué puede usar de verdad en una fórmula.
 import { FUNCIONES_CATALOGO, PARAMETER_CATALOGO, UNIT_CATALOGO } from '~/utils/ael-catalogo'
+import { MIME_PALETA_AEL, type PayloadPaleta } from '~/utils/ael-bloques'
 
 const props = defineProps<{ codigosConceptos: readonly string[] }>()
-const emit = defineEmits<{ insertar: [texto: string] }>()
+const emit = defineEmits<{ insertar: [texto: string, payload: PayloadPaleta] }>()
 
 interface ItemVariable {
   readonly etiqueta: string
   readonly texto: string
   readonly tipo: string
   readonly descripcion: string
+  /** Lo mismo, en forma de bloque — para insertar en el lienzo y para arrastrar. */
+  readonly payload: PayloadPaleta
+}
+
+// F4, mov. 06 — este panel absorbió la paleta arrastrable. Había dos
+// catálogos que no se hablaban: éste, con tipo y descripción, servía solo al
+// modo texto (y pulsarlo estando en bloques te sacaba de modo sin avisar); la
+// paleta de arriba servía solo a bloques, no tenía descripciones y solo
+// respondía al arrastre — sus chips parecían botones y el clic no hacía nada,
+// lo que además dejaba sin ruta de teclado la inserción en bloques.
+//
+// Ahora hay uno solo: el clic inserta (en el cursor si es texto, en el nodo
+// activo si es bloques) y el arrastre sigue disponible como atajo.
+function iniciarArrastre(evento: DragEvent, item: ItemVariable): void {
+  evento.dataTransfer?.setData(MIME_PALETA_AEL, JSON.stringify(item.payload))
+  evento.dataTransfer?.setData('text/plain', item.texto)
 }
 interface GrupoVariables {
   readonly titulo: string
@@ -30,24 +47,28 @@ const grupos = computed<GrupoVariables[]>(() => {
     texto: `PARAMETER.${campo}`,
     tipo: doc.tipo,
     descripcion: doc.descripcion,
+    payload: { kind: 'campo', contrato: 'PARAMETER', campo },
   }))
   const unidades: ItemVariable[] = Object.entries(UNIT_CATALOGO).map(([campo, doc]) => ({
     etiqueta: campo,
     texto: `UNIT.${campo}`,
     tipo: doc.tipo,
     descripcion: doc.descripcion,
+    payload: { kind: 'campo', contrato: 'UNIT', campo },
   }))
   const conceptos: ItemVariable[] = props.codigosConceptos.map((codigo) => ({
     etiqueta: codigo,
     texto: `CONCEPTO.${codigo}`,
     tipo: 'MONEY',
     descripcion: 'Resultado ya evaluado de este concepto en el periodo.',
+    payload: { kind: 'campo', contrato: 'CONCEPTO', campo: codigo },
   }))
   const funciones: ItemVariable[] = Object.entries(FUNCIONES_CATALOGO).map(([nombre, doc]) => ({
     etiqueta: doc.firma,
     texto: `${nombre}()`,
     tipo: 'función',
     descripcion: doc.descripcion,
+    payload: { kind: 'funcion', nombre },
   }))
   return [
     { titulo: 'Parámetros', items: parametros },
@@ -90,26 +111,32 @@ const gruposFiltrados = computed(() => {
 
     <div v-for="grupo in gruposFiltrados" :key="grupo.titulo" class="space-y-1">
       <p class="text-xs font-medium uppercase text-neutral-400">{{ grupo.titulo }}</p>
-      <div
+      <!-- Toda la fila es el botón: antes solo el «+» de 20 px lo era, y los
+           chips de la paleta ni siquiera respondían al clic. Sigue siendo
+           arrastrable, ahora como atajo y no como única vía. -->
+      <button
         v-for="item in grupo.items"
         :key="item.texto"
-        class="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-neutral-50 dark:hover:bg-neutral-900/40"
+        type="button"
+        draggable="true"
+        class="flex w-full cursor-grab items-center justify-between gap-2 rounded px-1.5 py-1 text-left hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-primary/10"
+        :title="`Insertar ${item.texto}`"
+        @click="emit('insertar', item.texto, item.payload)"
+        @dragstart="iniciarArrastre($event, item)"
       >
-        <div class="min-w-0">
-          <p class="text-xs font-mono truncate" :title="item.texto">{{ item.etiqueta }}</p>
-          <p class="text-xs text-neutral-400 truncate" :title="item.descripcion">
+        <span class="min-w-0">
+          <span class="block truncate font-mono text-xs">{{ item.etiqueta }}</span>
+          <span class="block truncate text-xs text-neutral-500 dark:text-neutral-400">
             {{ item.descripcion }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="shrink-0 rounded-full w-5 h-5 flex items-center justify-center text-primary hover:bg-primary/10"
-          :title="`Insertar ${item.texto}`"
-          @click="emit('insertar', item.texto)"
+          </span>
+        </span>
+        <span
+          class="flex size-5 shrink-0 items-center justify-center rounded-full text-primary"
+          aria-hidden="true"
         >
           +
-        </button>
-      </div>
+        </span>
+      </button>
     </div>
   </div>
 </template>

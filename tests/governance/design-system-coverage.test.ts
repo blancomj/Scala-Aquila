@@ -37,16 +37,14 @@ const ARCHIVOS_LEGADO_COLOR_HEX = new Set<string>([
 ])
 
 /** Congelado al 23-08-2026 (D-26) — 904 usos de gray-* en estos 66 archivos,
- * no se migran retroactivamente. No agregar archivos nuevos acá. */
+ * no se migran retroactivamente. No agregar archivos nuevos acá.
+ *
+ * Los 8 `components/Ael*.vue` salieron de la lista el 2026-09-02 con el
+ * movimiento 10 de la Fase 8 (rediseño del constructor visual de fórmulas):
+ * se reescribió su presentación entera, así que migrarlos a `neutral-*`
+ * salía gratis. A partir de ahora un `gray-*` nuevo ahí rompe CI — que es
+ * justamente el punto de sacarlos. */
 const ARCHIVOS_LEGADO_GRAY = new Set<string>([
-  'components/AelBlockCanvas.vue',
-  'components/AelBlockExpresion.vue',
-  'components/AelBlockInstruccion.vue',
-  'components/AelBlockInstruccionDiff.vue',
-  'components/AelBlockPaleta.vue',
-  'components/AelCapabilityView.vue',
-  'components/AelEditor.vue',
-  'components/AelVersionDiff.vue',
   'components/busqueda/BusquedaGlobal.vue',
   'components/busqueda/BusquedaResultadoFila.vue',
   'components/busqueda/BusquedaResultados.vue',

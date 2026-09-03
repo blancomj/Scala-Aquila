@@ -13,10 +13,14 @@ import {
   bloqueNumeroCero,
   bloqueReferenciaContractDesde,
   bloqueRetornoVacio,
+  bloqueReglaInicial,
   diferenciarParDeListas,
   encontrarRutaDeInstruccion,
   envolverEnBinaria,
   moverInstruccionEntreListas,
+  necesitaAgrupador,
+  precedenciaDeBloque,
+  type BloqueExpresion,
   type BloqueRegla,
 } from './ael-bloques'
 
@@ -388,5 +392,100 @@ describe('diferenciarParDeListas', () => {
     // la condición no cambió, pero el RETORNAR interno sí.
     expect(condicional.estado).toBe('cambiado')
     expect(condicional.entonces.map((d) => d.estado)).toEqual(['cambiado'])
+  })
+})
+
+// ────────────── agrupamiento visible en el lienzo (F1, mov. 01) ──────────
+
+describe('necesitaAgrupador — contrato con el printer real', () => {
+  const OPERADORES = ['==', '!=', '>', '>=', '<', '<=', '+', '-', '*', '/'] as const
+  type Op = (typeof OPERADORES)[number]
+
+  function hoja(nombre: string): BloqueExpresion {
+    return { id: nombre, tipo: 'Identificador', nombre }
+  }
+  function bin(izquierda: BloqueExpresion, operador: Op, derecha: BloqueExpresion): BloqueExpresion {
+    return {
+      id: `${operador}${izquierda.id}${derecha.id}`,
+      tipo: 'ExpresionBinaria',
+      operador,
+      izquierda,
+      derecha,
+    }
+  }
+  /** Imprime una expresión con el printer REAL, en una regla mínima. */
+  function imprimirComoTexto(expresion: BloqueExpresion): string {
+    const regla: BloqueRegla = {
+      id: 'r',
+      tipo: 'Regla',
+      nombre: 'R',
+      cuerpo: [{ id: 'ret', tipo: 'Retorno', expresion }],
+    }
+    return imprimir(bloquesAAst(regla))
+  }
+
+  /**
+   * Para cada operador externo × operador interno × lado, el lienzo debe
+   * encajonar EXACTAMENTE cuando el printer pone paréntesis. Es lo que impide
+   * que la tabla de precedencia duplicada en ael-bloques.ts derive de la de
+   * printer.ts sin que nadie se entere.
+   */
+  it('encajona exactamente donde el printer pone paréntesis', () => {
+    const desacuerdos: string[] = []
+
+    for (const externo of OPERADORES) {
+      for (const interno of OPERADORES) {
+        for (const lado of ['izquierda', 'derecha'] as const) {
+          const anidada = bin(hoja('b'), interno, hoja('c'))
+          const arbol =
+            lado === 'izquierda'
+              ? bin(anidada, externo, hoja('a'))
+              : bin(hoja('a'), externo, anidada)
+
+          const encajona = necesitaAgrupador(anidada, precedenciaDeBloque(arbol), lado === 'derecha')
+          const tieneParentesis = imprimirComoTexto(arbol).includes('(')
+
+          if (encajona !== tieneParentesis) {
+            desacuerdos.push(
+              `${interno} a la ${lado} de ${externo}: caja=${encajona} parentesis=${tieneParentesis}`,
+            )
+          }
+        }
+      }
+    }
+
+    expect(desacuerdos).toEqual([])
+  })
+
+  it('la expresión raíz nunca se encajona', () => {
+    expect(necesitaAgrupador(bin(hoja('a'), '+', hoja('b')), -Infinity, false)).toBe(false)
+  })
+
+  it('una hoja nunca se encajona', () => {
+    expect(precedenciaDeBloque(hoja('a'))).toBe(Infinity)
+    expect(necesitaAgrupador(hoja('a'), 3, true)).toBe(false)
+  })
+})
+
+describe('bloqueReglaInicial — semilla para fórmula en blanco (F3, mov. 05)', () => {
+  it('produce un árbol que imprime AEL válido', () => {
+    const texto = imprimir(bloquesAAst(bloqueReglaInicial('cuota_admin')))
+    expect(texto).toContain('REGLA cuota_admin')
+    // Lo sembrado tiene que volver a parsear: si no, el lienzo abriría en el
+    // mismo error que la semilla existe para evitar.
+    expect(parsear(texto).regla).not.toBeNull()
+  })
+
+  it('cae a un nombre válido cuando el código no es un identificador', () => {
+    for (const codigo of ['', '5CUOTA', 'cuota-extra', 'con espacio']) {
+      const texto = imprimir(bloquesAAst(bloqueReglaInicial(codigo)))
+      expect(parsear(texto).regla).not.toBeNull()
+    }
+  })
+
+  it('arranca con un resultado, no con el cuerpo vacío', () => {
+    const regla = bloqueReglaInicial('x')
+    expect(regla.cuerpo).toHaveLength(1)
+    expect(regla.cuerpo[0]?.tipo).toBe('Retorno')
   })
 })

@@ -47,8 +47,8 @@ const ordenPorCodigo = computed(() => {
           <h1 class="text-xl font-semibold">Dependencias e impacto</h1>
         </template>
         <template #descripcion>
-          Qué conceptos dependen de cuáles, y qué reglas usan cada Contract/Function — AEL-004 Fase
-          5.
+          Qué conceptos dependen de cuáles, y qué fórmulas usan cada dato del sistema. Útil antes
+          de archivar o cambiar un concepto: aquí se ve a quién le afecta.
         </template>
       </UiTituloDescripcion>
       <NuxtLink to="/estado-cuenta/conceptos" class="text-sm text-primary hover:underline">
@@ -109,11 +109,10 @@ const ordenPorCodigo = computed(() => {
     <div>
       <UiTituloDescripcion clase-descripcion="text-xs text-neutral-500 mt-1 mb-2">
         <template #titulo>
-          <h2 class="text-lg font-semibold">Impacto por Contract/Function</h2>
+          <h2 class="text-lg font-semibold">Dónde se usa cada dato</h2>
         </template>
         <template #descripcion>
-          Antes de archivar o cambiar un concepto, qué otras reglas usan cada
-          PARAMETER/UNIT/CONCEPTO.campo o función — Doc 10 §79-80.
+          Qué fórmulas usan cada parámetro, campo del inmueble, concepto o función.
         </template>
       </UiTituloDescripcion>
       <p v-if="impacto.length === 0" class="text-neutral-500 text-sm">Sin dependencias detectadas.</p>
@@ -121,14 +120,14 @@ const ordenPorCodigo = computed(() => {
         v-else
         :columnas="[
           { clave: 'tipo', etiqueta: 'Tipo' },
-          { clave: 'etiqueta', etiqueta: 'Contract / Function' },
+          { clave: 'etiqueta', etiqueta: 'Dato o función' },
           { clave: 'conceptos', etiqueta: 'Usado por' },
         ]"
         :filas="impacto"
         :clave-fila="(entrada) => entrada.etiqueta"
       >
         <template #celda-tipo="{ fila }">
-          <span class="text-neutral-500">{{ fila.tipo === 'contrato' ? 'Contract' : 'Function' }}</span>
+          <span class="text-neutral-500">{{ fila.tipo === 'contrato' ? 'Dato del sistema' : 'Función' }}</span>
         </template>
         <template #celda-etiqueta="{ fila }"><span class="font-mono">{{ fila.etiqueta }}</span></template>
         <template #celda-conceptos="{ fila }"><span class="text-neutral-500">{{ fila.conceptos.join(', ') }}</span></template>

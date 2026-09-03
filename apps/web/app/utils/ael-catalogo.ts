@@ -18,11 +18,16 @@ import type { Tipo } from '@aquila/ael-core'
 export interface DocContrato {
   readonly tipo: Tipo
   readonly descripcion: string
+  /** Nombre legible para la UI (mov. 03). Se declara en vez de derivarlo del
+   * código porque derivar pierde tildes: AREA_PRIVADA daría «Area privada». */
+  readonly etiqueta: string
 }
 
 export interface DocFuncion {
   readonly firma: string
   readonly descripcion: string
+  /** Nombre legible para la UI (mov. 03). */
+  readonly etiqueta: string
 }
 
 export const PALABRAS_RESERVADAS_DOC: Readonly<Record<string, string>> = {
@@ -38,54 +43,82 @@ export const PALABRAS_RESERVADAS_DOC: Readonly<Record<string, string>> = {
   NULO: 'Literal nulo — ausencia de valor.',
 }
 
+// Las descripciones se LEEN EN PANTALLA: en el panel «Variables disponibles»
+// y en el hover del editor de fórmulas. Están escritas para quien administra
+// una copropiedad, no para quien mantiene el motor — antes decían cosas como
+// «Σ fuente_financiacion.valor_aplicado (tipo=otros_ingresos) — neteo GAP-19»,
+// que mezcla una tabla, una columna y un identificador de gap interno. La
+// procedencia técnica de cada valor va en el comentario de su entrada.
+
 export const PARAMETER_CATALOGO: Readonly<Record<string, DocContrato>> = {
   PRESUPUESTO_ANUAL: {
     tipo: 'MONEY',
-    descripcion: 'Monto total del presupuesto vigente del año que se está liquidando.',
+    etiqueta: 'Presupuesto anual',
+    descripcion: 'Total del presupuesto aprobado para el año que se está liquidando.',
   },
+  // Σ fuente_financiacion.valor_aplicado (tipo=otros_ingresos) del presupuesto
+  // vigente — neteo GAP-19.
   OTROS_INGRESOS_ANUAL: {
     tipo: 'MONEY',
+    etiqueta: 'Otros ingresos anuales',
     descripcion:
-      'Σ fuente_financiacion.valor_aplicado (tipo=otros_ingresos) del presupuesto vigente — neteo GAP-19.',
+      'Lo que el presupuesto espera recibir por fuera de las cuotas: arriendos de zonas comunes, ' +
+      'parqueaderos, multas. Se resta antes de repartir entre los inmuebles.',
   },
+  // Σ fuente_financiacion.valor_aplicado (tipo=cuota_extraordinaria) — es
+  // ingreso real (Ley 675 art. 38, INCP), igual que otros_ingresos.
   CUOTA_EXTRAORDINARIA_ANUAL: {
     tipo: 'MONEY',
+    etiqueta: 'Cuota extraordinaria anual',
     descripcion:
-      'Σ fuente_financiacion.valor_aplicado (tipo=cuota_extraordinaria) del presupuesto vigente — es ' +
-      'ingreso real (Ley 675 art. 38, INCP), igual que otros_ingresos.',
+      'Total de las cuotas extraordinarias aprobadas para el año. Cuenta como ingreso real ' +
+      '(Ley 675, art. 38).',
   },
+  // Σ fuente_financiacion.valor_aplicado (tipo=fondo_imprevistos) — no es
+  // ingreso nuevo, es aplicar un saldo ya existente (INCP: efectivo restringido).
   FONDO_IMPREVISTOS_ANUAL: {
     tipo: 'MONEY',
+    etiqueta: 'Fondo de imprevistos anual',
     descripcion:
-      'Σ fuente_financiacion.valor_aplicado (tipo=fondo_imprevistos) del presupuesto vigente — no es ' +
-      'ingreso nuevo, es aplicar un saldo ya existente del fondo (INCP: efectivo restringido).',
+      'Cuánto se va a tomar este año del fondo de imprevistos. No es plata nueva: es gastar un ' +
+      'saldo que ya existe.',
   },
 }
 
 export const UNIT_CATALOGO: Readonly<Record<string, DocContrato>> = {
+  // inmuebles.area_privada. Un inmueble sin área diligenciada no trae la
+  // clave: la fórmula que la use falla explícito al liquidar ESE inmueble.
   AREA_PRIVADA: {
     tipo: 'NUMBER',
-    descripcion: 'Área privada del inmueble (m²) — inmuebles.area_privada. Puede faltar por inmueble.',
+    etiqueta: 'Área privada',
+    descripcion: 'Metros cuadrados privados del inmueble. Puede faltar si no se ha diligenciado.',
   },
+  // inmuebles.area_comun, mismo criterio de ausencia.
   AREA_COMUN: {
     tipo: 'NUMBER',
-    descripcion: 'Área común asignada al inmueble (m²) — inmuebles.area_comun. Puede faltar por inmueble.',
+    etiqueta: 'Área común',
+    descripcion:
+      'Metros cuadrados de zona común asignados al inmueble. Puede faltar si no se ha diligenciado.',
   },
   COEFICIENTE: {
     tipo: 'NUMBER',
-    descripcion: 'Coeficiente de copropiedad vigente del inmueble (set activo del tenant).',
+    etiqueta: 'Coeficiente de copropiedad',
+    descripcion:
+      'Coeficiente vigente del inmueble, del set de coeficientes activo de la copropiedad.',
   },
 }
 
 export const FUNCIONES_CATALOGO: Readonly<Record<string, DocFuncion>> = {
-  MIN: { firma: 'MIN(a, b)', descripcion: 'El menor de dos números.' },
-  MAX: { firma: 'MAX(a, b)', descripcion: 'El mayor de dos números.' },
+  MIN: { etiqueta: 'Mínimo', firma: 'MIN(a, b)', descripcion: 'El menor de dos números.' },
+  MAX: { etiqueta: 'Máximo', firma: 'MAX(a, b)', descripcion: 'El mayor de dos números.' },
   PORCENTAJE: {
+    etiqueta: 'Porcentaje',
     firma: 'PORCENTAJE(monto, porcentaje)',
     descripcion:
       'monto * (porcentaje / 100). El segundo argumento es un porcentaje (10 = 10%), no una fracción.',
   },
   REDONDEAR_DINERO: {
+    etiqueta: 'Redondear dinero',
     firma: 'REDONDEAR_DINERO(monto, escala)',
     descripcion:
       'Redondea un monto a la escala indicada, según el modo de redondeo de la política vigente del tenant.',

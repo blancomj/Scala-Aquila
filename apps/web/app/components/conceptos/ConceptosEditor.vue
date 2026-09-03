@@ -26,6 +26,18 @@
 import { validarFormulaAel } from '~/utils/ael-validate'
 import { catalogoContratosEstatico, FUNCIONES_CATALOGO } from '~/utils/ael-catalogo'
 import {
+  CLAVE_VALOR_RESULTADO,
+  CLAVE_VALORES_TRAZA,
+  ETIQUETA_CONTRATO,
+  etiquetaCampo,
+} from '~/utils/ael-etiquetas'
+import { resumirRegla } from '~/utils/ael-resumen'
+import {
+  COLOR_ESTADO_CONCEPTO,
+  DESCRIPCION_ESTADO_CONCEPTO,
+  ETIQUETA_ESTADO_CONCEPTO,
+} from '~/utils/concepto-labels'
+import {
   camposRequeridos,
   ejecutarCasoPrueba,
   type CampoRequerido,
@@ -36,9 +48,14 @@ import {
 import {
   astABloques,
   bloquesAAst,
+  bloqueReglaInicial,
+  bloqueLlamadaFuncionDesde,
+  bloqueReferenciaContractDesde,
   diferenciarParDeListas,
+  type BloqueExpresion,
   type BloqueRegla,
   type CatalogoBloques,
+  type PayloadPaleta,
 } from '~/utils/ael-bloques'
 import type { CasoPrueba, PasoTrazaPrueba, ResultadoPruebaFormula } from '~/stores/concepto'
 import type { Tipo } from '@aquila/ael-core'
@@ -98,6 +115,10 @@ const presupuestoCuentaId = ref<string | null>(null)
 const opcionesCuentaPresupuestal = computed(() =>
   presupuestoStore.cuentas.filter((c) => c.es_hoja && c.naturaleza === 'ingreso'),
 )
+const itemsCuentaPresupuestal = computed(() => [
+  { label: '— Sin clasificar —', value: null as string | null },
+  ...opcionesCuentaPresupuestal.value.map((c) => ({ label: c.nombre, value: c.id as string | null })),
+])
 
 // ── Ayuda bajo demanda ───────────────────────────────────────────────
 // Los párrafos explicativos largos se repliegan detrás de un "?" en vez de
@@ -110,6 +131,38 @@ function alternarAyuda(clave: string): void {
   if (!siguiente.delete(clave)) siguiente.add(clave)
   ayudasAbiertas.value = siguiente
 }
+
+// Opciones de los selectores del formulario. Eran `<select>` crudos con
+// Tailwind a mano, en una pantalla donde el resto usa componentes del sistema;
+// y los tipos del caso de prueba se mostraban como `MONEY`/`BOOLEAN`/`NULO`,
+// que son los nombres del motor. (Distinto de los selectores DENTRO de una
+// expresión, que sí siguen siendo nativos a propósito — ver D-35.)
+const ITEMS_SI_NO = [
+  { label: 'Verdadero', value: true },
+  { label: 'Falso', value: false },
+]
+
+const ITEMS_TIPO_ESPERADO = [
+  { label: 'Dinero', value: 'MONEY' },
+  { label: 'Número', value: 'NUMBER' },
+  { label: 'Sí o no', value: 'BOOLEAN' },
+  { label: 'Sin valor', value: 'NULO' },
+]
+
+const ITEMS_TIPO_RECURRENCIA = [
+  { label: 'Recurrente (cada ciclo, desde una fecha)', value: 'recurrente' },
+  { label: 'Único (una sola vez)', value: 'unico' },
+  { label: 'Por un periodo (rango de fechas)', value: 'por_periodo' },
+  { label: 'Novedad (aplicado por inmueble)', value: 'novedad' },
+]
+
+const ITEMS_PERIODICIDAD = [
+  { label: 'Mensual', value: 'mensual' },
+  { label: 'Bimensual', value: 'bimensual' },
+  { label: 'Trimestral', value: 'trimestral' },
+  { label: 'Semestral', value: 'semestral' },
+  { label: 'Anual', value: 'anual' },
+]
 
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -272,6 +325,7 @@ onMounted(async () => {
   }
 })
 
+const canvasRef = ref<{ insertarEnNodoActivo: (b: BloqueExpresion) => boolean } | null>(null)
 const editorRef = ref<{
   irAPosicion: (linea: number, columna: number) => void
   insertarTexto: (texto: string) => void
@@ -307,23 +361,33 @@ watch(modoValor, (valor) => {
   if (valor === 'fijo' && tabActiva.value === 'formula') tabActiva.value = 'configuracion'
 })
 
-const COLOR_ESTADO_CONCEPTO: Record<string, 'success' | 'neutral' | 'warning'> = {
-  borrador: 'neutral',
-  en_revision: 'warning',
-  activo: 'success',
-  archivado: 'neutral',
-}
+// El mapa de estados vive en concepto-labels.ts (mismo criterio que
+// presupuesto-labels.ts). Este componente lo redeclaraba con un color
+// distinto para `en_revision` —warning aquí, primary en el catálogo—, así que
+// el mismo estado se veía de dos colores según la pantalla; y mostraba el
+// enum crudo (`en_revision`) en tres sitios.
 
-/** Inserta una referencia (PARAMETER.X, UNIT.X, CONCEPTO.X o FUNCION())
- * desde el panel "Variables disponibles" en el cursor del editor de texto
- * — si está en modo Bloques, cambia a Texto primero (el arrastre a bloques
- * sigue disponible aparte, vía AelBlockPaleta). */
-async function insertarVariable(texto: string): Promise<void> {
-  if (modoFormula.value !== 'texto') {
-    activarModoTexto()
-    await nextTick()
+/** Inserta un ítem del catálogo en el modo que esté activo (F4, mov. 06).
+ * Antes esto forzaba el cambio a modo Texto sin avisar, porque el panel solo
+ * sabía hablarle al editor de código; el modo bloques tenía su propia paleta
+ * aparte, sin descripciones y solo arrastrable. */
+function insertarVariable(texto: string, payload: PayloadPaleta): void {
+  if (modoFormula.value === 'texto') {
+    editorRef.value?.insertarTexto(texto)
+    return
   }
-  editorRef.value?.insertarTexto(texto)
+  const bloque =
+    payload.kind === 'campo'
+      ? bloqueReferenciaContractDesde(payload.contrato, payload.campo)
+      : bloqueLlamadaFuncionDesde(payload.nombre)
+
+  if (!canvasRef.value?.insertarEnNodoActivo(bloque)) {
+    toast.add({
+      title: 'Elige primero dónde va.',
+      description: 'Toca un valor del lienzo y vuelve a pulsar el del catálogo.',
+      color: 'warning',
+    })
+  }
 }
 
 const codigosConceptosExistentes = computed(() =>
@@ -385,18 +449,64 @@ const catalogoBloques = computed<CatalogoBloques>(() => {
 const modoFormula = ref<'texto' | 'bloques'>('texto')
 const bloqueEnEdicion = ref<BloqueRegla | null>(null)
 
+// F3 (mov. 05) — continuidad del árbol. Antes se re-derivaba SIEMPRE al
+// entrar a bloques, así que bastaba un texto inválido para perderlo: cambiar
+// el tipo de un valor a «Dato del sistema» nace con el campo sin elegir,
+// imprime `PARAMETER.`, deja de parsear, y al volver el lienzo mostraba un
+// error en vez del árbol (hallazgo C2, alcanzable en tres clics).
+//
+// `textoDelLienzo` guarda lo último que imprimió el propio lienzo. Si el
+// texto sigue siendo ese, nadie lo editó a mano mientras estábamos en modo
+// texto y el árbol en memoria sigue siendo la verdad — se conserva aunque no
+// parsee. Solo se re-deriva cuando el texto cambió de verdad.
+let textoDelLienzo: string | null = null
+
 function activarModoBloques(): void {
-  const { regla } = parsear(formulaAel.value)
-  bloqueEnEdicion.value = regla ? astABloques(regla) : null
   modoFormula.value = 'bloques'
+
+  if (bloqueEnEdicion.value && formulaAel.value === textoDelLienzo) return
+
+  const { regla } = parsear(formulaAel.value)
+  if (regla) {
+    bloqueEnEdicion.value = astABloques(regla)
+  } else if (!formulaAel.value.trim()) {
+    // Fórmula en blanco: se siembra en vez de acusar un error de sintaxis.
+    bloqueEnEdicion.value = bloqueReglaInicial(codigo.value.trim().toLowerCase())
+  } else {
+    bloqueEnEdicion.value = null
+  }
 }
 
 function activarModoTexto(): void {
   modoFormula.value = 'texto'
 }
 
+// Huecos del lienzo — los nodos se marcan a sí mismos con `data-incompleto`
+// (AelBlockExpresion). Se cuentan desde el DOM en vez de recorrer el árbol
+// para no duplicar la definición de «incompleto» en dos sitios que puedan
+// divergir: el nodo es el que sabe cuándo le falta algo.
+const lienzoRef = ref<HTMLElement | null>(null)
+const huecosEnLienzo = ref(0)
+
+function recontarHuecos(): void {
+  huecosEnLienzo.value =
+    modoFormula.value === 'bloques' ? (lienzoRef.value?.querySelectorAll('[data-incompleto]').length ?? 0) : 0
+}
+
+watch([bloqueEnEdicion, modoFormula], () => nextTick(recontarHuecos), { immediate: true })
+
+function irAPrimerHueco(): void {
+  const hueco = lienzoRef.value?.querySelector('[data-incompleto]')
+  if (!hueco) return
+  hueco.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  hueco.querySelector<HTMLElement>('select, input')?.focus()
+}
+
 watch(bloqueEnEdicion, (nuevo) => {
-  if (nuevo) formulaAel.value = imprimir(bloquesAAst(nuevo))
+  if (!nuevo) return
+  const texto = imprimir(bloquesAAst(nuevo))
+  textoDelLienzo = texto
+  formulaAel.value = texto
 })
 
 // ── vista técnica IR/AST cruda (backlog Doc 10 §226 — "NO RAW IR BY
@@ -409,6 +519,13 @@ const astActual = computed(() => {
   return parsear(formulaAel.value).regla
 })
 
+// F4, mov. 11 — «Qué calcula esta fórmula». El panel equivalente de la
+// pestaña Definición («Qué hace este concepto») se detiene justo aquí: dice
+// «Cobra el resultado de su fórmula» y no entra. Esta es la lectura que
+// permite aprobar una fórmula sin saber AEL, y la única que no existía ni en
+// texto ni en bloques.
+const resumenFormula = computed(() => (astActual.value ? resumirRegla(astActual.value) : null))
+
 // ── maker-checker (AEL-004 Fase 4) — el contenido solo se edita en
 // borrador; guard_concepto_transicion rechaza cualquier otro caso con
 // CONCEPTO_INMUTABLE, esto es solo la UX que evita llegar a ese error.
@@ -420,8 +537,88 @@ const soloLectura = computed(
 )
 const mensajeSoloLectura = computed(() => {
   if (!soloLectura.value || !conceptoEnEdicion.value) return null
-  return `Este concepto está en estado "${conceptoEnEdicion.value.estado}" — el contenido es de solo lectura hasta volver a borrador.`
+  const estado = conceptoEnEdicion.value.estado
+  const etiqueta = ETIQUETA_ESTADO_CONCEPTO[estado] ?? estado
+  return `Este concepto está «${etiqueta}»: el contenido no se puede editar hasta que vuelva a borrador.`
 })
+
+// ── confirmación de las transiciones de estado ──────────────────────────
+// Enviar a revisión, aprobar, rechazar, volver a borrador y archivar se
+// ejecutaban al primer clic. Son movimientos del flujo de aprobación —y
+// archivar es terminal— mientras que las acciones EN LOTE del catálogo sí
+// pedían confirmación: la incoherencia estaba justo al revés de lo esperable.
+type Transicion = 'revision' | 'aprobar' | 'rechazar' | 'borrador' | 'archivar'
+
+const transicionPendiente = ref<Transicion | null>(null)
+const errorMotivoRechazo = ref<string | undefined>(undefined)
+
+const DETALLE_TRANSICION: Record<
+  Transicion,
+  { titulo: string; cuerpo: string; accion: string; destructiva?: boolean }
+> = {
+  revision: {
+    titulo: '¿Enviar a revisión?',
+    cuerpo:
+      'El concepto deja de ser editable hasta que otra persona lo apruebe o lo devuelva a borrador.',
+    accion: 'Enviar a revisión',
+  },
+  aprobar: {
+    titulo: '¿Aprobar este concepto?',
+    cuerpo: 'Queda activo y empezará a generar cargos en la próxima liquidación.',
+    accion: 'Aprobar',
+  },
+  rechazar: {
+    titulo: '¿Devolver a borrador?',
+    cuerpo: 'Vuelve a ser editable. El motivo queda en el historial de la revisión.',
+    accion: 'Rechazar',
+    destructiva: true,
+  },
+  borrador: {
+    titulo: '¿Volver a borrador?',
+    cuerpo:
+      'Deja de generar cargos nuevos hasta que se vuelva a aprobar. Los cargos ya generados no se tocan.',
+    accion: 'Volver a borrador',
+  },
+  archivar: {
+    titulo: '¿Archivar este concepto?',
+    cuerpo:
+      'Es una transición terminal: no hay forma de reactivarlo desde aquí. Deja de generar cargos nuevos; los ya generados no se modifican.',
+    accion: 'Archivar',
+    destructiva: true,
+  },
+}
+
+const detalleTransicion = computed(() =>
+  transicionPendiente.value ? DETALLE_TRANSICION[transicionPendiente.value] : null,
+)
+
+function pedirConfirmacion(transicion: Transicion): void {
+  errorMotivoRechazo.value = undefined
+  transicionPendiente.value = transicion
+}
+
+async function confirmarTransicion(): Promise<void> {
+  const transicion = transicionPendiente.value
+  if (!transicion) return
+
+  if (transicion === 'rechazar' && !motivoRechazo.value.trim()) {
+    errorMotivoRechazo.value = 'Escribe qué hay que corregir.'
+    return
+  }
+
+  const ejecutar = {
+    revision: enviarARevision,
+    aprobar,
+    rechazar,
+    borrador: volverABorrador,
+    archivar,
+  }[transicion]
+
+  await ejecutar()
+  // Se cierra pase lo que pase: si falló, el UAlert de error queda visible
+  // detrás del modal y volver a intentarlo sin leerlo no ayudaría.
+  transicionPendiente.value = null
+}
 
 async function enviarARevision(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -825,6 +1022,25 @@ function formatoValorPaso(paso: PasoTrazaPrueba): string {
   return String(paso.valor ?? '—')
 }
 
+// F4, mov. 07 — los valores calculados, sobre los bloques que los producen.
+// La traza ya venía del evaluador real con nombre, valor y tipo por cada
+// cálculo ejecutado, y se pintaba como una lista aparte en otra columna: el
+// dato existía y estaba en pantalla, a 300 px de donde significa algo. Esto
+// es lo único que un constructor visual puede hacer y el texto no — mostrar
+// la fórmula y sus valores en el mismo sitio.
+//
+// La unión es por nombre de cálculo; el RETORNAR final viene con nombre null
+// y se indexa bajo una clave reservada que AelBlockInstruccion conoce.
+const valoresDeTraza = computed(() => {
+  const mapa = new Map<string, string>()
+  if (!resultadoPrueba.value?.valido) return mapa
+  for (const paso of resultadoPrueba.value.traza) {
+    mapa.set(paso.nombre ?? CLAVE_VALOR_RESULTADO, formatoValorPaso(paso))
+  }
+  return mapa
+})
+provide(CLAVE_VALORES_TRAZA, valoresDeTraza)
+
 async function probar(): Promise<void> {
   errorPrueba.value = null
   resultadoPrueba.value = null
@@ -884,7 +1100,7 @@ async function probar(): Promise<void> {
               :color="COLOR_ESTADO_CONCEPTO[conceptoEnEdicion.estado] ?? 'neutral'"
               variant="subtle"
             >
-              {{ conceptoEnEdicion.estado }}
+              {{ ETIQUETA_ESTADO_CONCEPTO[conceptoEnEdicion.estado] ?? conceptoEnEdicion.estado }}
             </UBadge>
           </div>
         </div>
@@ -935,30 +1151,43 @@ async function probar(): Promise<void> {
 
           <div class="space-y-3 min-w-0">
             <p class="text-sm font-medium">Constructor de fórmula</p>
-            <div class="flex items-center gap-2">
-              <UButton
-                type="button"
-                size="xs"
-                :variant="modoFormula === 'texto' ? 'solid' : 'soft'"
-                @click="activarModoTexto"
+            <!-- Segmentado, no dos botones sueltos: mismo patrón que "Modo de
+                 cálculo" en la pestaña Definición — con dos opciones, un par
+                 de botones que cambian de variante no lee como un selector. -->
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div
+                class="grid grid-flow-col auto-cols-fr gap-0.5 rounded-md bg-neutral-100 p-0.5 dark:bg-neutral-800"
+                role="group"
+                aria-label="Modo del constructor de fórmula"
               >
-                Texto
-              </UButton>
-              <UButton
-                type="button"
-                size="xs"
-                :variant="modoFormula === 'bloques' ? 'solid' : 'soft'"
-                @click="activarModoBloques"
-              >
-                Bloques
-              </UButton>
-              <UButton
-                type="button"
-                size="xs"
-                variant="ghost"
-                class="ml-2"
-                @click="mostrarIr = !mostrarIr"
-              >
+                <button
+                  type="button"
+                  class="rounded px-3 py-1.5 text-sm transition-colors"
+                  :class="
+                    modoFormula === 'texto'
+                      ? 'bg-white font-medium shadow-sm dark:bg-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  "
+                  :aria-pressed="modoFormula === 'texto'"
+                  @click="activarModoTexto"
+                >
+                  Texto
+                </button>
+                <button
+                  type="button"
+                  class="rounded px-3 py-1.5 text-sm transition-colors"
+                  :class="
+                    modoFormula === 'bloques'
+                      ? 'bg-white font-medium shadow-sm dark:bg-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  "
+                  :aria-pressed="modoFormula === 'bloques'"
+                  @click="activarModoBloques"
+                >
+                  Bloques
+                </button>
+              </div>
+              <UButton type="button" size="xs" variant="ghost" @click="mostrarIr = !mostrarIr">
                 {{ mostrarIr ? 'Ocultar IR' : 'Ver IR' }}
               </UButton>
             </div>
@@ -971,35 +1200,70 @@ async function probar(): Promise<void> {
               :diagnosticos="diagnosticosFormula"
               :readonly="soloLectura"
             />
-            <template v-else>
-              <AelBlockPaleta v-if="!soloLectura" :catalogo="catalogoBloques" class="mb-2" />
+            <div v-else ref="lienzoRef">
               <AelBlockCanvas
+                ref="canvasRef"
                 v-model:bloque="bloqueEnEdicion"
                 :readonly="soloLectura"
                 :catalogo="catalogoBloques"
               />
-            </template>
+            </div>
 
             <pre
               v-if="mostrarIr"
               class="mt-2 max-h-64 overflow-auto rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-800 dark:bg-neutral-900/40"
             >{{ astActual ? JSON.stringify(astActual, null, 2) : 'La fórmula no parsea — no hay IR que mostrar.' }}</pre>
 
+            <!-- F3 (mov. 08) — en modo bloques la línea:columna es de un texto
+                 que no está a la vista, y el clic llamaba a editorRef, que es
+                 null porque el editor no está montado: el botón existía, se
+                 subrayaba al pasar el puntero y no hacía nada (hallazgo A6).
+                 Ahora cada modo ofrece la navegación que sí puede cumplir. -->
+            <div v-if="huecosEnLienzo > 0" class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-medium text-error">
+                {{ huecosEnLienzo }}
+                {{ huecosEnLienzo === 1 ? 'campo sin elegir' : 'campos sin elegir' }}
+              </span>
+              <button
+                type="button"
+                class="text-xs text-primary underline-offset-2 hover:underline"
+                @click="irAPrimerHueco"
+              >
+                Ir al primero
+              </button>
+            </div>
+
             <div v-if="diagnosticosFormula.length > 0" class="space-y-1">
               <p class="text-xs font-medium text-neutral-500">
                 {{ diagnosticosFormula.length }}
                 {{ diagnosticosFormula.length === 1 ? 'diagnóstico' : 'diagnósticos' }}
               </p>
-              <button
-                v-for="(diag, i) in diagnosticosFormula"
-                :key="i"
-                type="button"
-                class="block w-full text-left text-xs text-red-500 hover:underline"
-                @click="editorRef?.irAPosicion(diag.span.inicio.linea, diag.span.inicio.columna)"
-              >
-                {{ diag.codigo }} ({{ diag.span.inicio.linea }}:{{ diag.span.inicio.columna }}):
+              <template v-if="modoFormula === 'texto'">
+                <button
+                  v-for="(diag, i) in diagnosticosFormula"
+                  :key="i"
+                  type="button"
+                  class="block w-full text-left text-xs text-error hover:underline"
+                  @click="editorRef?.irAPosicion(diag.span.inicio.linea, diag.span.inicio.columna)"
+                >
+                  {{ diag.codigo }} ({{ diag.span.inicio.linea }}:{{ diag.span.inicio.columna }}):
+                  {{ diag.mensaje }}
+                </button>
+              </template>
+              <p v-for="(diag, i) in diagnosticosFormula" v-else :key="`b-${i}`" class="text-xs text-error">
                 {{ diag.mensaje }}
-              </button>
+              </p>
+            </div>
+
+            <!-- Mismo patrón que «Qué hace este concepto» en la pestaña
+                 Definición: una frase verificable de un vistazo (mov. 11). -->
+            <div v-if="resumenFormula" class="overflow-hidden rounded-lg border border-primary/40">
+              <header class="border-b border-primary/40 bg-primary/5 px-4 py-2.5">
+                <h3 class="text-xs font-semibold tracking-wider text-primary uppercase">
+                  Qué calcula esta fórmula
+                </h3>
+              </header>
+              <p class="p-4 text-sm leading-relaxed">{{ resumenFormula }}</p>
             </div>
 
             <AelCapabilityView :formula-ael="formulaAel" />
@@ -1008,8 +1272,8 @@ async function probar(): Promise<void> {
           <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-3">
             <p class="text-sm font-medium">Prueba de fórmula</p>
             <p class="text-xs text-neutral-500">
-              Evalúa el texto de arriba (guardado o no) contra un inmueble y periodo reales —
-              AEL-004 Fase 1.
+              Evalúa la fórmula tal como está ahora —guardada o no— contra un inmueble y un
+              periodo reales.
             </p>
             <div class="space-y-3">
               <UFormField label="Inmueble" name="inmueble_prueba">
@@ -1102,8 +1366,9 @@ async function probar(): Promise<void> {
         <div v-if="editandoId">
           <h2 class="text-lg font-semibold mb-2">Casos de prueba</h2>
           <p class="text-xs text-neutral-500 mb-3">
-            Ejecuta la fórmula de arriba (guardada o no) contra insumos fijos — reproducible, sin
-            tocar Supabase. AEL-004 Fase 6.
+            Ejecuta la fórmula contra valores que tú fijas, siempre los mismos. A diferencia de
+            «Probar fórmula», no depende de ningún inmueble ni periodo: el resultado no cambia
+            con los datos de la copropiedad.
           </p>
 
           <p v-if="conceptoStore.casosPrueba.length === 0" class="text-neutral-500 text-sm mb-4">
@@ -1113,8 +1378,8 @@ async function probar(): Promise<void> {
             <div class="flex items-center gap-3 mb-2">
               <UButton size="sm" variant="soft" @click="ejecutarTodos">Ejecutar todos</UButton>
               <p v-if="resumenEjecucion.total > 0" class="text-sm">
-                <span class="text-green-600">{{ resumenEjecucion.passed }} passed</span> ·
-                <span class="text-red-500">{{ resumenEjecucion.failed }} failed</span>
+                <span class="text-success">{{ resumenEjecucion.passed }} correctos</span> ·
+                <span class="text-error">{{ resumenEjecucion.failed }} fallidos</span>
               </p>
             </div>
             <UiTabla
@@ -1141,15 +1406,13 @@ async function probar(): Promise<void> {
                 <span
                   v-if="resultadosEjecucion[fila.id]"
                   :class="
-                    resultadosEjecucion[fila.id]?.estado === 'passed'
-                      ? 'text-green-600'
-                      : 'text-red-500'
+                    resultadosEjecucion[fila.id]?.estado === 'passed' ? 'text-success' : 'text-error'
                   "
                 >
-                  {{ resultadosEjecucion[fila.id]?.estado }} —
+                  {{ resultadosEjecucion[fila.id]?.estado === 'passed' ? 'Correcto' : 'Falló' }} —
                   {{ resultadosEjecucion[fila.id]?.mensaje }}
                 </span>
-                <span v-else class="text-neutral-400">sin ejecutar</span>
+                <span v-else class="text-neutral-500">Sin ejecutar</span>
               </template>
               <template #celda-acciones="{ fila }">
                 <UButton size="xs" variant="ghost" color="error" @click="eliminarCaso(fila)">
@@ -1173,17 +1436,20 @@ async function probar(): Promise<void> {
                 :key="claveCampo(campo)"
                 class="flex items-center gap-2"
               >
-                <span class="text-xs font-mono w-56">
-                  {{ campo.contrato }}.{{ campo.campo }} ({{ campo.tipo }})
+                <span class="w-56 text-xs">
+                  {{ etiquetaCampo(campo.campo) }}
+                  <span class="text-neutral-500">
+                    · {{ ETIQUETA_CONTRATO[campo.contrato] ?? campo.contrato }}
+                  </span>
                 </span>
-                <select
+                <USelect
                   v-if="campo.tipo === 'BOOLEAN'"
                   v-model="entradasNuevoCasoBool[claveCampo(campo)]"
-                  class="rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5 text-sm"
-                >
-                  <option :value="true">verdadero</option>
-                  <option :value="false">falso</option>
-                </select>
+                  :items="ITEMS_SI_NO"
+                  value-key="value"
+                  size="sm"
+                  class="w-40"
+                />
                 <UInput
                   v-else
                   v-model="entradasNuevoCaso[claveCampo(campo)]"
@@ -1199,28 +1465,24 @@ async function probar(): Promise<void> {
 
             <div class="grid grid-cols-2 gap-4">
               <UFormField label="Tipo esperado" name="caso_tipo">
-                <select
+                <USelect
                   v-model="nuevoCasoTipoEsperado"
-                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
-                >
-                  <option value="MONEY">MONEY</option>
-                  <option value="NUMBER">NUMBER</option>
-                  <option value="BOOLEAN">BOOLEAN</option>
-                  <option value="NULO">NULO</option>
-                </select>
+                  :items="ITEMS_TIPO_ESPERADO"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
               <UFormField
                 v-if="nuevoCasoTipoEsperado === 'BOOLEAN'"
                 label="Resultado esperado"
                 name="caso_resultado"
               >
-                <select
+                <USelect
                   v-model="nuevoCasoResultadoBool"
-                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
-                >
-                  <option :value="true">verdadero</option>
-                  <option :value="false">falso</option>
-                </select>
+                  :items="ITEMS_SI_NO"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
               <UFormField
                 v-else-if="nuevoCasoTipoEsperado !== 'NULO'"
@@ -1386,32 +1648,23 @@ async function probar(): Promise<void> {
               <div class="p-4 space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <UFormField label="Tipo" name="tipo_recurrencia">
-                    <select
+                    <USelect
                       v-model="tipoRecurrencia"
+                      :items="ITEMS_TIPO_RECURRENCIA.map((i) => ({ ...i, disabled: i.value === 'novedad' && existeSingletonNovedad }))"
+                      value-key="value"
                       :disabled="soloLectura"
-                      class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
-                    >
-                      <option value="recurrente">Recurrente (cada ciclo, desde una fecha)</option>
-                      <option value="unico">Único (una sola vez)</option>
-                      <option value="por_periodo">Por un periodo (rango de fechas)</option>
-                      <option value="novedad" :disabled="existeSingletonNovedad">
-                        Novedad (aplicado por inmueble)
-                      </option>
-                    </select>
+                      class="w-full"
+                    />
                   </UFormField>
 
                   <UFormField v-if="tipoRecurrencia === 'recurrente'" label="Periodicidad" name="periodicidad">
-                    <select
+                    <USelect
                       v-model="periodicidad"
+                      :items="ITEMS_PERIODICIDAD"
+                      value-key="value"
                       :disabled="soloLectura"
-                      class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
-                    >
-                      <option value="mensual">Mensual</option>
-                      <option value="bimensual">Bimensual</option>
-                      <option value="trimestral">Trimestral</option>
-                      <option value="semestral">Semestral</option>
-                      <option value="anual">Anual</option>
-                    </select>
+                      class="w-full"
+                    />
                   </UFormField>
                 </div>
 
@@ -1535,16 +1788,13 @@ async function probar(): Promise<void> {
                     @click="alternarAyuda('cuenta')"
                   >?</button>
                 </span>
-                <select
+                <USelect
                   v-model="presupuestoCuentaId"
+                  :items="itemsCuentaPresupuestal"
+                  value-key="value"
                   :disabled="soloLectura"
-                  class="w-full max-w-sm rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5"
-                >
-                  <option :value="null">— Sin clasificar —</option>
-                  <option v-for="c in opcionesCuentaPresupuestal" :key="c.id" :value="c.id">
-                    {{ c.nombre }}
-                  </option>
-                </select>
+                  class="w-full max-w-sm"
+                />
                 <p
                   v-if="ayudasAbiertas.has('cuenta')"
                   class="text-xs text-neutral-600 dark:text-neutral-300 border-l-2 border-neutral-200 dark:border-neutral-700 pl-3 py-2 bg-neutral-50 dark:bg-neutral-900/40 rounded-r"
@@ -1596,37 +1846,89 @@ async function probar(): Promise<void> {
         </p>
         <template v-else>
           <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 mb-6">
-            <div class="flex items-center justify-between flex-wrap gap-2">
-              <p class="text-sm font-medium">Estado: {{ conceptoEnEdicion?.estado }}</p>
-              <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-neutral-500">Estado</span>
+                  <UBadge
+                    :color="COLOR_ESTADO_CONCEPTO[conceptoEnEdicion?.estado ?? ''] ?? 'neutral'"
+                    variant="subtle"
+                  >
+                    {{ ETIQUETA_ESTADO_CONCEPTO[conceptoEnEdicion?.estado ?? ''] ?? conceptoEnEdicion?.estado }}
+                  </UBadge>
+                </div>
+                <p class="mt-1.5 text-xs text-neutral-500">
+                  {{ DESCRIPCION_ESTADO_CONCEPTO[conceptoEnEdicion?.estado ?? ''] }}
+                </p>
+              </div>
+
+              <!-- Toda transición pasa por confirmación: son cambios de estado
+                   del flujo de aprobación —algunos irreversibles— y hasta ahora
+                   se ejecutaban al primer clic, mientras que las acciones EN
+                   LOTE del catálogo sí confirmaban. -->
+              <div class="flex flex-wrap items-center gap-2">
                 <template v-if="conceptoEnEdicion?.estado === 'borrador'">
-                  <UButton size="xs" variant="soft" :loading="cambiandoEstado" @click="enviarARevision">
+                  <UButton size="xs" variant="soft" @click="pedirConfirmacion('revision')">
                     Enviar a revisión
                   </UButton>
-                  <UButton size="xs" variant="soft" color="error" :loading="cambiandoEstado" @click="archivar">
+                  <UButton size="xs" variant="soft" color="error" @click="pedirConfirmacion('archivar')">
                     Archivar
                   </UButton>
                 </template>
                 <template v-else-if="conceptoEnEdicion?.estado === 'en_revision'">
-                  <UButton size="xs" variant="soft" :loading="cambiandoEstado" @click="aprobar">
+                  <UButton size="xs" variant="soft" @click="pedirConfirmacion('aprobar')">
                     Aprobar
                   </UButton>
-                  <UInput v-model="motivoRechazo" size="xs" placeholder="Motivo de rechazo" class="w-40" />
-                  <UButton size="xs" variant="soft" color="error" :loading="cambiandoEstado" @click="rechazar">
+                  <UButton size="xs" variant="soft" color="error" @click="pedirConfirmacion('rechazar')">
                     Rechazar
                   </UButton>
                 </template>
                 <template v-else-if="conceptoEnEdicion?.estado === 'activo'">
-                  <UButton size="xs" variant="soft" :loading="cambiandoEstado" @click="volverABorrador">
+                  <UButton size="xs" variant="soft" @click="pedirConfirmacion('borrador')">
                     Volver a borrador
                   </UButton>
-                  <UButton size="xs" variant="soft" color="error" :loading="cambiandoEstado" @click="archivar">
+                  <UButton size="xs" variant="soft" color="error" @click="pedirConfirmacion('archivar')">
                     Archivar
                   </UButton>
                 </template>
               </div>
             </div>
           </div>
+
+          <UModal
+            :open="transicionPendiente !== null"
+            :title="detalleTransicion?.titulo"
+            @update:open="(abierto) => { if (!abierto) transicionPendiente = null }"
+          >
+            <template #body>
+              <div class="space-y-3 text-sm">
+                <p>{{ detalleTransicion?.cuerpo }}</p>
+                <!-- El motivo era un UInput suelto de 160 px, sin etiqueta ni
+                     validación visible, junto al botón que lo consumía. -->
+                <UFormField
+                  v-if="transicionPendiente === 'rechazar'"
+                  label="Motivo del rechazo"
+                  name="motivo_rechazo"
+                  help="Lo verá quien redactó el concepto."
+                  :error="errorMotivoRechazo"
+                >
+                  <UInput v-model="motivoRechazo" class="w-full" placeholder="Qué hay que corregir" />
+                </UFormField>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton variant="ghost" @click="transicionPendiente = null">Cancelar</UButton>
+                <UButton
+                  :color="detalleTransicion?.destructiva ? 'error' : 'primary'"
+                  :loading="cambiandoEstado"
+                  @click="confirmarTransicion"
+                >
+                  {{ detalleTransicion?.accion }}
+                </UButton>
+              </div>
+            </template>
+          </UModal>
 
           <h2 class="text-lg font-semibold mb-2">Historial de versiones</h2>
           <p v-if="conceptoStore.versiones.length === 0" class="text-neutral-500 text-sm">
@@ -1645,7 +1947,7 @@ async function probar(): Promise<void> {
             >
               <template #celda-version="{ fila }">{{ fila.version }}</template>
               <template #celda-fecha="{ fila }"><span class="text-neutral-500">{{ new Date(fila.created_at).toLocaleString() }}</span></template>
-              <template #celda-estado="{ fila }"><span class="text-neutral-500">{{ fila.estado_concepto }}</span></template>
+              <template #celda-estado="{ fila }"><span class="text-neutral-500">{{ ETIQUETA_ESTADO_CONCEPTO[fila.estado_concepto] ?? fila.estado_concepto }}</span></template>
             </UiTabla>
 
             <div class="flex items-end gap-4 flex-wrap mb-2">
@@ -1688,7 +1990,7 @@ async function probar(): Promise<void> {
                 :original="versionA.formula_ael ?? ''"
                 :modificado="versionB.formula_ael ?? ''"
               />
-              <div v-else-if="diffBloques" class="grid grid-cols-2 gap-3">
+              <div v-else-if="diffBloques" class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div class="rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 dark:border-neutral-800 dark:bg-neutral-900/20">
                   <p class="mb-2 text-xs font-medium uppercase text-neutral-400">Original</p>
                   <AelBlockInstruccionDiff :instrucciones="diffBloques.original" :catalogo="catalogoBloques" />

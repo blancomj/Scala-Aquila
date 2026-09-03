@@ -162,6 +162,67 @@ siempre un editor de código con autocompletado/hover (Fase 2), nunca bloques
 arrastrables. El constructor visual es, con todo, un valor añadido real del
 mockup — por eso queda en el roadmap, solo que al final.
 
+### Fase 8 — Rediseño del constructor visual (en curso, abierta 2026-09-02)
+
+**Reabre el roadmap por necesidad real confirmada**, en los términos de AD-23:
+el usuario reportó que el constructor de bloques «no es intuitivo, claro,
+legible ni natural, y tiende a confundir». Una revisión de los cinco
+componentes (más el diff de versiones, el tema de sintaxis del modo texto y la
+página de dependencias) encontró 17 hallazgos en el lienzo y 9 adyacentes.
+
+El alcance es **estrictamente la capa de presentación e interacción**: no se
+toca la gramática de AEL, ni el modelo `BloqueRegla`, ni las conversiones
+`astABloques`/`bloquesAAst`, ni el printer, ni el evaluador, ni la invariante
+del lexema crudo. El texto sigue siendo la fuente de verdad y los bloques una
+vista sobre él.
+
+Diagnóstico de fondo: el modo Bloques **transcribía** el texto AEL token por
+token en vez de **representarlo** — sin paréntesis y con 16 controles de
+estructura alrededor de 6 de contenido (medido en vivo sobre
+`RETORNAR (100 - 40) / 12`).
+
+Cinco tandas, cada una entregable por separado:
+
+| Tanda | Contenido | Estado |
+| --- | --- | --- |
+| **F0** — red de seguridad | Infraestructura de tests de componente (D-33) y fijación del render actual | ✅ |
+| **F1** — legibilidad | 01 agrupamiento visible (D-34) · 02 chrome contextual · 03 etiquetas en español (`ael-etiquetas.ts`) · 10 sistema de diseño (D-35) | ✅ |
+| **F2** — seguridad de edición | 04 deshacer/rehacer · 09 destinos de arrastre visibles y acotados a hojas | ✅ |
+| **F3** — continuidad | 05 no perder el árbol al cambiar de modo, semilla para fórmula vacía, huecos explícitos · 08 diagnósticos anclados al nodo | ✅ |
+| **F4** — un solo catálogo | 06 fusionar paleta y «Variables disponibles» (`AelBlockPaleta.vue` eliminado) · 07 valores en vivo sobre los bloques · 11 resumen en lenguaje llano (`ael-resumen.ts`) | ✅ |
+
+**Restricción de orden:** 02 no puede entregarse sin 01. Hoy la posición de
+los pares `↩ ⊕` es la única pista —accidental— del agrupamiento en el lienzo
+editable; quitar el chrome antes de introducir las cajas dejaría el editor tan
+ciego como estaba el diff.
+
+**Higiene del módulo ✅** (aparte, sin dependencias con las tandas):
+
+- `ConceptosEditor.vue` importa `concepto-labels.ts` en vez de redeclarar su
+  propio mapa de color —`en_revision` era *warning* aquí y *primary* en el
+  catálogo, el mismo estado con dos colores— y ya no muestra enums crudos en
+  el badge, en la pestaña Auditoría, en la tabla de versiones ni en el aviso
+  de solo lectura.
+- Fuera de la interfaz la jerga de implementación: «AEL-004 Fase 1/6», «sin
+  tocar Supabase», `passed`/`failed`, «Capabilities» con `READ_PARAMETER` /
+  `USES_FUNCTION` (ahora «De qué depende esta fórmula» → «Parámetro — lee
+  Presupuesto anual»), «Impacto por Contract/Function» y «Doc 10 §79-80» en
+  la página de dependencias. Las descripciones del catálogo se reescribieron
+  para quien administra una copropiedad —decían «Σ
+  fuente_financiacion.valor_aplicado (tipo=otros_ingresos) — neteo GAP-19»—
+  con la procedencia técnica movida al comentario de cada entrada.
+- **Un texto que además mentía**: el hover de `UNIT` en el editor decía «sin
+  datos cableados en liquidar-periodo todavía (D-13)». D-13 se revirtió y
+  `snapshot-supabase.ts` sí puebla área y coeficiente; el hover afirmaba lo
+  contrario de la realidad.
+- Las cinco transiciones de estado piden confirmación en `UModal`, con el
+  motivo de rechazo en un `UFormField` con etiqueta, ayuda y validación —era
+  un `UInput` suelto de 160 px junto al botón que lo consumía. Las acciones
+  en lote del catálogo ya confirmaban: la incoherencia estaba al revés de lo
+  esperable.
+- Los seis `<select>` crudos del formulario pasaron a `USelect`. Los de
+  DENTRO de una expresión siguen siendo nativos a propósito (D-35).
+
 ## 6. Backlog explícito — no planeado salvo necesidad real confirmada
 
 Mismo criterio AD-23, aplicado literalmente a estos ítems del propio Doc 10:
@@ -197,10 +258,12 @@ Actualizar la fila `AD-23` en `§1.1` para reflejar la reversión parcial:
 > sí (Fases 3-4 de ese plan) sigue condicionado a necesidad real, igual que
 > antes.
 
-## 8. Estado (actualizado 2026-08-15)
+## 8. Estado (actualizado 2026-09-02)
 
 Las 7 fases de §5 están completas y verificadas (typecheck/lint/tests +
-navegador). De §6, quedan diferidos **Debugger** y **CLI + integración
+navegador). **La Fase 8 está abierta y en curso** — reabrió el roadmap una
+necesidad real confirmada por el usuario (el constructor visual confunde), en
+los términos que AD-23 exige. De §6, quedan diferidos **Debugger** y **CLI + integración
 Git/CI** — sin caso de negocio confirmado. **GAP-20** (estados intermedios
 de aprobación presupuestal) y **GAP-21** (sectorización comercial/mixta),
 mencionados en `PLAN_MAESTRO_IMPLEMENTACION.md` §12.2, también siguen
@@ -208,6 +271,28 @@ diferidos por el mismo criterio — no son parte de este documento (son gaps
 del motor de liquidación, no de AEL-004), se listan aquí solo para que no
 se confundan con backlog pendiente de este plan.
 
-Próxima acción: ninguna agendada. Este roadmap vuelve a estar en modo
-AD-23 — la siguiente fase (si la hay) se planifica solo cuando exista una
-necesidad real confirmada, misma disciplina que abrió este documento.
+**La Fase 8 está completa**: las cinco tandas, los once movimientos y la
+higiene del módulo, verificados en navegador contra la app corriendo. Con
+eso,
+este roadmap vuelve a modo AD-23: la siguiente fase (si la hay) se planifica
+solo cuando exista una necesidad real confirmada, misma disciplina que abrió
+este documento.
+
+**Deuda conocida al abrir la Fase 8** (preexistente, verificada con `git
+stash` — no la introdujo esta fase): `pnpm verify` está en rojo. Cuatro
+fallos de gobernanza (ocho archivos `.vue` que derivaron del design system
+desde que se congeló el allowlist de D-26, más deriva del registro de
+`ERROR_CODES`) y 85 errores de `tsc`, todos en `tests/tenancy/*`. La
+Definition of Done de cada tanda de la Fase 8 es, por tanto, **no añadir
+fallos nuevos** y retirar los cinco archivos `AelBlock*`/`Ael*` del allowlist
+`ARCHIVOS_LEGADO_GRAY` al completar el movimiento 10 — no «dejar verify en
+verde», que no depende de esta fase.
+
+Además, un servidor de desarrollo **recién arrancado** devuelve 500 en SSR en
+toda ruta (`getActivePinia() was called but there was no active Pinia`); solo
+funciona una instancia que lleve rato encendida. Reproducido en arranques
+limpios y tras borrar `.nuxt` y la caché de Nuxt. No es de esta fase, pero
+bloquea la verificación en navegador cada vez que hay que reiniciar el
+servidor —por ejemplo tras instalar dependencias, que además re-enlaza
+`node_modules` e invalida el grafo de módulos de cualquier servidor en
+marcha.

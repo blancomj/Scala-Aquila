@@ -210,6 +210,67 @@ export function astABloques(regla: Regla): BloqueRegla {
   }
 }
 
+// ────────────── agrupamiento visible en el lienzo (F1, mov. 01) ─────────
+// El lienzo dibujaba toda ExpresionBinaria plana, con la misma separación a
+// cualquier profundidad: `(a - b) / 12` y `a - (b / 12)` se leían igual
+// (hallazgo C1), y en solo lectura —el diff de versiones— eran
+// indistinguibles (X1). El anidamiento SÍ estaba en el DOM; lo que faltaba
+// era pintarlo.
+//
+// La regla no es estética: es exactamente la de `imprimirOperando()` en
+// packages/ael-language/src/printer.ts. Una caja aparece donde el printer
+// pondría un paréntesis, ni más ni menos — así el lienzo y el texto dicen
+// literalmente lo mismo, y quien alterne entre modos no ve dos
+// agrupamientos distintos. Se evaluó la alternativa de encajonar TODA
+// binaria anidada; se descartó porque llenaría de cajas expresiones como
+// `a + b * c`, donde la precedencia aritmética ya es la que cualquiera
+// espera y el texto tampoco lleva paréntesis.
+//
+// Duplicar aquí la tabla de precedencia es deliberado: layer B no puede
+// importar de apps/web ni al revés a nivel de valores en tiempo de
+// ejecución sin arrastrar el paquete entero al bundle del cliente por una
+// constante. El test de ael-bloques la contrasta contra el printer real.
+
+const PRECEDENCIA_BLOQUE: Record<OperadorBinario, number> = {
+  '==': 0,
+  '!=': 0,
+  '>': 1,
+  '>=': 1,
+  '<': 1,
+  '<=': 1,
+  '+': 2,
+  '-': 2,
+  '*': 3,
+  '/': 3,
+}
+
+/** Precedencia de un bloque como operando — Infinity para todo lo que no es
+ * una operación binaria (una hoja o una llamada nunca necesita paréntesis). */
+export function precedenciaDeBloque(bloque: BloqueExpresion): number {
+  return bloque.tipo === 'ExpresionBinaria' ? PRECEDENCIA_BLOQUE[bloque.operador] : Infinity
+}
+
+/**
+ * ¿Este bloque, como operando de una operación de precedencia
+ * `precedenciaPadre`, necesita agruparse para que el árbol no cambie?
+ *
+ * Misma condición que `imprimirOperando()`:
+ * - precedencia del hijo < la del padre: siempre.
+ * - lado derecho con la MISMA precedencia: también, porque el parser es
+ *   asociativo por la izquierda y `a - (b - c)` ≠ `a - b - c`.
+ *
+ * `precedenciaPadre = -Infinity` (el valor por defecto en el lienzo para la
+ * expresión raíz) nunca agrupa.
+ */
+export function necesitaAgrupador(
+  bloque: BloqueExpresion,
+  precedenciaPadre: number,
+  esLadoDerecho: boolean,
+): boolean {
+  const propia = precedenciaDeBloque(bloque)
+  return propia < precedenciaPadre || (esLadoDerecho && propia === precedenciaPadre)
+}
+
 // ─────────────────────────── bloques → AST ───────────────────────────
 
 function bloqueAExpresion(bloque: BloqueExpresion): Expresion {
@@ -384,6 +445,28 @@ export function bloqueRetornoVacio(): BloqueRetorno {
   return { id: id(), tipo: 'Retorno', expresion: bloqueNumeroCero() }
 }
 
+/**
+ * Árbol de arranque para una fórmula que todavía no existe (F3, mov. 05 —
+ * hallazgo C4). Antes, un concepto nuevo con la fórmula en blanco entraba a
+ * modo bloques y recibía «El texto actual tiene errores de sintaxis»: el modo
+ * pensado para quien no sabe escribir AEL le exigía escribir AEL primero, y
+ * encima le decía que se había equivocado sin haber hecho nada.
+ *
+ * Se siembra el esqueleto mínimo que sí parsea —un resultado en cero— para
+ * que el lienzo abra en un estado editable en vez de en un error.
+ */
+export function bloqueReglaInicial(nombre: string): BloqueRegla {
+  const RE_IDENTIFICADOR = /^[a-zA-Z][a-zA-Z0-9_]*$/
+  return {
+    id: id(),
+    tipo: 'Regla',
+    // El código del concepto puede tener forma que el lexer no acepta como
+    // identificador (o estar vacío si todavía no lo escribieron).
+    nombre: RE_IDENTIFICADOR.test(nombre) ? nombre : 'formula',
+    cuerpo: [bloqueRetornoVacio()],
+  }
+}
+
 export function bloqueCondicionalVacio(): BloqueCondicional {
   return {
     id: id(),
@@ -403,6 +486,68 @@ export function envolverEnBinaria(bloque: BloqueExpresion): BloqueExpresionBinar
     izquierda: bloque,
     derecha: bloqueNumeroCero(),
   }
+}
+
+// ───────── reemplazar una expresión por su id (F4, mov. 06) ─────────────
+// El catálogo único inserta «en el nodo activo»: el lienzo recuerda cuál fue
+// la última expresión enfocada y el panel reemplaza ESA. Antes la única vía
+// en modo bloques era arrastrar —los chips parecían botones y el clic no
+// hacía nada—, lo que además dejaba sin ruta de teclado la inserción de
+// variables (hallazgo A3).
+
+function reemplazarEnExpresion(
+  bloque: BloqueExpresion,
+  objetivoId: string,
+  nueva: BloqueExpresion,
+): BloqueExpresion {
+  if (bloque.id === objetivoId) return nueva
+  switch (bloque.tipo) {
+    case 'LlamadaFuncion':
+      return {
+        ...bloque,
+        argumentos: bloque.argumentos.map((a) => reemplazarEnExpresion(a, objetivoId, nueva)),
+      }
+    case 'ExpresionUnaria':
+      return { ...bloque, operando: reemplazarEnExpresion(bloque.operando, objetivoId, nueva) }
+    case 'ExpresionBinaria':
+      return {
+        ...bloque,
+        izquierda: reemplazarEnExpresion(bloque.izquierda, objetivoId, nueva),
+        derecha: reemplazarEnExpresion(bloque.derecha, objetivoId, nueva),
+      }
+    default:
+      return bloque
+  }
+}
+
+function reemplazarEnInstruccion(
+  inst: BloqueInstruccion,
+  objetivoId: string,
+  nueva: BloqueExpresion,
+): BloqueInstruccion {
+  switch (inst.tipo) {
+    case 'Declaracion':
+      return { ...inst, expresion: reemplazarEnExpresion(inst.expresion, objetivoId, nueva) }
+    case 'Retorno':
+      return { ...inst, expresion: reemplazarEnExpresion(inst.expresion, objetivoId, nueva) }
+    case 'Condicional':
+      return {
+        ...inst,
+        condicion: reemplazarEnExpresion(inst.condicion, objetivoId, nueva),
+        entonces: inst.entonces.map((i) => reemplazarEnInstruccion(i, objetivoId, nueva)),
+        sino: inst.sino?.map((i) => reemplazarEnInstruccion(i, objetivoId, nueva)) ?? null,
+      }
+  }
+}
+
+/** Devuelve la regla con la expresión `objetivoId` reemplazada por `nueva`.
+ * Si el id no existe en el árbol, devuelve la regla sin cambios. */
+export function reemplazarExpresionPorId(
+  regla: BloqueRegla,
+  objetivoId: string,
+  nueva: BloqueExpresion,
+): BloqueRegla {
+  return { ...regla, cuerpo: regla.cuerpo.map((i) => reemplazarEnInstruccion(i, objetivoId, nueva)) }
 }
 
 // ───────────── mover instrucciones entre ramas distintas (E6+) ──────────

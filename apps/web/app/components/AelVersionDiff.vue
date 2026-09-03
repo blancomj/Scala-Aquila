@@ -47,6 +47,6 @@ watch([() => props.original, () => props.modificado], crearVista)
 <template>
   <div
     ref="contenedor"
-    class="rounded-md border border-gray-300 dark:border-gray-700 overflow-hidden"
+    class="rounded-md border border-neutral-300 dark:border-neutral-700 overflow-hidden"
   />
 </template>
