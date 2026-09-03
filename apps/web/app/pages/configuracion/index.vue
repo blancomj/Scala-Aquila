@@ -1,7 +1,13 @@
 <script setup lang="ts">
-// Ficha de la copropiedad — reemplaza el placeholder (F4/E4). 4 tabs:
-// Datos básicos, Documentos y Configuración se construyen (PROMPT_FICHA_COPROPIEDAD.md
-// §1.1, C1-C5). Documentos reutiliza documentos/CopropiedadDocumentos.vue —
+// Ficha de la copropiedad — reemplaza el placeholder (F4/E4). 5 tabs:
+// Datos básicos, Personas vinculadas, Documentos y Configuración se construyen
+// (PROMPT_FICHA_COPROPIEDAD.md §1.1, C1-C5). "Personas vinculadas" era una
+// sección al final de Datos básicos y pasó a tab propio a pedido del usuario
+// (tiene su propia stat en el encabezado, competía con las cuentas bancarias
+// por el mismo scroll); "Consejo de administración" — misma
+// CopropiedadPersonasVinculadas.vue con otra familia de rol — se trajo ahí
+// desde el tab Configuración, para que las dos listas de personas vivan
+// juntas. Documentos reutiliza documentos/CopropiedadDocumentos.vue —
 // mismo patrón que InmuebleDocumentos.vue, inmueble_id null = pertenece al
 // tenant (§8.1, resuelto por decisión explícita del usuario: reusar el
 // mismo tab del inmueble en vez de tablas paralelas). Histórico sigue
@@ -16,9 +22,10 @@ const tercerosStore = useTercerosStore()
 const cuentaStore = useCuentaCorrienteStore()
 const supabase = useSupabaseClient()
 
-type Tab = 'basicos' | 'documentos' | 'configuracion' | 'historico'
+type Tab = 'basicos' | 'personas' | 'documentos' | 'configuracion' | 'historico'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string; deshabilitada?: boolean }> = [
   { id: 'basicos', etiqueta: 'Datos básicos' },
+  { id: 'personas', etiqueta: 'Personas vinculadas' },
   { id: 'documentos', etiqueta: 'Documentos' },
   { id: 'configuracion', etiqueta: 'Configuración' },
   { id: 'historico', etiqueta: 'Histórico', deshabilitada: true },
@@ -150,6 +157,23 @@ const personasVinculadasActivas = computed(
       <div class="panels">
         <section v-if="tabActiva === 'basicos'">
           <CopropiedadDatosBasicos />
+        </section>
+        <section v-else-if="tabActiva === 'personas'">
+          <CopropiedadPersonasVinculadas
+            familia-rol="PERSONA_COPROPIEDAD"
+            titulo="Personas vinculadas"
+            subtitulo="Roles sobre la copropiedad misma — administrador, contador, abogado, revisor fiscal."
+            nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
+          />
+          <CopropiedadPersonasVinculadas
+            style="margin-top: 2.5rem"
+            familia-rol="ROL_CONCEJO_COPROPIEDAD"
+            titulo="Consejo de administración"
+            subtitulo="Presidente, vicepresidente, secretario, vocales y suplentes del consejo."
+            nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
+            :mostrar-tarjeta-profesional="false"
+            texto-boton-agregar="Agregar miembro"
+          />
         </section>
         <section v-else-if="tabActiva === 'documentos'">
           <CopropiedadDocumentos />

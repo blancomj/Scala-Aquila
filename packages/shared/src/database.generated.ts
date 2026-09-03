@@ -9492,6 +9492,7 @@ export type Database = {
         }
         Returns: string
       }
+      fn_resetear_copropiedad: { Args: { p_tenant_id: string }; Returns: Json }
       fn_sembrar_configuracion_cartera: {
         Args: { p_tenant_id: string }
         Returns: string

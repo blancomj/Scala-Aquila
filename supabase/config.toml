@@ -255,3 +255,10 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/subir-evidencia-auditoria/deno.json"
 entrypoint = "./functions/subir-evidencia-auditoria/index.ts"
+
+# Zona de peligro (D-36) — solo administrador vía has_role() en la RPC.
+[functions.resetear-copropiedad]
+enabled = true
+verify_jwt = true
+import_map = "./functions/resetear-copropiedad/deno.json"
+entrypoint = "./functions/resetear-copropiedad/index.ts"
