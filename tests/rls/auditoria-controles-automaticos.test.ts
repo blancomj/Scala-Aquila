@@ -165,7 +165,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('FAIL')
     expect(resultado.conteo).toBeGreaterThanOrEqual(1)
     expect(resultado.hallazgo_id).not.toBeNull()
@@ -205,7 +205,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('FAIL')
     expect(resultado.conteo).toBe(1)
 
@@ -247,7 +247,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('REVIEW')
     expect(resultado.conteo).toBeGreaterThanOrEqual(1)
     expect(resultado.hallazgo_id).toBeNull()
@@ -272,7 +272,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('PASS')
     expect(resultado.conteo).toBe(0)
     expect(resultado.hallazgo_id).toBeNull()
@@ -356,7 +356,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('FAIL')
     expect(resultado.conteo).toBe(1)
 
@@ -396,7 +396,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('PASS')
     expect(resultado.conteo).toBe(0)
 
@@ -429,7 +429,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
       p_engagement_id: engagementId,
     })
     expect(primera.error).toBeNull()
-    const resultado1 = primera.data![0]
+    const resultado1 = primera.data![0]!
     expect(resultado1.resultado).toBe('FAIL')
     expect(resultado1.hallazgo_id).not.toBeNull()
 
@@ -438,7 +438,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
       p_engagement_id: engagementId,
     })
     expect(segunda.error).toBeNull()
-    const resultado2 = segunda.data![0]
+    const resultado2 = segunda.data![0]!
     expect(resultado2.resultado).toBe('FAIL')
     // Mismo hallazgo reutilizado, no uno nuevo — la excepción sigue sin
     // resolver, no hace falta una segunda fila para decirlo otra vez.
@@ -503,7 +503,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('FAIL')
     expect(resultado.conteo).toBe(1)
 
@@ -579,7 +579,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('REVIEW')
     expect(resultado.conteo).toBe(1)
     expect(resultado.hallazgo_id).toBeNull()
@@ -608,7 +608,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     })
 
     expect(error).toBeNull()
-    const resultado = data![0]
+    const resultado = data![0]!
     expect(resultado.resultado).toBe('PASS')
     expect(resultado.conteo).toBe(0)
     expect(resultado.hallazgo_id).toBeNull()

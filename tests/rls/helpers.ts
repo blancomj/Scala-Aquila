@@ -73,15 +73,22 @@ export interface TenantPrueba {
   slug: string
 }
 
+/** `creadoPor` es opcional porque `tenants.created_by` es nullable
+ * (20260813190100_core_tables.sql:16). La firma lo exigía y ocho suites lo
+ * omitían: 12 errores de `tsc` sobre pruebas que en ejecución pasaban, porque
+ * la base sí acepta el insert sin ese campo. Se relaja la firma en vez de
+ * reescribir las ocho — el tipo debe describir el esquema, no al revés. */
 export async function crearTenant(
   admin: Cliente,
   etiqueta: string,
-  creadoPor: string,
+  creadoPor?: string,
 ): Promise<TenantPrueba> {
   const slug = `t-${RUN_ID}-${etiqueta}`.toLowerCase()
   const { data, error } = await admin
     .from('tenants')
-    .insert({ name: `Tenant prueba ${etiqueta}`, slug, created_by: creadoPor })
+    // La clave se omite cuando no hay autor, en vez de mandarla en undefined:
+    // el tipo generado no admite `string | undefined` en una columna nullable.
+    .insert({ name: `Tenant prueba ${etiqueta}`, slug, ...(creadoPor ? { created_by: creadoPor } : {}) })
     .select('id, slug')
     .single<TenantPrueba>()
 

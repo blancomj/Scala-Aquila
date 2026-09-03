@@ -14,10 +14,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const permisoRequerido = to.meta.permiso
   if (!permisoRequerido) return undefined
 
+  // Ambos stores antes del primer await: después se pierde el contexto de la
+  // app y `useTenantStore()` cae al global `activePinia`, que solo está
+  // poblado si otra petición lo dejó ahí. Ver el comentario largo en
+  // `tenant.ts` — es el mismo defecto y causaba el mismo 500 en frío.
   const authStore = useAuthStore()
+  const tenantStore = useTenantStore()
+
   await authStore.cargarPerfil()
 
-  const tenantStore = useTenantStore()
   if (tenantStore.memberships.length === 0) {
     await tenantStore.cargarMemberships()
   }

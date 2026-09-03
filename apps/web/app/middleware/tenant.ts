@@ -26,10 +26,25 @@
  * puede — y debe — reconstruir a partir de ellas.
  */
 export default defineNuxtRouteMiddleware(async (to) => {
+  // TODO lo que dependa del contexto de la app —stores, useCookie— se resuelve
+  // ANTES del primer await. Tras un await se pierde ese contexto (unctx no lo
+  // restaura solo), así que `useTenantStore()` caía al global `activePinia` de
+  // Pinia: en un servidor caliente ese global sigue poblado por la petición
+  // anterior y funciona por accidente, pero en la primera petición de un
+  // servidor recién arrancado no está y el SSR reventaba con
+  // «getActivePinia() was called but there was no active Pinia» — un 500 en
+  // toda ruta autenticada que solo se veía en arranque en frío.
+  //
+  // Que funcionara "casi siempre" era precisamente el síntoma: ese global es
+  // compartido entre peticiones concurrentes, que es lo que Pinia advierte.
   const authStore = useAuthStore()
+  const tenantStore = useTenantStore()
+  const copropiedadConfirmada = useCookie<boolean>('copropiedad-confirmada-sesion', {
+    default: () => false,
+  })
+
   const perfil = await authStore.cargarPerfil()
 
-  const tenantStore = useTenantStore()
   // Misma key 'memberships' que layouts/default.vue — Nuxt deduplica
   // useAsyncData por key dentro de la misma request, así que esto no
   // dispara una segunda consulta si el layout ya la resolvió.
@@ -61,10 +76,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (tenantStore.memberships.length === 1 && !perfil?.active_tenant_id) {
     await tenantStore.cambiarTenant(tenantStore.memberships[0]!.tenant_id)
   }
-
-  const copropiedadConfirmada = useCookie<boolean>('copropiedad-confirmada-sesion', {
-    default: () => false,
-  })
 
   if (
     tenantStore.memberships.length > 1 &&
