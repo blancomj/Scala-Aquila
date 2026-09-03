@@ -14,7 +14,7 @@
 2. Merge `app.config.ts` into your project's `app.config.ts` (or add the `ui.colors` block if the file already exists):
    ```ts
    export default defineAppConfig({
-     ui: { colors: { primary: 'brand', neutral: 'neutral' } },
+     ui: { colors: { primary: 'brand', neutral: 'northline' } },
    });
    ```
 3. Load fonts: `Inter:wght@400;500;600` and `Inter Tight:wght@500;600;700`.
@@ -27,10 +27,12 @@ Rule: neutrals do almost all the work. One accent hue (`brand`, oklch hue 255) c
 | Nuxt UI alias | Token | Use |
 |---|---|---|
 | `primary` | `brand` scale (50–950) | Primary actions, links, focus rings |
-| `neutral` | `neutral` scale (50–950) | Text, borders, surfaces, dark-fill controls |
+| `neutral` | `northline` scale (50–950) | Text, borders, surfaces, dark-fill controls |
 | `success` / `warning` / `error` | Nuxt UI defaults | Status, validation, destructive actions |
 
-Don't override `success`/`warning`/`error` unless the brand explicitly needs it — Nuxt UI's defaults are already accessible and recognizable.
+Don't override `success`/`warning`/`error` unless the brand explicitly needs it — Nuxt UI's defaults are already accessible and recognizable. If you need one of them from plain CSS (a `<style scoped>` with no component to pass a prop to), use the alias tokens `--color-success-*` / `--color-warning-*` / `--color-error-*`, which point at Nuxt UI's own chain — never a fresh hex, or the same semantic name ends up meaning two different colors (D-37).
+
+> **The palette name must not collide with a Tailwind palette.** `brand` and `northline` are deliberately non-Tailwind names. Nuxt UI redefines `--color-<name>-*` as an alias of `--ui-color-<name>-*` to expose the semantic color; if `<name>` is one of Tailwind's own palettes the reference is circular, so Nuxt UI files Tailwind's original scale under `--color-old-<name>-*` and points there — silently ignoring `tokens.css`. This is not hypothetical: `neutral: 'neutral'` did exactly that until 2026-09-03, so every Nuxt UI component rendered with Tailwind's pure grey instead of this scale (ΔE up to 6.33 on the light steps). Enforced by `tests/governance/design-system-coverage.test.ts` (D-37).
 
 ## Typography
 
@@ -167,4 +169,14 @@ Este doc gobierna la *interfaz* (componentes, formularios, navegación). No gobi
 
 ## `gray-*` de Tailwind vs `neutral-*`
 
-Antes de este unificado, la app usaba masivamente las clases `gray-*` por defecto de Tailwind (904 usos en 66 archivos, verificado 23-08-2026) en vez de la escala `neutral-*` de acá. No se migran retroactivamente (mismo criterio costo/beneficio que D-24 en DECISIONES.md — el resultado visual es casi idéntico, `neutral-500` `#6b6b70` vs `gray-500` `#6b7280`). **Hacia adelante sí aplica**: código nuevo no debe introducir `gray-*` — usa `neutral-*`, o mejor, las clases semánticas de Nuxt UI (`text-muted`, `text-dimmed`, `border-default`, etc.) cuando el componente las expone. Hecho cumplir por `tests/governance/design-system-coverage.test.ts` (D-26, DECISIONES.md).
+Antes de este unificado, la app usaba masivamente las clases `gray-*` por defecto de Tailwind en vez de la escala de acá (292 usos en 26 archivos al 03-09-2026; el conteo original de 904 en 66 archivos quedó desactualizado por las migraciones posteriores).
+
+Ese texto decía que no se migraban porque «el resultado visual es casi idéntico, `neutral-500` `#6b6b70` vs `gray-500` `#6b7280`». **Las dos mitades eran falsas** (verificado 03-09-2026): `#6b7280` es el `gray-500` de Tailwind **v3** — el v4 es `oklch(55.1% 0.027 264.364)` — y la diferencia contra esta escala no es despreciable. El `gray` de Tailwind es un gris azulado (croma 22–34) y este es casi acromático (croma 3.6–8.8); medido en OKLab (×100, >2 ya es perceptible):
+
+| paso | 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| ΔE | 1.46 | 2.34 | 4.13 | 5.01 | **6.34** | 2.94 | 2.39 | 3.18 | 2.99 | 3.31 | 3.29 |
+
+Los peores son los escalones claros — bordes, separadores, texto atenuado, placeholders — que son justo los que más se repiten en un back-office.
+
+**La solución no fue migrar los 26 archivos, sino aliasar la paleta**: `tokens.css` define `--color-gray-*: var(--color-northline-*)`, así que las clases heredadas resuelven a esta escala sin editarlas. **Hacia adelante la regla no cambia**: código nuevo no debe introducir `gray-*` — usa `neutral-*`, o mejor, las clases semánticas de Nuxt UI (`text-muted`, `text-dimmed`, `border-default`, etc.) cuando el componente las expone. El alias es red de seguridad para lo heredado, no permiso; `tests/governance/design-system-coverage.test.ts` sigue rechazando `gray-*` nuevo (D-26, DECISIONES.md).

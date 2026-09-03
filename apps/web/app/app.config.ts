@@ -1,7 +1,15 @@
-// Nuxt UI v4 — alias los colores semánticos "primary"/"neutral" a la paleta
-// "brand"/"neutral" definida en assets/css/tokens.css (Casos de uso/Estilo
-// Visual/DESIGN_SYSTEM.md). success/warning/error quedan en los defaults de
-// Nuxt UI — no hay necesidad de marca en esos.
+// Nuxt UI v4 — alias los colores semánticos "primary"/"neutral" a las paletas
+// "brand"/"northline" definidas en assets/css/tokens.css (DESIGN_SYSTEM.md en
+// la raíz). success/warning/error quedan en los defaults de Nuxt UI — no hay
+// necesidad de marca en esos.
+//
+// El nombre de la paleta NO puede coincidir con una de Tailwind (D-37): esto
+// decía `neutral: 'neutral'`, que es circular —Nuxt UI redefine
+// --color-neutral-* como alias de --ui-color-neutral-*—, así que archivaba el
+// neutral original de Tailwind en --color-old-neutral-* y apuntaba ahí. Los
+// componentes quedaban pintados con el gris puro de Tailwind y no con la
+// escala del proyecto, sin ningún error visible. `primary: 'brand'` nunca
+// falló porque "brand" no es una paleta de Tailwind.
 //
 // DESIGN_SYSTEM.md pide "rounded-sm (8px) para botones/campos, rounded-md
 // (14px) para tarjetas/paneles/modales" — pero el tema interno de Nuxt UI
@@ -16,7 +24,7 @@ export default defineAppConfig({
   ui: {
     colors: {
       primary: 'brand',
-      neutral: 'neutral',
+      neutral: 'northline',
     },
     button: { slots: { base: 'rounded-sm' } },
     input: { slots: { base: 'rounded-sm' } },

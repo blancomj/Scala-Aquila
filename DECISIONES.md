@@ -1440,3 +1440,79 @@ pasarle un prop. Se añade la escala semántica a `tokens.css`.
 **Consecuencia.** El allowlist de hex baja de 5 a 3 archivos (salen los dos
 visores migrados, entra el de la escala de severidad por su razón propia), y el
 sistema gana los tokens semánticos que le faltaban para CSS plano.
+
+## D-37 — El nombre de una paleta no puede colisionar con una de Tailwind
+
+**Fecha.** 2026-09-03 · **Estado.** cerrada · **Reemplaza.** la premisa de D-26
+sobre `gray-*` (era falsa, ver abajo)
+
+**Contexto.** Al revisar por qué los visores imprimibles llevaban hex a mano
+(D-36) apareció algo mayor: la app corría **tres escalas de gris a la vez**.
+
+| Familia | Quién la pinta | Croma | Alcance |
+|---|---|---|---|
+| `neutral` de Tailwind (vía `old-neutral`) | **todos los componentes de Nuxt UI** | 0 — gris puro | la mayor parte de la app |
+| `gray` de Tailwind | clases `gray-*` a mano | 22–34 — azulado | 292 usos / 26 archivos |
+| la escala del proyecto | clases `neutral-*` + `tokens.css` | 3.6–8.8 | minoría |
+
+La causa raíz estaba en una línea de `app.config.ts`: `neutral: 'neutral'`.
+
+Para exponer `neutral` como color semántico, Nuxt UI redefine
+`--color-neutral-*` como alias de `--ui-color-neutral-*`. Si el nombre de la
+paleta es el mismo, la referencia es circular, así que Nuxt UI archiva la
+paleta ORIGINAL de Tailwind en `--color-old-neutral-*` y apunta ahí. En el CSS
+generado se ve el contraste con `primary`, que nunca falló porque "brand" no es
+una paleta de Tailwind:
+
+```
+--ui-color-primary-500: var(--color-brand-500, )                          ← resuelve
+--ui-color-neutral-200: var(--color-old-neutral-200, oklch(92.2% 0 none)) ← al fallback
+```
+
+Medido en runtime: `--ui-color-neutral-200` daba `oklch(92.2% 0 none)` en vez
+de `#d9d9de`. La redefinición del proyecto caía al otro extremo de la cadena y
+nunca llegaba. Sin error de build ni de runtime — el color simplemente era otro.
+ΔE (OKLab ×100) contra lo que Nuxt UI pintaba de verdad:
+
+| paso | 200 | 300 | 400 | 500 | 600 | 700 | 800 |
+|---|---|---|---|---|---|---|---|
+| ΔE | 3.59 | 4.86 | **6.33** | 2.76 | 1.47 | 1.11 | 0.94 |
+
+El daño se concentra en los escalones claros —bordes, separadores, texto
+atenuado— y es casi nulo en los oscuros. Por eso pasó desapercibido: se estaba
+trabajando en modo oscuro.
+
+**Decisión.**
+
+1. **La paleta se llama `northline`, no `neutral`.** Un nombre que Tailwind no
+   use hace que `neutral` se comporte igual que `primary`. `tokens.css` mantiene
+   `--color-neutral-*` como alias de `--color-northline-*` por compatibilidad:
+   hay ~150 referencias directas `var(--color-neutral-*)` en los visores y 1304
+   clases `neutral-*` en 86 archivos.
+2. **`gray` se aliasa a la misma escala** (`--color-gray-*:
+   var(--color-northline-*)`). Cierra los 292 usos heredados sin editar los 26
+   archivos. **No es permiso**: el guard de D-26 sigue rechazando `gray-*` nuevo.
+3. **Los semánticos de CSS plano son alias, no hex.** `--color-success-*` y
+   compañía apuntan a `--ui-color-*`. Con hex propio (como quedaron en D-36) el
+   mismo nombre daba dos colores según cómo se consumiera: `text-warning-700`
+   divergía **ΔE 4.38** de `<UBadge color="warning">`. Y la escala quedaba
+   partida, porque Nuxt UI sirve 500/600 por `inline` y solo cambiaban de fuente
+   los escalones declarados a mano.
+
+**Lo que se corrige de D-26.** Su premisa era que migrar `gray-*` no valía la
+pena porque «el resultado visual es casi idéntico, `#6b6b70` vs `#6b7280`». Las
+dos mitades son falsas: `#6b7280` es el `gray-500` de Tailwind **v3** (el v4 es
+`oklch(55.1% 0.027 264.364)`), y el ΔE real llega a 6.34. Además apuntaba al
+menor de los dos problemas — el grande eran los componentes de Nuxt UI, que son
+la mayoría de la app. La regla de D-26 sobre código nuevo se mantiene intacta;
+lo que cae es su justificación de no tocar lo heredado.
+
+**Consecuencia.** Una sola escala de gris en toda la aplicación. El cambio es
+visible en producción pero sutil por elemento (ΔE 2.7–6.3 en los escalones
+claros, <2 en los oscuros): el valor no es que se vea distinto, es que deja de
+haber tres fuentes de verdad. Se añade un guard estático
+(`tests/governance/design-system-coverage.test.ts`) que verifica que ningún
+color semántico de `app.config.ts` use el nombre de una paleta de Tailwind y que
+la paleta referenciada exista completa en `tokens.css` — el fallback de Nuxt UI
+es `var(--color-X-N, )`, con fallback **vacío**, así que un paso faltante deja
+el color inválido en runtime, también sin error de build.

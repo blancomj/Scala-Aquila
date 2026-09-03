@@ -46,18 +46,68 @@
   --color-brand-900: oklch(0.30 0.10 255);
   --color-brand-950: oklch(0.22 0.07 255);
 
-  /* Neutral — gris frío contenido. Mapea a "neutral" de Nuxt UI. */
-  --color-neutral-50: #f5f5f6;
-  --color-neutral-100: #ececee;
-  --color-neutral-200: #d9d9de;
-  --color-neutral-300: #c4c4ca;
-  --color-neutral-400: #8d8d93;
-  --color-neutral-500: #6b6b70;
-  --color-neutral-600: #55555a;
-  --color-neutral-700: #3d3d40;
-  --color-neutral-800: #28282a;
-  --color-neutral-900: #1b1b1d;
-  --color-neutral-950: #0b0b0c;
+  /* Neutral — gris frío contenido. Se llama "northline" y NO "neutral"
+     (D-37, 03-09-2026): ese nombre lo ocupa una paleta interna de Tailwind y
+     la colisión rompía el mapeo en silencio.
+
+     Para exponer `neutral` como color semántico, Nuxt UI redefine
+     --color-neutral-* como alias de --ui-color-neutral-*. Si app.config le
+     dice `neutral: 'neutral'` la referencia es circular, así que archiva el
+     neutral ORIGINAL de Tailwind en --color-old-neutral-* y apunta ahí. Lo
+     medido en runtime: --ui-color-neutral-200 resolvía a oklch(92.2% 0 none)
+     —gris puro de Tailwind, croma 0— en vez de a #d9d9de, así que TODOS los
+     componentes de Nuxt UI, que son la mayor parte de la app, ignoraban esta
+     escala. ΔE de hasta 6.33 en los escalones claros (bordes, separadores,
+     texto atenuado). `primary` nunca tuvo el problema porque "brand" no es
+     una paleta de Tailwind; con nombre propio, `neutral` se comporta igual. */
+  --color-northline-50: #f5f5f6;
+  --color-northline-100: #ececee;
+  --color-northline-200: #d9d9de;
+  --color-northline-300: #c4c4ca;
+  --color-northline-400: #8d8d93;
+  --color-northline-500: #6b6b70;
+  --color-northline-600: #55555a;
+  --color-northline-700: #3d3d40;
+  --color-northline-800: #28282a;
+  --color-northline-900: #1b1b1d;
+  --color-northline-950: #0b0b0c;
+
+  /* Compatibilidad — el nombre `neutral` sigue siendo válido en la app: hay
+     ~150 referencias directas var(--color-neutral-*) en los visores
+     imprimibles y 1304 clases neutral-* en 86 archivos. Nuxt UI declara
+     estos mismos nombres apuntando a --ui-color-neutral-*, que ahora es
+     northline: los dos caminos terminan en el mismo valor. */
+  --color-neutral-50: var(--color-northline-50);
+  --color-neutral-100: var(--color-northline-100);
+  --color-neutral-200: var(--color-northline-200);
+  --color-neutral-300: var(--color-northline-300);
+  --color-neutral-400: var(--color-northline-400);
+  --color-neutral-500: var(--color-northline-500);
+  --color-neutral-600: var(--color-northline-600);
+  --color-neutral-700: var(--color-northline-700);
+  --color-neutral-800: var(--color-northline-800);
+  --color-neutral-900: var(--color-northline-900);
+  --color-neutral-950: var(--color-northline-950);
+
+  /* `gray` de Tailwind aliasado a la misma escala. Era el TERCER gris de la
+     app: azulado frío (croma 22–34 contra el 3.6–8.8 de esta escala, ΔE
+     hasta 6.34), repartido en 292 usos heredados de 26 archivos. Aliasarlo
+     los unifica sin editar los 26 — el renombrado de clases queda como
+     higiene, no como requisito visual.
+
+     Esto NO es permiso: el test de gobernanza D-26 sigue rechazando `gray-*`
+     nuevo. Es red de seguridad para lo heredado. */
+  --color-gray-50: var(--color-northline-50);
+  --color-gray-100: var(--color-northline-100);
+  --color-gray-200: var(--color-northline-200);
+  --color-gray-300: var(--color-northline-300);
+  --color-gray-400: var(--color-northline-400);
+  --color-gray-500: var(--color-northline-500);
+  --color-gray-600: var(--color-northline-600);
+  --color-gray-700: var(--color-northline-700);
+  --color-gray-800: var(--color-northline-800);
+  --color-gray-900: var(--color-northline-900);
+  --color-gray-950: var(--color-northline-950);
 
   /* Escala recalibrada (23-08-2026, dos pasadas): la original de Northline
      (8/14/20/28) venía de una UI espaciosa tipo landing y se veía como
@@ -66,17 +116,23 @@
      lg < xl se mantiene, con pasos ya mínimos. */
   /* ── Semánticos para CSS plano ─────────────────────────────────────────
      DESIGN_SYSTEM.md da success/warning/error por parte del sistema, pero
-     hasta hoy solo se consumían vía props de Nuxt UI (color="success").
-     Los visores imprimibles —informe de auditoría, certificación,
-     expediente— pintan estados dentro de un <style scoped>, donde no hay
-     componente al que pasarle un prop, y por eso llevaban el hex a mano.
-     Estos son los mismos tonos que ya usaban, ahora con nombre. */
-  --color-success-50: #f0fdf4;
-  --color-success-700: #15803d;
-  --color-warning-50: #fffbeb;
-  --color-warning-700: #b45309;
-  --color-error-50: #fef2f2;
-  --color-error-700: #b91c1c;
+     solo se consumían vía props de Nuxt UI (color="success"). Los visores
+     imprimibles —informe de auditoría, certificación, expediente— pintan
+     estados dentro de un <style scoped>, donde no hay componente al que
+     pasarle un prop, y por eso llevaban el hex a mano.
+
+     Van como ALIAS de la cadena de Nuxt UI, no como hex propios (D-37). Con
+     hex propio el mismo nombre semántico daba dos colores distintos según
+     cómo se consumiera: `text-warning-700` (este token) divergía ΔE 4.38 de
+     <UBadge color="warning"> (--ui-color-warning-700). Y la escala quedaba
+     partida: Nuxt UI sirve 500/600 por `inline`, así que solo los escalones
+     declarados aquí cambiaban de fuente. */
+  --color-success-50: var(--ui-color-success-50);
+  --color-success-700: var(--ui-color-success-700);
+  --color-warning-50: var(--ui-color-warning-50);
+  --color-warning-700: var(--ui-color-warning-700);
+  --color-error-50: var(--ui-color-error-50);
+  --color-error-700: var(--ui-color-error-700);
 
   --radius-xs: 3px;
   --radius-sm: 5px; /* botones, campos */

@@ -188,3 +188,73 @@ describe('D-26 — design system único: sin color/fuente/gray-* nuevo fuera de 
     expect(violaciones).toEqual([])
   })
 })
+
+/**
+ * D-37 (DECISIONES.md) — el nombre que `app.config.ts` le da a cada color
+ * semántico de Nuxt UI no puede coincidir con una paleta propia de Tailwind.
+ *
+ * Nuxt UI, para exponer `primary`/`neutral` como colores semánticos, redefine
+ * `--color-<nombre>-*` como alias de `--ui-color-<nombre>-*`. Si el nombre es
+ * uno de Tailwind la referencia es circular, así que Nuxt UI archiva la paleta
+ * ORIGINAL en `--color-old-<nombre>-*` y apunta ahí — la escala del proyecto
+ * queda desconectada y los componentes se pintan con la de Tailwind. No hay
+ * error de build ni de runtime: el color simplemente es otro.
+ *
+ * Fue exactamente lo que pasó con `neutral: 'neutral'` hasta el 03-09-2026:
+ * `--ui-color-neutral-200` resolvía a `oklch(92.2% 0 none)` (gris puro de
+ * Tailwind) en vez de `#d9d9de`, con ΔE de hasta 6.33 en los escalones claros.
+ * `primary: 'brand'` nunca falló porque "brand" no es una paleta de Tailwind.
+ */
+const PALETAS_DE_TAILWIND = new Set([
+  // `tailwindcss/theme.css` — familias de gris y de color con escala 50..950.
+  'slate', 'gray', 'zinc', 'neutral', 'stone',
+  'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal',
+  'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose',
+])
+
+describe('D-37 — las paletas de Nuxt UI apuntan a la escala del proyecto', () => {
+  const appConfig = readFileSync(join(DIR_APP, 'app.config.ts'), 'utf-8')
+  const tokens = readFileSync(join(DIR_APP, 'assets', 'css', 'tokens.css'), 'utf-8')
+
+  const bloqueColores = appConfig.match(/colors:\s*\{([^}]*)\}/)?.[1] ?? ''
+  const asignaciones = [...bloqueColores.matchAll(/(\w+)\s*:\s*'([^']+)'/g)].map(
+    ([, semantico, paleta]) => ({ semantico, paleta: paleta! }),
+  )
+
+  it('app.config.ts declara al menos primary y neutral', () => {
+    expect(asignaciones.map((a) => a.semantico).sort()).toEqual(['neutral', 'primary'])
+  })
+
+  it('ningún color semántico usa el nombre de una paleta de Tailwind', () => {
+    const chocan = asignaciones.filter((a) => PALETAS_DE_TAILWIND.has(a.paleta))
+    if (chocan.length > 0) {
+      const detalle = chocan.map((c) => `${c.semantico}: '${c.paleta}'`).join('\n  ')
+      throw new Error(
+        `app.config.ts asigna un color semántico de Nuxt UI a una paleta propia de Tailwind:\n  ${detalle}\n\n` +
+          `La referencia queda circular y Nuxt UI cae a --color-old-${chocan[0]!.paleta}-* (la escala de ` +
+          `Tailwind), ignorando tokens.css SIN dar error. Renombra la paleta en tokens.css a un nombre que ` +
+          `Tailwind no use (como "brand" o "northline") y apunta el color semántico a ese nombre. Ver D-37.`,
+      )
+    }
+    expect(chocan).toEqual([])
+  })
+
+  it('cada paleta referenciada existe en tokens.css con su escala completa', () => {
+    const pasos = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+    const faltantes: string[] = []
+    for (const { semantico, paleta } of asignaciones) {
+      const ausentes = pasos.filter((p) => !tokens.includes(`--color-${paleta}-${p}:`))
+      if (ausentes.length > 0) {
+        faltantes.push(`${semantico} -> '${paleta}' (faltan los pasos ${ausentes.join(', ')})`)
+      }
+    }
+    if (faltantes.length > 0) {
+      throw new Error(
+        `app.config.ts apunta a una paleta que tokens.css no declara completa:\n  ${faltantes.join('\n  ')}\n\n` +
+          `Nuxt UI genera --ui-color-<semantico>-<paso>: var(--color-<paleta>-<paso>, ) — con fallback VACÍO. ` +
+          `Un paso que falte deja ese color inválido en runtime, sin error de build.`,
+      )
+    }
+    expect(faltantes).toEqual([])
+  })
+})

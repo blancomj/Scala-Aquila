@@ -144,8 +144,10 @@ type FilaInmueble = {
   /** Prefijado para no colisionar con un id de agrupación en `clave-fila`. */
   readonly id: string
   readonly inmuebleId: string
+  /** Una unidad se identifica por su código: `inmuebles` no tiene columna de
+   * nombre descriptivo. /inmuebles la acompaña del tipo (TIPO_INMUEBLE); acá
+   * el icono de la fila ya cumple ese papel. */
   readonly codigo: string
-  readonly nombre: string | null
   readonly nivel: number
 }
 type Fila = (Nodo & { esInmueble?: false }) | FilaInmueble
@@ -191,7 +193,6 @@ const filasVisibles = computed<Fila[]>(() => {
           id: `inm-${inmueble.id}`,
           inmuebleId: inmueble.id,
           codigo: inmueble.codigo,
-          nombre: inmueble.nombre ?? null,
           nivel: nodo.nivel + 1,
         })
       }
@@ -610,7 +611,6 @@ async function confirmarEliminar(): Promise<void> {
             >
               {{ fila.codigo }}
             </NuxtLink>
-            <span v-if="fila.nombre" class="text-neutral-500">{{ fila.nombre }}</span>
           </div>
 
           <div
