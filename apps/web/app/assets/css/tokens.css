@@ -64,6 +64,20 @@
      píldora en los controles compactos (~36px) de este back-office. Bajada
      una vez a 8/10/12/14, y una segunda vez más — la jerarquía sm < md <
      lg < xl se mantiene, con pasos ya mínimos. */
+  /* ── Semánticos para CSS plano ─────────────────────────────────────────
+     DESIGN_SYSTEM.md da success/warning/error por parte del sistema, pero
+     hasta hoy solo se consumían vía props de Nuxt UI (color="success").
+     Los visores imprimibles —informe de auditoría, certificación,
+     expediente— pintan estados dentro de un <style scoped>, donde no hay
+     componente al que pasarle un prop, y por eso llevaban el hex a mano.
+     Estos son los mismos tonos que ya usaban, ahora con nombre. */
+  --color-success-50: #f0fdf4;
+  --color-success-700: #15803d;
+  --color-warning-50: #fffbeb;
+  --color-warning-700: #b45309;
+  --color-error-50: #fef2f2;
+  --color-error-700: #b91c1c;
+
   --radius-xs: 3px;
   --radius-sm: 5px; /* botones, campos */
   --radius-md: 6px; /* tarjetas, paneles */

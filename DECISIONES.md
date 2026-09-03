@@ -1385,3 +1385,58 @@ así que a partir de ahora un `gray-*` nuevo ahí rompe CI.
 en dos constantes de clase (`CLASE_PILDORA`, `CLASE_CAMPO` en
 `AelBlockExpresion.vue`): cambiarlos por componentes es un reemplazo acotado,
 no una reescritura.
+
+## D-36 — Color en los visores imprimibles: qué se migra, qué es categórico y qué faltaba
+
+|            |                                             |
+| ---------- | ------------------------------------------- |
+| **Fase**   | Higiene de gobernanza (post Fase 8)         |
+| **Estado** | Aceptada                                    |
+| **Decide** | Usuario (confirmado vía pregunta explícita) |
+
+**Contexto.** El test-guardia de D-26 llevaba tiempo en rojo por tres páginas
+con color hex en su `<style scoped>`: los visores imprimibles de informe de
+auditoría, certificación de deuda y expediente probatorio. Al revisarlos uno
+por uno resultó que no eran un solo problema, sino tres distintos.
+
+**1. Los neutros eran los tokens, escritos a mano.** `#55555a`, `#3d3d40` y
+`#1b1b1d` coinciden EXACTAMENTE con `--color-neutral-600/700/900`. Sustitución
+mecánica, cero cambio visual.
+
+**2. El azul de botón sí era un segundo acento.** `#2563eb` (blue-600 de
+Tailwind) no es el `brand` del proyecto (oklch hue 255). Se migra a
+`--color-brand-600`. **El cambio visual es el objetivo, no un efecto
+secundario**: hoy esos tres visores tienen el botón «Imprimir / Guardar PDF»
+de un azul distinto al de todos los demás botones de la app, y el cuarto
+hermano de la familia (`comprobante-cuenta/[id].vue`, migrado en D-27/D-28) ya
+usa `--color-brand-800`. Mantener el hex no conservaba la uniformidad: la
+rompía. Son controles de pantalla, así que no afectan el documento impreso.
+
+**3. El verde de `informes/[id].vue` NO es «éxito» — es una escala ordinal.**
+
+```css
+.nivel-critico { background: #b91c1c; }  /* rojo    */
+.nivel-alto    { background: #c2410c; }  /* naranja */
+.nivel-medio   { background: #a16207; }  /* ámbar   */
+.nivel-bajo    { background: #4d7c0f; }  /* verde   */
+```
+
+`nivel-bajo` no significa que algo salió bien: significa dónde cae en una
+progresión de severidad, y los cuatro tienen que leerse como una serie.
+Mapearlo a un token semántico sería un error conceptual y además rompería la
+progresión. Es exactamente la excepción categórica que `DESIGN_SYSTEM.md` ya
+contempla para dataviz («escalones de mora»), así que el archivo entra a
+`ARCHIVOS_LEGADO_COLOR_HEX` con la razón escrita, junto a `DonutAntiguedad.vue`
+y `pages/cartera/index.vue`.
+
+**4. El verde de `certificaciones/[id].vue` sí es semántico, y destapó un
+hueco.** `#15803d` colorea la etiqueta de estado del certificado. Debería salir
+de un token — pero `--color-success-*` no existía en `tokens.css`:
+`DESIGN_SYSTEM.md` da `success`/`warning`/`error` por parte del sistema, solo
+que hasta hoy se consumían siempre vía props de Nuxt UI (`color="success"`), y
+dentro del `<style scoped>` de una página imprimible no hay componente al que
+pasarle un prop. Se añade la escala semántica a `tokens.css`.
+
+**Consecuencia.** El allowlist de hex baja de 5 a 3 archivos (salen los dos
+visores migrados, entra el de la escala de severidad por su razón propia), y el
+sistema gana los tokens semánticos que le faltaban para CSS plano.

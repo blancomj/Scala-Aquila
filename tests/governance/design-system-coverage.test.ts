@@ -34,6 +34,16 @@ const ARCHIVOS_LEGADO_COLOR_HEX = new Set<string>([
   'pages/cartera/index.vue', // dataviz — paleta categórica (escalones de mora)
   // 'pages/comprobante-cuenta/[id].vue' salió del allowlist (D-27/D-28): el
   // visor público se reescribió solo con tokens — ya no necesita hex.
+  //
+  // D-36 (2026-09-03): 'cartera/certificaciones/[id].vue' y
+  // 'cartera/expediente/[inmuebleId].vue' también salieron — sus neutros eran
+  // los tokens escritos a mano y sus estados ahora usan los semánticos nuevos.
+  // 'auditoria/informes/[id].vue' ENTRA, pero solo por sus cuatro `.nivel-*`:
+  // crítico/alto/medio/bajo es una escala ordinal de severidad, no cuatro
+  // estados sueltos. Los cuatro tonos tienen que leerse como progresión, y
+  // eso es paleta categórica —misma excepción que dataviz, ya reconocida
+  // arriba para los escalones de mora—. El resto del archivo sí se migró.
+  'pages/auditoria/informes/[id].vue',
 ])
 
 /** Congelado al 23-08-2026 (D-26) — 904 usos de gray-* en estos 66 archivos,

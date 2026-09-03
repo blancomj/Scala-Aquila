@@ -316,8 +316,12 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     expect(envio!.canal).toBe('sms')
     expect(envio!.destinatario_contacto).toBe(SMS_DESTINO_PRUEBA)
     expect(envio!.plantilla_codigo).toBe(EVENT_TYPE)
-    // 0 = plantilla sin versionado (PRQ-CAR-021 pendiente), no un 1 fingido.
-    expect(envio!.plantilla_version).toBe(0)
+    // Era 0 —«plantilla sin versionado», con la nota de no fingir un 1—
+    // mientras PRQ-CAR-021 estaba pendiente. Ya llegó
+    // (20260907130000_cartera_plantillas_versionado): `plantillas_sms.version`
+    // nace en 1 y el despacho la copia al envío, así que ahora el 1 es real.
+    // El setup crea la plantilla una sola vez, de ahí que sea determinista.
+    expect(envio!.plantilla_version).toBe(1)
     // El texto real que recibió el deudor, con las variables resueltas.
     expect(envio!.contenido_renderizado).toContain('45 dias de mora')
     expect(envio!.contenido_hash).toMatch(/^[0-9a-f]{64}$/)
@@ -476,10 +480,18 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
   }, 60_000)
 
   it('el expediente muestra el envío con su texto íntegro y su acuse', async () => {
+    // El corte NO puede ser una fecha fija. fn_compilar_expediente exige que
+    // el envío y su acuse sean anteriores a `p_fecha_corte + 1` —para que un
+    // expediente de febrero no se acredite con un acuse de marzo— y en esta
+    // prueba el despacho es REAL: `enviado_at` es el instante de la corrida.
+    // Con '2026-08-31' fijo el test funcionó hasta que el reloj pasó esa
+    // fecha, y desde entonces el envío quedaba fuera del corte y `acreditada`
+    // daba false. Se toma mañana para no depender del minuto de la corrida.
+    const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const { data, error } = await admin.rpc('fn_compilar_expediente', {
       p_tenant_id: tenant.id,
       p_inmueble_id: inmuebleId,
-      p_fecha_corte: '2026-08-31',
+      p_fecha_corte: manana,
     })
     expect(error).toBeNull()
     const expediente = data as unknown as { cronologia_gestion: Array<Record<string, unknown>> }

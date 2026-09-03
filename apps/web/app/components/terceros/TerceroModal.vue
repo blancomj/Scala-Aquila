@@ -375,8 +375,8 @@ async function guardar(): Promise<void> {
         />
       </UFormField>
 
-      <div v-if="!esCreacion && procedenciaStore.procedencias.length > 0" class="text-xs text-gray-500 space-y-1">
-        <p class="font-medium text-gray-600">Procedencia registrada</p>
+      <div v-if="!esCreacion && procedenciaStore.procedencias.length > 0" class="text-xs text-neutral-500 space-y-1">
+        <p class="font-medium text-neutral-600">Procedencia registrada</p>
         <ul class="space-y-0.5">
           <li v-for="p in procedenciaStore.procedencias" :key="p.id">
             {{ p.campo === 'email' ? 'Email' : 'Teléfono' }} «{{ p.valor }}» — {{ nombreOrigen(p.origen_id) }} ·

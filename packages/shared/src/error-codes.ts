@@ -373,6 +373,54 @@ export const ERROR_CODES = {
   // ── Auditoría interna (20260915100000, PROMPT AUDITORÍA §34, §70) ────────
   HALLAZGO_NO_ENCONTRADO: 'HALLAZGO_NO_ENCONTRADO',
   EVIDENCIA_DUPLICADA: 'EVIDENCIA_DUPLICADA',
+
+  // ── Cartera: prescripción y actos interruptivos (20260907140000) ─────────
+  TIPO_ACTO_INVALIDO: 'TIPO_ACTO_INVALIDO',
+
+  // ── Cartera: versionado de la política de clasificación (20260909100000) ─
+  POLITICA_INVALIDA: 'POLITICA_INVALIDA',
+
+  // ── Transversal: documento adjunto ──────────────────────────────────────
+  //  Lo comparten seis guards (actos interruptivos, transferencias, legal
+  //  hold, procedencia de contacto, actuación y acuerdo de pago): todos
+  //  validan que el documento referenciado exista y sea del mismo tenant.
+  DOCUMENTO_INVALIDO: 'DOCUMENTO_INVALIDO',
+
+  // ── Cartera: transferencia de propiedad (20260908100000) ────────────────
+  TIPO_TRANSFERENCIA_INVALIDO: 'TIPO_TRANSFERENCIA_INVALIDO',
+  PROPIETARIO_ANTERIOR_INVALIDO: 'PROPIETARIO_ANTERIOR_INVALIDO',
+  PROPIETARIO_NUEVO_INVALIDO: 'PROPIETARIO_NUEVO_INVALIDO',
+
+  // ── Cartera: validador jurídico de plantillas (20260908110000) ──────────
+  CONTENIDO_PROHIBIDO: 'CONTENIDO_PROHIBIDO',
+
+  // ── Documentos: retención legal (20260908120000) ────────────────────────
+  MOTIVO_REQUERIDO: 'MOTIVO_REQUERIDO',
+  LEGAL_HOLD_NO_ENCONTRADO: 'LEGAL_HOLD_NO_ENCONTRADO',
+
+  // ── Terceros: procedencia del contacto (20260908150000) ─────────────────
+  TERCERO_INVALIDO: 'TERCERO_INVALIDO',
+  ORIGEN_INVALIDO: 'ORIGEN_INVALIDO',
+
+  // ── Cartera: documento del envío y costas judiciales
+  //    (20260908180000, 20260908190000) ───────────────────────────────────
+  ENVIO_INVALIDO: 'ENVIO_INVALIDO',
+  ACTUACION_INVALIDA: 'ACTUACION_INVALIDA',
+
+  // ── Compositor de correo (enviar-correo-compositor) ─────────────────────
+  COMPOSITOR_DESACTIVADO: 'COMPOSITOR_DESACTIVADO',
+  PLANTILLA_NO_ENCONTRADA: 'PLANTILLA_NO_ENCONTRADA',
+  PLANTILLA_DESACTIVADA: 'PLANTILLA_DESACTIVADA',
+  CONFIG_INCOMPLETA: 'CONFIG_INCOMPLETA',
+  BREVO_ERROR: 'BREVO_ERROR',
+
+  // ── Recaudo contra cuota de acuerdo de pago (registrar-pago) ────────────
+  CUOTA_ACUERDO_NO_CONCILIABLE: 'CUOTA_ACUERDO_NO_CONCILIABLE',
+  CUOTA_ACUERDO_INVALIDA: 'CUOTA_ACUERDO_INVALIDA',
+
+  // ── Subida de documento con vínculo (subir-documento) ───────────────────
+  CASO_JURIDICO_NO_ENCONTRADO: 'CASO_JURIDICO_NO_ENCONTRADO',
+  ENVIO_NO_ENCONTRADO: 'ENVIO_NO_ENCONTRADO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

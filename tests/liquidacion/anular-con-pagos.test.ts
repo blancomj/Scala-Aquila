@@ -153,7 +153,17 @@ d('fn_anular_liquidacion rechaza si hay pagos imputados (hueco de test #3)', () 
     // flujo-dos-tiempos.test.ts). Registramos un pago primero para
     // ejercitar el caso que SÍ falta cubrir.
     const { response: respuestaPago } = await cAux.functions.invoke('registrar-pago', {
-      body: { inmueble_id: inmueble.id, monto: 50_000, fecha_pago: '2035-01-05' },
+      // `forma_pago` es obligatorio desde 20260903100000 (medio de recaudo) y
+      // va como CÓDIGO, no como id. `fecha_registro` acompaña a fecha_pago
+      // porque el guard rechaza registrar el futuro y esta prueba vive en una
+      // línea temporal de 2035 (coeficientes, periodo y vencimiento incluidos).
+      body: {
+        inmueble_id: inmueble.id,
+        monto: 50_000,
+        fecha_pago: '2035-01-05',
+        fecha_registro: '2035-01-05',
+        forma_pago: 'efectivo',
+      },
     })
     expect(respuestaPago?.status).toBe(200)
 
