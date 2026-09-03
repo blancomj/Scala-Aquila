@@ -1564,3 +1564,48 @@ desechable (patrón ya establecido en `concepto-tipo-recurrencia-snapshot.test.t
 y `snapshot-fuente-financiacion.test.ts`); cualquier test que quiera datos
 reales variados puede seguir leyendo `gc-001` en modo solo-lectura, como ya
 hace `contable-movimientos.test.ts`.
+
+## D-41 — `cartera-cron-diario`: fan-out por tenant, concurrente en vez de secuencial
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | CAR §18, corrección de rendimiento                 |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (decisión previa de la sesión: "fan-out por tenant") |
+
+**Contexto.** `tests/tenancy/cartera-cron-diario.test.ts` fallaba con 504 en
+las dos pruebas que de verdad disparan la corrida. La función ya hacía
+"fan-out por copropiedad" como dice su propio comentario de cabecera, pero
+**secuencial**: un `for`/`await` que llama a `cartera-recalcular` una
+copropiedad a la vez. Con las 4 copropiedades activas que hoy tienen política
+de clasificación vigente en el proyecto de desarrollo (`gc-001` entre ellas,
+con 66 inmuebles — ver D-40), la SUMA de sus tiempos superaba el límite de
+ejecución de la Edge Function. No era una copropiedad rota tumbando la corrida
+— era el diseño secuencial escalando con la cantidad de tenants, que solo iba
+a empeorar según se activaran más copropiedades.
+
+**Decisión.** El `for`/`await` se reemplaza por `tenantIds.map(...)` +
+`Promise.all`: cada copropiedad es su propia promesa independiente (llamada a
+`cartera-recalcular` + upsert de su fila en `cartera_corridas_diarias`), todas
+concurrentes. Cada rama captura sus propios errores en el `ResultadoTenant`
+sin relanzar, así que una copropiedad que falle no aborta `Promise.all` ni
+afecta a las demás — se conserva exactamente la garantía de aislamiento que
+ya tenía la versión secuencial ("si una falla, las demás siguen"), pero ahora
+el tiempo total del cron es el de la copropiedad más lenta, no la suma de
+todas.
+
+**Verificado.** Redesplegada la función contra el proyecto de desarrollo real
+(`Scala - Aquila`, no el de producción) y las 6 pruebas de
+`cartera-cron-diario.test.ts` pasan: ~111s y ~110s respectivamente para las
+dos que antes daban 504 (antes >150s, tumbando la función).
+
+**Riesgo que queda abierto, fuera de alcance de esta decisión.** `gc-001` sola
+(66 inmuebles) toma ~110s en `cartera-recalcular` — cerca del límite de
+ejecución incluso aislada. La causa no es el fan-out del cron sino que
+`cartera-recalcular` hace varias idas y vueltas a la base **por inmueble, en
+un `for`/`await` secuencial** (upsert de `cartera_etapas`, carga de la
+entrada del job, upsert de `posiciones_cartera_snapshot`, entre otras). Con
+más inmuebles por copropiedad (no más copropiedades, que ya está resuelto
+aquí) ese costo interno reaparecería. No se toca en esta decisión — es un
+problema distinto (rendimiento interno de una función, no fan-out entre
+tenants) y merece su propia decisión si vuelve a manifestarse.

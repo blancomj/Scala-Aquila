@@ -15,9 +15,15 @@
 // esta función solo expone un token propio en la ruta, igual que
 // webhook-brevo.
 //
-// Fan-out de una petición POR COPROPIEDAD, secuencial: si una falla —
-// política sin tramos, datos a medias— las demás siguen. La corrida diaria
-// no puede caerse entera por una copropiedad mal cargada.
+// Fan-out de una petición POR COPROPIEDAD, CONCURRENTE (Promise.all, no un
+// for/await secuencial): si una falla — política sin tramos, datos a medias
+// — las demás siguen, cada una en su propia promesa aislada. Secuencial fue
+// el diseño original y dejó de alcanzar: con 4 copropiedades activas con
+// política vigente (una de ellas, gc-001, con 66 inmuebles) la SUMA de sus
+// tiempos ya supera el límite de ejecución de la Edge Function y el cron
+// entero vuelve 504 — no por una copropiedad rota, sino porque el tiempo
+// total escalaba con la cantidad de tenants en vez de con el más lento de
+// ellos. En producción, con más copropiedades, seguiría empeorando.
 //
 // Solo se disparan las copropiedades con política de clasificación
 // VIGENTE. Sin política, cartera-recalcular aborta por PH-C26/I-C14: pedir
@@ -115,49 +121,56 @@ Deno.serve(async (req) => {
   }
 
   const tenantIds = [...new Set((politicas ?? []).map((p) => p.tenant_id))]
-  const resultados: ResultadoTenant[] = []
 
-  for (const tenantId of tenantIds) {
-    try {
-      const respuesta = await fetch(`${supabaseUrl}/functions/v1/cartera-recalcular`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // El wrapper valida esta clave en modo 'secret'. No hay usuario:
-          // la acción nacerá con creada_por='job'.
-          apikey: secretKey,
-        },
-        body: JSON.stringify({ tenant_id: tenantId, fecha_corte: fechaCorte, modo: 'ejecucion' }),
-      })
+  // Cada tenant es una unidad de trabajo independiente: su propia llamada a
+  // cartera-recalcular y su propio upsert de bitácora, en su propia promesa.
+  // El bloque nunca relanza — cualquier falla queda capturada en el
+  // ResultadoTenant — así que Promise.all no aborta por una que falle.
+  const resultados: ResultadoTenant[] = await Promise.all(
+    tenantIds.map(async (tenantId): Promise<ResultadoTenant> => {
+      let resultado: ResultadoTenant
+      try {
+        const respuesta = await fetch(`${supabaseUrl}/functions/v1/cartera-recalcular`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // El wrapper valida esta clave en modo 'secret'. No hay usuario:
+            // la acción nacerá con creada_por='job'.
+            apikey: secretKey,
+          },
+          body: JSON.stringify({ tenant_id: tenantId, fecha_corte: fechaCorte, modo: 'ejecucion' }),
+        })
 
-      const ok = respuesta.ok
-      let detalle: string | undefined
-      if (!ok) {
-        const cuerpo = (await respuesta.text()).slice(0, 300)
-        detalle = cuerpo
+        const ok = respuesta.ok
+        let detalle: string | undefined
+        if (!ok) {
+          detalle = (await respuesta.text()).slice(0, 300)
+        }
+        resultado = { tenantId, status: respuesta.status, ok, detalle }
+      } catch (excepcion) {
+        resultado = {
+          tenantId,
+          status: 0,
+          ok: false,
+          detalle: excepcion instanceof Error ? excepcion.message : 'error de red',
+        }
       }
-      resultados.push({ tenantId, status: respuesta.status, ok, detalle })
-    } catch (excepcion) {
-      resultados.push({
-        tenantId,
-        status: 0,
-        ok: false,
-        detalle: excepcion instanceof Error ? excepcion.message : 'error de red',
-      })
-    }
 
-    await admin
-      .from('cartera_corridas_diarias')
-      .upsert(
-        {
-          tenant_id: tenantId,
-          fecha_corte: fechaCorte,
-          origen: 'cron',
-          disparado_at: new Date().toISOString(),
-        },
-        { onConflict: 'tenant_id,fecha_corte,origen' },
-      )
-  }
+      await admin
+        .from('cartera_corridas_diarias')
+        .upsert(
+          {
+            tenant_id: tenantId,
+            fecha_corte: fechaCorte,
+            origen: 'cron',
+            disparado_at: new Date().toISOString(),
+          },
+          { onConflict: 'tenant_id,fecha_corte,origen' },
+        )
+
+      return resultado
+    }),
+  )
 
   const fallidas = resultados.filter((r) => !r.ok)
   logEvent({
