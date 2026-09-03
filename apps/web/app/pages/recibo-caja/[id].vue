@@ -3,9 +3,9 @@
 // (D-27/D-28 aplicados al recaudo). Sin sesión por defecto (AD-26): el
 // acceso anónimo exige el token HMAC `t` que mintió enviar-recibo-caja; un
 // miembro autenticado también puede abrirlo sin t.
-definePageMeta({ layout: 'blank', publico: true })
-
 import { montoEnLetras } from '@aquila/shared'
+
+definePageMeta({ layout: 'blank', publico: true })
 
 interface ConceptoRecibo {
   descripcion: string

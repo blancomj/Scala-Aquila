@@ -130,6 +130,7 @@ export const adaptadorWompi: PaymentGatewayAdapter = {
   // async: un throw síncrono dentro (credencial faltante) debe llegar como
   // rechazo de la promesa, no como excepción síncrona — el contrato de
   // PaymentGatewayAdapter promete un Promise incluso cuando falla temprano.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async crearIntencion(params: ParamsIntencion): Promise<ResultadoIntencion> {
     const publicKey = credencial(params.credenciales, 'public_key')
     const integritySecret = credencial(params.credenciales, 'integrity_secret')
@@ -229,6 +230,13 @@ export const adaptadorWompi: PaymentGatewayAdapter = {
         valor = (valor as Record<string, unknown>)[segmento]
       }
       if (valor === undefined || valor === null) return false
+      // Solo primitivos: si `properties` apunta a un objeto/arreglo (evento
+      // con un shape distinto al esperado), String(valor) daría "[object
+      // Object]" y produciría una firma que nunca coincide con la real —
+      // se trata como firma inválida en vez de calcular sobre basura.
+      if (typeof valor !== 'string' && typeof valor !== 'number' && typeof valor !== 'boolean') {
+        return false
+      }
       concatenado += String(valor)
     }
     concatenado += String(timestamp)

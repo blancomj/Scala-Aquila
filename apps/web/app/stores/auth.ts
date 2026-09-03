@@ -19,7 +19,12 @@ export interface Shortcut {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const profile = ref<ProfileRow | null>(null)
+  // shallowRef: `profiles.navigation_shortcuts` es `Json` (tipo recursivo).
+  // `ref<T>` fuerza a Vue a des-envolver profundamente vía UnwrapRef, lo que
+  // dispara "Type instantiation is excessively deep" en vue-tsc (ver mismo
+  // patrón en tenant.ts). Todas las asignaciones reemplazan el objeto
+  // entero, nunca mutan un campo anidado.
+  const profile = shallowRef<ProfileRow | null>(null)
   const loading = ref(false)
 
   const isPlatformAdmin = computed(() => profile.value?.is_platform_admin ?? false)
@@ -149,9 +154,9 @@ export const useAuthStore = defineStore('auth', () => {
     } = await cliente.auth.getUser()
     if (!usuario) throw new Error('Sesión inválida.')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (cliente
       .from('profiles')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ navigation_shortcuts: items as any })
       .eq('id', usuario.id)
       .select('*')

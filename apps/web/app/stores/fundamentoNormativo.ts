@@ -23,7 +23,7 @@ type FundamentoRowExtendido = FundamentoRow & {
   fecha_validacion?: string | null
 }
 
-type FundamentoConTenant = FundamentoRowExtendido & { _es_plataforma: boolean }
+export type FundamentoConTenant = FundamentoRowExtendido & { _es_plataforma: boolean }
 
 // Tipos temporales hasta que db-types se regenere tras la migración
 type PropuestaRow = Record<string, unknown> & {

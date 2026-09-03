@@ -25,6 +25,12 @@ export default tseslint.config(
       'supabase/functions/**',
       // Utilidades de Node ejecutadas directamente, fuera de todo tsconfig.
       'scripts/**/*.mjs',
+      // Skills de Claude Code empaquetadas (ej. "impeccable"): scripts de
+      // terceros pensados para correr en un navegador (document, location,
+      // getComputedStyle), no código de AQUILA — fuera de todo tsconfig del
+      // monorepo, igual que scripts/**/*.mjs de arriba.
+      '.claude/skills/**',
+      '.github/skills/**',
       // Generado por `supabase gen types` (Fase I §3.3): no se edita ni se
       // lintea a mano. Se regenera con `pnpm db:types`.
       '**/database.generated.ts',
@@ -161,6 +167,7 @@ export default tseslint.config(
     files: [
       'packages/liquidation-engine/src/snapshot-supabase.ts',
       'packages/liquidation-engine/src/cuenta-corriente-supabase.ts',
+      'packages/liquidation-engine/src/conciliacion-supabase.ts',
       'packages/liquidation-engine/src/prueba-formula-supabase.ts',
       'packages/liquidation-engine/src/cartera-supabase.ts',
       'packages/liquidation-engine/src/cartera-cobranza-supabase.ts',

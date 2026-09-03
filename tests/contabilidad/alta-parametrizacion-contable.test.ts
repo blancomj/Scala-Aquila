@@ -67,7 +67,6 @@ d('create_tenant: parametrización contable del alta', () => {
         p_name: 'Alta parametrización contable',
         p_slug: `t-${RUN_ID}-alta-contable`,
       })
-      .single<{ id: string }>()
     if (errAlta) throw new Error(`create_tenant falló: ${errAlta.message}`)
     tenantsCreados.push(tenant.id)
 

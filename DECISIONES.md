@@ -1570,3 +1570,120 @@ de **nombre**, así que se salda con un rename mecánico y sin riesgo visual.
 agregue en adelante, no solo al de color: si la lista describe deuda, lleva
 cuenta y trinquete; si describe una excepción de diseño, lleva justificación
 escrita y revisión de vigencia.
+## D-39 — Zona de peligro: resetear una copropiedad a su estado recién creada
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | Configuración de copropiedad, ad hoc               |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (preguntas explícitas, esta sesión)        |
+
+**Contexto.** El usuario pidió una opción en configuración para "resetear una
+copropiedad y dejarla como acabada de crear, que solo borre lo que NO se
+instala por defecto en la creación". La lectura literal ("borrar tablas que
+`create_tenant()` no siembra") no alcanza: `create_tenant()` siembra
+`conceptos`, `contable_cuenta`, `contable_cuenta_default` y
+`presupuesto_cuenta`, pero el usuario puede haber editado o archivado esas
+filas después (es exactamente lo que le pasó a `CUOTA_ADMIN` en gc-001, ver
+`paso0/INFORME_PASO_0.md`) — dejarlas intactas no deja la copropiedad "como
+recién creada". El usuario aclaró el criterio real: **preservar toda la
+configuración ya hecha y a los usuarios; borrar solo lo operativo/
+transaccional** ("la idea es conservar la estructura ya configurada pero sin
+movimientos").
+
+**Decisión — qué se borra y qué se preserva.** De las 88 tablas con
+`tenant_id`, se borran 58 (inmuebles, terceros, coeficientes, presupuestos
+anuales, periodos, liquidaciones, cargos, pagos, cartera, jurídico,
+conciliación bancaria, novedades, auditoría, documentos) y se preservan 30:
+la plantilla de creación (`conceptos`, `concepto_versiones`, `contable_cuenta`,
+`contable_cuenta_default`, `presupuesto_cuenta`), usuarios (`memberships`,
+`invitations`), y toda la configuración manual (`agrupaciones`,
+`zonas_comunes`, `consecutivos_documento`, plantillas de email/SMS/
+compositor, pasarela de pago, `lista_tipos_ocultos`, políticas financieras/
+cartera, `cuentas_bancarias`, `fuente_financiacion`, `novedad_tipo_cuenta`).
+`audit_log` nunca se toca (trazabilidad). `fondos` (fondo de imprevistos) se
+preserva como configuración, pero su `saldo_actual` se resetea a 0 porque se
+deriva de `fondo_movimientos`, que sí se borra.
+
+**`recibos_caja` queda fuera del reset.** Es un comprobante fiscal con
+protección absoluta (`forbid_mutation()`, igual que `audit_log`) — ni borrar
+la copropiedad completa lo permite hoy. Preguntado explícitamente, el usuario
+confirmó dejarlo fuera: un reset, menos drástico que un borrado total, no
+debía ir más allá de lo que el propio sistema permite hoy.
+
+**El obstáculo real no era el orden — era el guard append-only.** 15 tablas
+están protegidas por `forbid_mutation_salvo_tenant_borrado()`
+(`20260823250000`): rechaza cualquier DELETE mientras el tenant exista, salvo
+que la FK `tenant_id ... on delete cascade` lo arrastre al borrar el tenant
+mismo. Un reset "in place" nunca cumple esa condición. Se evaluaron tres
+salidas — extender el guard con una excepción auditada, borrar y recrear el
+tenant (cambia el `id`, rompe referencias externas como los tokens HMAC de
+recibo de caja ya compartidos), o dejar esas 16 tablas fuera del reset
+(preguntado explícitamente: cargos y pagos son justo el dato más esperado a
+limpiar). El usuario eligió extender el guard: mismo patrón ya usado por
+`purge_audit_log_antiguo()` (`20260814190000`) para poder purgar `audit_log`
+pese a su propio `forbid_mutation()` — un flag de sesión local a la
+transacción (`aquila.reset_context`) que solo `fn_resetear_copropiedad()`
+sabe activar, nunca un permiso genérico. `UPDATE` sigue prohibido siempre,
+sin excepción, en las 15 tablas.
+
+**Dos ciclos reales de FK, resueltos sin tocar UPDATE.**
+`documentos ↔ pagos ↔ acuerdo_pago_cuotas ↔ acuerdos_pago` y
+`pagos ↔ intenciones_pago` no admiten ninguna secuencia de DELETE por tabla
+— cualquier orden deja alguna FK apuntando a una fila que todavía no se
+borró. Romper el ciclo con `UPDATE ... SET columna = null` chocaba con el
+mismo guard append-only (UPDATE prohibido siempre, sin la excepción que sí
+se le dio a DELETE). En vez de eso, se hacen `DEFERRABLE` todas las foreign
+keys *entre* las 58 tablas del reset (`DEFERRABLE INITIALLY IMMEDIATE` no
+cambia ningún comportamiento existente — solo permite que una transacción
+pida explícitamente diferir la validación), y `fn_resetear_copropiedad()`
+pide `set constraints all deferred`: los 58 `DELETE` se ejecutan en un orden
+razonable sin depender de que sea perfecto, porque Postgres valida las FK al
+final de la transacción, cuando ambos lados de cualquier ciclo ya están
+vacíos para ese tenant.
+
+**Autorización.** `fn_resetear_copropiedad(p_tenant_id)` exige rol
+`administrador` vía `has_role()` — mismo criterio que
+`fn_toggle_compositor_correo`. La Edge Function `resetear-copropiedad` es una
+capa de contrato (JWT, rate limit, traducción de errores), sin autorización
+propia: toda la decisión vive en la RPC. En el frontend,
+`CopropiedadZonaPeligro.vue` gatea la sección con `tenantStore.role ===
+'administrador'` directamente (no con el permiso `tenant:delete` de
+`types/permissions.ts`, que hoy da el mismo acceso a `auxiliar` y
+`administrador` — deuda preexistente de esa matriz, fuera de alcance de esta
+decisión) y exige escribir el nombre exacto de la copropiedad para confirmar.
+
+**Consecuencia.** Primer "danger zone" del proyecto — sin componente
+compartido todavía porque es el único caso; extraerlo cuando aparezca un
+segundo. Cualquier tabla tenant-scoped nueva que se agregue después debe
+clasificarse explícitamente como configuración (se preserva, no se toca) u
+operativa (se agrega a `v_tablas` en `fn_resetear_copropiedad`) — si no se
+agrega a ninguna lista, simplemente sobrevive al reset sin borrarse, lo cual
+falla en el sentido conservador (nunca borra de más) pero puede dejar la
+copropiedad no del todo "recién creada".
+
+**El trinquete de gobernanza (pregunta del usuario: "qué pasa cuando haya
+más módulos").** Sin nada que lo exija, esa clasificación depende de que
+alguien se acuerde de actualizarla — es la misma deriva silenciosa que dejó
+`CUOTA_ADMIN` archivado en gc-001 sin que ningún test lo notara. Se evaluó
+dejar que la función descubra dinámicamente en Postgres todas las tablas con
+`tenant_id` y borre por defecto todo lo que no esté en la lista de
+preservadas — se descartó porque invierte el error hacia el lado peligroso:
+una tabla nueva se borraría por defecto en vez de sobrevivir por defecto.
+
+Se optó por el mismo criterio que D-38 (trinquetes de gobernanza, no
+permisos permanentes): `tests/governance/resetear-copropiedad-coverage.test.ts`
+lee en vivo (vía `pg_attribute`/`SUPABASE_DB_URL`, mismo patrón que
+`tests/rls/schema-forced-rls.test.ts`) todas las tablas de `public` con
+columna `tenant_id`, y falla si alguna no está en exactamente una de tres
+categorías: `TABLAS_PROTEGIDAS` (2, protección absoluta), `TABLAS_PRESERVADAS`
+(28, configuración + usuarios, `Record<string,string>` con motivo obligatorio
+por entrada) o la lista operativa — que el test NO duplica a mano: la lee del
+cuerpo real de `fn_resetear_copropiedad()` vía `pg_get_functiondef`, así que
+nunca puede desincronizarse de lo que el reset ejecuta de verdad. También
+falla en la dirección contraria (una entrada clasificada que ya no existe en
+el esquema, ej. tras un rename), el mismo permiso-muerto que D-38 encontró en
+el allowlist de color. Al escribir este test se detectó y corrigió un olvido
+real de esta misma decisión: `lista_tipos` (mixta plataforma/tenant, como
+`fundamento_normativo`) no estaba clasificada — se agregó a preservadas,
+mismo criterio que `lista_tipos_ocultos`.

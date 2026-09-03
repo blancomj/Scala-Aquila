@@ -78,8 +78,13 @@ async function crearTercero(admin: Cliente, tenantId: string, documento: string)
       .is('tenant_id', null)
       .single<{ id: number }>(),
   ])
+  // .single<T>() con generic explícito hace que postgrest-js tipe data/error
+  // como si el éxito estuviera garantizado (data: T, error: null) — pero
+  // .single() sigue pudiendo devolver 0/>1 filas en runtime pese al tipo.
+  /* eslint-disable @typescript-eslint/no-unnecessary-condition */
   if (errorIdent || !tipoIdent) throw new Error(`fixture tipo identificación: ${errorIdent?.message}`)
   if (errorEstado || !estado) throw new Error(`fixture estado tercero: ${errorEstado?.message}`)
+  /* eslint-enable @typescript-eslint/no-unnecessary-condition */
 
   const { data, error } = await admin
     .from('terceros')

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Tab "Datos básicos" — Información general + contacto, Cuentas bancarias,
-// Personas vinculadas (PROMPT_FICHA_COPROPIEDAD.md §6.2, §7.1-7.3).
+// Tab "Datos básicos" — Información general + contacto, Cuentas bancarias
+// (PROMPT_FICHA_COPROPIEDAD.md §6.2, §7.1-7.3). "Personas vinculadas" vivía
+// aquí al final y pasó a ser su propio tab (pages/configuracion/index.vue).
 // nit_digito_verificacion nunca se envía en el update — es columna
 // generada, se relee después de guardar (§7.1). "Guardar cambios" es
 // propio de este tab (partial update de sus columnas) — no un botón
@@ -233,13 +234,6 @@ watchEffect(async () => {
       Cambiar la cuenta de recaudo es un swap atómico (<code>fn_marcar_cuenta_recaudo</code>) —
       nunca dos cuentas marcadas a la vez.
     </p>
-
-    <CopropiedadPersonasVinculadas
-      familia-rol="PERSONA_COPROPIEDAD"
-      titulo="Personas vinculadas"
-      subtitulo="Roles sobre la copropiedad misma — administrador, contador, abogado, revisor fiscal."
-      nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
-    />
 
     <CopropiedadCuentaBancariaForm
       v-if="modalCuentaAbierto"

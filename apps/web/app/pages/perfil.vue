@@ -6,7 +6,6 @@
 // is_platform_admin/status quedan fuera por diseño.
 import { ROL_LABEL } from '~/utils/rol-labels'
 import { useShortcuts } from '~/composables/useShortcuts'
-import { SHORTCUT_ICONOS } from '~/utils/shortcut-icons'
 
 definePageMeta({ layout: 'default' })
 

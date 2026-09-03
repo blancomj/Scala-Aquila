@@ -136,11 +136,14 @@ d('fn_aplicar_liquidacion — concurrencia (hueco de test #1)', () => {
     // Simular + solicitar — mismo camino que flujo-dos-tiempos.test.ts: el
     // auxiliar simula y solicita, el punto de este test es la concurrencia
     // al aplicar, no el resto del flujo.
-    const { data: sim, error: errSim } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo.id },
     })
-    if (errSim) throw errSim
-    const liquidacionId = (sim as { liquidacion_id: string }).liquidacion_id
+    if (respuestaSim.error) throw respuestaSim.error as Error
+    const liquidacionId = (respuestaSim.data as { liquidacion_id: string }).liquidacion_id
 
     const { error: errSolicitar } = await cAux
       .from('liquidaciones')
@@ -152,7 +155,7 @@ d('fn_aplicar_liquidacion — concurrencia (hueco de test #1)', () => {
       cAdm.rpc('fn_aplicar_liquidacion', { p_liquidacion_id: liquidacionId }),
       cAdm.rpc('fn_aplicar_liquidacion', { p_liquidacion_id: liquidacionId }),
     ])
-    const resultados = [r1, r2].map((r) => (r.status === 'fulfilled' ? r.value.error?.message : r.reason))
+    const resultados = [r1, r2].map((r) => (r.status === 'fulfilled' ? r.value.error?.message : (r.reason as unknown)))
     // Una gana, la otra falla con LIQUIDACION_NO_PENDIENTE — nunca las dos en silencio.
     expect(resultados.filter((m) => m === undefined)).toHaveLength(1)
     expect(resultados.some((m) => typeof m === 'string' && m.includes('LIQUIDACION_NO_PENDIENTE'))).toBe(true)

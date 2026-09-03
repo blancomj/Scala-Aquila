@@ -84,7 +84,7 @@ d('webhook-pasarela', () => {
     await eliminarUsuario(admin, agente.id)
   }, 60_000)
 
-  const urlBase = `${env?.url}/functions/v1/webhook-pasarela`
+  const urlBase = `${env!.url}/functions/v1/webhook-pasarela`
 
   it('un token de webhook desconocido responde 404 y queda auditado', async () => {
     const respuesta = await fetch(`${urlBase}/wompi/token-que-no-existe`, {

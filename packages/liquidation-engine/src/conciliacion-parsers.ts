@@ -37,7 +37,7 @@ function fechaAIso(fecha: string): string {
   const m = PATRON_FECHA_DDMMYYYY.exec(fecha.trim())
   if (!m) throw new Error(`Fecha de extracto no reconocida: "${fecha}" (se esperaba DD/MM/AAAA).`)
   const [, dia, mes, anio] = m
-  return `${anio}-${mes}-${dia}`
+  return `${String(anio)}-${String(mes)}-${String(dia)}`
 }
 
 /** Parseo de una línea CSV con comillas dobles opcionales — sin dependencia
@@ -47,8 +47,7 @@ function parsearLineaCsv(linea: string): string[] {
   const campos: string[] = []
   let actual = ''
   let dentroDeComillas = false
-  for (let i = 0; i < linea.length; i++) {
-    const c = linea[i]
+  for (const c of linea) {
     if (c === '"') {
       dentroDeComillas = !dentroDeComillas
     } else if (c === ',' && !dentroDeComillas) {
@@ -104,7 +103,7 @@ export const parserBancolombia: ParserExtracto = {
       const monto = Number(crudoValor)
       if (!Number.isFinite(monto)) {
         throw new Error(
-          `Línea ${indice + 2} del extracto: valor no numérico "${campos[idxValor] ?? ''}".`,
+          `Línea ${String(indice + 2)} del extracto: valor no numérico "${campos[idxValor] ?? ''}".`,
         )
       }
       return {

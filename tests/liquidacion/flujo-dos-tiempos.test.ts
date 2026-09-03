@@ -48,6 +48,18 @@ if (!env) {
 const CUOTA = 120_000
 const UNIDADES = 3
 
+/** Shape de la respuesta 200 de simular-liquidacion — solo los campos que
+ *  estos tests leen (ver supabase/functions/simular-liquidacion/index.ts). */
+interface RespuestaSimulacion {
+  liquidacion_id: string
+  estado: string
+  lineas: number
+  // Serializado como string (amount.toString() en el edge function) — no un
+  // número: Number(...) en el punto de uso es una conversión real, no de más.
+  tenant_total: string
+  descarto_anteriores: number
+}
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -73,9 +85,15 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
 
   afterAll(async () => {
     // Arrastra en cascada periodos, liquidaciones, cargos y estados de cuenta.
+    // TS ve tenant/auxiliar/administrador como siempre asignados (se capturan
+    // en el closure del it() de setup), pero si ese it() falla a mitad de
+    // camino, afterAll igual corre — el guard evita un segundo error que
+    // tape el original.
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition */
     if (tenant) await eliminarTenant(admin, tenant.id)
     if (auxiliar) await eliminarUsuario(admin, auxiliar.id)
     if (administrador) await eliminarUsuario(admin, administrador.id)
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   })
 
   it('setup: copropiedad con 3 unidades, coeficientes, política y un concepto fijo', async () => {
@@ -186,7 +204,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       p_periodo_id: periodo,
     })
     if (error) throw error
-    const bloqueos = (data ?? []).filter((h) => h.severidad === 'bloqueo')
+    const bloqueos = data.filter((h) => h.severidad === 'bloqueo')
     expect(bloqueos).toEqual([])
   })
 
@@ -205,10 +223,14 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
   // ── Simular (L2) ───────────────────────────────────────────────────
 
   it('el auxiliar simula: calcula, no compromete nada', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (respuestaSim.error) throw respuestaSim.error as Error
+    const data = respuestaSim.data as RespuestaSimulacion
     liquidacionId = data.liquidacion_id
 
     expect(data.estado).toBe('pre_liquidada')
@@ -240,10 +262,14 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
 
   it('re-simular descarta la corrida anterior: solo queda una viva', async () => {
     const anterior = liquidacionId
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (respuestaSim.error) throw respuestaSim.error as Error
+    const data = respuestaSim.data as RespuestaSimulacion
     liquidacionId = data.liquidacion_id
     expect(data.descarto_anteriores).toBe(1)
 
@@ -332,7 +358,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .select('monto_original')
       .eq('periodo_id', periodo)
       .eq('origen_tipo', 'liquidacion_linea')
-    const suma = cargos!.reduce((s, c) => s + Number(c.monto_original), 0)
+    const suma = cargos!.reduce((s, c) => s + c.monto_original, 0)
     expect(suma).toBe(CUOTA)
   })
 
@@ -381,11 +407,11 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
   })
 
   it('ya no se puede simular sobre un periodo liquidado', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
     // La Edge Function devuelve 422; supabase-js lo reporta como error.
-    expect(error ?? data).toBeTruthy()
+    expect(respuestaSim.error ?? respuestaSim.data).toBeTruthy()
     const { data: aplicadas } = await admin
       .from('liquidaciones')
       .select('id')
@@ -438,7 +464,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .from('cargos')
       .select('monto_original, cargo_reversado_id')
       .eq('periodo_id', periodo)
-    const neto = todos!.reduce((s, c) => s + Number(c.monto_original), 0)
+    const neto = todos!.reduce((s, c) => s + c.monto_original, 0)
     expect(neto).toBe(0)
 
     // …pero los cargos originales siguen ahí: el ledger es append-only.
@@ -455,10 +481,14 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
     expect(per!.estado).toBe('abierto')
     expect(per!.cerrado_at).toBeNull()
 
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (respuestaSim.error) throw respuestaSim.error as Error
+    const data = respuestaSim.data as RespuestaSimulacion
     expect(data.estado).toBe('pre_liquidada')
     expect(data.lineas).toBe(UNIDADES)
   }, 60_000)

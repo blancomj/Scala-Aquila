@@ -3,10 +3,13 @@
 // §7.4 v1), ampliado a pedido del usuario con: día de facturación + canal
 // de notificación (campos nuevos en tenants, informativos por ahora, sin
 // consumidor todavía — 20260830350000), logo (movido desde "Datos
-// básicos" — ya estaba construido, solo vivía en el tab equivocado) y
-// Consejo de administración (activa el catálogo ROL_CONCEJO_COPROPIEDAD,
-// sembrado sin consumidor hasta ahora, reutilizando
-// CopropiedadPersonasVinculadas.vue con otra familia de rol).
+// básicos" — ya estaba construido, solo vivía en el tab equivocado) y la
+// zona de peligro (D-39).
+//
+// "Consejo de administración" vivía aquí y se movió al tab "Personas
+// vinculadas" (pages/configuracion/index.vue), junto a la otra familia de
+// rol que usa el mismo CopropiedadPersonasVinculadas.vue — las dos listas
+// de personas quedan en el mismo sitio.
 const tenantStore = useTenantStore()
 const copropiedadStore = useCopropiedadStore()
 const supabase = useSupabaseClient()
@@ -183,14 +186,6 @@ async function toggleCompositor(): Promise<void> {
       <UButton :loading="guardando" @click="guardar">Guardar cambios</UButton>
     </div>
 
-    <CopropiedadPersonasVinculadas
-      style="margin-top: 2.5rem"
-      familia-rol="ROL_CONCEJO_COPROPIEDAD"
-      titulo="Consejo de administración"
-      subtitulo="Presidente, vicepresidente, secretario, vocales y suplentes del consejo."
-      nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
-      :mostrar-tarjeta-profesional="false"
-      texto-boton-agregar="Agregar miembro"
-    />
+    <CopropiedadZonaPeligro />
   </div>
 </template>
