@@ -1503,3 +1503,64 @@ el allowlist de color. Al escribir este test se detectó y corrigió un olvido
 real de esta misma decisión: `lista_tipos` (mixta plataforma/tenant, como
 `fundamento_normativo`) no estaba clasificada — se agregó a preservadas,
 mismo criterio que `lista_tipos_ocultos`.
+
+## D-40 — `tests/seed/gc001.test.ts` se retira: verificaba un fixture que ya no existe
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | Higiene de tests, ad hoc                           |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (preguntas explícitas, esta sesión)        |
+
+**Contexto.** `pnpm test` traía 3 fallos en `tests/seed/gc001.test.ts`: presupuesto
+2026 vigente no encontrado, 66 inmuebles en vez de 6, `CUOTA_ADMIN` archivado en
+vez de activo. La lectura inicial fue "gc-001 se desincronizó, hay que
+re-sembrarlo" — la inspección contra la base real mostró algo distinto: el
+tenant `gc-001` tiene **5 liquidaciones ejecutadas, 14 cargos, 2 pagos, 67
+terceros y 66 inmuebles** con ficha técnica completa. No es contaminación de
+tests: es un tenant usado activamente como copropiedad de demostración desde
+la UI, con meses de actividad real encima.
+
+**No es la primera vez.** El encabezado de
+`tests/liquidacion/snapshot-fuente-financiacion.test.ts` (antes
+`gc001-snapshot.test.ts`) ya documenta el mismo hallazgo, resuelto hace tiempo:
+*"gc-001 dejó de ser un fixture congelado hace tiempo — hoy tiene 66 inmuebles
+y una decena de conceptos en distintos estados de prueba manual desde la UI...
+cualquiera que usara gc-001 como copropiedad de demostración iba a volver a
+romperlas."* La solución que se aplicó entonces no fue restaurar el tenant: fue
+dejar de depender de sus valores exactos y armar un tenant desechable propio
+para cada test. `tests/contabilidad/contable-movimientos.test.ts` va todavía
+más lejos y depende **a propósito** del estado actual de `gc-001` (sus 14
+cargos reales, su `contable_cuenta_default` poblado) como fixture de "caso
+feliz" con datos reales.
+
+**Por qué no restaurar ni re-sembrar en el sitio.** Borrar los 60 inmuebles
+extra y las 5 liquidaciones para devolver `gc-001` a su estado de 2026-08-14
+es irreversible y destruye historial de prueba real, no basura — y de todas
+formas volvería a romperse la próxima vez que alguien probara algo manualmente
+contra ese tenant desde la UI, exactamente como ya le pasó una vez.
+
+**Por qué no crear un tenant `gc-001-canonico` aparte.** Se evaluó como primera
+opción. Se descartó al verificar que el golden case *matemático* de
+`paso0/INFORME_PASO_0.md` §3.1-3.3 ya está cubierto sin ninguna dependencia de
+Supabase: `packages/{ael-runtime,financial-kernel,liquidation-engine}/src/
+golden-case-gc001.test.ts` construyen su `DataSnapshot` a mano con los valores
+exactos del golden case (6 inmuebles, presupuesto 120M, `CUOTA_ADMIN`) y
+corren el motor de punta a punta contra eso. Un tenant nuevo solo replicaría
+una verificación que ya existe, y quedaría expuesto al mismo riesgo de deriva
+que ya materializó `gc-001` — infraestructura nueva para un problema ya resuelto.
+
+**Decisión.** Se retira `tests/seed/gc001.test.ts` sin reemplazo. Su propósito
+original (F2→F3: confirmar que el seed inicial cargó bien en el proyecto
+remoto) ya se cumplió cuando se escribió; las dos aserciones que seguían
+siendo válidas hoy (el tenant existe, moneda COP) no justifican un archivo de
+test dedicado a un tenant que cualquier prueba manual futura puede volver a
+mover.
+
+**Consecuencia.** `gc-001` queda documentado como lo que ya es en la práctica:
+una copropiedad de demostración con datos reales, no un fixture congelado.
+Cualquier test que necesite valores exactos y estables arma su propio tenant
+desechable (patrón ya establecido en `concepto-tipo-recurrencia-snapshot.test.ts`
+y `snapshot-fuente-financiacion.test.ts`); cualquier test que quiera datos
+reales variados puede seguir leyendo `gc-001` en modo solo-lectura, como ya
+hace `contable-movimientos.test.ts`.
