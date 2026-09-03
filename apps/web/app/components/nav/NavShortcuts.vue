@@ -18,8 +18,6 @@ function iconoParaRuta(to: string): string {
   }
   return ''
 }
-
-const ICONO_ENVELOPE = 'M2 4h20v16H2V4zm0 0l10 7 10-7'
 </script>
 
 <template>

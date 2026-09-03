@@ -72,12 +72,11 @@ function cambiarCampo(campo: CampoCondicion): void {
     <UiSelectorBuscable
       v-if="meta.tipo === 'catalogo'"
       :model-value="modelValue.valor"
-      :options="opcionesCatalogo.map(o => ({ value: o.valor, label: o.etiqueta }))"
+      :opciones="opcionesCatalogo.map(o => ({ valor: o.valor, etiqueta: o.etiqueta }))"
       placeholder="— Elegir —"
-      size="sm"
       class="min-w-40"
-      :disabled="readonly"
-      @update:model-value="actualizar({ valor: $event })"
+      :deshabilitado="readonly"
+      @update:model-value="actualizar({ valor: $event ?? '' })"
     />
 
     <USelect
@@ -87,7 +86,7 @@ function cambiarCampo(campo: CampoCondicion): void {
       size="sm"
       class="min-w-40"
       :disabled="readonly"
-      @update:model-value="actualizar({ valor: $event })"
+      @update:model-value="actualizar({ valor: ($event ?? '') as string | number })"
     />
 
     <USelect

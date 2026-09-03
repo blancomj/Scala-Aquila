@@ -62,12 +62,12 @@ d('create_tenant: parametrización contable del alta', () => {
     usuariosCreados.push(usuario)
     const cliente = await clienteComo(env!, usuario)
 
-    const { data: tenant, error: errAlta } = await cliente
-      .rpc('create_tenant', {
-        p_name: 'Alta parametrización contable',
-        p_slug: `t-${RUN_ID}-alta-contable`,
-      })
-      .single()
+    // create_tenant() devuelve una fila compuesta (isSetofReturn: false), no
+    // un arreglo — sin .single(), que espera envolver/desenvolver un array.
+    const { data: tenant, error: errAlta } = await cliente.rpc('create_tenant', {
+      p_name: 'Alta parametrización contable',
+      p_slug: `t-${RUN_ID}-alta-contable`,
+    })
     if (errAlta) throw new Error(`create_tenant falló: ${errAlta.message}`)
     tenantsCreados.push(tenant.id)
 

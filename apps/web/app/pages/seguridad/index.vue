@@ -50,7 +50,7 @@ const totalRoles = computed(() => membersStore.rolesFuncionalesConModulos.length
       color="error"
       variant="soft"
       :title="mensajeError"
-      :actions="[{ label: 'Reintentar', click: () => { $router.go(0) } }]"
+      :actions="[{ label: 'Reintentar', onClick: () => { $router.go(0) } }]"
     />
 
     <!-- Loading skeleton -->

@@ -144,11 +144,14 @@ d('Reemplazo de coeficiente_set a mitad de año (hueco de test #4)', () => {
       .single<{ id: string }>()
     if (errPerEnero) throw new Error(`fixture periodo enero: ${errPerEnero.message}`)
 
-    const { data: simEnero, error: errSimEnero } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSimEnero = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodoEnero.id },
     })
-    if (errSimEnero) throw errSimEnero
-    const liquidacionEneroId = (simEnero as { liquidacion_id: string }).liquidacion_id
+    if (respuestaSimEnero.error) throw respuestaSimEnero.error as Error
+    const liquidacionEneroId = (respuestaSimEnero.data as { liquidacion_id: string }).liquidacion_id
 
     const { error: errSolicitar } = await cAux
       .from('liquidaciones')
@@ -217,11 +220,14 @@ d('Reemplazo de coeficiente_set a mitad de año (hueco de test #4)', () => {
       .single<{ id: string }>()
     if (errPerJulio) throw new Error(`fixture periodo julio: ${errPerJulio.message}`)
 
-    const { data: simJulio, error: errSimJulio } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSimJulio = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodoJulio.id },
     })
-    if (errSimJulio) throw errSimJulio
-    const liquidacionJulioId = (simJulio as { liquidacion_id: string }).liquidacion_id
+    if (respuestaSimJulio.error) throw respuestaSimJulio.error as Error
+    const liquidacionJulioId = (respuestaSimJulio.data as { liquidacion_id: string }).liquidacion_id
 
     const { data: liqJulio, error: errLeerJulio } = await admin
       .from('liquidaciones')

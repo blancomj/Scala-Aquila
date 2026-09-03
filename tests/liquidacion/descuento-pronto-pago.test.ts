@@ -54,6 +54,10 @@ d('Descuento por pronto pago (D3)', () => {
   afterAll(async () => {
     // Arrastra en cascada inmuebles, periodos, política, liquidación, cargos, pagos.
     for (const tenant of tenants) await eliminarTenant(admin, tenant.id)
+    // TS ve `creador` como siempre asignado (se captura en el closure de
+    // beforeAll), pero si beforeAll falla antes de la asignación, afterAll
+    // igual corre — el guard evita un segundo error que tape el original.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (creador) await eliminarUsuario(admin, creador.id)
   })
 

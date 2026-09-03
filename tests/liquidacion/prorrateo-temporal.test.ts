@@ -158,10 +158,14 @@ d('Prorrateo temporal por inmueble (H2)', () => {
   }, 60_000)
 
   it('simula: el inmueble prorrateado paga menos, los demás absorben la diferencia, Σ=fuente exacta', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    // functions.invoke() tipa `data`/`error` como `any` en su propia rama de
+    // fallo (@supabase/functions-js) — el `as` de abajo es la salida
+    // reconocida por las reglas no-unsafe-* para ese `any` de la librería.
+    const respuestaSim = await cAux.functions.invoke('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (respuestaSim.error) throw respuestaSim.error as Error
+    const data = respuestaSim.data as { estado: string; tenant_total: string; liquidacion_id: string }
     expect(data.estado).toBe('pre_liquidada')
     expect(Number(data.tenant_total)).toBe(CUOTA)
 

@@ -107,11 +107,11 @@ const MES_REF = (() => {
 })()
 /** 'DD/MM/AAAA', formato que espera csvBancolombia. */
 function fechaCsv(dia: number): string {
-  return `${String(dia).padStart(2, '0')}/${String(MES_REF.mes).padStart(2, '0')}/${MES_REF.anio}`
+  return `${String(dia).padStart(2, '0')}/${String(MES_REF.mes).padStart(2, '0')}/${String(MES_REF.anio)}`
 }
 /** 'AAAA-MM-DD', formato de columna date para INSERT directo. */
 function fechaIso(dia: number): string {
-  return `${MES_REF.anio}-${String(MES_REF.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+  return `${String(MES_REF.anio)}-${String(MES_REF.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
 }
 
 function csvBancolombia(filas: { fecha: string; descripcion: string; referencia?: string; valor: number }[]): File {
@@ -142,7 +142,6 @@ d('conciliación bancaria (Edge Functions)', () => {
   let agente: UsuarioPrueba
   let auditor: UsuarioPrueba
   let clienteAgent: Cliente
-  let clienteAuditor: Cliente
   let ctx: ContextoTenant
 
   beforeAll(async () => {
@@ -153,7 +152,6 @@ d('conciliación bancaria (Edge Functions)', () => {
     await crearMembership(admin, tenant.id, agente.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     clienteAgent = await clienteComo(env!, agente)
-    clienteAuditor = await clienteComo(env!, auditor)
 
     const { error: errPolitica } = await admin.from('politicas_financieras').insert({
       tenant_id: tenant.id,
@@ -527,7 +525,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('pago_aplicaciones')
       .select('monto')
       .eq('pago_id', data!.pago_id)
-    const totalAplicado = (aplicaciones ?? []).reduce((s, a) => s + Number(a.monto), 0)
+    const totalAplicado = (aplicaciones ?? []).reduce((s, a) => s + a.monto, 0)
 
     expect(Number(pago?.monto)).toBe(montoLinea)
     expect(totalAplicado).toBe(saldoPendiente) // el resto quedó como anticipo, no aplicado a ningún cargo

@@ -17,6 +17,7 @@ import {
   TIPO_FUNDAMENTO,
   TIPO_FUNDAMENTO_ITEMS,
 } from '~/utils/fundamento-labels'
+import type { FundamentoConTenant } from '~/stores/fundamentoNormativo'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
@@ -79,8 +80,8 @@ const filtroEstadoModelo = computed({
 })
 
 const columnasCatalogo = [
-  { clave: 'tipo', etiqueta: 'Tipo', ordenar: (f: any) => f.tipo },
-  { clave: 'norma', etiqueta: 'Norma', ordenar: (f: any) => f.norma },
+  { clave: 'tipo', etiqueta: 'Tipo', ordenar: (f: FundamentoConTenant) => f.tipo },
+  { clave: 'norma', etiqueta: 'Norma', ordenar: (f: FundamentoConTenant) => f.norma },
   { clave: 'articulo', etiqueta: 'Artículo' },
   { clave: 'descripcion', etiqueta: 'Descripción' },
   { clave: 'fuente', etiqueta: 'Fuente' },
