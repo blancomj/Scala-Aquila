@@ -147,3 +147,12 @@ export const CLAVE_VALORES_TRAZA = Symbol('aelValoresTraza')
  * traza: el RETORNAR viene con `nombre: null` desde el evaluador, y un
  * espacio inicial no puede colisionar con ningún identificador AEL. */
 export const CLAVE_VALOR_RESULTADO = ' resultado'
+
+/** Contrato AEL → nombre de la variable CSS de su color (assets/css/tokens.css).
+ * Es el puente entre el modelo y la paleta compartida por los dos modos del
+ * editor: las píldoras del lienzo y el resaltado del modo texto. */
+export const ORIGEN_POR_CONTRATO: Readonly<Record<string, string>> = {
+  PARAMETER: 'parametro',
+  UNIT: 'inmueble',
+  CONCEPTO: 'concepto',
+}

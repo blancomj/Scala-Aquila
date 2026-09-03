@@ -70,3 +70,59 @@
   --radius-lg: 8px;
   --radius-xl: 10px;
 }
+
+/* ── Origen del dato en el editor de fórmulas AEL ──────────────────────────
+   Excepción categórica documentada en DESIGN_SYSTEM.md, igual que dataviz:
+   distingue de dónde sale cada valor de una fórmula, no jerarquiza
+   interacción (para eso está `brand`).
+
+   Se declara AQUÍ y no en cada componente porque la consumen los DOS modos
+   del editor: las píldoras del lienzo (AelBlockExpresion, vía :style) y el
+   resaltado de sintaxis del modo texto (utils/ael-codemirror.ts). Antes cada
+   modo tenía su propia paleta y no coincidían en nada, así que cambiar de
+   modo obligaba a reaprender el color.
+
+   La estructura (palabras clave, operadores, puntuación) va en neutro en los
+   dos modos: antes las palabras clave eran moradas, el mismo morado que
+   CONCEPTO. */
+:root {
+  --ael-parametro: #065f46;
+  --ael-parametro-fondo: #ecfdf5;
+  --ael-parametro-borde: #6ee7b7;
+
+  --ael-inmueble: #075985;
+  --ael-inmueble-fondo: #f0f9ff;
+  --ael-inmueble-borde: #7dd3fc;
+
+  --ael-concepto: #5b21b6;
+  --ael-concepto-fondo: #f5f3ff;
+  --ael-concepto-borde: #c4b5fd;
+
+  --ael-funcion: #92400e;
+  --ael-funcion-fondo: #fffbeb;
+  --ael-funcion-borde: #fcd34d;
+
+  --ael-literal: var(--color-neutral-700);
+  --ael-estructura: var(--color-neutral-500);
+}
+
+.dark {
+  --ael-parametro: #a7f3d0;
+  --ael-parametro-fondo: #022c22;
+  --ael-parametro-borde: #065f46;
+
+  --ael-inmueble: #bae6fd;
+  --ael-inmueble-fondo: #082f49;
+  --ael-inmueble-borde: #075985;
+
+  --ael-concepto: #ddd6fe;
+  --ael-concepto-fondo: #2e1065;
+  --ael-concepto-borde: #5b21b6;
+
+  --ael-funcion: #fde68a;
+  --ael-funcion-fondo: #451a03;
+  --ael-funcion-borde: #92400e;
+
+  --ael-literal: var(--color-neutral-200);
+  --ael-estructura: var(--color-neutral-400);
+}

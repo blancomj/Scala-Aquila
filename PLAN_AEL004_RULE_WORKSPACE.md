@@ -272,8 +272,37 @@ del motor de liquidación, no de AEL-004), se listan aquí solo para que no
 se confundan con backlog pendiente de este plan.
 
 **La Fase 8 está completa**: las cinco tandas, los once movimientos y la
-higiene del módulo, verificados en navegador contra la app corriendo. Con
-eso,
+higiene del módulo, verificados en navegador contra la app corriendo.
+
+**Corrección posterior (2026-09-02).** Al repasar la lista de hallazgos
+contra el código se encontró que tres cosas prometidas en el movimiento 10 no
+se habían hecho, pese a que la tanda estaba marcada como cerrada:
+
+1. **A2 seguía abierto** — el peor de los tres: los campos aún confirmaban con
+   `@change` y descartaban en silencio lo inválido, con el DOM mostrando algo
+   distinto de lo que se iba a guardar. Peor, el test escrito en F0 con un
+   `TODO(F1)` afirmaba el defecto como comportamiento correcto y nadie volvió
+   a él. Ahora se valida al escribir, la coma decimal colombiana se acepta y
+   se normaliza a punto **sobre la cadena** (nunca `Number(x)`), el nodo
+   explica por qué rechazó, y al salir del campo se restaura el último valor
+   válido.
+2. **X3 seguía abierto, y el documento afirmaba lo contrario.**
+   `DESIGN_SYSTEM.md` decía que la paleta se declaraba una sola vez para los
+   dos modos; `ael-codemirror.ts` no se había tocado desde la Fase 2/3. La
+   afirmación además era conceptualmente confusa: CodeMirror colorea por tipo
+   de token y los bloques por origen del dato, que son ejes distintos. Se
+   resolvió declarando la paleta en `tokens.css` y haciendo que el resaltado
+   del modo texto mire el contexto del token para colorear por origen —
+   verificado en la app: mismo `rgb()` computado en los dos modos.
+3. **Los blancos de pulsación** eran de 24 px con un mínimo de 32 en el
+   sistema de diseño. Se ampliaron con un pseudo-elemento en vez de agrandar
+   el botón, que habría ensanchado cada nodo y agravado el A7 recién
+   corregido.
+
+La lección para futuras tandas: marcar un movimiento como cerrado exige
+repasar los hallazgos que decía cerrar, no solo el titular del movimiento.
+
+Con eso,
 este roadmap vuelve a modo AD-23: la siguiente fase (si la hay) se planifica
 solo cuando exista una necesidad real confirmada, misma disciplina que abrió
 este documento.

@@ -59,20 +59,18 @@ function textoVisible(wrapper: ReturnType<typeof montar>): string {
 }
 
 describe('AelBlockExpresion — invariantes que el rediseño debe preservar', () => {
-  /** El componente solo escucha @change (hallazgo A2: confirma al salir del
-   * campo). setValue() de VTU dispara sus propios eventos, así que se escribe
-   * en el DOM y se dispara change una sola vez, como haría un usuario. */
-  async function escribirYConfirmar(wrapper: ReturnType<typeof montar>, texto: string) {
+  /** Escribe en el campo como lo haría una persona: evento de entrada por
+   * cada cambio, y blur al salir. */
+  async function escribir(wrapper: ReturnType<typeof montar>, texto: string) {
     const input = wrapper.get('input')
     ;(input.element as HTMLInputElement).value = texto
-    await input.trigger('change')
+    await input.trigger('input')
     return input
   }
 
   it('emite el lexema crudo, sin normalizar el decimal', async () => {
     const wrapper = montar(numero('100.50'))
-
-    await escribirYConfirmar(wrapper, '250.00')
+    await escribir(wrapper, '250.00')
 
     const emitidos = wrapper.emitted('update:bloque')
     expect(emitidos).toHaveLength(1)
@@ -81,17 +79,33 @@ describe('AelBlockExpresion — invariantes que el rediseño debe preservar', ()
     expect(nuevo.valor).toBe('250.00')
   })
 
-  it('rechaza un número con forma léxica inválida sin emitir nada', async () => {
+  it('acepta la coma decimal colombiana y la normaliza a punto', async () => {
     const wrapper = montar(numero('100'))
+    await escribir(wrapper, '100,50')
 
-    // La coma decimal colombiana no es NUMERO en el lexer (hallazgo A2).
-    const input = await escribirYConfirmar(wrapper, '100,50')
+    const nuevo = wrapper.emitted('update:bloque')?.[0]?.[0] as BloqueNumeroLiteral
+    // Normalizado SOBRE LA CADENA: '100.50', con los dos decimales intactos.
+    expect(nuevo.valor).toBe('100.50')
+    expect(wrapper.attributes('data-incompleto')).toBeUndefined()
+  })
+
+  it('avisa en el nodo cuando lo escrito no es un número', async () => {
+    const wrapper = montar(numero('100'))
+    await escribir(wrapper, '12ab')
 
     expect(wrapper.emitted('update:bloque')).toBeUndefined()
-    // Y el desajuste que documenta A2: el modelo sigue en '100' pero el DOM
-    // muestra '100,50', porque al no cambiar el estado no hay re-render.
-    // TODO(F1): al validar en vivo esto deja de poder pasar.
-    expect((input.element as HTMLInputElement).value).toBe('100,50')
+    expect(wrapper.text()).toContain('Solo dígitos')
+  })
+
+  it('al salir del campo, lo que se ve es lo que se va a guardar', async () => {
+    // Este era el defecto A2: el modelo quedaba en '100' y el input seguía
+    // mostrando lo inválido, sin ninguna señal.
+    const wrapper = montar(numero('100'))
+    const input = await escribir(wrapper, '12ab')
+    await input.trigger('blur')
+
+    expect((input.element as HTMLInputElement).value).toBe('100')
+    expect(wrapper.text()).toContain('Se restauró 100.')
   })
 
   it('cambiar el operador conserva ambos operandos', async () => {
@@ -333,5 +347,17 @@ describe('AelBlockExpresion — huecos explícitos (mov. 05)', () => {
 
   it('un literal nunca está incompleto', () => {
     expect(montar(numero('0')).attributes('data-incompleto')).toBeUndefined()
+  })
+})
+
+describe('AelBlockExpresion — blanco de pulsación (DESIGN_SYSTEM: mínimo 32 px)', () => {
+  it('el botón de acciones amplía su área sin crecer visualmente', () => {
+    // 24 px visuales (size-6) + 4 px por lado del pseudo-elemento = 32.
+    // Crecer a size-8 habría ensanchado cada nodo y agravado el hallazgo A7,
+    // que es justo lo que la Fase 8 arregló.
+    const clases = montar(numero('1')).get('button').classes()
+    expect(clases).toContain('size-6')
+    expect(clases).toContain('before:-inset-1')
+    expect(clases).toContain('relative')
   })
 })

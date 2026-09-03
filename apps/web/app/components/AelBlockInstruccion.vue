@@ -225,7 +225,7 @@ function manejarTeclado(evento: KeyboardEvent, indice: number): void {
 
 const CLASE_ETIQUETA = 'text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400'
 const CLASE_BOTON_FILA =
-  'inline-flex size-6 items-center justify-center rounded text-sm leading-none text-neutral-400 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-0 group-hover/fila:opacity-100 group-focus-within/fila:opacity-100 dark:hover:bg-neutral-800 dark:hover:text-neutral-200'
+  'inline-flex size-6 items-center justify-center rounded relative before:absolute before:-inset-1 text-sm leading-none text-neutral-400 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-0 group-hover/fila:opacity-100 group-focus-within/fila:opacity-100 dark:hover:bg-neutral-800 dark:hover:text-neutral-200'
 // Los tres botones de agregar se repiten en cada lista — el cuerpo y las dos
 // ramas de cada condicional. Con una sola prominencia, una fórmula con un SI
 // muestra nueve botones llamativos y el contenido pierde. La regla adaptativa:
@@ -363,7 +363,7 @@ const CLASE_NOMBRE =
         </div>
       </div>
 
-      <div v-if="!readonly" class="flex shrink-0 items-center gap-0.5">
+      <div v-if="!readonly" class="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
           :class="CLASE_BOTON_FILA"

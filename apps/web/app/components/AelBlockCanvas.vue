@@ -119,11 +119,19 @@ function manejarAtajos(evento: KeyboardEvent): void {
  * Antes no existía ninguna leyenda y el morado de CONCEPTO chocaba con el del
  * contenedor del condicional, que ya pasó a neutro. */
 const LEYENDA = [
-  { etiqueta: 'Parámetro', clase: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-100 dark:border-emerald-800' },
-  { etiqueta: 'Inmueble', clase: 'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950 dark:text-sky-100 dark:border-sky-800' },
-  { etiqueta: 'Concepto', clase: 'bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-950 dark:text-violet-100 dark:border-violet-800' },
-  { etiqueta: 'Función', clase: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-800' },
+  { etiqueta: 'Parámetro', variable: 'parametro' },
+  { etiqueta: 'Inmueble', variable: 'inmueble' },
+  { etiqueta: 'Concepto', variable: 'concepto' },
+  { etiqueta: 'Función', variable: 'funcion' },
 ] as const
+
+function estiloLeyenda(variable: string): Record<string, string> {
+  return {
+    color: `var(--ael-${variable})`,
+    backgroundColor: `var(--ael-${variable}-fondo)`,
+    borderColor: `var(--ael-${variable}-borde)`,
+  }
+}
 
 function actualizarNombreRegla(texto: string): void {
   if (props.bloque === null || !RE_IDENTIFICADOR.test(texto)) return
@@ -254,7 +262,7 @@ defineExpose({ insertarEnNodoActivo })
           v-for="item in LEYENDA"
           :key="item.etiqueta"
           class="rounded border px-1.5 py-0.5 text-xs"
-          :class="item.clase"
+          :style="estiloLeyenda(item.variable)"
         >
           {{ item.etiqueta }}
         </span>
