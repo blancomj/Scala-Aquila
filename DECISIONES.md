@@ -1609,3 +1609,37 @@ más inmuebles por copropiedad (no más copropiedades, que ya está resuelto
 aquí) ese costo interno reaparecería. No se toca en esta decisión — es un
 problema distinto (rendimiento interno de una función, no fan-out entre
 tenants) y merece su propia decisión si vuelve a manifestarse.
+
+## D-42 — `cartera-juridico.test.ts`: un login por usuario y por archivo, no por test
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | Higiene de tests, ad hoc                           |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (pendiente de sesiones anteriores)          |
+
+**Contexto.** `tests/rls/cartera-juridico.test.ts` fallaba con `Request rate
+limit reached` en los últimos 3 tests de `costas_judiciales`, siempre al
+llamar `clienteComo()` (login real contra Supabase Auth) dentro de
+`crearCertificacionVigente()`. El archivo tiene un solo describe con 3
+usuarios de prueba fijos (`agente`, `administrador`, `administradorDos`)
+creados una vez en `beforeAll` — pero cada test, y cada fixture auxiliar que
+necesitaba actuar como uno de ellos, volvía a iniciar sesión desde cero.
+Contadas, eran **31 llamadas a `clienteComo()`** en un solo archivo, para
+solo 3 identidades distintas: suficiente para agotar el rate limit de
+inicio de sesión de Supabase Auth antes de llegar al final del archivo.
+
+**Decisión.** Se memoiza el cliente autenticado por usuario dentro del
+describe: `comoAgente()` / `comoAdministrador()` / `comoAdministradorDos()`
+inician sesión la primera vez que se llaman y devuelven el mismo cliente en
+adelante (`cache ??= await clienteComo(...)`). Las 31 llamadas a
+`clienteComo()` quedan en 3 — una por usuario, no una por uso. No se tocó
+`clienteComo()` en `tests/rls/helpers.ts` (usado por decenas de archivos):
+el cambio queda local a este archivo, que es el que falla hoy; si el mismo
+síntoma reaparece en otro archivo, memoizar dentro de `helpers.ts` para
+todos pasa a ser la decisión correcta, pero hacerlo ahora sin evidencia de
+que otros archivos lo necesiten sería alcance no pedido.
+
+**Verificado.** Las 25 pruebas de `cartera-juridico.test.ts` pasan; el
+archivo completo baja de 31.3s (con los 3 fallos por rate limit al final) a
+25.0s.
