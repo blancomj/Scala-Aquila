@@ -1516,3 +1516,57 @@ color semántico de `app.config.ts` use el nombre de una paleta de Tailwind y qu
 la paleta referenciada exista completa en `tokens.css` — el fallback de Nuxt UI
 es `var(--color-X-N, )`, con fallback **vacío**, así que un paso faltante deja
 el color inválido en runtime, también sin error de build.
+
+## D-38 — Los allowlist de gobernanza son trinquetes, no permisos permanentes
+
+**Fecha.** 2026-09-03 · **Estado.** cerrada
+
+**Contexto.** `tests/governance/design-system-coverage.test.ts` guardaba dos
+`Set` "congelados al 23-08-2026". La intención era sana —no migrar código
+heredado de golpe— pero la forma tenía dos defectos.
+
+El primero: una lista estática no distingue *«todavía no lo hemos arreglado»*
+de *«ya está arreglado»*. Al 03-09-2026, **24 de las 51 entradas de `gray` ya
+no violaban nada** y una apuntaba a un archivo borrado. Cada una de esas 24 era
+un permiso vivo sobre un archivo limpio: podía volver a introducir `gray-*` sin
+que CI dijera nada. La lista protegía justo lo que ya no necesitaba protección.
+
+El segundo: mezclaba dos cosas que no se comportan igual. La fuente de los
+tokens, los gráficos y una escala ordinal de severidad necesitan hex **por
+diseño** y no van a bajar nunca a cero; los 292 `gray-*` heredados son deuda y
+deberían desaparecer. Tratarlas con la misma estructura obligaba a elegir entre
+vigilar de más a las excepciones o de menos a la deuda.
+
+**Decisión.** Se separan y cada una lleva el mecanismo que le corresponde.
+
+1. **Deuda → cuenta exacta por archivo, en las dos direcciones.** `DEUDA_GRAY`
+   registra cuántos usos tiene cada archivo. Subir es una regresión; bajar
+   obliga a actualizar el número. Que falle al bajar es deliberado: si el
+   número anotado no refleja la realidad, la próxima regresión pasa
+   desapercibida. Cuando un archivo llega a cero se **borra** la entrada y pasa
+   a estar cubierto por el guard general — la protección se gana al saldar la
+   deuda, no al declararla.
+
+2. **Excepción categórica → justificación obligatoria y revisión de vigencia.**
+   `EXCEPCIONES_HEX` pasa de `Set` con comentarios sueltos a
+   `Record<string, string>`: el porqué deja de ser opcional porque lo pide el
+   tipo. No lleva cuenta —un gráfico puede ganar o perder series
+   legítimamente— pero sí se verifica que el archivo siga teniendo hex: una
+   excepción que sobrevive a su motivo vuelve a ser un permiso gratuito.
+
+**Cómo se validó.** No basta con que el guard pase en verde. Se comprobó que
+falla en las cinco direcciones que debe cubrir: agregar un `gray-*` a un archivo
+de la deuda (REGRESIÓN), quitar uno (pide actualizar el número), dejar un
+archivo en cero (exige borrar la entrada), crear un archivo nuevo con `gray-*`
+(queda fuera de la deuda) y declarar una excepción de hex sobre un archivo sin
+hex (se reporta muerta).
+
+**Consecuencia.** La deuda de color queda con un contador visible que solo puede
+bajar: 292 usos en 26 archivos al cierre de esta decisión. Por D-37 ya no es
+deuda de *color* —`--color-gray-*` está aliasado a la escala del proyecto— sino
+de **nombre**, así que se salda con un rename mecánico y sin riesgo visual.
+
+**Alcance.** El criterio aplica a cualquier allowlist de gobernanza que se
+agregue en adelante, no solo al de color: si la lista describe deuda, lleva
+cuenta y trinquete; si describe una excepción de diseño, lleva justificación
+escrita y revisión de vigencia.
