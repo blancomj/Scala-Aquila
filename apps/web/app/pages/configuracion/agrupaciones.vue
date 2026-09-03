@@ -104,11 +104,26 @@ function filtrarArbol(nodos: Nodo[], q: string): Nodo[] {
   return salida
 }
 
-// ── contraer / desplegar grupos de nivel superior ───────────────────────
-// El toggle vive en nivel 1 y 2 (raíz y su primer hijo) — a partir de nivel 3
-// no hace falta, las ramas son cortas. Colapsar oculta TODOS los
-// descendientes, sin importar cuántos niveles tengan debajo.
+// ── contraer / desplegar ────────────────────────────────────────────────
+// Se pliega igual que el árbol de contabilidad/plan-de-cuentas y el de
+// presupuesto —clic en el nodo, se ocultan TODOS sus descendientes— con dos
+// diferencias pedidas para esta pantalla:
+//
+//   · sin botones globales de «contraer todo» / «expandir todo»;
+//   · el toggle llega HASTA EL SEGUNDO NIVEL (decisión del usuario,
+//     2026-09-03). Un nodo de nivel 3 o más no se pliega aunque tenga hijos.
+//
+// Contraer un nivel 1 o 2 sí esconde la rama entera por debajo, sin importar
+// cuántos niveles cuelguen: el tope es de dónde sale el control, no de hasta
+// dónde alcanza.
 const colapsados = ref<Set<string>>(new Set())
+
+/** Con un término de búsqueda el árbol se aplana para no esconder
+ * coincidencias, así que plegar deja de tener sentido: el toggle se oculta en
+ * vez de quedarse visible sin hacer nada. Ese era el síntoma reportado —el
+ * chevron aparecía y el clic no plegaba— y es el mismo criterio que usa
+ * plan-de-cuentas.vue con su propio `filtrando`. */
+const filtrando = computed(() => busqueda.value.trim().length > 0)
 
 function alternarColapso(id: string): void {
   const set = new Set(colapsados.value)
@@ -117,10 +132,50 @@ function alternarColapso(id: string): void {
   colapsados.value = set
 }
 
-const filasVisibles = computed<Nodo[]>(() => {
+// ── inmuebles como último nivel del árbol ───────────────────────────────
+// Mismo modelo que la vista «Ver agrupado» de /inmuebles: el árbol de
+// agrupaciones termina en las unidades que cuelgan de cada nodo. Antes esta
+// tabla solo listaba agrupaciones y los inmuebles eran únicamente un número
+// en su columna, así que «Piso 01», con 2 inmuebles y ninguna sub-agrupación,
+// no tenía nada que plegar y no mostraba chevron. Ese era el desconcierto:
+// el nodo se ve lleno pero el control no aparece.
+type FilaInmueble = {
+  readonly esInmueble: true
+  /** Prefijado para no colisionar con un id de agrupación en `clave-fila`. */
+  readonly id: string
+  readonly inmuebleId: string
+  readonly codigo: string
+  readonly nombre: string | null
+  readonly nivel: number
+}
+type Fila = (Nodo & { esInmueble?: false }) | FilaInmueble
+
+const inmueblesPorAgrupacion = computed(() => {
+  const mapa = new Map<string, (typeof cuentaStore.inmuebles)[number][]>()
+  for (const inmueble of cuentaStore.inmuebles) {
+    if (!inmueble.agrupacion_id) continue
+    const lista = mapa.get(inmueble.agrupacion_id) ?? []
+    lista.push(inmueble)
+    mapa.set(inmueble.agrupacion_id, lista)
+  }
+  for (const lista of mapa.values()) lista.sort((a, b) => a.codigo.localeCompare(b.codigo, 'es'))
+  return mapa
+})
+
+/** Un nodo es plegable si tiene algo debajo: sub-agrupaciones **o** inmuebles
+ * propios — misma condición que `colapsable` en /inmuebles. El tope de nivel
+ * es una decisión de esta pantalla (ver el comentario de `colapsados`). */
+function esColapsable(nodo: Nodo): boolean {
+  return (
+    nodo.nivel <= 2 &&
+    (nodo.hijos.length > 0 || (inmueblesPorAgrupacion.value.get(nodo.id)?.length ?? 0) > 0)
+  )
+}
+
+const filasVisibles = computed<Fila[]>(() => {
   const q = busqueda.value.trim().toLowerCase()
   const arbol = q ? filtrarArbol(agrupacionesStore.arbol as Nodo[], q) : (agrupacionesStore.arbol as Nodo[])
-  const salida: Nodo[] = []
+  const salida: Fila[] = []
   const recorrer = (nodos: Nodo[]): void => {
     for (const nodo of nodos) {
       salida.push(nodo)
@@ -128,6 +183,18 @@ const filasVisibles = computed<Nodo[]>(() => {
       // solo porque su raíz estaba contraída.
       if (!q && colapsados.value.has(nodo.id)) continue
       recorrer(nodo.hijos as Nodo[])
+      // Las unidades van DESPUÉS de las sub-agrupaciones: primero la
+      // estructura, luego las hojas — como en /inmuebles.
+      for (const inmueble of inmueblesPorAgrupacion.value.get(nodo.id) ?? []) {
+        salida.push({
+          esInmueble: true,
+          id: `inm-${inmueble.id}`,
+          inmuebleId: inmueble.id,
+          codigo: inmueble.codigo,
+          nombre: inmueble.nombre ?? null,
+          nivel: nodo.nivel + 1,
+        })
+      }
     }
   }
   recorrer(arbol)
@@ -529,19 +596,42 @@ async function confirmarEliminar(): Promise<void> {
         :clave-fila="(nodo) => nodo.id"
       >
         <template #celda-nombre="{ fila }">
+          <!-- Fila de unidad: hoja del árbol, enlaza a su ficha. -->
           <div
+            v-if="fila.esInmueble"
+            class="flex items-center gap-2"
+            :style="{ paddingLeft: `${(fila.nivel - 1) * 24}px` }"
+          >
+            <span class="w-6 shrink-0" />
+            <UIcon name="i-lucide-home" class="size-3.5 shrink-0 text-neutral-400" />
+            <NuxtLink
+              :to="`/inmuebles/${fila.inmuebleId}`"
+              class="font-medium text-primary hover:underline"
+            >
+              {{ fila.codigo }}
+            </NuxtLink>
+            <span v-if="fila.nombre" class="text-neutral-500">{{ fila.nombre }}</span>
+          </div>
+
+          <div
+            v-else
             class="flex items-center gap-2"
             :style="{ paddingLeft: `${(fila.nivel - 1) * 24}px` }"
           >
             <UButton
-              v-if="fila.nivel <= 2 && fila.hijos.length > 0"
+              v-if="esColapsable(fila) && !filtrando"
               size="xs"
               variant="ghost"
               :icon="colapsados.has(fila.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
               :title="colapsados.has(fila.id) ? 'Desplegar' : 'Contraer'"
+              :aria-expanded="!colapsados.has(fila.id)"
+              :aria-label="`${colapsados.has(fila.id) ? 'Desplegar' : 'Contraer'} ${fila.nombre}`"
               @click="alternarColapso(fila.id)"
             />
-            <span v-else-if="fila.nivel <= 2" class="w-6 shrink-0" />
+            <!-- El espaciador va en TODA fila sin toggle, a cualquier nivel:
+                 antes estaba condicionado a `nivel <= 2` y la sangría se
+                 desalineaba a partir del tercero. -->
+            <span v-else class="w-6 shrink-0" />
             <UBadge :color="fila.nivel === 1 ? 'primary' : 'neutral'" variant="subtle" size="sm">
               {{ fila.tipoNombre }}
             </UBadge>
@@ -566,25 +656,45 @@ async function confirmarEliminar(): Promise<void> {
           </div>
         </template>
         <template #celda-descripcion="{ fila }">
-          <span class="text-neutral-500">{{ fila.descripcion ?? '—' }}</span>
+          <span class="text-neutral-500">{{ fila.esInmueble ? '—' : (fila.descripcion ?? '—') }}</span>
         </template>
         <template #celda-inmuebles="{ fila }">
+          <!-- La columna cuenta lo que CONTIENE un nodo; una unidad no
+               contiene nada, así que ahí no va un 1. -->
           <span class="tabular-nums text-neutral-500">
-            {{ conteoPorAgrupacion.get(fila.id) ?? 0 }}
+            {{ fila.esInmueble ? '—' : (conteoPorAgrupacion.get(fila.id) ?? 0) }}
           </span>
         </template>
         <template #celda-coeficiente="{ fila }">
           <span class="tabular-nums text-neutral-500">
-            {{ setVigente ? formatoCoeficiente(coeficientePorAgrupacion.get(fila.id) ?? 0) : '—' }}
+            {{
+              !setVigente
+                ? '—'
+                : formatoCoeficiente(
+                    fila.esInmueble
+                      ? (coeficientesStore.valoresVigentes.get(fila.inmuebleId) ?? 0)
+                      : (coeficientePorAgrupacion.get(fila.id) ?? 0),
+                  )
+            }}
           </span>
         </template>
         <template #celda-porcentaje="{ fila }">
           <span class="tabular-nums text-neutral-500">
-            {{ setVigente ? formatoPorcentaje(coeficientePorAgrupacion.get(fila.id) ?? 0) : '—' }}
+            {{
+              !setVigente
+                ? '—'
+                : formatoPorcentaje(
+                    fila.esInmueble
+                      ? (coeficientesStore.valoresVigentes.get(fila.inmuebleId) ?? 0)
+                      : (coeficientePorAgrupacion.get(fila.id) ?? 0),
+                  )
+            }}
           </span>
         </template>
         <template #celda-acciones="{ fila }">
-          <div class="flex justify-end gap-1">
+          <!-- Editar y eliminar son acciones sobre la AGRUPACIÓN; una unidad
+               se gestiona desde su propia ficha. -->
+          <div v-if="!fila.esInmueble" class="flex justify-end gap-1">
             <UButton
               size="xs"
               variant="ghost"
