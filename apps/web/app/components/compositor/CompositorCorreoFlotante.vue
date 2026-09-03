@@ -93,6 +93,11 @@ function cambiarModoDestinatario(modo: 'tercero' | 'manual'): void {
 watch([terceroSeleccionadoId, emailManual, plantillaSeleccionada, asuntoEditado, cuerpoEditado], () => {
   confirmandoEnvio.value = false
   exitoEnvio.value = false
+  // Sin esto, un error de un envío fallido anterior seguía visible mientras
+  // el usuario ya estaba corrigiendo el mensaje — podía apilarse encima del
+  // error de validación del intento nuevo, dos alertas rojas por dos envíos
+  // distintos en la misma pantalla.
+  errorEnvio.value = null
 })
 
 const paramsResueltos = computed(() => {
@@ -218,11 +223,11 @@ function limpiarFormulario(): void {
       <div
         v-if="activo && panelAbierto"
         ref="contenedorRef"
-        class="fixed top-0 right-0 bottom-0 z-50 w-[560px] max-w-[100vw] bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-700 shadow-2xl flex flex-col"
+        class="fixed top-0 right-0 bottom-0 z-50 w-[560px] max-w-[calc(100vw-1.5rem)] bg-default border-l border-neutral-200 dark:border-neutral-700 shadow-lg flex flex-col"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 shrink-0">
-          <h3 class="text-sm font-semibold">Compositor de correo</h3>
+          <h3 class="text-base font-semibold">Compositor de correo</h3>
           <UButton
             icon="i-lucide-x"
             size="xs"
@@ -242,25 +247,29 @@ function limpiarFormulario(): void {
           <template v-else>
             <!-- Destinatario -->
             <div>
+              <UButtonGroup size="xs" class="mb-1.5" aria-label="Modo de destinatario">
+                <UButton
+                  :color="modoDestinatario === 'tercero' ? 'primary' : 'neutral'"
+                  :variant="modoDestinatario === 'tercero' ? 'solid' : 'outline'"
+                  :aria-pressed="modoDestinatario === 'tercero'"
+                  @click="cambiarModoDestinatario('tercero')"
+                >
+                  Tercero
+                </UButton>
+                <UButton
+                  :color="modoDestinatario === 'manual' ? 'primary' : 'neutral'"
+                  :variant="modoDestinatario === 'manual' ? 'solid' : 'outline'"
+                  :aria-pressed="modoDestinatario === 'manual'"
+                  @click="cambiarModoDestinatario('manual')"
+                >
+                  Correo manual
+                </UButton>
+              </UButtonGroup>
+              <!-- El grupo de modo vive fuera de UFormField a propósito: "Para"
+                   debe asociarse solo con el control real (selector/input), no
+                   con los botones de modo — de lo contrario un lector de
+                   pantalla anuncia el label sobre contenido que no es el campo. -->
               <UFormField label="Para" name="destinatario">
-                <UButtonGroup size="xs" class="mb-1.5">
-                  <UButton
-                    :color="modoDestinatario === 'tercero' ? 'primary' : 'neutral'"
-                    :variant="modoDestinatario === 'tercero' ? 'solid' : 'outline'"
-                    :aria-pressed="modoDestinatario === 'tercero'"
-                    @click="cambiarModoDestinatario('tercero')"
-                  >
-                    Tercero
-                  </UButton>
-                  <UButton
-                    :color="modoDestinatario === 'manual' ? 'primary' : 'neutral'"
-                    :variant="modoDestinatario === 'manual' ? 'solid' : 'outline'"
-                    :aria-pressed="modoDestinatario === 'manual'"
-                    @click="cambiarModoDestinatario('manual')"
-                  >
-                    Correo manual
-                  </UButton>
-                </UButtonGroup>
                 <UiSelectorBuscable
                   v-if="modoDestinatario === 'tercero'"
                   v-model="terceroSeleccionadoId"
@@ -301,11 +310,11 @@ function limpiarFormulario(): void {
 
           <!-- Cuerpo -->
           <UFormField label="Cuerpo" name="cuerpo">
-            <textarea
+            <UTextarea
               v-model="cuerpoEditado"
-              rows="8"
+              :rows="8"
               :disabled="enviando"
-              class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-3 py-2 text-sm font-mono resize-y disabled:opacity-60"
+              class="w-full font-mono"
               placeholder="Escribe tu mensaje aquí. Usa {{ params.nombreDestinatario }} para personalizar..."
             />
           </UFormField>
@@ -357,7 +366,7 @@ function limpiarFormulario(): void {
             <UButton color="primary" size="sm" @click="cerrarPanel">Cerrar</UButton>
           </template>
           <template v-else-if="confirmandoEnvio">
-            <p class="text-xs text-neutral-500 mr-auto">
+            <p class="text-sm text-neutral-500 mr-auto">
               ¿Enviar a <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ destinatarioEmailActual }}</span>?
             </p>
             <UButton variant="outline" color="neutral" size="sm" @click="cancelarConfirmacion">Volver</UButton>
@@ -390,7 +399,7 @@ function limpiarFormulario(): void {
 }
 .drawer-enter-active,
 .drawer-leave-active {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .drawer-enter-from,
 .drawer-leave-to {

@@ -1643,3 +1643,69 @@ que otros archivos lo necesiten sería alcance no pedido.
 **Verificado.** Las 25 pruebas de `cartera-juridico.test.ts` pasan; el
 archivo completo baja de 31.3s (con los 3 fallos por rate limit al final) a
 25.0s.
+
+## D-43 — `CompositorCorreoFlotante.vue`: pulido contra DESIGN.md, sin verificación visual
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | Higiene de UI, ad hoc                              |
+| **Estado** | Aceptada                                           |
+| **Decide** | Usuario (pidió mejorar composición/apariencia/estilo) |
+
+**Contexto.** Había una crítica de `/impeccable` del 2026-08-31 sobre este
+componente (score 18/40, 2 P0/2 P1), pero al leer el archivo actual la
+mayoría ya estaba resuelta: ya no hay FAB (`compositor_correo_activo` cambió
+de patrón flotante a drawer lateral), ya no hay `bg-brand` roto, los botones
+ya son `UButton`/`UButtonGroup` con `aria-pressed`, ya hay paso de
+confirmación antes de enviar. La crítica vieja no servía como lista de
+tareas — se hizo una pasada independiente contra `DESIGN.md`.
+
+**Bloqueo de proceso.** El servidor de desarrollo de este worktree no
+levanta ninguna ruta (500 SSR en frío, error de Pinia `$pinia` undefined).
+Se investigó a fondo: no es el patrón conocido de `dce78f7` (stores resueltos
+tras un `await` en middleware — ya arreglado ahí), se descartó
+`@nuxtjs/supabase` como causa (confirmado con `useSsrCookies: false`, el
+error persiste idéntico), se descartó caché de Nuxt/Vite (borrada por
+completo, persiste) y `node_modules` desincronizado (`pnpm install` limpio,
+persiste). La causa raíz queda sin identificar. El usuario decidió seguir
+con revisión de código sin confirmación visual en navegador, en vez de
+seguir cazando el bug — pendiente para una sesión dedicada aparte.
+
+**Cambios aplicados** (todos contra reglas explícitas de `DESIGN.md`, no
+gusto propio):
+- `shadow-2xl` → `shadow-lg`: el sistema tope en `shadow-lg` de Nuxt UI, sin
+  sombra custom.
+- `bg-white dark:bg-neutral-900` → `bg-default`: token semántico de
+  superficie en vez de neutros hardcodeados, consistente con el resto de
+  paneles de la app.
+- `max-w-[100vw]` → `max-w-[calc(100vw-1.5rem)]`: el panel ya no toca el
+  borde exacto de la pantalla en viewports angostos.
+- `<textarea>` nativo → `<UTextarea>`: el campo "Cuerpo" era el único control
+  del formulario fuera del sistema de componentes (`UTextarea` ya se usa en
+  22 archivos de la app).
+- Transición del drawer 250ms → 200ms: el límite documentado es ~200ms.
+- Título del panel `text-sm` → `text-base`: a ese tamaño era indistinguible
+  de un label de formulario; un encabezado de panel necesita algo más de
+  peso.
+- Confirmación de envío `text-xs` → `text-sm`: es texto que el usuario debe
+  leer antes de una acción irreversible (enviar un correo real) — la regla
+  de texto contextual de `DESIGN.md` pide `text-sm` mínimo para eso, no el
+  nivel de "letra pequeña".
+- El grupo de botones "Tercero"/"Correo manual" salió de dentro de
+  `<UFormField label="Para">`: el label "Para" solo debe asociarse al
+  control real (selector/input), no también a los botones de modo.
+- El `watch` que limpia `confirmandoEnvio`/`exitoEnvio` al editar el
+  formulario ahora también limpia `errorEnvio` — antes un error de un envío
+  fallido anterior podía quedar visible junto al error de validación de un
+  intento nuevo, dos alertas rojas por dos causas distintas a la vez.
+
+**No tocado.** El `<details>`/`<summary>` nativo de la vista previa se dejó
+igual — no hay ningún `UCollapsible` en el resto de la app que establezca un
+patrón distinto, así que reemplazarlo habría sido introducir un componente
+nuevo, no alinear con uno existente.
+
+**Riesgo.** Estos cambios no se vieron renderizados — se aplicaron por
+lectura de código contra reglas documentadas, no por inspección visual. Si
+alguno se ve mal en la práctica (p. ej. el espaciado tras sacar el grupo de
+botones de `UFormField`), corregirlo en cuanto el compositor se pueda ver de
+verdad.
