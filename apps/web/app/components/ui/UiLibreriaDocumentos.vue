@@ -127,7 +127,7 @@ watchEffect(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="ficha-inmueble">
     <div class="panel-head">
       <div>
         <h2>Librería de documentos</h2>
@@ -156,7 +156,7 @@ watchEffect(async () => {
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="text-xl text-neutral-400">⇧</div>
+        <UIcon name="i-lucide-upload" class="text-xl text-neutral-400 shrink-0" />
         <div class="flex-1 min-w-0">
           <p class="truncate">{{ archivoSeleccionado ? archivoSeleccionado.name : 'Selecciona un archivo desde tu equipo' }}</p>
           <span class="text-xs text-neutral-500">PDF, JPG o PNG · hasta 15 MB</span>
@@ -170,31 +170,29 @@ watchEffect(async () => {
     <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-3" />
 
     <div class="doc-results">
-      <UButtonGroup v-if="documentosStore.documentos.length > 0" size="xs" class="mb-3">
+      <UFieldGroup v-if="documentosStore.documentos.length > 0" size="xs" class="mb-3">
         <UButton
           :color="vista === 'detalle' ? 'primary' : 'neutral'"
           :variant="vista === 'detalle' ? 'solid' : 'outline'"
+          icon="i-lucide-layout-grid"
           title="Vista de detalle"
           aria-label="Vista de detalle"
           @click="vista = 'detalle'"
-        >
-          ▦
-        </UButton>
+        />
         <UButton
           :color="vista === 'lista' ? 'primary' : 'neutral'"
           :variant="vista === 'lista' ? 'solid' : 'outline'"
+          icon="i-lucide-list"
           title="Vista de lista"
           aria-label="Vista de lista"
           @click="vista = 'lista'"
-        >
-          ☰
-        </UButton>
-      </UButtonGroup>
+        />
+      </UFieldGroup>
 
     <div v-if="documentosStore.documentos.length > 0 && vista === 'detalle'" class="doc-grid">
       <div v-for="d in documentosStore.documentos" :key="d.id ?? undefined" class="doc-card">
         <div class="doc-top">
-          <div style="font-size: 20px; color: var(--ink-faint)">▤</div>
+          <UIcon name="i-lucide-file-text" class="text-xl text-neutral-400 shrink-0" />
           <div>
             <p class="doc-name">{{ d.nombre_archivo }}</p>
             <p class="doc-meta">{{ nombreTipo(d.tipo_documento_id) }} · v{{ d.version }} · {{ formatearTamano(d.tamano_bytes) }}</p>

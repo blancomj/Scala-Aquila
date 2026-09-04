@@ -94,6 +94,14 @@ export interface ActualizarTerceroParams {
   estadoId?: number
 }
 
+/** Un vínculo vigente de un tercero a un inmueble — id (para enlazar a la ficha) y código de la
+ * unidad + rol con que está vinculado (propietario, arrendatario, representante...). */
+export interface VinculoInmueble {
+  readonly inmuebleId: string
+  readonly codigo: string
+  readonly rol: string
+}
+
 export const useTercerosStore = defineStore('terceros', () => {
   const terceros = shallowRef<TerceroRow[]>([])
   const tercerosNaturales = shallowRef<TerceroRow[]>([])
@@ -103,6 +111,11 @@ export const useTercerosStore = defineStore('terceros', () => {
   const rolesPersonaCopropiedad = shallowRef<ListaTipoRow[]>([])
   const tercerosAsociados = shallowRef<TerceroAsociado[]>([])
   const personasTenant = shallowRef<PersonaTenant[]>([])
+  /** Vínculos vigentes a inmueble por tercero (`vigente_hasta IS NULL`), tenant completo.
+   * Alimenta la columna "Inmueble" y el rol mostrado bajo el nombre en el listado de terceros
+   * (§6.1): un tercero puede tener 0, 1 o varios inmuebles vigentes a la vez (varias unidades del
+   * mismo dueño, o un rol distinto en cada una), así que el valor es una lista, no un campo plano. */
+  const inmueblesPorTercero = shallowRef<Map<string, VinculoInmueble[]>>(new Map())
   const loading = ref(false)
 
   // ── Mantenimiento de terceros (PROMPT_MANTENIMIENTO_TERCEROS.md) ───────
@@ -121,6 +134,39 @@ export const useTercerosStore = defineStore('terceros', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /** Vínculos vigentes a inmueble, tenant completo — para la columna "Inmueble" y el rol
+   * mostrado bajo el nombre en el listado (a diferencia de `cargarTercerosAsociados`, que es
+   * por-inmueble para la ficha de inmueble). */
+  async function cargarInmueblesVinculados(tenantId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorVinculos } = await cliente
+      .from('inmueble_persona_rol')
+      .select('tercero_id, inmueble:inmuebles(id, codigo), rol:lista_tipos(nombre)')
+      .eq('tenant_id', tenantId)
+      .is('vigente_hasta', null)
+    if (errorVinculos) throw errorVinculos
+
+    const mapa = new Map<string, VinculoInmueble[]>()
+    type FilaVinculo = {
+      tercero_id: string
+      inmueble: { id: string; codigo: string } | null
+      rol: { nombre: string } | null
+    }
+    for (const fila of (data ?? []) as FilaVinculo[]) {
+      if (!fila.inmueble) continue
+      const vinculo: VinculoInmueble = {
+        inmuebleId: fila.inmueble.id,
+        codigo: fila.inmueble.codigo,
+        rol: fila.rol?.nombre ?? '—',
+      }
+      const vinculos = mapa.get(fila.tercero_id) ?? []
+      vinculos.push(vinculo)
+      mapa.set(fila.tercero_id, vinculos)
+    }
+    for (const vinculos of mapa.values()) vinculos.sort((a, b) => a.codigo.localeCompare(b.codigo))
+    inmueblesPorTercero.value = mapa
   }
 
   async function cargarCatalogos(tenantId: string): Promise<void> {
@@ -624,6 +670,7 @@ export const useTercerosStore = defineStore('terceros', () => {
     tercerosNaturales.value = []
     tercerosAsociados.value = []
     personasTenant.value = []
+    inmueblesPorTercero.value = new Map()
   }
 
   return {
@@ -635,8 +682,10 @@ export const useTercerosStore = defineStore('terceros', () => {
     rolesPersonaCopropiedad,
     tercerosAsociados,
     personasTenant,
+    inmueblesPorTercero,
     loading,
     cargarTerceros,
+    cargarInmueblesVinculados,
     cargarCatalogos,
     cargarTercerosNaturales,
     crearTercero,

@@ -5758,6 +5758,7 @@ export type Database = {
           fecha_efectiva: string
           id: string
           inhabilitada_at: string | null
+          inhabilitada_motivo: string | null
           inhabilitada_por: string | null
           inmueble_id: string
           monto: number
@@ -5783,6 +5784,7 @@ export type Database = {
           fecha_efectiva: string
           id?: string
           inhabilitada_at?: string | null
+          inhabilitada_motivo?: string | null
           inhabilitada_por?: string | null
           inmueble_id: string
           monto: number
@@ -5808,6 +5810,7 @@ export type Database = {
           fecha_efectiva?: string
           id?: string
           inhabilitada_at?: string | null
+          inhabilitada_motivo?: string | null
           inhabilitada_por?: string | null
           inmueble_id?: string
           monto?: number
@@ -8942,6 +8945,7 @@ export type Database = {
           fecha_efectiva: string
           id: string
           inhabilitada_at: string | null
+          inhabilitada_motivo: string | null
           inhabilitada_por: string | null
           inmueble_id: string
           monto: number
@@ -9224,7 +9228,7 @@ export type Database = {
         }[]
       }
       fn_inhabilitar_novedad: {
-        Args: { p_actor_id: string; p_novedad_id: string }
+        Args: { p_actor_id: string; p_motivo: string; p_novedad_id: string }
         Returns: {
           acuerdo_pago_id: string | null
           approved_at: string | null
@@ -9239,6 +9243,7 @@ export type Database = {
           fecha_efectiva: string
           id: string
           inhabilitada_at: string | null
+          inhabilitada_motivo: string | null
           inhabilitada_por: string | null
           inmueble_id: string
           monto: number
@@ -9432,6 +9437,7 @@ export type Database = {
           fecha_efectiva: string
           id: string
           inhabilitada_at: string | null
+          inhabilitada_motivo: string | null
           inhabilitada_por: string | null
           inmueble_id: string
           monto: number
@@ -9492,6 +9498,7 @@ export type Database = {
         }
         Returns: string
       }
+      fn_resetear_copropiedad: { Args: { p_tenant_id: string }; Returns: Json }
       fn_sembrar_configuracion_cartera: {
         Args: { p_tenant_id: string }
         Returns: string

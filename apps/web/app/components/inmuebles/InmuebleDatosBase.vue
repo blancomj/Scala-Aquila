@@ -174,6 +174,8 @@ async function guardarEdicion(): Promise<void> {
 const mostrarFormPersona = ref(false)
 const personasEnEspera = ref<PersonaFormPayload[]>([])
 const filtroRol = ref<string>('todas')
+const guardandoPersona = ref(false)
+const errorPersona = ref<string | null>(null)
 
 const rolesDisponibles = computed(() => tercerosStore.rolesPersonaPredio)
 
@@ -186,21 +188,39 @@ function nombreRol(rolId: number): string {
   return rolesDisponibles.value.find((r) => r.id === rolId)?.nombre ?? 'Rol'
 }
 
+function abrirFormPersona(): void {
+  errorPersona.value = null
+  mostrarFormPersona.value = true
+}
+
+/** En creación, la persona queda en espera (local, sin round-trip) y el drawer se cierra de
+ * inmediato. En ficha SÍ hay una llamada real a la base — el drawer se queda abierto con el
+ * botón en loading hasta que resuelve, y si falla se ve el error ahí mismo en vez de fallar en
+ * silencio con el drawer ya cerrado (como pasaba antes: se cerraba antes de intentar guardar). */
 async function agregarPersona(payload: PersonaFormPayload): Promise<void> {
-  mostrarFormPersona.value = false
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
 
   if (props.esCreacion) {
     personasEnEspera.value = [...personasEnEspera.value, payload]
+    mostrarFormPersona.value = false
     return
   }
   if (!props.inmuebleId) return
-  await tercerosStore.asociarTerceroInmueble({
-    tenantId,
-    inmuebleId: props.inmuebleId,
-    ...payload,
-  })
+  errorPersona.value = null
+  guardandoPersona.value = true
+  try {
+    await tercerosStore.asociarTerceroInmueble({
+      tenantId,
+      inmuebleId: props.inmuebleId,
+      ...payload,
+    })
+    mostrarFormPersona.value = false
+  } catch (excepcion) {
+    errorPersona.value = mensajeError(excepcion, 'No se pudo guardar la persona.')
+  } finally {
+    guardandoPersona.value = false
+  }
 }
 
 function quitarPersonaEnEspera(indice: number): void {
@@ -315,7 +335,7 @@ watchEffect(async () => {
 <template>
   <div>
     <div v-if="esCreacion" class="w-1/2">
-      <div class="section-title" style="margin-top: 0"><h2>Datos generales</h2></div>
+      <div class="section-title"><h2>Datos generales</h2></div>
       <div class="space-y-4 text-sm">
         <div class="grid grid-cols-[2fr_3fr] gap-4">
           <UFormField label="Código" name="codigo" help="Único en la copropiedad.">
@@ -388,8 +408,8 @@ watchEffect(async () => {
 
     <div v-else class="grid-2">
       <div>
-        <div class="section-title" style="margin-top: 0">
-          <p class="card-title" style="margin: 0">Ficha técnica</p>
+        <div class="section-title">
+          <p class="card-title no-margin">Ficha técnica</p>
           <UButton variant="outline" color="neutral" size="xs" @click="alternarEdicion">Editar</UButton>
         </div>
         <dl class="ledger">
@@ -550,7 +570,7 @@ watchEffect(async () => {
     <template v-if="esCreacion">
       <div class="section-title">
         <h2>Personas asociadas</h2>
-        <UButton variant="outline" color="neutral" size="xs" @click="mostrarFormPersona = true">
+        <UButton variant="outline" color="neutral" size="xs" @click="abrirFormPersona">
           Agregar otra persona
         </UButton>
       </div>
@@ -578,7 +598,14 @@ watchEffect(async () => {
         <template #celda-rol="{ fila }">{{ nombreRol(fila.rolId) }}</template>
         <template #celda-participacion="{ fila }">{{ fila.porcentaje ? `${fila.porcentaje} %` : '—' }}</template>
         <template #celda-acciones="{ indice }">
-          <UButton variant="ghost" color="error" size="xs" @click="quitarPersonaEnEspera(indice)">✕</UButton>
+          <UButton
+            variant="ghost"
+            color="error"
+            size="xs"
+            icon="i-lucide-x"
+            aria-label="Quitar persona"
+            @click="quitarPersonaEnEspera(indice)"
+          />
         </template>
       </UiTabla>
     </template>
@@ -596,10 +623,16 @@ watchEffect(async () => {
         subtitulo="Asocia una persona natural o jurídica a este inmueble."
         @cerrar="mostrarFormPersona = false"
       >
-        <InmueblesInmueblePersonaForm :roles="rolesDisponibles" @guardar="agregarPersona" @cancelar="mostrarFormPersona = false" />
+        <InmueblesInmueblePersonaForm
+          :roles="rolesDisponibles"
+          :guardando="guardandoPersona"
+          @guardar="agregarPersona"
+          @cancelar="mostrarFormPersona = false"
+        />
+        <UAlert v-if="errorPersona" color="error" variant="soft" :title="errorPersona" class="mt-3" />
       </UiDrawer>
       <div class="mt-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
-        <UButtonGroup size="xs">
+        <UFieldGroup size="xs">
           <UButton
             :color="filtroRol === 'todas' ? 'primary' : 'neutral'"
             :variant="filtroRol === 'todas' ? 'solid' : 'outline'"
@@ -616,8 +649,8 @@ watchEffect(async () => {
           >
             {{ r.nombre }}
           </UButton>
-        </UButtonGroup>
-        <UButton variant="outline" color="neutral" size="sm" @click="mostrarFormPersona = true">
+        </UFieldGroup>
+        <UButton variant="outline" color="neutral" size="sm" @click="abrirFormPersona">
           Agregar persona
         </UButton>
       </div>
@@ -647,21 +680,26 @@ watchEffect(async () => {
               :color="fila.es_pagador ? 'success' : 'neutral'"
               variant="ghost"
               size="xs"
+              :icon="fila.es_pagador ? 'i-lucide-check' : 'i-lucide-x'"
               :title="fila.es_pagador ? 'Recibe la factura' : 'Marcar como pagador'"
+              :aria-label="fila.es_pagador ? 'Recibe la factura' : 'Marcar como pagador'"
               @click="marcarPagador(fila.id)"
-            >
-              {{ fila.es_pagador ? '✓' : '✕' }}
-            </UButton>
+            />
           </div>
         </template>
         <template #celda-notificaciones="{ fila }">
-          <div style="text-align: center">{{ fila.recibe_notificaciones ? '✓' : '✕' }}</div>
+          <div class="text-center">
+            <UIcon
+              :name="fila.recibe_notificaciones ? 'i-lucide-check' : 'i-lucide-x'"
+              :class="fila.recibe_notificaciones ? 'text-success-500' : 'text-neutral-400'"
+            />
+          </div>
         </template>
         <template #celda-vigencia="{ fila }">
           desde {{ fila.vigente_desde }}<template v-if="fila.vigente_hasta"> → {{ fila.vigente_hasta }}</template>
         </template>
         <template #celda-contacto="{ fila }">
-          <span style="color: var(--ink-faint); font-size: 12.5px">{{ fila.tercero.email ?? '—' }}<br>{{ fila.tercero.telefono ?? '' }}</span>
+          <span class="text-neutral-400 text-xs">{{ fila.tercero.email ?? '—' }}<br>{{ fila.tercero.telefono ?? '' }}</span>
         </template>
       </UiTabla>
       <p class="note">

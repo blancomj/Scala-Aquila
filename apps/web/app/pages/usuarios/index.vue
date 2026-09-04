@@ -132,7 +132,7 @@ async function revocarMiembro(membershipId: string): Promise<void> {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-xl font-semibold mb-2">Miembros</h1>
-        <p class="text-sm text-gray-500">Usuarios con acceso a esta copropiedad.</p>
+        <p class="text-sm text-neutral-500">Usuarios con acceso a esta copropiedad.</p>
       </div>
       <UButton @click="abrirInvitar">Invitar usuario</UButton>
     </div>
@@ -153,18 +153,18 @@ async function revocarMiembro(membershipId: string): Promise<void> {
       >
         <template #celda-correo="{ fila }">{{ fila.correo }}</template>
         <template #celda-nombre="{ fila }">
-          <span class="text-gray-500">{{ fila.nombre ?? '—' }}</span>
+          <span class="text-neutral-500">{{ fila.nombre ?? '—' }}</span>
         </template>
         <template #celda-telefono="{ fila }">
-          <span class="text-gray-500">{{ fila.telefono ?? '—' }}</span>
+          <span class="text-neutral-500">{{ fila.telefono ?? '—' }}</span>
         </template>
-        <template #celda-rol="{ fila }"><span class="text-gray-500">{{ fila.rol }}</span></template>
+        <template #celda-rol="{ fila }"><span class="text-neutral-500">{{ fila.rol }}</span></template>
         <template #celda-estado="{ fila }">
           <div class="flex flex-col items-start gap-0.5">
             <UBadge :color="ESTADO_COLOR[fila.estado]" variant="subtle" size="sm">
               {{ ESTADO_ETIQUETA[fila.estado] }}
             </UBadge>
-            <span v-if="fila.vigencia" class="text-xs text-gray-500">Vence {{ fila.vigencia }}</span>
+            <span v-if="fila.vigencia" class="text-xs text-neutral-500">Vence {{ fila.vigencia }}</span>
           </div>
         </template>
         <template #celda-acciones="{ fila }">
@@ -175,6 +175,7 @@ async function revocarMiembro(membershipId: string): Promise<void> {
                 variant="ghost"
                 icon="i-lucide-pencil"
                 :disabled="fila.esPropia"
+                :title="fila.esPropia ? 'No puedes editar tu propia membresía' : undefined"
                 @click="abrirEditar(fila.id)"
               >
                 Editar
@@ -185,6 +186,7 @@ async function revocarMiembro(membershipId: string): Promise<void> {
                 color="error"
                 icon="i-lucide-user-x"
                 :disabled="fila.esPropia"
+                :title="fila.esPropia ? 'No puedes revocar tu propia membresía' : undefined"
                 @click="revocarMiembro(fila.id)"
               >
                 Revocar

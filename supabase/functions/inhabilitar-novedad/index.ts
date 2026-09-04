@@ -1,8 +1,10 @@
-// Conceptos avanzados Fase 4 — apaga una novedad permanente: deja de
-// generar cargos futuros (fn_generar_cargos_novedades_periodo), sin tocar
-// los ya generados (append-only). Mismo patrón exacto que aprobar-novedad:
-// novedades no tiene política UPDATE para `authenticated`, así que el rol
-// se verifica aquí explícitamente antes de usar ctx.supabaseAdmin.
+// Conceptos avanzados Fase 4 — apaga una novedad permanente, o una
+// prorrateable con saldo pendiente (al menos una cuota sin generar): deja de
+// generar cargos/cuotas futuros (fn_generar_cargos_novedades_periodo), sin
+// tocar los ya generados (append-only). Exige una observación (mismo criterio
+// que rechazar-novedad). Mismo patrón exacto que aprobar-novedad: novedades
+// no tiene política UPDATE para `authenticated`, así que el rol se verifica
+// aquí explícitamente antes de usar ctx.supabaseAdmin.
 import { withSupabase } from '@supabase/server'
 import { z } from 'zod'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
@@ -13,7 +15,10 @@ import { enforceRateLimit } from '../_shared/rate_limit.ts'
 const RATE_LIMIT_MAX_HITS = 30
 const RATE_LIMIT_VENTANA = '1 hour'
 
-const payloadSchema = z.object({ novedad_id: z.string().uuid() })
+const payloadSchema = z.object({
+  novedad_id: z.string().uuid(),
+  motivo: z.string().trim().min(1),
+})
 
 export default {
   fetch: withSupabase<Database>({ auth: 'user' }, async (req, ctx) => {
@@ -50,7 +55,7 @@ export default {
         correlationId,
       )
     }
-    const { novedad_id: novedadId } = parseo.data
+    const { novedad_id: novedadId, motivo } = parseo.data
 
     const bloqueo = await enforceRateLimit(
       ctx.supabase,
@@ -100,7 +105,7 @@ export default {
     }
 
     const { data: inhabilitada, error: errorRpc } = await ctx.supabaseAdmin
-      .rpc('fn_inhabilitar_novedad', { p_novedad_id: novedadId, p_actor_id: actorId })
+      .rpc('fn_inhabilitar_novedad', { p_novedad_id: novedadId, p_actor_id: actorId, p_motivo: motivo })
       .single()
     if (errorRpc) {
       const { code, message } = parsearErrorRpc(errorRpc.message)

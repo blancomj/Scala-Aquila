@@ -269,134 +269,136 @@ async function guardar(): Promise<void> {
 </script>
 
 <template>
-  <UiDrawer
-    :abierto="true"
-    :titulo="esCreacion ? 'Nuevo tercero' : 'Editar tercero'"
-    :subtitulo="esCreacion ? 'Ingresa los datos del nuevo tercero' : 'Actualiza los datos del tercero'"
-    @cerrar="emit('cerrar')"
-  >
-    <UButtonGroup class="mb-4">
-      <UButton
-        :color="tipoPersona === 'natural' ? 'primary' : 'neutral'"
-        :variant="tipoPersona === 'natural' ? 'solid' : 'outline'"
-        :disabled="!esCreacion"
-        @click="tipoPersona = 'natural'"
-      >
-        Natural
-      </UButton>
-      <UButton
-        :color="tipoPersona === 'juridica' ? 'primary' : 'neutral'"
-        :variant="tipoPersona === 'juridica' ? 'solid' : 'outline'"
-        :disabled="!esCreacion"
-        @click="tipoPersona = 'juridica'"
-      >
-        Jurídica
-      </UButton>
-    </UButtonGroup>
+  <div class="ficha-inmueble">
+    <UiDrawer
+      :abierto="true"
+      :titulo="esCreacion ? 'Nuevo tercero' : 'Editar tercero'"
+      :subtitulo="esCreacion ? 'Ingresa los datos del nuevo tercero' : 'Actualiza los datos del tercero'"
+      @cerrar="emit('cerrar')"
+    >
+      <UFieldGroup class="mb-4">
+        <UButton
+          :color="tipoPersona === 'natural' ? 'primary' : 'neutral'"
+          :variant="tipoPersona === 'natural' ? 'solid' : 'outline'"
+          :disabled="!esCreacion"
+          @click="tipoPersona = 'natural'"
+        >
+          Natural
+        </UButton>
+        <UButton
+          :color="tipoPersona === 'juridica' ? 'primary' : 'neutral'"
+          :variant="tipoPersona === 'juridica' ? 'solid' : 'outline'"
+          :disabled="!esCreacion"
+          @click="tipoPersona = 'juridica'"
+        >
+          Jurídica
+        </UButton>
+      </UFieldGroup>
 
-    <div class="space-y-4 text-sm">
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Tipo identificación" name="tipo_identificacion_id">
-          <UiSelectorBuscable
-            v-model="tipoIdentificacionId"
-            :opciones="opcionesTipoIdentificacion"
-            placeholder="Seleccione"
-          />
-        </UFormField>
-        <UFormField label="Documento" name="numero_documento">
-          <UInput v-model="numeroDocumento" type="text" placeholder="Ingrese el documento" class="w-full" />
-        </UFormField>
-      </div>
-      <UFormField
-        v-if="esNit"
-        label="Dígito de verificación"
-        name="digito_verificacion"
-        help="Calculado con el algoritmo de la DIAN — no editable."
-      >
-        <UInput :model-value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly class="w-full" />
-      </UFormField>
-
-      <template v-if="tipoPersona === 'natural'">
-        <UFormField label="Primer nombre" name="primer_nombre">
-          <UInput v-model="primerNombre" type="text" placeholder="Primer nombre" class="w-full" />
-        </UFormField>
+      <div class="space-y-4 text-sm">
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Segundo nombre" name="segundo_nombre">
-            <UInput v-model="segundoNombre" type="text" placeholder="Segundo nombre" class="w-full" />
+          <UFormField label="Tipo identificación" name="tipo_identificacion_id">
+            <UiSelectorBuscable
+              v-model="tipoIdentificacionId"
+              :opciones="opcionesTipoIdentificacion"
+              placeholder="Seleccione"
+            />
           </UFormField>
-          <UFormField label="Primer apellido" name="primer_apellido">
-            <UInput v-model="primerApellido" type="text" placeholder="Primer apellido" class="w-full" />
+          <UFormField label="Documento" name="numero_documento">
+            <UInput v-model="numeroDocumento" type="text" placeholder="Ingrese el documento" class="w-full" />
           </UFormField>
         </div>
-        <UFormField label="Segundo apellido" name="segundo_apellido">
-          <UInput v-model="segundoApellido" type="text" placeholder="Segundo apellido" class="w-full" />
-        </UFormField>
-      </template>
-
-      <template v-else>
-        <UFormField label="Razón social" name="razon_social">
-          <UInput v-model="razonSocial" type="text" placeholder="Ingrese la razón social" class="w-full" />
-        </UFormField>
         <UFormField
-          label="Representante legal"
-          name="representante_legal_id"
-          help="Solo personas naturales ya registradas como tercero."
+          v-if="esNit"
+          label="Dígito de verificación"
+          name="digito_verificacion"
+          help="Calculado con el algoritmo de la DIAN — no editable."
         >
-          <UiSelectorBuscable v-model="representanteLegalId" :opciones="opcionesRepresentanteLegal" />
+          <UInput :model-value="digitoVerificacion" type="text" placeholder="Se calcula solo" readonly class="w-full" />
         </UFormField>
-        <UFormField
-          label="Pagador (contacto de facturación por defecto)"
-          name="pagador_id"
-          help="Default de esta empresa — se puede sobrescribir por inmueble."
-        >
-          <UiSelectorBuscable v-model="pagadorId" :opciones="opcionesPagador" />
-        </UFormField>
-      </template>
 
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Email" name="email">
-          <UInput v-model="email" type="text" placeholder="Ingrese el email" class="w-full" />
+        <template v-if="tipoPersona === 'natural'">
+          <UFormField label="Primer nombre" name="primer_nombre">
+            <UInput v-model="primerNombre" type="text" placeholder="Primer nombre" class="w-full" />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Segundo nombre" name="segundo_nombre">
+              <UInput v-model="segundoNombre" type="text" placeholder="Segundo nombre" class="w-full" />
+            </UFormField>
+            <UFormField label="Primer apellido" name="primer_apellido">
+              <UInput v-model="primerApellido" type="text" placeholder="Primer apellido" class="w-full" />
+            </UFormField>
+          </div>
+          <UFormField label="Segundo apellido" name="segundo_apellido">
+            <UInput v-model="segundoApellido" type="text" placeholder="Segundo apellido" class="w-full" />
+          </UFormField>
+        </template>
+
+        <template v-else>
+          <UFormField label="Razón social" name="razon_social">
+            <UInput v-model="razonSocial" type="text" placeholder="Ingrese la razón social" class="w-full" />
+          </UFormField>
+          <UFormField
+            label="Representante legal"
+            name="representante_legal_id"
+            help="Solo personas naturales ya registradas como tercero."
+          >
+            <UiSelectorBuscable v-model="representanteLegalId" :opciones="opcionesRepresentanteLegal" />
+          </UFormField>
+          <UFormField
+            label="Pagador (contacto de facturación por defecto)"
+            name="pagador_id"
+            help="Default de esta empresa — se puede sobrescribir por inmueble."
+          >
+            <UiSelectorBuscable v-model="pagadorId" :opciones="opcionesPagador" />
+          </UFormField>
+        </template>
+
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField label="Email" name="email">
+            <UInput v-model="email" type="text" placeholder="Ingrese el email" class="w-full" />
+          </UFormField>
+          <UFormField label="Teléfono" name="telefono">
+            <UInput v-model="telefono" type="text" placeholder="Ingrese el teléfono" class="w-full" />
+          </UFormField>
+        </div>
+
+        <UFormField
+          v-if="contactoCambio"
+          label="Origen del dato de contacto"
+          name="origen_contacto_id"
+          help="Opcional — de dónde salió este email o teléfono (portería, asamblea, lo actualizó el propio tercero…). Queda en un registro aparte, no cambia si el dato se usa para cobranza."
+        >
+          <UiSelectorBuscable
+            v-model="origenContactoId"
+            :opciones="opcionesOrigenContacto"
+            placeholder="Sin declarar"
+          />
         </UFormField>
-        <UFormField label="Teléfono" name="telefono">
-          <UInput v-model="telefono" type="text" placeholder="Ingrese el teléfono" class="w-full" />
+
+        <div v-if="!esCreacion && procedenciaStore.procedencias.length > 0" class="text-xs text-gray-500 space-y-1">
+          <p class="font-medium text-gray-600">Procedencia registrada</p>
+          <ul class="space-y-0.5">
+            <li v-for="p in procedenciaStore.procedencias" :key="p.id">
+              {{ p.campo === 'email' ? 'Email' : 'Teléfono' }} «{{ p.valor }}» — {{ nombreOrigen(p.origen_id) }} ·
+              {{ new Date(p.created_at).toLocaleDateString('es-CO') }}
+            </li>
+          </ul>
+        </div>
+        <UFormField label="Dirección" name="direccion">
+          <UInput v-model="direccion" type="text" placeholder="Dirección de correspondencia" class="w-full" />
+        </UFormField>
+        <UFormField label="Estado" name="estado_id">
+          <UiSelectorBuscable v-model="estadoId" :opciones="opcionesEstado" />
         </UFormField>
       </div>
 
-      <UFormField
-        v-if="contactoCambio"
-        label="Origen del dato de contacto"
-        name="origen_contacto_id"
-        help="Opcional — de dónde salió este email o teléfono (portería, asamblea, lo actualizó el propio tercero…). Queda en un registro aparte, no cambia si el dato se usa para cobranza."
-      >
-        <UiSelectorBuscable
-          v-model="origenContactoId"
-          :opciones="opcionesOrigenContacto"
-          placeholder="Sin declarar"
-        />
-      </UFormField>
+      <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
 
-      <div v-if="!esCreacion && procedenciaStore.procedencias.length > 0" class="text-xs text-gray-500 space-y-1">
-        <p class="font-medium text-gray-600">Procedencia registrada</p>
-        <ul class="space-y-0.5">
-          <li v-for="p in procedenciaStore.procedencias" :key="p.id">
-            {{ p.campo === 'email' ? 'Email' : 'Teléfono' }} «{{ p.valor }}» — {{ nombreOrigen(p.origen_id) }} ·
-            {{ new Date(p.created_at).toLocaleDateString('es-CO') }}
-          </li>
-        </ul>
-      </div>
-      <UFormField label="Dirección" name="direccion">
-        <UInput v-model="direccion" type="text" placeholder="Dirección de correspondencia" class="w-full" />
-      </UFormField>
-      <UFormField label="Estado" name="estado_id">
-        <UiSelectorBuscable v-model="estadoId" :opciones="opcionesEstado" />
-      </UFormField>
-    </div>
-
-    <UAlert v-if="error" color="error" variant="soft" :title="error" class="mt-4" />
-
-    <template #foot>
-      <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
-      <UButton :loading="guardando" @click="guardar">Guardar</UButton>
-    </template>
-  </UiDrawer>
+      <template #foot>
+        <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
+        <UButton :loading="guardando" @click="guardar">Guardar</UButton>
+      </template>
+    </UiDrawer>
+  </div>
 </template>

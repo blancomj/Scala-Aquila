@@ -47,12 +47,9 @@ watchEffect(async () => {
 
 <template>
   <div>
-    <div class="panel-head">
-      <div>
-        <h2>Liquidaciones</h2>
-        <p class="panel-sub">Historial de liquidación de este inmueble por periodo.</p>
-      </div>
-    </div>
+    <!-- Sin <h2> propio: el título lo pone la sub-pestaña "Liquidaciones" de
+         InmuebleCartera.vue, y repetirlo dejaba el encabezado duplicado. -->
+    <p class="panel-sub mb-3">Historial de liquidación de este inmueble por periodo.</p>
     <UiTabla
       :columnas="[
         { clave: 'periodo', etiqueta: 'Periodo', claseCelda: 'mono' },

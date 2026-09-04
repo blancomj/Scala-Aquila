@@ -73,7 +73,7 @@ watchEffect(cargar)
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" class="mb-3" />
 
-    <UButtonGroup size="xs" class="mb-3">
+    <UFieldGroup size="xs" class="mb-3">
       <UButton
         :color="filtroEstado === 'todas' ? 'primary' : 'neutral'"
         :variant="filtroEstado === 'todas' ? 'solid' : 'outline'"
@@ -102,7 +102,7 @@ watchEffect(cargar)
       >
         Rechazadas
       </UButton>
-    </UButtonGroup>
+    </UFieldGroup>
 
     <UiTabla
       :columnas="[
@@ -142,19 +142,21 @@ watchEffect(cargar)
             color="success"
             variant="soft"
             size="xs"
+            icon="i-lucide-check"
             :disabled="procesando === fila.id"
             @click="aprobar(fila.id)"
           >
-            ✓
+            Aprobar
           </UButton>
           <UButton
             color="error"
             variant="soft"
             size="xs"
+            icon="i-lucide-x"
             :disabled="procesando === fila.id"
             @click="rechazar(fila.id)"
           >
-            ✕
+            Rechazar
           </UButton>
         </div>
       </template>

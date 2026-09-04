@@ -11,7 +11,7 @@ const tenantStore = useTenantStore()
 const compositorStore = usePlantillasCompositorStore()
 const tercerosStore = useTercerosStore()
 const toast = useToast()
-const { abierto: panelAbierto } = useCompositorCorreo()
+const { abierto: panelAbierto, terceroPreseleccionado } = useCompositorCorreo()
 
 const activo = ref(false)
 
@@ -57,6 +57,18 @@ watch(
   },
   { immediate: true },
 )
+
+/** Consume el tercero preseleccionado (ej. clic en el email de terceros/index.vue) — se observa
+ * `terceroPreseleccionado` y no `panelAbierto` porque el compositor puede ya estar abierto
+ * (clic en un segundo tercero sin cerrar el anterior): un watch sobre `panelAbierto` no dispararía
+ * en ese caso al no cambiar de valor. Se limpia al leerlo para no reaplicarlo en la próxima
+ * apertura desde el acceso directo del sidebar, que sí debe abrir en blanco. */
+watch(terceroPreseleccionado, (terceroId) => {
+  if (!terceroId) return
+  modoDestinatario.value = 'tercero'
+  terceroSeleccionadoId.value = terceroId
+  terceroPreseleccionado.value = null
+})
 
 const plantillasActivas = computed(() =>
   compositorStore.plantillas.filter((p) => p.activa),
@@ -208,7 +220,7 @@ function limpiarFormulario(): void {
     <Transition name="fade">
       <div
         v-if="activo && panelAbierto"
-        class="fixed inset-0 z-40 bg-black/40"
+        class="fixed inset-0 z-40 bg-neutral-900/40"
         @click="cerrarPanel"
       />
     </Transition>
@@ -218,7 +230,7 @@ function limpiarFormulario(): void {
       <div
         v-if="activo && panelAbierto"
         ref="contenedorRef"
-        class="fixed top-0 right-0 bottom-0 z-50 w-[560px] max-w-[100vw] bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-700 shadow-2xl flex flex-col"
+        class="fixed top-0 right-0 bottom-0 z-50 w-[560px] max-w-[100vw] bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-700 shadow-lg flex flex-col"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 shrink-0">
@@ -243,7 +255,7 @@ function limpiarFormulario(): void {
             <!-- Destinatario -->
             <div>
               <UFormField label="Para" name="destinatario">
-                <UButtonGroup size="xs" class="mb-1.5">
+                <UFieldGroup size="xs" class="mb-1.5">
                   <UButton
                     :color="modoDestinatario === 'tercero' ? 'primary' : 'neutral'"
                     :variant="modoDestinatario === 'tercero' ? 'solid' : 'outline'"
@@ -260,7 +272,7 @@ function limpiarFormulario(): void {
                   >
                     Correo manual
                   </UButton>
-                </UButtonGroup>
+                </UFieldGroup>
                 <UiSelectorBuscable
                   v-if="modoDestinatario === 'tercero'"
                   v-model="terceroSeleccionadoId"
@@ -301,11 +313,11 @@ function limpiarFormulario(): void {
 
           <!-- Cuerpo -->
           <UFormField label="Cuerpo" name="cuerpo">
-            <textarea
+            <UTextarea
               v-model="cuerpoEditado"
-              rows="8"
+              :rows="8"
               :disabled="enviando"
-              class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-3 py-2 text-sm font-mono resize-y disabled:opacity-60"
+              class="w-full font-mono resize-y"
               placeholder="Escribe tu mensaje aquí. Usa {{ params.nombreDestinatario }} para personalizar..."
             />
           </UFormField>

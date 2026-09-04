@@ -36,14 +36,22 @@ const ARCHIVOS_LEGADO_COLOR_HEX = new Set<string>([
   // visor público se reescribió solo con tokens — ya no necesita hex.
 ])
 
-/** Congelado al 23-08-2026 (D-26) — 904 usos de gray-* en estos 66 archivos,
- * no se migran retroactivamente. No agregar archivos nuevos acá.
+/** Congelado al 23-08-2026 (D-26) — no se migran retroactivamente. No agregar
+ * archivos nuevos acá.
  *
  * Los 8 `components/Ael*.vue` salieron de la lista el 2026-09-02 con el
  * movimiento 10 de la Fase 8 (rediseño del constructor visual de fórmulas):
  * se reescribió su presentación entera, así que migrarlos a `neutral-*`
  * salía gratis. A partir de ahora un `gray-*` nuevo ahí rompe CI — que es
- * justamente el punto de sacarlos. */
+ * justamente el punto de sacarlos.
+ *
+ * Repaso impeccable (2026-09-04): 26 archivos más ya habían llegado a cero
+ * usos de `gray-*` por trabajo de diseño independiente (incluye 4 páginas
+ * limpiadas en ese mismo repaso: dashboard/index.vue, cartera/index.vue,
+ * auditoria/index.vue, estado-cuenta/novedades.vue) más `usuarios/index.vue`
+ * y `copropiedades/index.vue` migrados en este pase — todos salieron de la
+ * lista por el mismo criterio que los Ael*.vue. `pages/estado-cuenta/pagos.vue`
+ * salió también: el archivo ya no existe. */
 const ARCHIVOS_LEGADO_GRAY = new Set<string>([
   'components/busqueda/BusquedaGlobal.vue',
   'components/busqueda/BusquedaResultadoFila.vue',
@@ -53,49 +61,20 @@ const ARCHIVOS_LEGADO_GRAY = new Set<string>([
   'components/cartera/EvolucionChart.vue',
   'components/cartera/ProximamentePlaceholder.vue',
   'components/coeficientes/CoeficientesPanel.vue',
-  'components/conceptos/ConceptosCatalogo.vue',
-  'components/conceptos/ConceptosCondicionBuilder.vue',
-  'components/conceptos/ConceptosCondicionHoja.vue',
-  'components/conceptos/ConceptosEditor.vue',
-  'components/conceptos/ConceptosVariablesPanel.vue',
   'components/nav/NavBreadcrumb.vue',
   'components/nav/NavNotificaciones.vue',
   'components/nav/NavTenantSwitcher.vue',
   'components/nav/NavUsuarioMenu.vue',
-  'components/novedades/NovedadesEditor.vue',
-  'components/presupuesto/PresupuestoTabControlValidaciones.vue',
-  'components/presupuesto/PresupuestoTabEjecucion.vue',
-  'components/presupuesto/PresupuestoTabFuentes.vue',
-  'components/presupuesto/PresupuestoTabPlanCuentas.vue',
-  'components/presupuesto/PresupuestoTabSimulacion.vue',
-  'components/ui/UiSelectorBuscable.vue',
-  'components/ui/UiTabla.vue',
   'layouts/auth.vue',
   'layouts/default.vue',
-  'pages/auditoria/index.vue',
-  'pages/cartera/index.vue',
-  'pages/conceptos/dependencias.vue',
   'pages/configuracion/motivos-novedad.vue',
   'pages/configuracion/plantillas-email.vue',
   'pages/configuracion/plantillas-sms.vue',
-  'pages/copropiedades/index.vue',
-  'pages/dashboard/index.vue',
-  'pages/estado-cuenta/conceptos.vue',
-  'pages/estado-cuenta/index.vue',
-  'pages/estado-cuenta/novedades.vue',
-  'pages/estado-cuenta/pagos.vue',
   'pages/forgot-password.vue',
-  'pages/fundamentos/index.vue',
   'pages/invite.vue',
-  'pages/liquidacion/index.vue',
   'pages/login.vue',
   'pages/plataforma/index.vue',
-  'pages/presupuesto/control.vue',
-  'pages/presupuesto/index.vue',
-  'pages/presupuesto/periodos.vue',
   'pages/register.vue',
-  'pages/seguridad/index.vue',
-  'pages/usuarios/index.vue',
 ])
 
 const PATRON_HEX = /#[0-9a-fA-F]{3,8}\b/

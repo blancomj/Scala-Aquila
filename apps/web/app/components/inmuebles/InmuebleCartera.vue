@@ -1,16 +1,41 @@
 <script setup lang="ts">
-// Tab Cartera — saldo, cargos pendientes, pagos recientes y recibos de caja
+// Tab Cartera — saldo, cargos pendientes, pagos/recibos y liquidaciones
 // (PROMPT_FICHA_INMUEBLE.md §1.1 I5). Reutiliza cuentaCorriente.ts tal
 // cual, sin lógica nueva. El formulario de registrar pago YA NO vive acá
 // (pedido del usuario, 2026-08-27): el botón "Registrar pago" del masthead
 // de InmuebleFicha.vue abre un modal propio con PagosRegistrarPagoForm.vue
 // — esta pestaña solo lee, ya no escribe.
+//
+// Las tres secciones (cargos / pagos / liquidaciones) son sub-pestañas y no
+// secciones apiladas: son pares conceptuales de una misma historia
+// (liquidación → genera cargo → se paga con recibo) y antes estaban en dos
+// niveles distintos de jerarquía — dos apiladas acá dentro y "Liquidaciones"
+// como pestaña propia de la ficha. Variante `pill` a propósito: las pestañas
+// de la ficha usan `link` (subrayado), así se distingue el nivel externo del
+// interno. El resumen (stat-row) queda ARRIBA de las sub-pestañas porque
+// resume las tres, no una.
+import type { Database } from '@aquila/shared'
+
 const props = defineProps<{ inmuebleId: string }>()
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
 const recaudoStore = useRecaudoStore()
+const liquidacionStore = useLiquidacionStore()
 const toast = useToast()
+
+type SubTab = 'cargos' | 'pagos' | 'liquidaciones'
+const subTab = ref<SubTab>('cargos')
+
+/** Contadores en la etiqueta: en una pantalla de operación decir dónde hay
+ * contenido antes del clic ahorra el paseo por las tres. Obliga a cargar las
+ * líneas de liquidación al entrar a Cartera (no perezosamente) — una consulta
+ * más, acotada a este inmueble. */
+const subTabItems = computed(() => [
+  { label: `Cargos pendientes · ${cuentaStore.cargosAbiertos.length}`, value: 'cargos' },
+  { label: `Pagos y recibos · ${recaudoStore.pagos.length}`, value: 'pagos' },
+  { label: `Liquidaciones · ${liquidacionStore.lineasPorInmueble.length}`, value: 'liquidaciones' },
+])
 
 const saldoTotal = computed(() =>
   cuentaStore.cargosAbiertos.reduce((acc, c) => acc + Number(c.monto_pendiente), 0),
@@ -26,6 +51,57 @@ const saldoInteres = computed(() =>
     .reduce((acc, c) => acc + Number(c.monto_pendiente), 0),
 )
 
+/** Días de mora del cargo abierto más vencido — mismo criterio de
+ * "el más antiguo con saldo decide" que fn_dashboard_cartera/fn_posicion_cartera
+ * (REC-CAR-010), pero sin llamar esa función: acá solo se necesita el número
+ * para mostrar, no el desempate exacto de cuál cargo es. cargosAbiertos ya
+ * viene filtrado a monto_pendiente > 0 (cargarCargosAbiertos). */
+const diasMoraMaximo = computed(() => {
+  const hoy = Date.now()
+  let maximo = 0
+  for (const cargo of cuentaStore.cargosAbiertos) {
+    if (!cargo.fecha_vencimiento) continue
+    const dias = Math.floor((hoy - new Date(cargo.fecha_vencimiento).getTime()) / 86_400_000)
+    if (dias > maximo) maximo = dias
+  }
+  return maximo
+})
+
+// ── estado de cartera (etapa de cobranza vigente) ───────────────────────
+type EtapaCobranza = Database['public']['Enums']['etapa_cobranza_t']
+const ETAPA_LABEL: Record<EtapaCobranza, string> = {
+  preventiva: 'Preventiva',
+  administrativa: 'Administrativa',
+  prejuridica: 'Prejurídica',
+  juridica: 'Jurídica',
+  judicial: 'Judicial',
+}
+const ETAPA_COLOR: Record<EtapaCobranza, 'neutral' | 'warning' | 'error'> = {
+  preventiva: 'neutral',
+  administrativa: 'warning',
+  prejuridica: 'warning',
+  juridica: 'error',
+  judicial: 'error',
+}
+const etapaActual = ref<EtapaCobranza>('preventiva')
+
+/** Sin fila en cartera_etapas = nunca evaluada por el job de escalamiento
+ * (F8) = 'preventiva' — mismo default que fn_dashboard_cartera/
+ * guard_cartera_etapa_inicial (F6), acá vía select directo en vez de esa
+ * función porque solo hace falta la etapa de ESTE inmueble, no el
+ * agregado de todo el tenant. */
+async function cargarEtapa(tenantId: string): Promise<void> {
+  const cliente = useSupabaseClient<Database>()
+  const { data, error: errorEtapa } = await cliente
+    .from('cartera_etapas')
+    .select('etapa')
+    .eq('tenant_id', tenantId)
+    .eq('inmueble_id', props.inmuebleId)
+    .maybeSingle()
+  if (errorEtapa) throw errorEtapa
+  etapaActual.value = data?.etapa ?? 'preventiva'
+}
+
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
@@ -33,6 +109,8 @@ async function cargar(): Promise<void> {
     cuentaStore.cargarCargosAbiertos(tenantId, props.inmuebleId),
     cuentaStore.cargarPagos(tenantId, props.inmuebleId),
     recaudoStore.cargarRecaudo(tenantId, { inmuebleId: props.inmuebleId }),
+    liquidacionStore.cargarLineasPorInmueble(tenantId, props.inmuebleId),
+    cargarEtapa(tenantId),
   ])
 }
 
@@ -100,7 +178,7 @@ async function confirmarAnular(): Promise<void> {
     <div class="stat-row">
       <div class="stat">
         <p class="stat-label">Saldo total pendiente</p>
-        <p class="stat-value big" :class="{ 'is-alert': saldoTotal > 0 }">$ {{ saldoTotal.toLocaleString('es-CO') }}</p>
+        <p class="stat-value" :class="{ 'is-alert': saldoTotal > 0 }">$ {{ saldoTotal.toLocaleString('es-CO') }}</p>
       </div>
       <div class="stat">
         <p class="stat-label">Capital</p>
@@ -110,10 +188,27 @@ async function confirmarAnular(): Promise<void> {
         <p class="stat-label">Interés de mora</p>
         <p class="stat-value">$ {{ saldoInteres.toLocaleString('es-CO') }}</p>
       </div>
+      <div class="stat">
+        <p class="stat-label">Estado de cartera</p>
+        <UBadge :color="ETAPA_COLOR[etapaActual]" variant="subtle">{{ ETAPA_LABEL[etapaActual] }}</UBadge>
+        <p class="text-xs text-neutral-400 mt-1">
+          {{ diasMoraMaximo > 0 ? `${diasMoraMaximo} días de mora` : 'Sin mora' }}
+        </p>
+      </div>
     </div>
 
-    <div class="section-title" style="margin-top: 0"><h2>Cargos pendientes</h2></div>
+    <UTabs
+      :items="subTabItems"
+      :model-value="subTab"
+      variant="pill"
+      size="sm"
+      :content="false"
+      class="w-full mt-1 mb-4"
+      @update:model-value="(v) => (subTab = v as SubTab)"
+    />
+
     <UiTabla
+      v-if="subTab === 'cargos'"
       :columnas="[
         { clave: 'categoria', etiqueta: 'Categoría' },
         { clave: 'pendiente', etiqueta: 'Pendiente', alinear: 'derecha', claseCelda: 'mono' },
@@ -130,8 +225,8 @@ async function confirmarAnular(): Promise<void> {
       <template #celda-desde="{ fila }">{{ fila.created_at?.slice(0, 10) }}</template>
     </UiTabla>
 
-    <div class="section-title"><h2>Pagos y recibos de caja</h2></div>
     <UiTabla
+      v-else-if="subTab === 'pagos'"
       :columnas="[
         { clave: 'fecha_pago', etiqueta: 'Fecha', claseCelda: 'mono' },
         { clave: 'monto', etiqueta: 'Monto', alinear: 'derecha', claseCelda: 'mono' },
@@ -187,6 +282,8 @@ async function confirmarAnular(): Promise<void> {
         </div>
       </template>
     </UiTabla>
+
+    <InmueblesInmuebleLiquidaciones v-else :inmueble-id="inmuebleId" />
 
     <UModal
       :open="modalAnularAbierto"

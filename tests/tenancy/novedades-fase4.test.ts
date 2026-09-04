@@ -1,11 +1,15 @@
 /**
  * Conceptos avanzados Fase 4 — novedades permanentes y prorrateables en
- * cuotas (supabase/migrations/20260827100000_novedades_permanente_cuotas.sql).
+ * cuotas (supabase/migrations/20260827100000_novedades_permanente_cuotas.sql
+ * y 20260928110000_novedades_inhabilitar_prorrateable_con_motivo.sql).
  * Cubre: singleton del concepto "Novedad" por tenant, prorrateable (N cuotas
  * en N periodos distintos), permanente (repite hasta inhabilitarse),
- * idempotencia (mismo periodo dos veces) y los errores de
- * inhabilitar-novedad. No repite lo que ya cubre tests/tenancy/novedades.test.ts
- * (flujo básico crear/aprobar/rechazar de una novedad de una sola vez).
+ * idempotencia (mismo periodo dos veces), inhabilitar una prorrateable con
+ * saldo pendiente (detiene las cuotas restantes) vs. sin saldo
+ * (NOVEDAD_SIN_SALDO_PENDIENTE), la observación obligatoria, y los demás
+ * errores de inhabilitar-novedad. No repite lo que ya cubre
+ * tests/tenancy/novedades.test.ts (flujo básico crear/aprobar/rechazar de una
+ * novedad de una sola vez).
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import {
@@ -214,6 +218,62 @@ d('Fase 4: novedades permanentes / prorrateables en cuotas', () => {
     // idempotencia: repetir el mismo periodo ya usado no duplica.
     expect(await generarCargosPeriodo(admin, tenant.id, periodo1)).toBe(0)
     expect(await contarCargosDeNovedad(admin, creada!.id)).toBe(3)
+
+    // NOVEDAD_SIN_SALDO_PENDIENTE: ya generó sus 3 cuotas, no queda nada que detener.
+    const { data: sinSaldo, response: respSinSaldo } =
+      await clienteAgent.functions.invoke<RespuestaNovedad>('inhabilitar-novedad', {
+        body: { novedad_id: creada!.id, motivo: 'Ya no aplica' },
+      })
+    expect(sinSaldo).toBeNull()
+    expect(respSinSaldo?.status).toBe(409)
+  }, 30_000)
+
+  it('prorrateable con saldo pendiente: se puede inhabilitar con observación y detiene las cuotas restantes', async () => {
+    const { data: creada, response } = await clienteAgent.functions.invoke<RespuestaNovedad>(
+      'crear-novedad',
+      {
+        body: {
+          inmueble_id: inmuebleId,
+          concepto_id: conceptoNovedadId,
+          tipo: 'CHARGE',
+          monto: 300_000,
+          descripcion: 'Reparación en 3 cuotas — se desiste',
+          fecha_efectiva: '2027-01-15',
+          prorrateable: true,
+          cuotas_totales: 3,
+        },
+      },
+    )
+    expect(response?.status).toBe(200)
+    await clienteAgent.functions.invoke('aprobar-novedad', { body: { novedad_id: creada!.id } })
+
+    // solo la primera cuota generada — quedan 2 pendientes.
+    expect(await generarCargosPeriodo(admin, tenant.id, periodo1)).toBe(1)
+    expect(await contarCargosDeNovedad(admin, creada!.id)).toBe(1)
+
+    // sin observación, la Edge Function rechaza antes de llegar al RPC.
+    const { response: respSinMotivo } = await clienteAgent.functions.invoke('inhabilitar-novedad', {
+      body: { novedad_id: creada!.id, motivo: '' },
+    })
+    expect(respSinMotivo?.status).toBe(400)
+
+    const { data: inhabilitada, response: respInhabilitar } =
+      await clienteAgent.functions.invoke<RespuestaNovedad>('inhabilitar-novedad', {
+        body: { novedad_id: creada!.id, motivo: 'El propietario desistió de la reparación' },
+      })
+    expect(respInhabilitar?.status).toBe(200)
+    expect(inhabilitada).not.toBeNull()
+
+    // las 2 cuotas pendientes nunca se generan, ni en un periodo posterior.
+    expect(await generarCargosPeriodo(admin, tenant.id, periodo2)).toBe(0)
+    expect(await contarCargosDeNovedad(admin, creada!.id)).toBe(1)
+
+    const { data: cuotasFinal, error: errorCuotasFinal } = await admin
+      .from('novedad_cuotas')
+      .select('generada_at')
+      .eq('novedad_id', creada!.id)
+    expect(errorCuotasFinal).toBeNull()
+    expect(cuotasFinal?.filter((c) => c.generada_at === null)).toHaveLength(2)
   }, 30_000)
 
   it('permanente: repite cada periodo hasta inhabilitarse', async () => {
@@ -244,7 +304,7 @@ d('Fase 4: novedades permanentes / prorrateables en cuotas', () => {
 
     const { data: inhabilitada, response: respInhabilitar } =
       await clienteAgent.functions.invoke<RespuestaNovedad>('inhabilitar-novedad', {
-        body: { novedad_id: creada!.id },
+        body: { novedad_id: creada!.id, motivo: 'Ya no se necesita el parqueadero adicional' },
       })
     expect(respInhabilitar?.status).toBe(200)
     expect(inhabilitada).not.toBeNull()
@@ -252,7 +312,7 @@ d('Fase 4: novedades permanentes / prorrateables en cuotas', () => {
     expect(await generarCargosPeriodo(admin, tenant.id, periodo3)).toBe(0)
     expect(await contarCargosDeNovedad(admin, creada!.id)).toBe(2)
 
-    // NOVEDAD_NO_PERMANENTE: nunca fue permanente.
+    // NOVEDAD_NO_INHABILITABLE: ni permanente ni prorrateable — nada que detener.
     const { data: creadaUnica } = await clienteAgent.functions.invoke<RespuestaNovedad>(
       'crear-novedad',
       {
@@ -267,7 +327,7 @@ d('Fase 4: novedades permanentes / prorrateables en cuotas', () => {
     )
     const { data: dataNoPermanente, response: respNoPermanente } =
       await clienteAgent.functions.invoke<RespuestaNovedad>('inhabilitar-novedad', {
-        body: { novedad_id: creadaUnica!.id },
+        body: { novedad_id: creadaUnica!.id, motivo: 'No aplica' },
       })
     expect(dataNoPermanente).toBeNull()
     expect(respNoPermanente?.status).toBe(409)
@@ -275,7 +335,7 @@ d('Fase 4: novedades permanentes / prorrateables en cuotas', () => {
     // NOVEDAD_YA_INHABILITADA: la misma permanente, una segunda vez.
     const { data: dataYaInhabilitada, response: respYaInhabilitada } =
       await clienteAgent.functions.invoke<RespuestaNovedad>('inhabilitar-novedad', {
-        body: { novedad_id: creada!.id },
+        body: { novedad_id: creada!.id, motivo: 'Otra vez' },
       })
     expect(dataYaInhabilitada).toBeNull()
     expect(respYaInhabilitada?.status).toBe(409)

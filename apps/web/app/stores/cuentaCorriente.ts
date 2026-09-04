@@ -461,12 +461,13 @@ export const useCuentaCorrienteStore = defineStore('cuentaCorriente', () => {
     return data
   }
 
-  /** Fase 4 conceptos avanzados — apaga una novedad permanente (deja de
-   * generar cargos futuros, no toca los ya generados). */
-  async function inhabilitarNovedad(novedadId: string, tenantId: string): Promise<void> {
+  /** Fase 4 conceptos avanzados — apaga una novedad permanente, o una
+   * prorrateable con saldo pendiente (deja de generar cargos/cuotas futuros,
+   * no toca los ya generados). Exige observación, igual que rechazarNovedad. */
+  async function inhabilitarNovedad(novedadId: string, motivo: string, tenantId: string): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const { error: errorFuncion } = await cliente.functions.invoke('inhabilitar-novedad', {
-      body: { novedad_id: novedadId },
+      body: { novedad_id: novedadId, motivo },
     })
     if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
 

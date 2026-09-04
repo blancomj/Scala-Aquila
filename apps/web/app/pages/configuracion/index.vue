@@ -16,9 +16,10 @@ const tercerosStore = useTercerosStore()
 const cuentaStore = useCuentaCorrienteStore()
 const supabase = useSupabaseClient()
 
-type Tab = 'basicos' | 'documentos' | 'configuracion' | 'historico'
+type Tab = 'basicos' | 'personas' | 'documentos' | 'configuracion' | 'historico'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string; deshabilitada?: boolean }> = [
   { id: 'basicos', etiqueta: 'Datos básicos' },
+  { id: 'personas', etiqueta: 'Personas vinculadas' },
   { id: 'documentos', etiqueta: 'Documentos' },
   { id: 'configuracion', etiqueta: 'Configuración' },
   { id: 'historico', etiqueta: 'Histórico', deshabilitada: true },
@@ -119,7 +120,7 @@ const personasVinculadasActivas = computed(
         </div>
         <div class="stat">
           <p class="stat-label">Cuenta de recaudo</p>
-          <p class="stat-value" style="font-size: 15px">
+          <p class="stat-value text">
             {{ cuentaRecaudo ? nombreEntidadFinanciera(cuentaRecaudo.entidad_financiera_id) : 'Sin definir' }}
           </p>
         </div>
@@ -150,6 +151,14 @@ const personasVinculadasActivas = computed(
       <div class="panels">
         <section v-if="tabActiva === 'basicos'">
           <CopropiedadDatosBasicos />
+        </section>
+        <section v-else-if="tabActiva === 'personas'">
+          <CopropiedadPersonasVinculadas
+            familia-rol="PERSONA_COPROPIEDAD"
+            titulo="Personas vinculadas"
+            subtitulo="Roles sobre la copropiedad misma — administrador, contador, abogado, revisor fiscal."
+            nota-ayuda="Se elige entre terceros ya registrados en Terceros — natural o jurídico, sin restricción."
+          />
         </section>
         <section v-else-if="tabActiva === 'documentos'">
           <CopropiedadDocumentos />

@@ -449,33 +449,33 @@ function exportarCSV(): void {
     <template v-else>
       <!-- ── resumen ──────────────────────────────────────────────────── -->
       <div v-if="resumenExpandido" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-md p-3">
           <p class="text-xs text-neutral-500 mb-1">Total unidades</p>
           <p class="text-2xl font-medium">{{ resumen.total }}</p>
         </div>
-        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-md p-3">
           <p class="text-xs text-neutral-500 mb-1">Activas</p>
           <p class="text-2xl font-medium">
             {{ resumen.activos }}
             <span class="text-sm text-neutral-400 font-normal">/ {{ resumen.inactivos }} inact.</span>
           </p>
         </div>
-        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-md p-3">
           <p class="text-xs text-neutral-500 mb-1">Con saldo</p>
-          <p class="text-2xl font-medium" :class="resumen.conSaldo > 0 ? 'text-red-600 dark:text-red-400' : ''">
+          <p class="text-2xl font-medium" :class="resumen.conSaldo > 0 ? 'text-error-600 dark:text-error-400' : ''">
             {{ resumen.conSaldo }}
           </p>
         </div>
-        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-md p-3">
           <p class="text-xs text-neutral-500 mb-1">Sin agrupar</p>
           <p
             class="text-2xl font-medium"
-            :class="resumen.sinAgrupar > 0 ? 'text-amber-600 dark:text-amber-400' : ''"
+            :class="resumen.sinAgrupar > 0 ? 'text-warning-600 dark:text-warning-400' : ''"
           >
             {{ resumen.sinAgrupar }}
           </p>
         </div>
-        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
+        <div class="bg-neutral-50 dark:bg-neutral-900 rounded-md p-3">
           <p class="text-xs text-neutral-500 mb-1">Σ coeficiente</p>
           <p class="text-2xl font-medium">
             {{ setVigente ? formatoCoeficiente(Number(setVigente.suma_total)) : '—' }}
@@ -689,7 +689,7 @@ function exportarCSV(): void {
             class="tabular-nums"
             :class="[
               (fila.esGrupo ? fila.saldo : saldoPorInmueble.get(fila.id) ?? 0) > 0
-                ? 'text-red-600 dark:text-red-400 font-medium'
+                ? 'text-error-600 dark:text-error-400 font-medium'
                 : 'text-neutral-400',
               fila.esGrupo ? 'font-medium' : '',
             ]"

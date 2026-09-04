@@ -21,8 +21,13 @@ export interface PersonaFormPayload {
   readonly vigenteHasta?: string
 }
 
-const props = defineProps<{ roles: readonly ListaTipoRow[] }>()
+const props = withDefaults(
+  defineProps<{ roles: readonly ListaTipoRow[]; guardando?: boolean }>(),
+  { guardando: false },
+)
 const emit = defineEmits<{ guardar: [PersonaFormPayload]; cancelar: [] }>()
+
+const errorValidacion = ref<string | null>(null)
 
 const tenantStore = useTenantStore()
 const tiposIdentificacion = shallowRef<ListaTipoRow[]>([])
@@ -54,13 +59,19 @@ const opcionesTipoIdentificacion = computed(() =>
 )
 
 function guardar(): void {
-  if (
-    rolId.value === null ||
-    tipoIdentificacionId.value === null ||
-    !nombre.value.trim() ||
-    !numeroDocumento.value.trim()
-  )
+  if (rolId.value === null) {
+    errorValidacion.value = 'Elige un rol.'
     return
+  }
+  if (tipoIdentificacionId.value === null) {
+    errorValidacion.value = 'Elige un tipo de documento.'
+    return
+  }
+  if (!nombre.value.trim() || !numeroDocumento.value.trim()) {
+    errorValidacion.value = 'Nombre completo y número de documento son obligatorios.'
+    return
+  }
+  errorValidacion.value = null
   emit('guardar', {
     rolId: rolId.value,
     tipoIdentificacionId: tipoIdentificacionId.value,
@@ -123,8 +134,9 @@ function guardar(): void {
     <strong>coeficiente de copropiedad</strong> tampoco se asigna aquí: se define al incluir
     este inmueble en el set de coeficientes vigente, desde Configuración → Coeficientes.
   </p>
+  <UAlert v-if="errorValidacion" color="error" variant="soft" :title="errorValidacion" class="mt-3" />
   <div class="flex gap-2 mt-3">
-    <UButton @click="guardar">Guardar persona</UButton>
-    <UButton variant="ghost" @click="emit('cancelar')">Cancelar</UButton>
+    <UButton :loading="guardando" :disabled="guardando" @click="guardar">Guardar persona</UButton>
+    <UButton variant="ghost" :disabled="guardando" @click="emit('cancelar')">Cancelar</UButton>
   </div>
 </template>

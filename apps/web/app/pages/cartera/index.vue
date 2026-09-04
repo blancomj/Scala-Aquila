@@ -192,10 +192,10 @@ const casosProximosRemision = computed(() => {
 // CAR §23.5 (frontend) — un ícono/etiqueta por tipo de evento de gestión
 // registrado (fn_actividad_reciente_cartera, 20260823170000).
 const ETIQUETAS_EVENTO: Record<string, { label: string; icono: string; color: string }> = {
-  pago: { label: 'Pago registrado', icono: 'i-lucide-circle-dollar-sign', color: 'text-green-600 dark:text-green-400' },
-  promesa: { label: 'Promesa de pago', icono: 'i-lucide-handshake', color: 'text-amber-600 dark:text-amber-400' },
-  acuerdo: { label: 'Acuerdo de pago', icono: 'i-lucide-file-signature', color: 'text-blue-600 dark:text-blue-400' },
-  caso_juridico: { label: 'Caso jurídico', icono: 'i-lucide-gavel', color: 'text-purple-600 dark:text-purple-400' },
+  pago: { label: 'Pago registrado', icono: 'i-lucide-circle-dollar-sign', color: 'text-success-600 dark:text-success-400' },
+  promesa: { label: 'Promesa de pago', icono: 'i-lucide-handshake', color: 'text-warning-600 dark:text-warning-400' },
+  acuerdo: { label: 'Acuerdo de pago', icono: 'i-lucide-file-signature', color: 'text-primary-600 dark:text-primary-400' },
+  caso_juridico: { label: 'Caso jurídico', icono: 'i-lucide-gavel', color: 'text-error-600 dark:text-error-400' },
 }
 
 const actividadReciente = computed(() =>
@@ -203,7 +203,7 @@ const actividadReciente = computed(() =>
     ...e,
     label: ETIQUETAS_EVENTO[e.tipo]?.label ?? e.tipo,
     icono: ETIQUETAS_EVENTO[e.tipo]?.icono ?? 'i-lucide-activity',
-    color: ETIQUETAS_EVENTO[e.tipo]?.color ?? 'text-gray-500',
+    color: ETIQUETAS_EVENTO[e.tipo]?.color ?? 'text-neutral-500',
   })),
 )
 
@@ -264,35 +264,35 @@ const alertas = computed(() => {
       cantidad: a?.obligacionesMayor90Cantidad ?? 0,
       monto: Number(a?.obligacionesMayor90Monto ?? 0),
       icono: 'i-lucide-circle-alert',
-      color: 'text-red-600 dark:text-red-400',
+      color: 'text-error-600 dark:text-error-400',
     },
     {
       label: 'Promesas por vencer en 3 días',
       cantidad: a?.promesasPorVencerCantidad ?? 0,
       monto: Number(a?.promesasPorVencerMonto ?? 0),
       icono: 'i-lucide-clock',
-      color: 'text-amber-600 dark:text-amber-400',
+      color: 'text-warning-600 dark:text-warning-400',
     },
     {
       label: 'Cuotas de acuerdo vencidas',
       cantidad: a?.cuotasAcuerdoVencidasCantidad ?? 0,
       monto: Number(a?.cuotasAcuerdoVencidasMonto ?? 0),
       icono: 'i-lucide-file-warning',
-      color: 'text-orange-600 dark:text-orange-400',
+      color: 'text-warning-600 dark:text-warning-400',
     },
     {
       label: 'Casos próximos a remisión jurídica',
       cantidad: casosProximosRemision.value.cantidad,
       monto: casosProximosRemision.value.monto,
       icono: 'i-lucide-gavel',
-      color: 'text-purple-600 dark:text-purple-400',
+      color: 'text-error-600 dark:text-error-400',
     },
     {
       label: 'Cargos sin fecha de vencimiento',
       cantidad: a?.obligacionesSinVencimientoCantidad ?? 0,
       monto: Number(a?.obligacionesSinVencimientoMonto ?? 0),
       icono: 'i-lucide-calendar-x',
-      color: 'text-slate-600 dark:text-slate-400',
+      color: 'text-neutral-500 dark:text-neutral-400',
     },
   ]
 })
@@ -303,7 +303,7 @@ const alertas = computed(() => {
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold mb-1">Dashboard de Cartera</h1>
-        <p class="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
+        <p class="text-sm text-neutral-500 flex items-center gap-2 flex-wrap">
           Vista general del estado de la cartera a la fecha de corte.
           <button
             type="button"
@@ -331,7 +331,7 @@ const alertas = computed(() => {
       <div
         v-for="i in 4"
         :key="i"
-        class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+        class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800"
       >
         <div class="space-y-2">
           <USkeleton class="h-4 w-24" />
@@ -345,48 +345,48 @@ const alertas = computed(() => {
     <template v-else-if="tarjetas">
       <!-- Tarjetas principales -->
       <div v-if="resumenExpandido" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <div>
-            <p class="text-sm text-gray-500">Cartera total</p>
+            <p class="text-sm text-neutral-500">Cartera total</p>
             <p class="text-2xl font-semibold">{{ formatoMoneda(tarjetas.carteraTotal) }}</p>
-            <p class="mt-1 text-xs text-gray-400">100% del total</p>
+            <p class="mt-1 text-xs text-neutral-400">100% del total</p>
           </div>
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-400">
             <UIcon name="i-lucide-wallet" class="h-5 w-5" />
           </span>
         </div>
-        <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <div>
-            <p class="text-sm text-gray-500">Cartera vencida</p>
+            <p class="text-sm text-neutral-500">Cartera vencida</p>
             <p class="text-2xl font-semibold">{{ formatoMoneda(tarjetas.carteraVencida) }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ formatoPct(pctVencida) }} del total</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ formatoPct(pctVencida) }} del total</p>
           </div>
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-50 text-warning-600 dark:bg-warning-950 dark:text-warning-400">
             <UIcon name="i-lucide-clock" class="h-5 w-5" />
           </span>
         </div>
-        <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <div>
-            <p class="text-sm text-gray-500">Cartera &gt; 90 días</p>
+            <p class="text-sm text-neutral-500">Cartera &gt; 90 días</p>
             <p class="text-2xl font-semibold">{{ formatoMoneda(tarjetas.carteraMayor90) }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ formatoPct(pctMayor90) }} del total</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ formatoPct(pctMayor90) }} del total</p>
           </div>
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-error-50 text-error-600 dark:bg-error-950 dark:text-error-400">
             <UIcon name="i-lucide-triangle-alert" class="h-5 w-5" />
           </span>
         </div>
-        <div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <div>
-            <p class="text-sm text-gray-500">Recaudo del mes</p>
+            <p class="text-sm text-neutral-500">Recaudo del mes</p>
             <template v-if="carteraStore.recaudo">
               <p class="text-2xl font-semibold">{{ formatoMoneda(carteraStore.recaudo.montoRecaudado) }}</p>
-              <p class="mt-1 text-xs text-gray-400">
+              <p class="mt-1 text-xs text-neutral-400">
                 Desde {{ carteraStore.recaudo.fechaDesde }}
               </p>
             </template>
             <USkeleton v-else class="h-7 w-32" />
           </div>
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-50 text-success-600 dark:bg-success-950 dark:text-success-400">
             <UIcon name="i-lucide-circle-dollar-sign" class="h-5 w-5" />
           </span>
         </div>
@@ -394,7 +394,7 @@ const alertas = computed(() => {
 
       <!-- Antigüedad + indicadores -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800 lg:col-span-2">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800 lg:col-span-2">
           <h2 class="mb-4 text-sm font-semibold">Cartera por antigüedad (aging)</h2>
           <CarteraDonutAntiguedad
             :buckets="bucketsAntiguedad"
@@ -402,25 +402,25 @@ const alertas = computed(() => {
             total-label="Cartera vencida"
           />
         </div>
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 class="mb-4 text-sm font-semibold">Indicadores clave</h2>
           <ul class="space-y-3 text-sm">
             <li v-for="ind in indicadoresClave" :key="ind.label" class="flex items-center justify-between">
-              <span class="text-gray-500">{{ ind.label }}</span>
+              <span class="text-neutral-500">{{ ind.label }}</span>
               <span class="font-semibold">{{ ind.valor }}</span>
             </li>
             <li class="flex items-center justify-between">
-              <span class="text-gray-500">Efectividad de cobranza (mes)</span>
+              <span class="text-neutral-500">Efectividad de cobranza (mes)</span>
               <span v-if="carteraStore.recaudo" class="font-semibold">
                 {{ formatoPctONull(carteraStore.recaudo.collectionEffectiveness) }}
               </span>
               <USkeleton v-else class="h-4 w-12" />
             </li>
             <li class="flex items-center justify-between">
-              <span class="text-gray-500">Días promedio de mora</span>
+              <span class="text-neutral-500">Días promedio de mora</span>
               <span class="font-semibold">{{ diasPromedioMora }}</span>
             </li>
-            <li class="flex items-center justify-between text-gray-400">
+            <li class="flex items-center justify-between text-neutral-400">
               <span>Cobertura de provisión</span>
               <span class="text-xs italic">Próximamente</span>
             </li>
@@ -429,21 +429,21 @@ const alertas = computed(() => {
       </div>
 
       <!-- Etapa de cobranza -->
-      <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+      <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
         <h2 class="mb-4 text-sm font-semibold">Cartera por etapa de cobranza</h2>
         <CarteraBarrasEtapa :barras="barrasEtapa" :formato-moneda="formatoMoneda" />
       </div>
 
       <!-- Top 10 + evolución -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 class="mb-4 text-sm font-semibold">Cartera por inmueble (Top 10)</h2>
           <UiTabla :columnas="columnasTop" :filas="topInmuebles" :clave-fila="(f) => f.inmuebleId" vacio="Sin inmuebles con cartera vencida.">
             <template #celda-deudaVencida="{ fila }">{{ formatoMoneda(fila.deudaVencida) }}</template>
             <template #celda-diasMoraMaximo="{ fila }">{{ fila.diasMoraMaximo }}</template>
           </UiTabla>
         </div>
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 class="mb-4 text-sm font-semibold">Evolución de cartera vencida (6 meses)</h2>
           <CarteraEvolucionChart :puntos="carteraStore.evolucion" :formato-moneda="formatoMoneda" />
         </div>
@@ -451,31 +451,31 @@ const alertas = computed(() => {
 
       <!-- Alertas + actividad -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 class="mb-4 text-sm font-semibold">Alertas y pendientes</h2>
           <ul class="space-y-3">
             <li v-for="a in alertas" :key="a.label" class="flex items-center gap-3 text-sm">
               <UIcon :name="a.icono" :class="['h-5 w-5 shrink-0', a.color]" />
-              <span class="flex-1 text-gray-600 dark:text-gray-300">{{ a.label }}</span>
+              <span class="flex-1 text-neutral-600 dark:text-neutral-300">{{ a.label }}</span>
               <span class="text-right">
                 <span class="font-semibold">{{ a.cantidad }}</span>
-                <span class="ml-2 text-xs text-gray-400">{{ formatoMoneda(a.monto) }}</span>
+                <span class="ml-2 text-xs text-neutral-400">{{ formatoMoneda(a.monto) }}</span>
               </span>
             </li>
           </ul>
         </div>
-        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 class="mb-4 text-sm font-semibold">Actividad reciente en cartera</h2>
-          <p v-if="actividadReciente.length === 0" class="text-sm text-gray-400">Sin actividad reciente registrada.</p>
+          <p v-if="actividadReciente.length === 0" class="text-sm text-neutral-400">Sin actividad reciente registrada.</p>
           <ul v-else class="space-y-3">
             <li v-for="(a, i) in actividadReciente" :key="`${a.tipo}-${a.inmuebleId}-${a.fecha}-${i}`" class="flex items-center gap-3 text-sm">
               <UIcon :name="a.icono" :class="['h-5 w-5 shrink-0', a.color]" />
-              <span class="flex-1 text-gray-600 dark:text-gray-300">
+              <span class="flex-1 text-neutral-600 dark:text-neutral-300">
                 {{ a.label }} · {{ a.codigo }}
               </span>
               <span class="text-right">
                 <span class="font-semibold">{{ formatoMoneda(a.monto) }}</span>
-                <span class="ml-2 text-xs text-gray-400">{{ a.fecha }}</span>
+                <span class="ml-2 text-xs text-neutral-400">{{ a.fecha }}</span>
               </span>
             </li>
           </ul>
@@ -490,7 +490,7 @@ const alertas = computed(() => {
     >
       <template #body>
         <div class="space-y-4 text-sm">
-          <p class="text-gray-500">
+          <p class="text-neutral-500">
             Genera el cargo de interés de mora para todos los inmuebles de la copropiedad con
             capital vencido, según la política financiera vigente. Idempotente entre corridas.
           </p>
@@ -515,7 +515,7 @@ const alertas = computed(() => {
           >
             <template #celda-inmueble="{ fila }">{{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}</template>
             <template #celda-montoGenerado="{ fila }">{{ formatoMoneda(fila.monto_generado) }}</template>
-            <template #celda-topeAplicado="{ fila }"><span class="text-gray-500">{{ fila.tope_aplicado ? 'Sí' : 'No' }}</span></template>
+            <template #celda-topeAplicado="{ fila }"><span class="text-neutral-500">{{ fila.tope_aplicado ? 'Sí' : 'No' }}</span></template>
           </UiTabla>
         </div>
       </template>

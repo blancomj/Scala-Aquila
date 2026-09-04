@@ -22,7 +22,7 @@ const PESTANAS = [
   { value: 'plan-anual', label: 'Plan anual' },
   { value: 'normativa', label: 'Normativa' },
   { value: 'mi-panel', label: 'Mi panel' },
-] as const
+]
 
 await useAsyncData('auditoria-carga', async () => {
   const tenantId = tenantStore.activeTenant?.id
@@ -41,32 +41,25 @@ await useAsyncData('auditoria-carga', async () => {
 <template>
   <div class="space-y-6">
     <UiTituloDescripcion>
-      <template #titulo>Auditoría interna</template>
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Auditoría interna</h1>
+      </template>
       <template #descripcion>
         Gestión integral de riesgos, controles y auditorías operativas.
         Identifica, evalúa y sigue hallazgos para mejorar la gobernanza.
       </template>
     </UiTituloDescripcion>
 
+    <UTabs
+      :items="PESTANAS"
+      :model-value="pestanaActiva"
+      variant="link"
+      :content="false"
+      class="w-full"
+      @update:model-value="(v) => (pestanaActiva = v as typeof pestanaActiva)"
+    />
+
     <AuditoriaAuditDashboard v-if="pestanaActiva === 'resumen'" />
-
-    <div class="border-b border-neutral-200 dark:border-neutral-800">
-      <nav class="-mb-px flex space-x-4 overflow-x-auto">
-        <button
-          v-for="pestana in PESTANAS"
-          :key="pestana.value"
-          type="button"
-          class="whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors"
-          :class="pestanaActiva === pestana.value
-            ? 'border-primary-600 text-primary-600'
-            : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300 dark:text-neutral-400 dark:hover:text-neutral-300'"
-          @click="pestanaActiva = pestana.value"
-        >
-          {{ pestana.label }}
-        </button>
-      </nav>
-    </div>
-
     <AuditoriaMatrizTrazabilidad v-if="pestanaActiva === 'trazabilidad'" />
     <AuditoriaRiskMatrix v-if="pestanaActiva === 'riesgos'" />
     <AuditoriaControlMatrix v-if="pestanaActiva === 'controles'" />

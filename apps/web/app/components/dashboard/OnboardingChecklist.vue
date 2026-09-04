@@ -11,13 +11,13 @@ const onboardingStore = useOnboardingStore()
 <template>
   <div
     v-if="onboardingStore.todoCompleto"
-    class="flex items-center gap-2 text-sm text-success rounded-lg border border-success/20 bg-success/5 px-3 py-2"
+    class="flex items-center gap-2 text-sm text-success rounded-md border border-success/20 bg-success/5 px-3 py-2"
   >
     <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0" />
     Configuración inicial completa.
   </div>
 
-  <div v-else-if="onboardingStore.cargado" class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+  <div v-else-if="onboardingStore.cargado" class="rounded-md border border-neutral-200 dark:border-neutral-800">
     <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
       <div>
         <h2 class="font-semibold">Primeros pasos</h2>

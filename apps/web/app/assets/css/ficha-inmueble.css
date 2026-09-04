@@ -400,6 +400,9 @@
   color: var(--ink-faint);
   margin: 0 0 12px;
 }
+.ficha-inmueble .card-title.no-margin {
+  margin: 0;
+}
 
 .ficha-inmueble .coef-row {
   display: flex;
@@ -570,6 +573,9 @@
 }
 .ficha-inmueble .stat-value.big {
   font-size: 26px;
+}
+.ficha-inmueble .stat-value.text {
+  font-size: 15px;
 }
 .ficha-inmueble .stat-value.is-alert {
   color: var(--ladrillo-text);

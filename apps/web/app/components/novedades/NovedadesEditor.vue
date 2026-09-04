@@ -314,6 +314,7 @@ const accionEnCurso = ref(false)
 const motivoRechazo = ref('')
 const pidiendoRechazo = ref(false)
 const pidiendoInhabilitar = ref(false)
+const motivoInhabilitar = ref('')
 
 const progresoCuotas = computed(() => {
   if (!props.novedadId) return null
@@ -324,6 +325,19 @@ const progresoCuotas = computed(() => {
     total: cuotas.length,
     saldo: cuotas.filter((c) => !c.generada_at).reduce((a, c) => a + Number(c.monto_cuota), 0),
   }
+})
+
+/** Permanente: siempre inhabilitable mientras esté aprobada y activa.
+ * Prorrateable: solo si le queda al menos una cuota sin generar — si ya
+ * generó todas, no hay nada que detener (fn_inhabilitar_novedad lo rechaza
+ * igual, esto solo evita ofrecer una acción que el servidor va a rechazar). */
+const puedeInhabilitarse = computed(() => {
+  if (!novedad.value || novedad.value.estado !== 'aprobada' || novedad.value.inhabilitada_at) {
+    return false
+  }
+  if (novedad.value.permanente) return true
+  if (novedad.value.prorrateable) return (progresoCuotas.value?.saldo ?? 0) > 0
+  return false
 })
 
 async function aprobar(): Promise<void> {
@@ -361,15 +375,24 @@ async function confirmarRechazo(): Promise<void> {
 }
 
 async function confirmarInhabilitar(): Promise<void> {
+  const motivo = motivoInhabilitar.value.trim()
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !props.novedadId) return
+  if (!motivo || !tenantId || !props.novedadId) return
+  const esProrrateable = novedad.value?.prorrateable ?? false
   pidiendoInhabilitar.value = false
 
   error.value = null
   accionEnCurso.value = true
   try {
-    await cuentaStore.inhabilitarNovedad(props.novedadId, tenantId)
-    toast.add({ title: 'Novedad inhabilitada', description: 'No generará cargos nuevos desde el próximo periodo.', color: 'warning' })
+    await cuentaStore.inhabilitarNovedad(props.novedadId, motivo, tenantId)
+    toast.add({
+      title: 'Novedad inhabilitada',
+      description: esProrrateable
+        ? 'No generará las cuotas pendientes.'
+        : 'No generará cargos nuevos desde el próximo periodo.',
+      color: 'warning',
+    })
+    motivoInhabilitar.value = ''
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo inhabilitar la novedad.')
   } finally {
@@ -391,10 +414,12 @@ const resumenGuardado = computed<string | null>(() => {
 
   if (n.prorrateable && n.cuotas_totales) {
     const base = Math.round((monto / n.cuotas_totales) * 100) / 100
-    return (
-      `A ${quien} ${verbo} ${n.cuotas_totales} cuotas de ${formatoMoneda(Math.abs(base))} ` +
-      `cada una, una por periodo, desde ${cuando}. Total ${valor}.`
-    )
+    const detalle =
+      `${n.cuotas_totales} cuotas de ${formatoMoneda(Math.abs(base))} cada una, una por ` +
+      `periodo, desde ${cuando}. Total ${valor}.`
+    return n.inhabilitada_at
+      ? `A ${quien} ${verbo} ${detalle} Ya está inhabilitada: no genera las cuotas pendientes.`
+      : `A ${quien} ${verbo} ${detalle}`
   }
   if (n.permanente) {
     return n.inhabilitada_at
@@ -422,7 +447,15 @@ const resumenGuardado = computed<string | null>(() => {
             {{ soloLectura ? (novedad?.descripcion ?? 'Novedad') : 'Nueva novedad' }}
           </h1>
           <UBadge
-            v-if="novedad"
+            v-if="novedad?.inhabilitada_at"
+            color="neutral"
+            variant="subtle"
+            title="Fue aprobada, pero ya no genera cargos ni cuotas nuevas."
+          >
+            Inhabilitada
+          </UBadge>
+          <UBadge
+            v-else-if="novedad"
             :color="COLOR_ESTADO_NOVEDAD[novedad.estado] ?? 'neutral'"
             variant="subtle"
           >
@@ -456,7 +489,7 @@ const resumenGuardado = computed<string | null>(() => {
         <UButton variant="ghost" color="error" @click="pidiendoRechazo = true">Rechazar</UButton>
       </template>
       <UButton
-        v-else-if="novedad.estado === 'aprobada' && novedad.permanente && !novedad.inhabilitada_at"
+        v-else-if="puedeInhabilitarse"
         variant="ghost"
         color="error"
         :loading="accionEnCurso"
@@ -778,6 +811,7 @@ const resumenGuardado = computed<string | null>(() => {
                 </template>
                 <template v-else-if="novedad.prorrateable">
                   {{ ETIQUETA_REPETICION.prorrateable }} — {{ novedad.cuotas_totales }} cuotas
+                  <template v-if="novedad.inhabilitada_at"> (inhabilitada)</template>
                 </template>
                 <template v-else>{{ ETIQUETA_REPETICION.ninguna }}</template>
               </dd>
@@ -868,25 +902,51 @@ const resumenGuardado = computed<string | null>(() => {
 
     <UModal
       :open="pidiendoInhabilitar"
-      title="¿Inhabilitar esta novedad permanente?"
+      title="¿Inhabilitar esta novedad?"
       @update:open="(abierto) => { if (!abierto) pidiendoInhabilitar = false }"
     >
       <template #body>
-        <div v-if="novedad" class="space-y-2 text-sm">
-          <p>
-            Vas a inhabilitar <strong>{{ novedad.descripcion }}</strong>, que hoy se cobra
-            {{ formatoMoneda(novedad.monto) }} cada periodo.
-          </p>
-          <p class="text-neutral-500">
-            Deja de generar cargos desde el próximo periodo. Los cargos ya generados no se tocan.
-            No se puede volver a activar — si vuelve a hacer falta, se crea una novedad nueva.
-          </p>
-        </div>
+        <form v-if="novedad" class="space-y-3 text-sm" @submit.prevent="confirmarInhabilitar">
+          <template v-if="novedad.prorrateable">
+            <p>
+              Vas a inhabilitar <strong>{{ novedad.descripcion }}</strong>, que todavía tiene
+              {{ formatoMoneda(progresoCuotas?.saldo ?? 0) }} pendientes por cobrar en cuotas.
+            </p>
+            <p class="text-neutral-500">
+              Deja de generar las cuotas restantes. Las cuotas ya generadas no se tocan. No se
+              puede volver a activar — si vuelve a hacer falta, se crea una novedad nueva.
+            </p>
+          </template>
+          <template v-else>
+            <p>
+              Vas a inhabilitar <strong>{{ novedad.descripcion }}</strong>, que hoy se cobra
+              {{ formatoMoneda(novedad.monto) }} cada periodo.
+            </p>
+            <p class="text-neutral-500">
+              Deja de generar cargos desde el próximo periodo. Los cargos ya generados no se
+              tocan. No se puede volver a activar — si vuelve a hacer falta, se crea una novedad
+              nueva.
+            </p>
+          </template>
+          <UFormField label="Observación" name="observacion">
+            <UTextarea
+              v-model="motivoInhabilitar"
+              placeholder="Por qué se inhabilita"
+              class="w-full"
+              :rows="2"
+            />
+          </UFormField>
+        </form>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton variant="ghost" @click="pidiendoInhabilitar = false">Cancelar</UButton>
-          <UButton color="error" :loading="accionEnCurso" @click="confirmarInhabilitar">
+          <UButton
+            color="error"
+            :disabled="!motivoInhabilitar.trim()"
+            :loading="accionEnCurso"
+            @click="confirmarInhabilitar"
+          >
             Inhabilitar
           </UButton>
         </div>

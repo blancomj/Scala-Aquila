@@ -29,11 +29,15 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const cuentaStore = useCuentaCorrienteStore()
+const agrupacionesStore = useAgrupacionesStore()
 const toast = useToast()
 
 const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
 const tipoNovedadPorId = computed(
   () => new Map(cuentaStore.tiposNovedad.map((t) => [t.id, t.nombre])),
+)
+const agrupacionPorInmueble = computed(
+  () => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.agrupacion_id])),
 )
 
 await useAsyncData('cuenta-corriente-novedades-base', async () => {
@@ -45,6 +49,8 @@ await useAsyncData('cuenta-corriente-novedades-base', async () => {
     cuentaStore.cargarTiposNovedad(tenantId),
     cuentaStore.cargarNovedadCuotas(tenantId),
     cuentaStore.cargarPropietarios(tenantId),
+    agrupacionesStore.cargarTiposAgrupacion(tenantId),
+    agrupacionesStore.cargarAgrupaciones(tenantId),
   ])
   return null
 })
@@ -72,6 +78,9 @@ const conteoPorFiltro = computed<Record<ClaveFiltro, number>>(() => ({
 // tabla vacía por defecto sería desconcertante.
 const filtro = ref<ClaveFiltro>(conteoPorFiltro.value.pendiente > 0 ? 'pendiente' : 'todas')
 const busqueda = ref('')
+const SIN_AGRUPAR = '__sin_agrupar__'
+const filtroAgrupacionId = ref<string | null>(null)
+const filtroFecha = ref('')
 
 const novedadesFiltradas = computed<Novedad[]>(() => {
   const porEstado =
@@ -79,9 +88,21 @@ const novedadesFiltradas = computed<Novedad[]>(() => {
       ? cuentaStore.novedades
       : cuentaStore.novedades.filter((n) => n.estado === filtro.value)
 
+  const porAgrupacion = porEstado.filter((n) => {
+    if (filtroAgrupacionId.value === null) return true
+    const agrupacionId = agrupacionPorInmueble.value.get(n.inmueble_id)
+    return filtroAgrupacionId.value === SIN_AGRUPAR
+      ? !agrupacionId
+      : agrupacionId === filtroAgrupacionId.value
+  })
+
+  const porFecha = !filtroFecha.value
+    ? porAgrupacion
+    : porAgrupacion.filter((n) => n.created_at.slice(0, 10) === filtroFecha.value)
+
   const texto = busqueda.value.trim().toLowerCase()
-  if (!texto) return porEstado
-  return porEstado.filter(
+  if (!texto) return porFecha
+  return porFecha.filter(
     (n) =>
       n.descripcion.toLowerCase().includes(texto) ||
       (inmueblePorId.value.get(n.inmueble_id) ?? '').toLowerCase().includes(texto) ||
@@ -157,7 +178,8 @@ function repeticionTexto(novedad: Novedad): string {
   }
   if (novedad.prorrateable) {
     const generadas = progresoCuotasPorNovedad.value.get(novedad.id)?.generadas ?? 0
-    return `${generadas} de ${novedad.cuotas_totales} cuotas`
+    const texto = `${generadas} de ${novedad.cuotas_totales} cuotas`
+    return novedad.inhabilitada_at ? `${texto} (inhabilitada)` : texto
   }
   return ETIQUETA_REPETICION.ninguna
 }
@@ -170,73 +192,73 @@ function saldoProrrateable(novedad: Novedad): number | null {
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-xl font-semibold mb-2">Novedades</h1>
-        <p class="text-sm text-neutral-500 max-w-2xl">
-          Cobros y abonos puntuales que no vienen del presupuesto — una sanción, una reparación,
-          un descuento. Cada uno requiere aprobación: solo al aprobarlo se carga a la cuenta del
-          inmueble.
-        </p>
-      </div>
-      <UButton
-        size="sm"
-        :disabled="cuentaStore.inmuebles.length === 0"
-        to="/novedades/nueva"
-      >
-        Nueva novedad
-      </UButton>
-    </div>
+    <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
+      <template #titulo>
+        <h1 class="text-xl font-semibold">Novedades</h1>
+      </template>
+      <template #descripcion>
+        Cobros y abonos puntuales que no vienen del presupuesto — una sanción, una reparación,
+        un descuento. Cada uno requiere aprobación: solo al aprobarlo se carga a la cuenta del
+        inmueble.
+      </template>
+    </UiTituloDescripcion>
 
     <p v-if="cuentaStore.inmuebles.length === 0" class="text-neutral-500 text-sm">
       Esta copropiedad todavía no tiene inmuebles registrados.
     </p>
 
     <template v-else>
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <!-- flex + wrap, no grid de columnas iguales: con auto-cols-fr cada botón se achicaba al
-             ancho de columna del contenedor, pero whitespace-nowrap seguía exigiendo su ancho de
-             texto completo — en mobile el texto se derramaba sobre el botón vecino en vez de
-             recortarse (confirmado en vivo: "Pendientes (0)" invadía "Aprobadas (6)"). Con flex
-             cada botón mide su propio contenido y el conjunto pasa a una segunda fila si no cabe,
-             en vez de comprimir texto que no puede comprimirse. -->
-        <div
-          class="flex flex-wrap gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-sm"
-        >
-          <button
-            v-for="opcion in FILTROS"
-            :key="opcion.clave"
-            type="button"
-            class="px-3 py-1 rounded transition-colors whitespace-nowrap"
-            :aria-pressed="filtro === opcion.clave"
-            :class="
-              filtro === opcion.clave
-                ? 'bg-white dark:bg-neutral-900 shadow-sm font-medium'
-                : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-            "
-            @click="filtro = opcion.clave"
-          >
-            {{ opcion.etiqueta }} ({{ conteoPorFiltro[opcion.clave] }})
-          </button>
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div class="flex flex-wrap items-end gap-2">
+          <UFormField label="Buscar">
+            <UInput
+              v-model="busqueda"
+              placeholder="Buscar por inmueble, propietario o descripción…"
+              size="sm"
+              class="w-64"
+            >
+              <template v-if="busqueda" #trailing>
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  title="Limpiar búsqueda"
+                  @click="busqueda = ''"
+                />
+              </template>
+            </UInput>
+          </UFormField>
+
+          <UFormField label="Agrupación">
+            <USelect
+              v-model="filtroAgrupacionId"
+              :items="[
+                { label: 'Toda agrupación', value: null },
+                { label: 'Sin agrupar', value: SIN_AGRUPAR },
+                ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
+              ]"
+              value-key="value"
+              size="sm"
+              class="w-56"
+            />
+          </UFormField>
+
+          <UFormField label="Estado">
+            <USelect
+              v-model="filtro"
+              :items="FILTROS.map((f) => ({ label: `${f.etiqueta} (${conteoPorFiltro[f.clave]})`, value: f.clave }))"
+              value-key="value"
+              size="sm"
+              class="w-40"
+            />
+          </UFormField>
+
+          <UFormField label="Fecha de creación">
+            <UInput v-model="filtroFecha" type="date" size="sm" class="w-40" />
+          </UFormField>
         </div>
 
-        <UInput
-          v-model="busqueda"
-          placeholder="Buscar por inmueble, propietario o descripción…"
-          size="sm"
-          class="w-64"
-          :ui="{ trailing: 'pr-8' }"
-        >
-          <template v-if="busqueda" #trailing>
-            <button
-              type="button"
-              class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-              @click="busqueda = ''"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </button>
-          </template>
-        </UInput>
+        <UButton size="sm" to="/novedades/nueva">Nueva novedad</UButton>
       </div>
 
       <UAlert v-if="errorAccion" color="error" variant="soft" :title="errorAccion" />
@@ -267,9 +289,9 @@ function saldoProrrateable(novedad: Novedad): number | null {
         </template>
         <template #celda-inmueble="{ fila }">
           <div class="leading-tight">
-            <span class="whitespace-nowrap">
+            <NuxtLink :to="`/inmuebles/${fila.inmueble_id}`" class="whitespace-nowrap hover:text-primary hover:underline">
               {{ inmueblePorId.get(fila.inmueble_id) ?? fila.inmueble_id }}
-            </span>
+            </NuxtLink>
             <p
               v-if="cuentaStore.propietariosPorInmueble.get(fila.inmueble_id)"
               class="text-xs text-neutral-400"
@@ -308,6 +330,15 @@ function saldoProrrateable(novedad: Novedad): number | null {
         </template>
         <template #celda-estado="{ fila }">
           <UBadge
+            v-if="fila.inhabilitada_at"
+            color="neutral"
+            variant="subtle"
+            title="Fue aprobada, pero ya no genera cargos ni cuotas nuevas."
+          >
+            Inhabilitada
+          </UBadge>
+          <UBadge
+            v-else
             :color="COLOR_ESTADO_NOVEDAD[fila.estado] ?? 'neutral'"
             variant="subtle"
             :title="DESCRIPCION_ESTADO_NOVEDAD[fila.estado] ?? ''"

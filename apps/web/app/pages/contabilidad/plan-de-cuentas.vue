@@ -242,7 +242,7 @@ async function alEditarCuenta(): Promise<void> {
     <!-- Sin plan: única acción posible -->
     <div
       v-if="!contabilidadStore.tienePlan"
-      class="rounded-lg border border-default p-8 text-center space-y-4"
+      class="rounded-md border border-default p-8 text-center space-y-4"
     >
       <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1 max-w-lg mx-auto">
         <template #titulo>
@@ -268,19 +268,19 @@ async function alEditarCuenta(): Promise<void> {
 
     <template v-else>
       <div v-if="resumenExpandido" class="grid gap-4 sm:grid-cols-4">
-        <div class="rounded-lg border border-default p-4">
+        <div class="rounded-md border border-default p-4">
           <p class="text-xs text-muted uppercase tracking-wide">Cuentas</p>
           <p class="text-lg font-semibold">{{ resumen.total }}</p>
         </div>
-        <div class="rounded-lg border border-default p-4">
+        <div class="rounded-md border border-default p-4">
           <p class="text-xs text-muted uppercase tracking-wide">De movimiento</p>
           <p class="text-lg font-semibold">{{ resumen.movimiento }}</p>
         </div>
-        <div class="rounded-lg border border-default p-4">
+        <div class="rounded-md border border-default p-4">
           <p class="text-xs text-muted uppercase tracking-wide">Clases</p>
           <p class="text-lg font-semibold">{{ resumen.clases }}</p>
         </div>
-        <div class="rounded-lg border border-default p-4">
+        <div class="rounded-md border border-default p-4">
           <p class="text-xs text-muted uppercase tracking-wide">Desactivadas</p>
           <p class="text-lg font-semibold">{{ resumen.inactivas }}</p>
         </div>
@@ -310,16 +310,15 @@ async function alEditarCuenta(): Promise<void> {
           icon="i-lucide-search"
           placeholder="Buscar por código o nombre…"
           class="w-72"
-          :ui="{ trailing: 'pr-8' }"
         >
           <template v-if="busqueda" #trailing>
-            <button
-              type="button"
-              class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-x"
+              title="Limpiar búsqueda"
               @click="busqueda = ''"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </button>
+            />
           </template>
         </UInput>
         <UCheckbox v-model="soloMovimiento" label="Solo cuentas de movimiento" />

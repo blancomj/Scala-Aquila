@@ -33,12 +33,15 @@ const nombrePropietario = computed(() => {
   return copropietario?.tercero.nombre_completo ?? null
 })
 
-type Tab = 'base' | 'cartera' | 'novedades' | 'liquidaciones' | 'historicos' | 'documentos'
+// "Liquidaciones" ya no es pestaña propia: vive como sub-pestaña de Cartera
+// junto a cargos y pagos (los tres son la misma historia — liquidación genera
+// el cargo, el cargo se paga con el recibo — y antes quedaban repartidos en
+// dos niveles de jerarquía distintos).
+type Tab = 'base' | 'cartera' | 'novedades' | 'historicos' | 'documentos'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
   { id: 'base', etiqueta: 'Datos base' },
   { id: 'cartera', etiqueta: 'Cartera' },
   { id: 'novedades', etiqueta: 'Novedades activas' },
-  { id: 'liquidaciones', etiqueta: 'Liquidaciones' },
   { id: 'historicos', etiqueta: 'Históricos' },
   { id: 'documentos', etiqueta: 'Documentos' },
 ]
@@ -99,8 +102,16 @@ async function cargarTodo(id: string): Promise<void> {
   await Promise.all([
     inmueblesStore.cargarInmueble(tenantId, id),
     tercerosStore.cargarTercerosAsociados(tenantId, id),
+    cuentaStore.cargarCargosAbiertos(tenantId, id),
   ])
 }
+
+/** Mismo cálculo que InmuebleCartera.vue (suma de monto_pendiente de
+ * cargosAbiertos) — se muestra acá en el masthead para no obligar a abrir
+ * la pestaña Cartera solo para ver si el inmueble debe algo. */
+const saldoCarteraPendiente = computed(() =>
+  cuentaStore.cargosAbiertos.reduce((acc, c) => acc + Number(c.monto_pendiente), 0),
+)
 
 watch(
   () => props.inmuebleId,
@@ -233,7 +244,7 @@ const tabItems = computed(() =>
         </div>
         <div class="spec-item">
           <p class="spec-label">Saldo cartera</p>
-          <p class="spec-value">Ver pestaña Cartera</p>
+          <p class="spec-value">$ {{ saldoCarteraPendiente.toLocaleString('es-CO') }}</p>
         </div>
       </div>
       <p v-else class="create-hint">
@@ -252,8 +263,7 @@ const tabItems = computed(() =>
         />
       </div>
       <p v-if="esCreacion" class="create-hint">
-        Disponibles después de guardar: cartera, novedades, liquidaciones, históricos y
-        documentos.
+        Disponibles después de guardar: cartera, novedades, históricos y documentos.
       </p>
 
       <div class="panels">
@@ -269,9 +279,6 @@ const tabItems = computed(() =>
         </section>
         <section v-else-if="tabActiva === 'novedades' && inmuebleId">
           <InmueblesInmuebleNovedades ref="novedadesRef" :inmueble-id="inmuebleId" />
-        </section>
-        <section v-else-if="tabActiva === 'liquidaciones' && inmuebleId">
-          <InmueblesInmuebleLiquidaciones :inmueble-id="inmuebleId" />
         </section>
         <section v-else-if="tabActiva === 'historicos' && inmuebleId">
           <InmueblesInmuebleHistoricos :inmueble-id="inmuebleId" />

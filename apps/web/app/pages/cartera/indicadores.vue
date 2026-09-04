@@ -105,7 +105,7 @@ const columnasRollRate = [
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold mb-1">Indicadores de cobranza y jurídicos</h1>
-        <p class="text-sm text-gray-500">CAR §23.3 — métricas del período seleccionado.</p>
+        <p class="text-sm text-neutral-500">CAR §23.3 — métricas del período seleccionado.</p>
       </div>
       <div class="flex items-end gap-3">
         <UFormField label="Desde">
@@ -127,7 +127,7 @@ const columnasRollRate = [
     <UAlert v-else-if="errorCarga" color="error" variant="soft" :title="errorCarga" />
 
     <div v-if="cargando && !carteraStore.indicadores" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <div v-for="i in 6" :key="i" class="space-y-2 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+      <div v-for="i in 6" :key="i" class="space-y-2 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
         <USkeleton class="h-4 w-32" />
         <USkeleton class="h-7 w-20" />
       </div>
@@ -140,9 +140,9 @@ const columnasRollRate = [
           <div
             v-for="ind in indicadoresGestion"
             :key="ind.label"
-            class="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+            class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800"
           >
-            <p class="text-sm text-gray-500">{{ ind.label }}</p>
+            <p class="text-sm text-neutral-500">{{ ind.label }}</p>
             <p class="mt-1 text-2xl font-semibold">{{ ind.valor }}</p>
           </div>
         </div>
@@ -154,19 +154,19 @@ const columnasRollRate = [
           <div
             v-for="ind in indicadoresLegales"
             :key="ind.label"
-            class="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+            class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800"
           >
-            <p class="text-sm text-gray-500">{{ ind.label }}</p>
+            <p class="text-sm text-neutral-500">{{ ind.label }}</p>
             <p class="mt-1 text-2xl font-semibold">{{ ind.valor }}</p>
           </div>
         </div>
-        <p class="mt-2 text-xs text-gray-400">
+        <p class="mt-2 text-xs text-neutral-400">
           Costo por recaudar es parcial: solo incluye costas judiciales, no el costo de acciones de
           cobranza administrativas (SMS, llamadas, cartas) — no hay columna de costo para eso hoy.
         </p>
       </div>
 
-      <div v-if="rollRateFilas.length > 0" class="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+      <div v-if="rollRateFilas.length > 0" class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
         <h2 class="mb-4 text-sm font-semibold">Roll Rate por tramo de mora</h2>
         <UiTabla
           :columnas="columnasRollRate"
