@@ -50,6 +50,14 @@ export interface FilaMatrizTrazabilidad {
   acciones_abiertas: number
 }
 
+/** Conteos livianos para el dashboard principal (Fase 1 de Gobierno, GAP-23) — a propósito NO
+ * reutiliza `estadisticas` (computed más abajo), que exige tener cargados en memoria TODOS los
+ * riesgos/controles/engagements/hallazgos/acciones del tenant. Aquí solo interesan 2 números. */
+export interface ResumenLigeroAuditoria {
+  hallazgosAbiertos: number
+  accionesVencidas: number
+}
+
 /** Fila de public.fn_sugerir_plan_anual() — señales reales para priorizar el plan (§30). */
 export interface SugerenciaPlanAnual {
   riesgo_id: string
@@ -746,6 +754,35 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
     }
   })
 
+  /** Solo conteos (`count: 'exact', head: true`, mismo patrón que onboarding.ts) — nunca trae
+   * filas. Pensada para el dashboard principal, que no puede pagar el costo de cargar todo el
+   * módulo de auditoría solo para mostrar 2 cifras (§65 rendimiento, PLAN_MAESTRO_IMPLEMENTACION). */
+  async function cargarResumenLigero(tenantId: string): Promise<ResumenLigeroAuditoria> {
+    const cliente = useSupabaseClient<Database>()
+    const hoy = new Date().toISOString().slice(0, 10)
+    const [hallazgosRes, accionesRes] = await Promise.all([
+      cliente
+        .from('auditoria_hallazgos')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .neq('estado', 'CERRADO')
+        .neq('estado', 'RECHAZADO'),
+      cliente
+        .from('auditoria_acciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .lt('fecha_compromiso', hoy)
+        .neq('estado', 'CERRADA')
+        .neq('estado', 'RECHAZADA'),
+    ])
+    if (hallazgosRes.error) throw hallazgosRes.error
+    if (accionesRes.error) throw accionesRes.error
+    return {
+      hallazgosAbiertos: hallazgosRes.count ?? 0,
+      accionesVencidas: accionesRes.count ?? 0,
+    }
+  }
+
   // ── LIMPIAR ─────────────────────────────────────────────────────────────
   function limpiar(): void {
     riesgos.value = []
@@ -843,6 +880,9 @@ export const useAuditoriaStore = defineStore('auditoria', () => {
 
     // matriz de trazabilidad
     cargarMatrizTrazabilidad,
+
+    // resumen ligero (dashboard principal)
+    cargarResumenLigero,
 
     // normativa
     cargarNormativaPorEngagement,

@@ -1,8 +1,14 @@
 <script setup lang="ts">
-// F9: dashboard base con métricas de tenant. Las métricas de dominio
-// (presupuesto, cartera, etc.) llegan cuando exista esa capa — por ahora,
-// lo único que hay datos reales para mostrar es tenancy/auditoría, que ya
-// existen desde E3-E6.
+// F9: dashboard base con métricas de tenant. Las métricas de dominio (presupuesto, cartera, etc.)
+// llegan cuando exista esa capa — por ahora, lo único que hay datos reales para mostrar es
+// tenancy/auditoría, que ya existen desde E3-E6.
+//
+// Fase 1 de Gobierno (GAP-23, INFORME_INVENTARIO_REPORTES_MODULOS_EXISTENTES.md): esa capa ya
+// existe hoy en Cartera/Presupuesto/Fondos/Auditoría, cada una calculando sus propios números en
+// su propia pantalla — nadie los consolidaba. "Resumen general" abajo es esa consolidación, sin
+// tabla nueva: solo lee lo que cada módulo ya expone. cargado con Promise.allSettled (no
+// Promise.all) — si una fuente falla, su tarjeta muestra "—" y las demás igual se muestran; el
+// dashboard principal no puede depender de que las 4 fuentes respondan a la vez.
 definePageMeta({ layout: 'default', middleware: ['tenant'] })
 
 const usuario = useSupabaseUser()
@@ -11,6 +17,10 @@ const tenantStore = useTenantStore()
 const membersStore = useMembersStore()
 const auditStore = useAuditStore()
 const onboardingStore = useOnboardingStore()
+const carteraStore = useCarteraStore()
+const presupuestoStore = usePresupuestoStore()
+const fondosStore = useFondosStore()
+const auditoriaStore = useAuditoriaStore()
 
 await useAsyncData('perfil', () => authStore.cargarPerfil())
 await useAsyncData('memberships', () => tenantStore.cargarMemberships())
@@ -25,6 +35,79 @@ await useAsyncData('auditoria-reciente', () => {
 await useAsyncData('onboarding-checklist', () => {
   const tenantId = tenantStore.activeTenant?.id
   return tenantId ? onboardingStore.cargarEstado(tenantId) : Promise.resolve()
+})
+
+const resumenExpandido = useCookie<boolean>('dashboard-resumen-expandido', { default: () => true })
+
+function formatoPct(valor: number): string {
+  return `${valor.toFixed(1)}%`
+}
+
+const carteraVencida = ref<number | null>(null)
+const carteraTotal = ref<number | null>(null)
+const pctCarteraVencida = computed(() =>
+  carteraTotal.value && carteraTotal.value > 0 ? ((carteraVencida.value ?? 0) / carteraTotal.value) * 100 : 0,
+)
+
+const pctEjecucionPresupuesto = ref<number | null>(null)
+const anioPresupuestoVigente = ref<number | null>(null)
+
+const saldoFondos = ref<number | null>(null)
+const cantidadFondos = ref<number | null>(null)
+
+const hallazgosAbiertos = ref<number | null>(null)
+const accionesVencidas = ref<number | null>(null)
+
+await useAsyncData('dashboard-resumen-gerencial', async () => {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return null
+  const hoy = new Date().toISOString().slice(0, 10)
+
+  const [carteraR, presupuestoR, fondosR, auditoriaR] = await Promise.allSettled([
+    carteraStore.cargarDashboard(tenantId, hoy),
+    (async () => {
+      const presupuestos = await presupuestoStore.cargarPresupuestos(tenantId)
+      const vigente = presupuestos.find((p) => p.estado === 'vigente')
+      if (!vigente) return null
+      const [cuentas, comparativo] = await Promise.all([
+        presupuestoStore.cargarCuentas(tenantId),
+        presupuestoStore.cargarComparativoCuenta(vigente.id),
+      ])
+      const naturalezaPorCuenta = new Map(cuentas.map((c) => [c.id, c.naturaleza]))
+      let presupuestadoEgreso = 0
+      let ejecutadoEgreso = 0
+      for (const fila of comparativo) {
+        if (naturalezaPorCuenta.get(fila.cuenta_id) !== 'egreso') continue
+        presupuestadoEgreso += Number(fila.presupuestado)
+        ejecutadoEgreso += Number(fila.ejecutado)
+      }
+      return { anio: vigente.anio, pct: presupuestadoEgreso > 0 ? (ejecutadoEgreso / presupuestadoEgreso) * 100 : 0 }
+    })(),
+    fondosStore.cargarFondos(tenantId),
+    auditoriaStore.cargarResumenLigero(tenantId),
+  ])
+
+  if (carteraR.status === 'fulfilled') {
+    carteraVencida.value = Number(carteraR.value.tarjetas.carteraVencida)
+    carteraTotal.value = Number(carteraR.value.tarjetas.carteraTotal)
+  }
+  if (presupuestoR.status === 'fulfilled' && presupuestoR.value) {
+    pctEjecucionPresupuesto.value = presupuestoR.value.pct
+    anioPresupuestoVigente.value = presupuestoR.value.anio
+  }
+  if (fondosR.status === 'fulfilled') {
+    cantidadFondos.value = fondosR.value.length
+    saldoFondos.value = fondosR.value.reduce(
+      (acc, f) => acc + (fondosStore.saldosPorFondo[f.id]?.saldo ?? 0),
+      0,
+    )
+  }
+  if (auditoriaR.status === 'fulfilled') {
+    hallazgosAbiertos.value = auditoriaR.value.hallazgosAbiertos
+    accionesVencidas.value = auditoriaR.value.accionesVencidas
+  }
+
+  return null
 })
 </script>
 
@@ -43,14 +126,85 @@ await useAsyncData('onboarding-checklist', () => {
 
     <DashboardOnboardingChecklist />
 
-    <div class="grid grid-cols-2 gap-4 max-w-md">
-      <div class="rounded-md border border-neutral-200 dark:border-neutral-800 p-4">
-        <p class="text-sm text-neutral-500">Miembros activos</p>
-        <p class="text-2xl font-semibold">{{ membersStore.miembros.length }}</p>
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-lg font-semibold">Resumen general</h2>
+        <button
+          type="button"
+          class="flex items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+          @click="resumenExpandido = !resumenExpandido"
+        >
+          <UIcon :name="resumenExpandido ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
+          {{ resumenExpandido ? 'Cerrar resumen' : 'Ver resumen' }}
+        </button>
       </div>
-      <div class="rounded-md border border-neutral-200 dark:border-neutral-800 p-4">
-        <p class="text-sm text-neutral-500">Eventos recientes</p>
-        <p class="text-2xl font-semibold">{{ auditStore.eventos.length }}</p>
+
+      <div v-if="resumenExpandido" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <NuxtLink to="/cartera" class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Cartera vencida</p>
+            <p class="text-2xl font-semibold">{{ carteraVencida !== null ? formatoMoneda(carteraVencida) : '—' }}</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ carteraVencida !== null ? formatoPct(pctCarteraVencida) : '—' }} del total</p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-50 text-warning-600 dark:bg-warning-950 dark:text-warning-400">
+            <UIcon name="i-lucide-clock" class="h-5 w-5" />
+          </span>
+        </NuxtLink>
+
+        <NuxtLink to="/presupuesto" class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Ejecución presupuestal</p>
+            <p class="text-2xl font-semibold">{{ pctEjecucionPresupuesto !== null ? formatoPct(pctEjecucionPresupuesto) : '—' }}</p>
+            <p class="mt-1 text-xs text-neutral-400">
+              {{ anioPresupuestoVigente !== null ? `Presupuesto ${anioPresupuestoVigente}` : 'Sin presupuesto vigente' }}
+            </p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-400">
+            <UIcon name="i-lucide-percent" class="h-5 w-5" />
+          </span>
+        </NuxtLink>
+
+        <NuxtLink to="/fondos" class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Saldo de fondos</p>
+            <p class="text-2xl font-semibold">{{ saldoFondos !== null ? formatoMoneda(saldoFondos) : '—' }}</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ cantidadFondos !== null ? `${cantidadFondos} fondos` : '—' }}</p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-50 text-success-600 dark:bg-success-950 dark:text-success-400">
+            <UIcon name="i-lucide-piggy-bank" class="h-5 w-5" />
+          </span>
+        </NuxtLink>
+
+        <NuxtLink to="/auditoria" class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Hallazgos de auditoría abiertos</p>
+            <p class="text-2xl font-semibold">{{ hallazgosAbiertos !== null ? hallazgosAbiertos : '—' }}</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ accionesVencidas !== null ? `${accionesVencidas} acciones vencidas` : '—' }}</p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-error-50 text-error-600 dark:bg-error-950 dark:text-error-400">
+            <UIcon name="i-lucide-shield-alert" class="h-5 w-5" />
+          </span>
+        </NuxtLink>
+
+        <div class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Miembros activos</p>
+            <p class="text-2xl font-semibold">{{ membersStore.miembros.length }}</p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            <UIcon name="i-lucide-users" class="h-5 w-5" />
+          </span>
+        </div>
+
+        <NuxtLink to="/auditoria" class="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+          <div>
+            <p class="text-sm text-neutral-500">Eventos recientes</p>
+            <p class="text-2xl font-semibold">{{ auditStore.eventos.length }}</p>
+          </div>
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            <UIcon name="i-lucide-activity" class="h-5 w-5" />
+          </span>
+        </NuxtLink>
       </div>
     </div>
 

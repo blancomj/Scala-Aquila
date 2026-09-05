@@ -1898,3 +1898,44 @@ lugar (mismo patrón que `motivoNoPuedeDecidir` en `FondosTabSolicitudes.vue`) �
 explicación. De paso, se agregó un prop `ancho="ancho"` opt-in a `UiDrawer.vue` (760px vs. los
 460px por defecto que comparten sus otros 20+ usos) para que la tabla de Fuentes ya no necesite
 scroll horizontal en este drawer específico.
+
+## D-44 — Fase 1 de Gobierno (GAP-23): "Resumen general" en el dashboard principal, consolidando lo que Cartera/Presupuesto/Fondos/Auditoría ya calculan, sin esquema nuevo
+
+**Contexto.** `INFORME_INVENTARIO_REPORTES_MODULOS_EXISTENTES.md` (Casos de uso/Gobierno,
+2026-09-05) encontró que `pages/dashboard/index.vue` no mostraba ningún KPI de negocio — el propio
+comentario del archivo (desde F9) ya decía "las métricas de dominio llegan cuando exista esa
+capa". Esa capa existe hoy en Cartera (`cartera-dashboard`), Presupuesto
+(`presupuesto_cuenta_ejecucion`), Fondos (`fn_fondo_saldos`) y Auditoría (hallazgos/acciones) —
+cada módulo ya calcula sus propios números en su propia pantalla, nadie los consolidaba. Es la
+Fase 1 del roadmap de 5 fases propuesto para el módulo de Gobierno (las Fases 0/2-5 —
+prerrequisitos, decisiones/compromisos, reuniones/quórum/votación, atención al propietario —
+quedan fuera de este corte, ver GAP-23 en `PLAN_MAESTRO_IMPLEMENTACION.md`).
+
+**Por qué NO se reutilizó `auditoriaStore.estadisticas` tal cual.** Ese `computed` (ya existente,
+`stores/auditoria.ts`) exige tener cargados en memoria TODOS los `riesgos`/`controles`/
+`engagements`/`hallazgos`/`acciones` del tenant — carga completa que hoy solo paga la pantalla de
+Auditoría porque el usuario fue a mirarla. Cargar eso desde el dashboard principal solo para
+mostrar 2 cifras habría sido el tipo de "carga completa innecesaria" que el propio criterio de
+rendimiento del proyecto ya evita en el resto del código (ver `onboarding.ts`, que resuelve su
+checklist con conteos `count: 'exact', head: true` en vez de traer filas). Se agregó
+`auditoriaStore.cargarResumenLigero(tenantId)`, mismo patrón de `onboarding.ts`: dos queries de
+solo conteo (hallazgos no cerrados/rechazados, acciones vencidas no cerradas/rechazadas), cero
+filas traídas.
+
+**Resiliencia.** Las 4 fuentes nuevas (cartera/presupuesto/fondos/auditoría) se resuelven con
+`Promise.allSettled`, no `Promise.all` — si una falla, su tarjeta muestra `—` y las demás se
+muestran igual. El dashboard principal es lo primero que ve cualquier usuario al entrar; no puede
+depender de que las 4 fuentes respondan a la vez.
+
+**Qué NO se tocó.** Ningún módulo de origen (Cartera/Presupuesto/Fondos/Auditoría) cambió — solo
+se leen sus funciones ya existentes. Los 3 `useAsyncData` previos del dashboard (perfil/
+memberships/miembros-activos/auditoria-reciente/onboarding-checklist) se dejaron intactos; el
+resumen nuevo vive en su propio `useAsyncData('dashboard-resumen-gerencial', ...)` separado.
+
+**Consecuencia.** `pages/dashboard/index.vue` gana una sección "Resumen general" colapsable
+(mismo patrón cookie-persistido de `inmuebles/index.vue`/`cartera/index.vue`/`fondos/index.vue`)
+con 6 tarjetas: Cartera vencida, Ejecución presupuestal (solo cuentas de naturaleza `egreso`,
+mismo criterio que `PresupuestoTabEjecucion.vue`), Saldo de fondos, Hallazgos de auditoría
+abiertos, Miembros activos, Eventos recientes. `stores/auditoria.ts` gana
+`cargarResumenLigero`/`ResumenLigeroAuditoria`. Sin migraciones, sin tablas nuevas, sin tests de
+backend nuevos (lectura de solo conteo ya cubierta por RLS existente).
