@@ -27,6 +27,17 @@ const puedeConfigurar = computed(() => tenantStore.puede('settings:manage'))
 const mostrarDrawerAutorizacion = ref(false)
 const mostrarDrawerFuente = ref(false)
 
+// guard_fondo_autorizacion/guard_fondo_fuente (20260930150000): en_cierre/cerrado/cancelado son
+// terminales — no hay autorización ni fuente nueva que tenga sentido sobre un fondo que ya no
+// opera. El mensaje explica el motivo en vez de ocultar el botón sin más (mismo patrón que
+// motivoNoPuedeDecidir en FondosTabSolicitudes.vue).
+const ESTADOS_SIN_AUTORIZACION_NI_FUENTE = new Set(['en_cierre', 'cerrado', 'cancelado'])
+const motivoFondoTerminal = computed(() =>
+  ESTADOS_SIN_AUTORIZACION_NI_FUENTE.has(props.fondo.estado)
+    ? `El fondo está ${ETIQUETA_ESTADO_FONDO[props.fondo.estado] ?? props.fondo.estado} y ya no admite autorizaciones ni fuentes nuevas.`
+    : null,
+)
+
 const opcionesAutorizacion = computed(() =>
   fondosStore.autorizaciones.map((a) => ({ valor: a.id, etiqueta: `${a.tipo_decision} — ${new Date(a.created_at).toLocaleDateString('es-CO')}` })),
 )
@@ -60,7 +71,13 @@ async function alternarFuenteActiva(id: string, activaActual: boolean): Promise<
 
 <template>
   <div class="ficha-inmueble">
-    <UiDrawer :abierto="true" :titulo="`${fondo.codigo} — ${fondo.nombre}`" subtitulo="Autorizaciones y fuentes de alimentación" @cerrar="emit('cerrar')">
+    <UiDrawer
+      :abierto="true"
+      ancho="ancho"
+      :titulo="`${fondo.codigo} — ${fondo.nombre}`"
+      subtitulo="Autorizaciones y fuentes de alimentación"
+      @cerrar="emit('cerrar')"
+    >
       <USkeleton v-if="cargando" class="h-40 w-full" />
       <div v-else class="space-y-6">
         <div class="flex justify-end">
@@ -73,10 +90,17 @@ async function alternarFuenteActiva(id: string, activaActual: boolean): Promise<
           />
         </div>
 
+        <UAlert v-if="motivoFondoTerminal" color="neutral" variant="soft" :title="motivoFondoTerminal" />
+
         <section>
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold">Autorizaciones</h3>
-            <UButton v-if="puedeConfigurar" size="sm" variant="soft" @click="mostrarDrawerAutorizacion = true">
+            <UButton
+              v-if="puedeConfigurar && !motivoFondoTerminal"
+              size="sm"
+              variant="soft"
+              @click="mostrarDrawerAutorizacion = true"
+            >
               Registrar autorización
             </UButton>
           </div>
@@ -91,7 +115,12 @@ async function alternarFuenteActiva(id: string, activaActual: boolean): Promise<
         <section>
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold">Fuentes de alimentación</h3>
-            <UButton v-if="puedeConfigurar" size="sm" variant="soft" @click="mostrarDrawerFuente = true">
+            <UButton
+              v-if="puedeConfigurar && !motivoFondoTerminal"
+              size="sm"
+              variant="soft"
+              @click="mostrarDrawerFuente = true"
+            >
               Registrar fuente
             </UButton>
           </div>
@@ -108,7 +137,7 @@ async function alternarFuenteActiva(id: string, activaActual: boolean): Promise<
             </template>
             <template #celda-operaciones="{ fila }">
               <UButton
-                v-if="puedeConfigurar"
+                v-if="puedeConfigurar && !motivoFondoTerminal"
                 size="xs"
                 variant="ghost"
                 @click="alternarFuenteActiva(fila.id, fila.activa)"

@@ -1119,6 +1119,12 @@
   flex-direction: column;
   box-shadow: -8px 0 24px rgba(28, 35, 32, 0.12);
 }
+/* Variante ancha, opt-in (prop `ancho="ancho"` de UiDrawer) — contenido que necesita más aire
+   horizontal (varias tablas de varias columnas). Nunca el default: no debe afectar a los otros
+   drawers que ya usan .drawer sin esta clase. */
+.ficha-inmueble .drawer.drawer--ancho {
+  max-width: 760px;
+}
 .ficha-inmueble .drawer-head {
   display: flex;
   align-items: flex-start;
@@ -1171,7 +1177,8 @@
   .ficha-inmueble .sheet {
     padding: 1.5rem;
   }
-  .ficha-inmueble .drawer {
+  .ficha-inmueble .drawer,
+  .ficha-inmueble .drawer.drawer--ancho {
     max-width: 100%;
   }
   .ficha-inmueble .grid-2,

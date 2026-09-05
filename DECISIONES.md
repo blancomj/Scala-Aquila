@@ -1862,3 +1862,39 @@ resolverse contra `documentos` directamente, no contra "la vigente de su grupo h
 `FondosTabMovimientos.vue` lo usa en vez del array bulk-cargado. Verificado en vivo de punta a
 punta: `urlDescarga` generó una signed URL real y un `fetch()` contra ella devolvió el PDF exacto
 (200, `content-type: application/pdf`, tamaño coincidente con el registro de `documentos`).
+
+## D-43 — `fondo_autorizaciones`/`fondo_fuentes` ganan el candado de estado que ya tenían `fondo_movimientos`/`fondo_compromisos`/`fondo_solicitudes_uso`
+
+**Contexto.** Al revisar en vivo qué acciones ofrecía el detalle de un fondo `cerrado`
+(FON-OBRA-01), "Registrar autorización" y "Registrar fuente"/"Activar"/"Desactivar" seguían
+disponibles y el guard las aceptaba sin más. `guard_fondo_autorizacion()` y `guard_fondo_fuente()`
+(ambas de 20260929130000) nunca miraron `fondos.estado`, a diferencia de
+`guard_fondo_movimiento`/`guard_fondo_compromiso`/`guard_fondo_solicitud_uso_transicion`, que sí
+lo hacen — un vencimiento genuino del módulo, no una regla nueva inventada: el resto de Fondos ya
+establecía que un fondo terminal deja de admitir escritura nueva, y estos dos guards se habían
+quedado atrás.
+
+**Qué se bloquea y por qué.** `en_cierre`/`cerrado`/`cancelado` son terminales
+(`TRANSICIONES_ESTADO_FONDO` en el frontend confirma que `cerrado`/`cancelado` no tienen
+transiciones de salida): no hay una autorización nueva que decidir ni una fuente nueva que
+alimentar sobre un fondo que ya no opera. `en_cierre` se suma por el mismo motivo que ya vale
+para `fondo_movimientos` — es el estado que existe para dejar de admitir operaciones nuevas
+mientras se liquida (Modelo §36). El guard de fuentes cubre INSERT y UPDATE (el toggle
+activa/inactiva), no solo la creación.
+
+**Qué no se toca.** `propuesto`/`pendiente_autorizacion` siguen admitiendo autorizaciones y
+fuentes sin restricción — es exactamente el momento en que se registra el acta de constitución
+(Modelo §7) y se configuran las reglas de alimentación antes de activar el fondo. Bloquear ahí
+rompería el flujo real de alta de un fondo.
+
+**Consecuencia.** Migración `20260930150000_fondo_autorizacion_fuente_estado.sql`
+(`create or replace` de ambas funciones, reproduciendo el cuerpo previo completo); nuevos códigos
+`FONDO_ESTADO_NO_ADMITE_AUTORIZACIONES`/`FONDO_ESTADO_NO_ADMITE_FUENTES` en `error-codes.ts`; 8
+tests nuevos en `tests/tenancy/fondos-modelo-general.test.ts` (describe "estado terminal bloquea
+autorizaciones y fuentes nuevas"), cubriendo los 3 estados terminales × 2 tablas, el toggle de una
+fuente ya existente, y el caso negativo (`propuesto`/`pendiente_autorizacion` sin restricción).
+En el frontend, `FondoDetalleDrawer.vue` oculta los 3 botones afectados y muestra el motivo en su
+lugar (mismo patrón que `motivoNoPuedeDecidir` en `FondosTabSolicitudes.vue`) — no los oculta sin
+explicación. De paso, se agregó un prop `ancho="ancho"` opt-in a `UiDrawer.vue` (760px vs. los
+460px por defecto que comparten sus otros 20+ usos) para que la tabla de Fuentes ya no necesite
+scroll horizontal en este drawer específico.

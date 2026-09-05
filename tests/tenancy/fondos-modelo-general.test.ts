@@ -1519,3 +1519,149 @@ d('Dominio Fondos — soporte documental diferenciado (GAP-22, D-42, Modelo §36
     }
   })
 })
+
+d('Dominio Fondos — estado terminal bloquea autorizaciones y fuentes nuevas (GAP-22, D-43)', () => {
+  const admin = clienteAdmin(env!)
+  let tenant: TenantPrueba
+  let tipoProyecto: number
+  let organoAsamblea: number
+  let tipoFuenteRecargo: number
+
+  async function crearFondoEnEstado(codigo: string, estadoFinal: 'en_cierre' | 'cerrado' | 'cancelado'): Promise<{ id: string }> {
+    const { data, error } = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo,
+        nombre: `Fondo ${codigo}`,
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture fondo ${codigo}: ${error.message}`)
+    const secuencia: Array<'pendiente_autorizacion' | 'activo' | 'en_cierre' | 'cerrado' | 'cancelado'> =
+      estadoFinal === 'cancelado'
+        ? ['pendiente_autorizacion', 'cancelado']
+        : estadoFinal === 'en_cierre'
+          ? ['pendiente_autorizacion', 'activo', 'en_cierre']
+          : ['pendiente_autorizacion', 'activo', 'en_cierre', 'cerrado']
+    for (const estado of secuencia) {
+      const { error: errEstado } = await admin.from('fondos').update({ estado }).eq('id', data.id)
+      if (errEstado) throw new Error(`fixture fondo ${codigo} → ${estado}: ${errEstado.message}`)
+    }
+    return data
+  }
+
+  beforeAll(async () => {
+    tenant = await crearTenant(admin, 'fondos-estado-terminal')
+    tipoProyecto = await idTipoFondo(admin, 'proyecto')
+    organoAsamblea = await idCatalogo(admin, 'ORGANO_DECISORIO', 'asamblea')
+    tipoFuenteRecargo = await idCatalogo(admin, 'TIPO_FUENTE_ALIMENTACION_FONDO', 'recargo_fondo_imprevistos')
+  }, 60_000)
+
+  afterAll(async () => {
+    await eliminarTenant(admin, tenant.id)
+  }, 60_000)
+
+  it.each(['en_cierre', 'cerrado', 'cancelado'] as const)(
+    'un fondo %s rechaza una autorización nueva con FONDO_ESTADO_NO_ADMITE_AUTORIZACIONES',
+    async (estado) => {
+      const fondo = await crearFondoEnEstado(`FON-AUT-${estado.toUpperCase()}`, estado)
+      const { error } = await admin.from('fondo_autorizaciones').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        organo_id: organoAsamblea,
+        tipo_decision: 'Autorización tardía',
+        decision: 'No debería aceptarse sobre un fondo terminal',
+      })
+      expect(error?.message).toMatch(/FONDO_ESTADO_NO_ADMITE_AUTORIZACIONES/)
+    },
+  )
+
+  it.each(['en_cierre', 'cerrado', 'cancelado'] as const)(
+    'un fondo %s rechaza una fuente nueva con FONDO_ESTADO_NO_ADMITE_FUENTES',
+    async (estado) => {
+      const fondo = await crearFondoEnEstado(`FON-FTE-${estado.toUpperCase()}`, estado)
+      const { error } = await admin.from('fondo_fuentes').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo_id: tipoFuenteRecargo,
+        valor: 100_000,
+        periodicidad: 'mensual',
+      })
+      expect(error?.message).toMatch(/FONDO_ESTADO_NO_ADMITE_FUENTES/)
+    },
+  )
+
+  it('un fondo cerrado rechaza activar/desactivar una fuente existente con FONDO_ESTADO_NO_ADMITE_FUENTES', async () => {
+    const { data: fondo, error: errFondo } = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: 'FON-FTE-TOGGLE',
+        nombre: 'Fondo FON-FTE-TOGGLE',
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    expect(errFondo).toBeNull()
+
+    const { data: fuente, error: errFuente } = await admin
+      .from('fondo_fuentes')
+      .insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo!.id,
+        tipo_id: tipoFuenteRecargo,
+        valor: 100_000,
+        periodicidad: 'mensual',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    expect(errFuente).toBeNull()
+
+    for (const estado of ['pendiente_autorizacion', 'activo', 'en_cierre', 'cerrado'] as const) {
+      const { error: errEstado } = await admin.from('fondos').update({ estado }).eq('id', fondo!.id)
+      if (errEstado) throw new Error(`fixture fondo FON-FTE-TOGGLE → ${estado}: ${errEstado.message}`)
+    }
+
+    const { error: errToggle } = await admin.from('fondo_fuentes').update({ activa: false }).eq('id', fuente!.id)
+    expect(errToggle?.message).toMatch(/FONDO_ESTADO_NO_ADMITE_FUENTES/)
+  })
+
+  it('propuesto y pendiente_autorizacion siguen admitiendo autorizaciones y fuentes sin restricción', async () => {
+    const { data: fondo, error: errFondo } = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: 'FON-PREACTIVO',
+        nombre: 'Fondo preactivo',
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    expect(errFondo).toBeNull()
+
+    const { error: errAutorizacion } = await admin.from('fondo_autorizaciones').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondo!.id,
+      organo_id: organoAsamblea,
+      tipo_decision: 'Aprobación de creación',
+      decision: 'Se aprueba el fondo mientras aún está propuesto',
+    })
+    expect(errAutorizacion).toBeNull()
+
+    await admin.from('fondos').update({ estado: 'pendiente_autorizacion' }).eq('id', fondo!.id)
+
+    const { error: errFuente } = await admin.from('fondo_fuentes').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondo!.id,
+      tipo_id: tipoFuenteRecargo,
+      valor: 200_000,
+      periodicidad: 'mensual',
+    })
+    expect(errFuente).toBeNull()
+  })
+})
