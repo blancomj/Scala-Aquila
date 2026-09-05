@@ -12,6 +12,19 @@ export const ETIQUETA_ESTADO_FONDO: Record<string, string> = {
   cancelado: 'Cancelado',
 }
 
+/** Igual que ETIQUETA_ESTADO_FONDO pero en plural, para el desglose de la tarjeta "Total de
+ * fondos" (resumen de fondos/index.vue) cuando hay más de uno en ese estado. */
+export const ETIQUETA_ESTADO_FONDO_PLURAL: Record<string, string> = {
+  propuesto: 'propuestos',
+  pendiente_autorizacion: 'pendientes de autorización',
+  activo: 'activos',
+  suspendido: 'suspendidos',
+  agotado: 'agotados',
+  en_cierre: 'en cierre',
+  cerrado: 'cerrados',
+  cancelado: 'cancelados',
+}
+
 export const COLOR_ESTADO_FONDO: Record<string, 'neutral' | 'primary' | 'success' | 'warning' | 'error'> = {
   propuesto: 'neutral',
   pendiente_autorizacion: 'warning',
