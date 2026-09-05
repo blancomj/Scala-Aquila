@@ -2,18 +2,23 @@
  * Dominio Fondos (GAP-22, PLAN §4.3) — fondos, movimientos, autorizaciones, fuentes de
  * alimentación, compromisos y solicitudes de uso.
  *
- * Todo se lee/escribe directo por RLS (mismo criterio que presupuesto.ts/members.ts): no hay
- * Edge Function propia todavía (BLOQUE P la dejó pendiente — hoy las RPC de decisión de
- * solicitudes están protegidas solo por RLS + los guards de trigger, D-37). Los guards
+ * Todo se lee/escribe directo por RLS (mismo criterio que presupuesto.ts/members.ts). Los guards
  * (`guard_fondo_estado_transicion`, `guard_fondo_solicitud_uso_transicion`,
  * `guard_fondo_compromiso_transicion`, `guard_fondo_movimiento`, R9...) validan en BD y su
  * mensaje llega tal cual, sin traducir — mismo criterio que BUDGET_NOT_RECONCILED en
  * presupuesto.ts.
  *
+ * Excepción: aprobar/rechazar/comprometer una solicitud de uso pasan por las Edge Functions
+ * `fondos-aprobar-solicitud`/`fondos-rechazar-solicitud`/`fondos-comprometer-solicitud` — no
+ * porque necesiten `service_role` (la RLS ya permite ese UPDATE directo y
+ * `guard_fondo_solicitud_uso_transicion` ya exige rol/no-autoaprobación/no-autoejecución vía
+ * trigger, D-37), sino por rate limit + error estructurado + logging sobre esas decisiones
+ * puntuales. `enviar_revision`/`anular` siguen siendo UPDATE directo — no son decisiones con
+ * segregación de funciones, no lo necesitan.
+ *
  * Segregación de funciones (D-37: quien solicita no aprueba, quien aprueba no ejecuta) vive en
- * los guards, no aquí — este store solo hace el UPDATE que la página ya decidió que el usuario
- * puede intentar. El espejo de esa regla en el cliente (para no ofrecer un botón que el guard
- * rechazaría) vive en las páginas, mismo patrón que `motivoNoPuedeDecidir` en
+ * los guards, no aquí. El espejo de esa regla en el cliente (para no ofrecer un botón que el
+ * guard rechazaría) vive en las páginas, mismo patrón que `motivoNoPuedeDecidir` en
  * cartera/acciones.vue.
  */
 import { defineStore } from 'pinia'
@@ -409,22 +414,50 @@ export const useFondosStore = defineStore('fondos', () => {
     return data
   }
 
-  /** guard_fondo_solicitud_uso_transicion (D-37) hace cumplir toda la segregación de funciones
-   * en BD — este store solo manda el UPDATE que la página ya decidió ofrecer (ver
-   * motivoNoPuedeDecidirSolicitud en FondosTabSolicitudes.vue). motivoRechazo es obligatorio
-   * cuando estado='rechazada' (SOLICITUD_MOTIVO_REQUERIDO). */
+  /** Solo para 'en_revision'/'anulada' (autoservicio, sin segregación de funciones) —
+   * aprobar/rechazar/comprometer van por Edge Function, ver más abajo. guard_fondo_solicitud_
+   * uso_transicion (D-37) hace cumplir la máquina de estados en BD de todas formas. */
   async function cambiarEstadoSolicitud(
     id: string,
     fondoId: string,
-    estado: FondoSolicitudUsoEstado,
-    motivoRechazo?: string,
+    estado: Extract<FondoSolicitudUsoEstado, 'en_revision' | 'anulada'>,
   ): Promise<void> {
     const cliente = useSupabaseClient<Database>()
-    const { error: errorUpdate } = await cliente
-      .from('fondo_solicitudes_uso')
-      .update({ estado, motivo_rechazo: motivoRechazo })
-      .eq('id', id)
+    const { error: errorUpdate } = await cliente.from('fondo_solicitudes_uso').update({ estado }).eq('id', id)
     if (errorUpdate) throw errorUpdate
+    await Promise.all([cargarSolicitudes(fondoId), refrescarSaldoFondo(fondoId)])
+  }
+
+  /** Aprueba una solicitud en revisión (Modelo §20, D-37) vía Edge Function
+   * fondos-aprobar-solicitud — ver cabecera del store para por qué. */
+  async function aprobarSolicitud(id: string, fondoId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.functions.invoke('fondos-aprobar-solicitud', {
+      body: { solicitud_id: id },
+    })
+    if (error) throw await extraerErrorFuncion(error)
+    await Promise.all([cargarSolicitudes(fondoId), refrescarSaldoFondo(fondoId)])
+  }
+
+  /** Rechaza una solicitud en revisión (D-37) vía Edge Function fondos-rechazar-solicitud —
+   * motivoRechazo es obligatorio (SOLICITUD_MOTIVO_REQUERIDO). */
+  async function rechazarSolicitud(id: string, fondoId: string, motivoRechazo: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.functions.invoke('fondos-rechazar-solicitud', {
+      body: { solicitud_id: id, motivo_rechazo: motivoRechazo },
+    })
+    if (error) throw await extraerErrorFuncion(error)
+    await Promise.all([cargarSolicitudes(fondoId), refrescarSaldoFondo(fondoId)])
+  }
+
+  /** Compromete una solicitud aprobada (D-37) vía Edge Function fondos-comprometer-solicitud —
+   * crea fondo_compromisos vinculado. */
+  async function comprometerSolicitud(id: string, fondoId: string): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.functions.invoke('fondos-comprometer-solicitud', {
+      body: { solicitud_id: id },
+    })
+    if (error) throw await extraerErrorFuncion(error)
     await Promise.all([cargarSolicitudes(fondoId), refrescarSaldoFondo(fondoId)])
   }
 
@@ -504,6 +537,9 @@ export const useFondosStore = defineStore('fondos', () => {
     cargarSolicitudes,
     crearSolicitud,
     cambiarEstadoSolicitud,
+    aprobarSolicitud,
+    rechazarSolicitud,
+    comprometerSolicitud,
     cargarRemanentes,
     cerrarFondo,
     limpiar,

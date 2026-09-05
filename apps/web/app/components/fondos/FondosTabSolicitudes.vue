@@ -70,7 +70,11 @@ async function decidir(s: FondoSolicitudUsoRow, estado: 'aprobada' | 'rechazada'
   if (!fondoId.value) return
   procesando.value = s.id
   try {
-    await fondosStore.cambiarEstadoSolicitud(s.id, fondoId.value, estado, motivo)
+    if (estado === 'aprobada') {
+      await fondosStore.aprobarSolicitud(s.id, fondoId.value)
+    } else {
+      await fondosStore.rechazarSolicitud(s.id, fondoId.value, motivo ?? '')
+    }
     toast.add({ title: estado === 'aprobada' ? 'Solicitud aprobada.' : 'Solicitud rechazada.', color: 'success' })
   } catch (excepcion) {
     toast.add({ title: mensajeError(excepcion, 'No se pudo decidir la solicitud.'), color: 'error' })
@@ -96,7 +100,7 @@ async function comprometer(s: FondoSolicitudUsoRow): Promise<void> {
   if (!fondoId.value) return
   procesando.value = s.id
   try {
-    await fondosStore.cambiarEstadoSolicitud(s.id, fondoId.value, 'comprometida')
+    await fondosStore.comprometerSolicitud(s.id, fondoId.value)
     toast.add({ title: 'Solicitud comprometida — se creó el compromiso del fondo.', color: 'success' })
   } catch (excepcion) {
     toast.add({ title: mensajeError(excepcion, 'No se pudo comprometer.'), color: 'error' })

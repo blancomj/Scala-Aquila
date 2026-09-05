@@ -638,7 +638,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const auditor = await crearUsuario(admin, 'ccm-fondo-sin-aut')
     const tenant = await crearTenant(admin, 'ccm-fondo-sin-aut', auditor.id)
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
-    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FSA-${Date.now()}`)
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FSA-${String(Date.now())}`)
     const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_SIN_AUTORIZACION')
     const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
 
@@ -692,7 +692,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
       .from('fondos')
       .insert({
         tenant_id: tenant.id,
-        codigo: `FIM-${Date.now()}`,
+        codigo: `FIM-${String(Date.now())}`,
         nombre: 'Fondo de imprevistos',
         naturaleza: 'imprevistos',
         tipo_id: tipoImprevistos,
@@ -733,7 +733,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const auditor = await crearUsuario(admin, 'ccm-fondo-cerrado')
     const tenant = await crearTenant(admin, 'ccm-fondo-cerrado', auditor.id)
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
-    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCS-${Date.now()}`)
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCS-${String(Date.now())}`)
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondoId)
     await admin.rpc('fn_fondo_cerrar', { p_fondo_id: fondoId })
 
@@ -765,7 +765,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const auditor = await crearUsuario(admin, 'ccm-fondo-disponible')
     const tenant = await crearTenant(admin, 'ccm-fondo-disponible', auditor.id)
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
-    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCD-${Date.now()}`)
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCD-${String(Date.now())}`)
     const { error: errorMov } = await admin
       .from('fondo_movimientos')
       .insert({ tenant_id: tenant.id, fondo_id: fondoId, tipo: 'aporte', monto: 200_000 })

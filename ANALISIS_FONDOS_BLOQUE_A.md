@@ -561,17 +561,21 @@ solo lectura contra el proyecto Supabase de desarrollo (`fondos`, `fondo_movimie
 
 ---
 
-## 11. Pendiente / trabajo a futuro (índice, actualizado 2026-09-05 al cerrar B–G+J+L+K+P+R+O)
+## 11. Pendiente / trabajo a futuro (índice, actualizado 2026-09-05 al cerrar B–G+J+L+K+P+R+O + Edge Function)
 
 Consolidado aquí para no tener que releer cada bloque — esto es lo que un lector futuro necesita
 saber antes de retomar el módulo.
 
 **Del propio dominio Fondos:**
 
-1. **S/T (migración + QA) sin ejecutar formalmente.** BLOQUE A (§1.1) ya determinó que hay
-   prácticamente nada que migrar (1 fila de `fondos`, 0 de `fondo_movimientos` en toda la base de
-   desarrollo al momento del diagnóstico) — pero eso fue un diagnóstico, no una pasada de QA
-   explícita post-implementación. Falta correrla y dejar constancia.
+1. ~~S/T (migración + QA) sin ejecutar formalmente.~~ **Hecho 2026-09-05.** `pnpm test` completo
+   corrido de punta a punta (1376 tests): 0 fallos atribuibles a Fondos — las 15 fallas de esa
+   corrida son de `cartera-envio-evidencia`, `cartera-indicadores` y `tenant-predeterminado`
+   (trabajo en curso de otras sesiones en el mismo working tree, ajeno a este módulo, confirmado
+   por archivo). `pnpm build` limpio; `pnpm --filter @aquila/web typecheck` limpio en los archivos
+   de Fondos (errores preexistentes en `ConceptosCondicionHoja.vue`/`seguridad/index.vue`/
+   `stores/auth.ts` no son de este módulo). Migración real: sigue siendo prácticamente nula, como
+   ya diagnosticó BLOQUE A.
 2. **"Movimientos no conciliados" (Prompt §36) no se hace cumplir.** La conciliación bancaria
    tiene backend completo (`extracto_bancario`/`extracto_linea`/`conciliacion_propuesta`, 2 Edge
    Functions) pero no está enlazada por fondo — nada impide cerrar un fondo con movimientos
@@ -583,11 +587,12 @@ saber antes de retomar el módulo.
    `pago_id`, no un documento). Si algún día se quiere resolver de verdad, hay que diferenciar a
    nivel de guard "movimiento automático por el sistema" (respaldo = la fila que lo originó) de
    "movimiento manual" (respaldo = documento) — no una validación uniforme.
-4. **Edge Function opcional sobre las RPC de decisión de solicitudes** — quedó pendiente desde
-   BLOQUE P. Hoy `fondo_solicitudes_uso` y `fn_fondo_cerrar` están protegidos solo por RLS +
-   guards de trigger (D-37), sin una capa de Edge Function propia. Funciona y está probado así;
-   una Edge Function solo aportaría si en el futuro hace falta orquestar algo que RLS+triggers no
-   puedan (notificaciones, por ejemplo).
+4. ~~Edge Function opcional sobre las RPC de decisión de solicitudes.~~ **Hecho 2026-09-05 (D-41).**
+   `fondos-aprobar-solicitud`/`fondos-rechazar-solicitud`/`fondos-comprometer-solicitud`,
+   desplegadas a desarrollo, wireadas en `stores/fondos.ts`/`FondosTabSolicitudes.vue`, 7 tests
+   nuevos. No cambió el modelo de autorización (RLS + guards seguían siendo suficientes) — el
+   valor es rate limit + error estructurado + logging. `fn_fondo_cerrar` (BLOQUE O) se dejó fuera
+   a propósito: no tiene el mismo patrón de decisión repetida por terceros que solicitudes.
 5. **Cuatro bloques bloqueados por dominios que AQUILA no tiene** (§6 de este documento, sin
    cambios): **H** (CxP/pagos salientes — `pagos` es entrante por construcción, `check (monto >
    0)`), **M** (rendimientos — necesita instrumentos financieros reales), **I** (instrumentos
@@ -603,15 +608,6 @@ saber antes de retomar el módulo.
    `project-auditoria-gap-analysis-pendiente`). Fondos es un módulo grande y nuevo recién cerrado
    — vale la pena preguntar si esa condición ya se considera cumplida antes de asumir que sigue
    diferido.
-7. **Bug de contraste en `UiSelectorBuscable`** (dark-on-dark dentro de un `.ficha-inmueble`) —
-   encontrado durante la verificación en vivo de BLOQUE P, derivado como tarea aparte
-   (`task_238f43d6`). El fix **ya está hecho** (clase `text-neutral-900 dark:text-neutral-100`
-   añadida al panel) pero **sin commitear** — verificar que el commit se haga antes de darlo por
-   cerrado.
-8. **`recibos_caja` — excepción a la cascada de borrado de tenant** (`task_8ec57f14`) — igual que
-   el anterior: el fix **ya está aplicado** (migración `20260929190000_recibos_caja_permitir_
-   cascada_tenant.sql` ya está en el repo y ya se empujó a la base de desarrollo) pero **sin
-   commitear**.
-9. **Todo lo anterior (Fondos completo + los dos fixes de arriba) sigue sin commitear.** El
-   working tree tiene ~25 archivos nuevos/modificados de Fondos más los dos fixes de #7/#8 — nada
-   de esto se ha llevado a un commit todavía.
+7. ~~Bug de contraste en `UiSelectorBuscable`~~ y ~~`recibos_caja` sin excepción en la cascada de
+   borrado de tenant~~ — **ambos commiteados 2026-09-05** (`846613a`, `26b6752`), junto con el
+   módulo Fondos completo B–G+J+L+K+P+R+O (`cb0d372`). Nada de lo anterior sigue sin commitear.

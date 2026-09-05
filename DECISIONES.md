@@ -1714,3 +1714,62 @@ documento). Quedan fuera, igual que CxP/instrumentos/proyectos.
 `20260930130000_fondo_compromiso_resolver_en_cierre.sql`; 10 tests nuevos en
 `tests/tenancy/fondos-modelo-general.test.ts`; 1 test de D-39 corregido para reflejar la nueva
 guarda.
+
+## D-41 — Edge Functions sobre la decisión de solicitudes de uso: rate limit + error estructurado + logging, no un bypass de RLS
+
+|            |                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, ítem pendiente §11.4 de `ANALISIS_FONDOS_BLOQUE_A.md`                |
+| **Estado** | Aceptada                                                                               |
+| **Decide** | Usuario (2026-09-05, "pasa directo a la Edge Function")                               |
+
+**Contexto.** `ANALISIS_FONDOS_BLOQUE_A.md` §11 dejaba anotado que aprobar/rechazar/comprometer
+una solicitud de uso (D-37) vivían protegidas solo por RLS + los guards de trigger — a diferencia
+de `novedades`, cuyas Edge Functions `aprobar-novedad`/`rechazar-novedad` existen porque esa tabla
+no tiene política UPDATE para `authenticated` en absoluto (el bypass de RLS vía
+`ctx.supabaseAdmin` es la única forma de escribir). `fondo_solicitudes_uso` es distinta: la RLS ya
+permite el UPDATE directo a auxiliar/administrador, y `guard_fondo_solicitud_uso_transicion`
+(20260929150000) ya exige rol, no-autoaprobación, no-autoejecución y disponible **vía trigger**,
+sea cual sea el cliente que escriba — service_role incluido. Envolver esto en una Edge Function
+no cierra ningún hueco de seguridad que no estuviera ya cerrado.
+
+**Decisión — tres Edge Functions delgadas (`fondos-aprobar-solicitud`,
+`fondos-rechazar-solicitud`, `fondos-comprometer-solicitud`), cada una con `ctx.supabase` (RLS del
+propio usuario), nunca `ctx.supabaseAdmin`.** Su valor no es autorización — ya existe en BD — sino
+lo que un `.update()` directo desde el store no tenía: `enforceRateLimit` (30/hora por actor y
+acción, mismo umbral que `aprobar-novedad`), un contrato HTTP uniforme (`parsearErrorRpc` traduce
+el `'CODIGO: mensaje'` que el guard ya produce a un status — 403 rol/autoaprobación/autoejecución,
+409 transición inválida/estado terminal, 422 excede disponible/motivo requerido), y `logEvent`
+estructurado. Una función por acción, no una sola parametrizada — mismo criterio que
+`aprobar-novedad`/`rechazar-novedad` (dos funciones casi idénticas) en vez de una `decidir-novedad`
+genérica.
+
+**Por qué no duplicar el chequeo de rol en TS antes de escribir (a diferencia de
+`aprobar-novedad`).** `aprobar-novedad` sí verifica `has_role` explícitamente en la función porque
+ahí la Edge Function ES el límite de autorización (el RPC que invoca corre con `service_role`, sin
+RLS). Aquí el trigger ES el límite de autorización, corra donde corra el UPDATE — repetir la
+condición en TypeScript sería una segunda fuente de verdad que puede desincronizarse de la real en
+BD. Cada función solo hace una lectura RLS-scoped previa (para el 404 `SOLICITUD_NO_ENCONTRADA`
+cuando el id no existe o no es visible por RLS — algo que el guard no puede dar, un UPDATE sobre 0
+filas no es un error) y deja que el propio guard decida y falle con su mensaje real.
+
+**Frontend.** `stores/fondos.ts`: `aprobarSolicitud`/`rechazarSolicitud`/`comprometerSolicitud`
+nuevas, invocan la Edge Function vía `cliente.functions.invoke(...)` + `extraerErrorFuncion`
+(mismo patrón que `members.ts`). `cambiarEstadoSolicitud` se acotó por tipo a
+`'en_revision' | 'anulada'` — las únicas transiciones de autoservicio sin segregación de
+funciones, que siguen siendo UPDATE directo porque no lo necesitan.
+`FondosTabSolicitudes.vue` actualizado a llamar los tres métodos nuevos.
+
+**Hallazgo colateral, corregido aquí: 10 códigos de BLOQUE O (D-40) nunca se habían registrado en
+`error-codes.ts`.** El test-guardia `tests/governance/error-codes-coverage.test.ts` no se había
+corrido desde que se escribió `20260930120000_fondo_cierre_remanente.sql` — `FONDO_COMPROMISOS_
+PENDIENTES`, `FONDO_DESTINO_INVALIDO`, `FONDO_ESTADO_INVALIDO`, `FONDO_REMANENTE_
+DESTINO_INCONSISTENTE`, `FONDO_REMANENTE_INMUTABLE`, `FONDO_REMANENTE_MOVIMIENTO_INVALIDO`,
+`FONDO_REMANENTE_SIN_DECISION`, `FONDO_REMANENTE_SIN_DESTINO`, `FONDO_SALDO_NEGATIVO` y
+`FONDO_SOLICITUDES_PENDIENTES` faltaban. Encontrado al correr ese test como parte de la QA de esta
+tarea, no reportado por el usuario. Corregido en el mismo commit — no es un tema aparte.
+
+**Consecuencia.** Cierra el ítem §11.4 de `ANALISIS_FONDOS_BLOQUE_A.md`. 3 funciones nuevas
+desplegadas al proyecto de desarrollo (`hwjmlyzzvpmhadldavbq`, vía `--use-api`, sin Docker — mismo
+canal que D-19); 7 tests nuevos en `tests/tenancy/fondos-solicitud-decision.test.ts`; 10 códigos de
+error de D-40 registrados retroactivamente.
