@@ -98,16 +98,21 @@ async function crearPresupuestoReconciliado(
 
 /** Id de plataforma (tenant_id null) de un código de TIPO_FUENTE_FINANCIACION — reemplaza el
  * literal de enum que existía antes de 20260830210000. */
-async function tipoFuenteId(admin: Cliente, codigo: string): Promise<number> {
+/** Fila de catálogo de plataforma (tenant_id null) de cualquier familia. */
+async function idCatalogo(admin: Cliente, familia: string, codigo: string): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
     .select('id')
-    .eq('tipo', 'TIPO_FUENTE_FINANCIACION')
+    .eq('tipo', familia)
     .is('tenant_id', null)
     .eq('codigo', codigo)
     .single<{ id: number }>()
-  if (error) throw new Error(`fixture tipo fuente ${codigo}: ${error.message}`)
+  if (error) throw new Error(`fixture ${familia} ${codigo}: ${error.message}`)
   return data.id
+}
+
+async function tipoFuenteId(admin: Cliente, codigo: string): Promise<number> {
+  return idCatalogo(admin, 'TIPO_FUENTE_FINANCIACION', codigo)
 }
 
 d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', () => {
@@ -295,14 +300,31 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
   it('FI-003: fondo_imprevistos rechaza si valor_disponible excede el saldo real', async () => {
     const { data: fondo, error: errFondo } = await admin
       .from('fondos')
-      .insert({ tenant_id: tenantA.id, tipo: 'imprevistos', nombre: 'Fondo imprevistos A' })
+      .insert({
+        tenant_id: tenantA.id,
+        naturaleza: 'imprevistos',
+        nombre: 'Fondo imprevistos A',
+        codigo: 'FON-IMP',
+        tipo_id: await idCatalogo(admin, 'TIPO_FONDO', 'imprevistos'),
+      })
       .select('id')
       .single<{ id: string }>()
     if (errFondo) throw new Error(`fixture fondo: ${errFondo.message}`)
 
-    await admin
+    // Desde GAP-22 un fondo nace 'propuesto' y no recibe movimientos hasta
+    // estar activo (guard_fondo_movimiento).
+    for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+      const { error: errEstado } = await admin
+        .from('fondos')
+        .update({ estado })
+        .eq('id', fondo.id)
+      if (errEstado) throw new Error(`fixture activar fondo → ${estado}: ${errEstado.message}`)
+    }
+
+    const { error: errAporte } = await admin
       .from('fondo_movimientos')
       .insert({ tenant_id: tenantA.id, fondo_id: fondo.id, tipo: 'aporte', monto: 500 })
+    if (errAporte) throw new Error(`fixture aporte: ${errAporte.message}`)
 
     const { error: errExceso } = await admin.from('fuente_financiacion').insert({
       tenant_id: tenantA.id,

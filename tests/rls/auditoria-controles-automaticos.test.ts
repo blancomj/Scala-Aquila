@@ -112,6 +112,23 @@ async function listaTipoId(admin: Cliente, tipo: string, codigo: string): Promis
   return data.id
 }
 
+/** Crea un fondo de destinación específica y lo activa (propuesto → pendiente_autorizacion → activo),
+ * mismo patrón que activar() en tests/tenancy/fondos-modelo-general.test.ts. */
+async function crearFondoActivoFixture(admin: Cliente, tenantId: string, codigo: string): Promise<string> {
+  const tipoId = await listaTipoId(admin, 'TIPO_FONDO', 'proyecto')
+  const { data, error } = await admin
+    .from('fondos')
+    .insert({ tenant_id: tenantId, codigo, nombre: `Fondo ${codigo}`, naturaleza: 'destinacion_especifica', tipo_id: tipoId })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture fondo ${codigo}: ${error.message}`)
+  for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+    const { error: errorEstado } = await admin.from('fondos').update({ estado }).eq('id', data.id)
+    if (errorEstado) throw new Error(`fixture fondo ${codigo} → ${estado}: ${errorEstado.message}`)
+  }
+  return data.id
+}
+
 d('Controles automáticos — Continuous Control Monitoring', () => {
   const admin = clienteAdmin(env!)
 
@@ -599,6 +616,171 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const tenant = await crearTenant(admin, 'ccm-guardas', auditor.id)
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'GUARDAS_INMUTABILIDAD_DESHABILITADAS')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+    expect(resultado.hallazgo_id).toBeNull()
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('FONDO_SIN_AUTORIZACION: detecta un fondo de destinación específica activo sin autorización y crea hallazgo ALTO', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-fondo-sin-aut')
+    const tenant = await crearTenant(admin, 'ccm-fondo-sin-aut', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FSA-${Date.now()}`)
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_SIN_AUTORIZACION')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('FAIL')
+    expect(resultado.conteo).toBeGreaterThanOrEqual(1)
+
+    const { data: hallazgo } = await admin
+      .from('auditoria_hallazgos')
+      .select('nivel')
+      .eq('id', resultado.hallazgo_id!)
+      .single()
+    expect(hallazgo?.nivel).toBe('ALTO')
+
+    // Registrar la autorización que faltaba hace que una segunda corrida ya no la reporte —
+    // confirma que el control lee fondo_autorizaciones en tiempo real, no un snapshot.
+    const organoId = await listaTipoId(admin, 'ORGANO_DECISORIO', 'asamblea')
+    const { error: errorAut } = await admin.from('fondo_autorizaciones').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondoId,
+      organo_id: organoId,
+      tipo_decision: 'Aprobación de creación',
+      decision: 'Se aprueba',
+    })
+    if (errorAut) throw new Error(`fixture autorizacion: ${errorAut.message}`)
+
+    const segunda = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+    expect(segunda.error).toBeNull()
+    expect(segunda.data![0]!.resultado).toBe('PASS')
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('FONDO_SIN_AUTORIZACION: el fondo de imprevistos queda exento (Ley 675 lo crea sin acta)', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-fondo-imprevistos')
+    const tenant = await crearTenant(admin, 'ccm-fondo-imprevistos', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const tipoImprevistos = await listaTipoId(admin, 'TIPO_FONDO', 'imprevistos')
+    const { data: fondo, error: errorFondo } = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: `FIM-${Date.now()}`,
+        nombre: 'Fondo de imprevistos',
+        naturaleza: 'imprevistos',
+        tipo_id: tipoImprevistos,
+        permanente: true,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorFondo) throw new Error(`fixture fondo imprevistos: ${errorFondo.message}`)
+    for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+      const { error } = await admin.from('fondos').update({ estado }).eq('id', fondo.id)
+      if (error) throw new Error(`fixture fondo imprevistos → ${estado}: ${error.message}`)
+    }
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_SIN_AUTORIZACION')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('FONDO_CERRADO_CON_SALDO: sobre datos limpios el resultado es PASS y no crea hallazgo', async () => {
+    // No se induce el FAIL desde este test: cuando este control se escribió (BLOQUE R,
+    // 2026-09-04) SÍ era alcanzable — activo → en_cierre → cerrado no exigía saldo 0. BLOQUE O
+    // (2026-09-05, guard_fondo_cierre_completo) cerró ese hueco: ahora cerrado con saldo ≠ 0 es
+    // literalmente imposible de alcanzar sin desactivar la propia guarda que lo impide — mismo
+    // criterio que CARTERA_SOBREAPLICACION/GUARDAS_INMUTABILIDAD_DESHABILITADAS arriba. El
+    // control queda como defensa en profundidad, no como el único cinturón.
+    const auditor = await crearUsuario(admin, 'ccm-fondo-cerrado')
+    const tenant = await crearTenant(admin, 'ccm-fondo-cerrado', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCS-${Date.now()}`)
+    await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondoId)
+    await admin.rpc('fn_fondo_cerrar', { p_fondo_id: fondoId })
+
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_CERRADO_CON_SALDO')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+    expect(resultado.hallazgo_id).toBeNull()
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('FONDO_COMPROMISO_EXCEDE_DISPONIBLE: sobre datos limpios el resultado es PASS y no crea hallazgo', async () => {
+    // No se induce el FAIL desde este test: forzarlo requeriría dejar un fondo con
+    // disponible negativo, y guard_fondo_compromiso (R9) ya impide comprometer más
+    // allá del disponible en la escritura normal — mismo criterio que
+    // CARTERA_SOBREAPLICACION arriba (defensa en profundidad, no una condición
+    // alcanzable sin desactivar la guarda que la previene).
+    const auditor = await crearUsuario(admin, 'ccm-fondo-disponible')
+    const tenant = await crearTenant(admin, 'ccm-fondo-disponible', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+    const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCD-${Date.now()}`)
+    const { error: errorMov } = await admin
+      .from('fondo_movimientos')
+      .insert({ tenant_id: tenant.id, fondo_id: fondoId, tipo: 'aporte', monto: 200_000 })
+    if (errorMov) throw new Error(`fixture aporte: ${errorMov.message}`)
+
+    const { error: errorCompromiso } = await admin.from('fondo_compromisos').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondoId,
+      concepto: 'Compromiso dentro del disponible',
+      monto: 50_000,
+      estado: 'comprometido',
+    })
+    if (errorCompromiso) throw new Error(`fixture compromiso: ${errorCompromiso.message}`)
+
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_COMPROMISO_EXCEDE_DISPONIBLE')
     const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
 
     const clienteAuditor = await clienteComo(env!, auditor)

@@ -437,29 +437,89 @@ administración con el total.
 > (`rubro_id`, proveedor, factura, monto, fecha). **Esa tabla NO se crea en esta fase.**
 > No implementar comparativo presupuestado vs ejecutado, proveedores ni causación.
 
-### `fondos` y `fondo_movimientos` — fondo de imprevistos
+### Dominio Fondos (GAP-22 — supera el corte de GAP-15)
 
-Decisión cerrada: el fondo de imprevistos es un **concepto de cobro separado con saldo
-acumulado propio** (cierra GAP-15). Tiene su propia línea en la liquidación.
+> **El corte original de GAP-15** (`fondos(tipo enum(imprevistos,otro), nombre, saldo_actual)` +
+> `fondo_movimientos(tipo enum(aporte,uso), …)`) **queda superado por GAP-22**. Se conserva aquí
+> como historia: era correcto para lo que F2 necesitaba —un contenedor con saldo derivado— pero
+> no representa un fondo con destinación específica. Diagnóstico que motiva la reapertura:
+> `ANALISIS_FONDOS_BLOQUE_A.md`. Decisiones estructurales: **D-36** y **D-37**.
+
+Un **Fondo** es una estructura de control y destinación de recursos de la copropiedad, definida
+por una finalidad, reglas de alimentación, autorización, vigencia y trazabilidad. **No** es una
+cuenta bancaria, ni una cuenta contable, ni una cuota, ni un rubro presupuestal, ni una reserva
+patrimonial.
+
+**Naturaleza contable — cerrada y no reabierta por GAP-22:** el fondo no es pasivo ni
+patrimonio, es **efectivo restringido** (CTCP Concepto 0146/2025; ver
+`Casos de uso/Contabilidad/PC_01_Plantilla_PUC_Propiedad_Horizontal.md` §3.2). Los grupos
+PUC `27` y `32` están retirados (`contable_codigo_retirado`). La trazabilidad la da la
+**dimensión `fondo_id`**, no una cuenta por fondo.
 
 ```text
-fondos(tenant_id, tipo enum(imprevistos, otro), nombre, saldo_actual)
-   UNIQUE(tenant_id, tipo) para tipo = 'imprevistos'
+fondos(tenant_id, codigo, nombre, naturaleza, tipo_id, estado, objetivo, destinacion,
+       permanente, meta, fecha_inicio, fecha_fin, saldo_actual, contable_cuenta_id,
+       documento_principal_id)
+   UNIQUE(tenant_id, codigo)
+   UNIQUE(tenant_id) WHERE naturaleza = 'imprevistos'
 
-fondo_movimientos(fondo_id, tipo enum(aporte, uso), monto, periodo_id,
-                  liquidacion_id, descripcion, autorizado_por, created_at)
-   append-only — sin UPDATE ni DELETE
+fondo_autorizaciones(fondo_id, organo_id, tipo_decision, numero_acta, fecha_acta,
+                     decision, alcance, vigencia_desde, vigencia_hasta, documento_id)
+
+fondo_fuentes(fondo_id, tipo_fuente_id, base_calculo, porcentaje, valor, periodicidad,
+              vigencia_desde, vigencia_hasta, autorizacion_id, documento_id)
+
+fondo_compromisos(fondo_id, concepto, monto, monto_ejecutado, fecha, fecha_limite,
+                  estado, beneficiario_tercero_id, solicitud_id, documento_id)
+
+fondo_solicitudes_uso(fondo_id, solicitante_id, fecha, objetivo, monto_solicitado,
+                      justificacion, estado, aprobador_id, fecha_aprobacion, documento_id)
+
+fondo_movimientos(fondo_id, tipo, monto, fecha, periodo_id, liquidacion_id, pago_id,
+                  solicitud_id, compromiso_id, extracto_linea_id, documento_id,
+                  autorizacion_id, reversion_de_id, origen, descripcion,
+                  autorizado_por, created_at)
+   append-only — sin UPDATE ni DELETE (se mantiene tal cual de F2)
 ```
 
-`fondos.saldo_actual` es **derivado** de `fondo_movimientos`, nunca fuente de verdad
-(mismo principio que `saldos`, `20 §18`). Se recalcula y se valida contra la suma de
-movimientos.
+**`naturaleza` vs `tipo_id` — la distinción que exige el Modelo Maestro §2.1/§4.**
+`naturaleza` es un enum de dos valores (`imprevistos`, `destinacion_especifica`) porque
+**gatilla lógica real**: unicidad por copropiedad, reglas de la Ley 675 art. 35 (porcentaje
+mínimo sobre el presupuesto anual, suspensión de cobro al 50 %, excepción VIS/VIP ≤5 unidades
+de la Ley 2079/2021) y la competencia de la Asamblea del art. 38.11. Pasa la carga de la prueba
+de **D-24**. `tipo_id` es el vocabulario descriptivo —proyecto, obra, mantenimiento, renovación,
+especial— y vive en `lista_tipos` (familia `TIPO_FONDO`), parametrizable por copropiedad.
+**Un fondo de destinación específica nunca hereda las reglas del de imprevistos.**
 
-El porcentaje de aporte y su base de cálculo viven en `politicas_financieras`
-(`fondo_imprevistos_porcentaje`, `fondo_imprevistos_base`). **Configurables por
-copropiedad**, ajustables desde la UI en F6. La Ley 675 exige constituir el fondo y fija
-un mínimo referido al presupuesto anual; el valor concreto lo define cada copropiedad
-según su reglamento y lo aprobado en asamblea.
+**Tres saldos, no uno** (Modelo §15/§49):
+
+```text
+saldo       = Σ fondo_movimientos (con signo según tipo)
+comprometido = Σ fondo_compromisos vigentes − ejecutado
+disponible   = saldo − comprometido
+```
+
+`fondos.saldo_actual` es **caché materializado, no fuente de verdad** (`20 §18`). La fuente es
+`fn_fondo_saldos(fondo_id)`. Existe función de reconciliación y el campo deja de ser escribible
+fuera del trigger (D-36). **R8** pasa a exigir además que la reconciliación no encuentre
+divergencia.
+
+**Alimentación.** El porcentaje y la base viven en `politicas_financieras`
+(`fondo_imprevistos_porcentaje`, `fondo_imprevistos_base`) y, para los demás fondos, en
+`fondo_fuentes`. Configurables por copropiedad. La Ley 675 exige constituir el fondo de
+imprevistos y fija un mínimo referido al presupuesto anual; el valor concreto lo define cada
+copropiedad según su reglamento y lo aprobado en asamblea. **Ningún parámetro legal se codifica
+como constante.**
+
+**Fuera de alcance de GAP-22**, por depender de dominios que AQUILA no tiene todavía —se
+modelan como referencias nullables, nunca se simulan:
+
+- **Uso → CxP → pago saliente → banco.** No existen cuentas por pagar ni pagos salientes
+  (`pagos` es entrante por construcción: `monto > 0` + `inmueble_id NOT NULL`). Un uso ejecutado
+  registra el movimiento y su soporte documental, y deja `pago_id` nulo.
+- **Instrumentos financieros / CDT** y, por tanto, **rendimientos** con conciliación propia.
+  El tipo de movimiento `rendimiento` existe; su origen bancario queda pendiente.
+- **Proyectos.** `meta` y `% avance financiero` sí se calculan; no hay entidad proyecto.
 
 ## 4.3.2 `modo_calculo` — corrección derivada del Paso 0
 
@@ -693,9 +753,10 @@ R5  Σ coeficientes del set     = suma_total registrada
 R6  ninguna zona común es target de allocation ni sujeto de línea   ← §4.1.1
 R7  Σ 12 cuotas mensuales      = presupuesto.monto_total            ← §6.5
 R8  fondo.saldo_actual         = Σ fondo_movimientos                ← §4.3
+R9  fondo.disponible           = saldo − comprometido, y nunca negativo   ← §4.3, GAP-22
 ```
 
-Cualquier fallo de R1–R8 → `detect → report → block` (`0AEL §20`). Prohibido ajustar el
+Cualquier fallo de R1–R9 → `detect → report → block` (`0AEL §20`). Prohibido ajustar el
 resultado para que cuadre.
 
 ## 6.5 Del presupuesto anual a la cuota mensual — doble redondeo
@@ -771,6 +832,7 @@ código.
 | **GAP-19** | Reapertura de "todo agrega en un único concepto `CUOTA_ADMIN`" (línea 424) — motivada por `Docs/Motor presupuestal/AQUILA_SAAS_E16_...md`: arts. 25/31 Ley 675 exigen destinación sectorial y fuentes de financiación distintas de la cuota, algo irrepresentable con un solo concepto | Motor Presupuestal | **Adoptado, físico**: `fuente_financiacion`/`fundamento_normativo` (20260814200000_motor_presupuestal_financiacion.sql, tests/rls/motor-presupuestal-financiacion.test.ts); capa de exposición RPC+Edge Function+UI (`fn_registrar_fuente_financiacion`, `presupuesto-financiacion`, `apps/web/app/pages/presupuesto`); previsualización de distribución reutilizando `allocate()` (`presupuesto-previsualizar`, tests/tenancy/presupuesto-previsualizar.test.ts); neteo contra `CUOTA_ADMIN` vía `PARAMETER.OTROS_INGRESOS_ANUAL` resuelto en `construirSnapshotDesdeSupabase` desde Σ `fuente_financiacion` (20260815000000_seed_gc001_otros_ingresos.sql, tests/liquidacion/gc001-snapshot.test.ts); UI de `fundamento_normativo` (`apps/web/app/pages/fundamentos`). **GAP-19 cerrado por completo** |
 | **GAP-20** | Estados intermedios de aprobación presupuestal (`en_preparacion`/`propuesto`/`presentado`, arts. 35/38 Ley 675)                                                                                                                                                                        | —                  | **Diferido** (E-16 §12.2): GC-001 no ejercita ciclo de asamblea real; se retoma cuando exista esa necesidad concreta. `presupuesto_estado_t` se mantiene en 4 valores por ahora                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **GAP-21** | Sectorización y módulos de contribución (copropiedades comerciales/mixtas, art. 31 Ley 675)                                                                                                                                                                                            | —                  | **Diferido** (E-16 §12.3): GC-001 es puramente residencial; se retoma cuando exista un caso real de copropiedad mixta/comercial en el roadmap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **GAP-22** | Reapertura de §4.3 `fondos`/`fondo_movimientos`: el modelo cerrado con GAP-15 (dos tipos, dos clases de movimiento, un saldo) es irrepresentable para recursos con destinación específica — no tiene estado, ni destinación, ni autorización, ni compromiso, ni disponible. Motivada por `Casos de uso/Fondos/Modelo_Maestro_Fondos_AQUILA.md` (Ley 675 arts. 34/35/38, Ley 2079/2021, CTCP 0146/2025 y unificado 01(445)/2018) | Módulo de Fondos | **Adoptado, con alcance recortado** (D-36). Diagnóstico completo en `ANALISIS_FONDOS_BLOQUE_A.md`. Se evolucionan las tablas existentes (no se reemplazan) y se añaden `fondo_autorizaciones`, `fondo_fuentes`, `fondo_compromisos`, `fondo_solicitudes_uso`. Quedan **fuera** por depender de dominios inexistentes: uso→CxP/pago saliente, instrumentos financieros/CDT, rendimientos, proyectos. Ver §4.3 |
 
 **Ningún gap abierto bloquea F0–F5.** Los parámetros normativos dejaron de ser bloqueantes
 al convertirse en política versionada y configurable (§4.3). GAP-16, GAP-17, GAP-20 y GAP-21
@@ -823,7 +885,7 @@ READ → ANALYZE → PLAN → IMPACT → IMPLEMENT → TEST → VERIFY → DOCUM
 □ Migración con ENABLE + FORCE RLS en la misma migración que crea la tabla
 □ Tipos regenerados desde el esquema, no escritos a mano
 □ Tests unit + RLS + integración en verde
-□ Invariantes SEC-* y R1-R8 afectados con test que prueba la violación
+□ Invariantes SEC-* y R1-R9 afectados con test que prueba la violación
 □ Sin punto flotante en ninguna ruta monetaria (19 §19)
 □ Sin comparación por epsilon en reconciliación (19 §94)
 □ Eventos auditables emitidos

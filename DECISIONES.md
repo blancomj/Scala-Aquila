@@ -1385,3 +1385,332 @@ así que a partir de ahora un `gray-*` nuevo ahí rompe CI.
 en dos constantes de clase (`CLASE_PILDORA`, `CLASE_CAMPO` en
 `AelBlockExpresion.vue`): cambiarlos por componentes es un reemplazo acotado,
 no una reescritura.
+
+---
+
+## D-36 — Dominio Fondos: se evoluciona el modelo de GAP-15, no se reemplaza; alcance recortado a lo que el repo puede sostener
+
+|            |                                                              |
+| ---------- | ------------------------------------------------------------ |
+| **Fase**   | Módulo de Fondos, BLOQUE A (diagnóstico)                      |
+| **Estado** | Aceptada                                                      |
+| **Decide** | Usuario (2026-09-04, tras el diagnóstico `ANALISIS_FONDOS_BLOQUE_A.md`) |
+
+**Contexto.** `Casos de uso/Fondos/Modelo_Maestro_Fondos_AQUILA.md` propone un dominio
+de fondos completo (12 entidades, ciclo de vida de 8 estados, compromisos, solicitudes
+de uso, instrumentos financieros, rendimientos, conciliación propia). El diagnóstico del
+BLOQUE A encontró tres cosas:
+
+1. `fondos` y `fondo_movimientos` **ya existen desde F2** con RLS+FORCE, append-only,
+   trigger de saldo derivado y puente contable (`fondos.contable_cuenta_id`).
+2. **Están muertas**: no hay un solo `insert into public.fondo_movimientos` en todo el
+   repositorio. En la base de desarrollo hay 0 movimientos y 1 sola fila de `fondos`
+   (la del seed GC-001) entre ~170 tenants.
+3. La mitad del ciclo que el Modelo exige depende de dominios **inexistentes**: cuentas
+   por pagar, proveedores, pagos salientes, contratos, proyectos, instrumentos
+   financieros.
+
+Además, `PLAN §9.2` prohíbe en absoluto inventar tablas no cerradas en el plan, y
+`PLAN §4.3` había cerrado GAP-15 con el modelo mínimo. Precedente idéntico: E-16 reabrió
+ese mismo §4.3 y exigió registrar **GAP-19** antes de tocar el esquema.
+
+**Decisión.**
+
+- Se registra **GAP-22** en `PLAN §7` y se reescribe `PLAN §4.3` con el modelo objetivo.
+  El corte de GAP-15 queda **superado**, no borrado.
+- Se **evolucionan** `fondos` y `fondo_movimientos`; no se crean tablas paralelas ni se
+  duplica el fondo de imprevistos existente (Modelo §55/§56).
+- Se añaden cuatro tablas: `fondo_autorizaciones`, `fondo_fuentes`,
+  `fondo_compromisos`, `fondo_solicitudes_uso`. **No** se crean `fondos_instrumentos`,
+  `fondos_remanentes`, `fondos_cierres` ni `fondos_alertas`: remanente y cierre son
+  estado + documento sobre el propio fondo, y las alertas se derivan (como
+  `fn_alertas_cartera`), no se persisten.
+- **`naturaleza` (enum de 2) + `tipo_id` (`lista_tipos`, familia `TIPO_FONDO`)**. El enum
+  se justifica bajo D-24 porque gatilla lógica real: unicidad por copropiedad y las
+  reglas de la Ley 675 art. 35/38 y Ley 2079/2021. El vocabulario descriptivo
+  —proyecto, obra, mantenimiento, renovación, especial— es parametrizable y **no hereda**
+  las reglas del fondo de imprevistos.
+- **Tres saldos**: `saldo`, `comprometido`, `disponible`. `fondos.saldo_actual` pasa a ser
+  caché materializado con función de reconciliación obligatoria; la fuente de verdad es
+  `fn_fondo_saldos()`. Se cierra el agujero por el que hoy el campo es escribible desde
+  fuera del trigger.
+- **Fuera de alcance**, como referencias nullables y nunca simuladas: uso → CxP → pago
+  saliente → banco; instrumentos financieros/CDT y sus rendimientos conciliados;
+  proyectos.
+
+**Por qué recortado.** El Modelo §27 prohíbe expresamente registrar un "uso" como simple
+disminución de saldo cuando existe una obligación económica real pendiente. Sin dominio
+de CxP no se puede cumplir esa regla; construir el uso a medias sería violarla. Es
+preferible dejar el eslabón explícitamente vacío y registrado que fingirlo.
+
+**Consecuencia.** `ANALISIS_FONDOS_BLOQUE_A.md` es el entregable del BLOQUE A y la
+referencia del estado de partida (incluidos cuatro defectos preexistentes: R8 violado en
+datos reales, ninguna copropiedad con fondo de imprevistos, `requiere_fondo` sin guard,
+y tres eventos contables sembrados sin consumir).
+
+---
+
+## D-37 — Fondos usa la matriz de permisos existente + un módulo de rol funcional, no diez permisos nuevos
+
+|            |                                                    |
+| ---------- | -------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, BLOQUE A                          |
+| **Estado** | Aceptada                                            |
+| **Decide** | Agente (recomendación aceptada por el usuario)      |
+
+**Contexto.** El Modelo Maestro §36/§48 pide diez permisos propios (`fondos.ver`,
+`fondos.crear`, `fondos.autorizar`, `fondos.aportar`, `fondos.solicitar_uso`,
+`fondos.aprobar_uso`, `fondos.comprometer`, `fondos.cerrar`, `fondos.auditar`,
+`fondos.editar`). `apps/web/app/types/permissions.ts` define **12 permisos genéricos**
+por recurso (`data:*`, `settings:manage`, `audit:view`, …), exige cobertura de test del
+**100 %**, y `tests/rbac/t-matrix.test.ts` falla si el TS y las políticas RLS divergen.
+
+**Decisión.** No se amplía `Permission`. Fondos usa:
+
+- `data:read` para consultar, `data:create` para registrar, `settings:manage` para
+  configurar el fondo y sus fuentes, `audit:view` para los controles de auditoría;
+- el **módulo de rol funcional** `financiero` —donde `fondos` y `fondo_movimientos` ya
+  están, desde `20260830130000_roles_funcionales_enforcement.sql`— para la visibilidad
+  por rol funcional;
+- **segregación de funciones en la base**, no en la matriz: quien solicita un uso no puede
+  aprobarlo, y quien aprueba no puede ejecutar. Se implementa con guards de trigger, igual
+  que `auditoria_hallazgo_cierre_guard` y `guard_accion_cobranza_transicion`.
+
+**Por qué.** La única capacidad realmente diferenciada que ya existe en AQUILA (aprobar
+cobranza de alto impacto) tampoco está modelada como `Permission` — vive en un trigger.
+Añadir diez permisos obligaría a reescribir la matriz, sus políticas RLS y el test
+T-MATRIX para expresar algo que el repo ya expresa mejor en la base de datos, que es
+además donde `PLAN §9` exige que viva la barrera real.
+
+**Cómo revertirlo.** Si aparece la necesidad de un rol "aprobador de fondos" que no sea
+`administrador`, la vía nativa es una fila nueva en la familia `ROL_FUNCIONAL` de
+`lista_tipos` + su mapeo en `rol_funcional_modulo`, sin tocar `permissions.ts`.
+
+---
+
+## D-38 — BLOQUE K (circuito de cobro del fondo): se abre el frente que D-36 dejó aparte, reutilizando `conceptos`/`cargos`/`pago_aplicaciones` sin tocar AEL
+
+|            |                                                                     |
+| ---------- | ------------------------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, BLOQUE K                                           |
+| **Estado** | Aceptada                                                             |
+| **Decide** | Usuario (2026-09-04, "sigue con K", tras cerrar B–G+J+L+O y el alta) |
+
+**Contexto.** El propio BLOQUE A (§6 de `ANALISIS_FONDOS_BLOQUE_A.md`) dejó K fuera del
+alcance aceptado en D-36 ("bloques B–G + J + L + O + P + R + S + T"), calificándolo de
+"ejecutable pero caro... merece ser su propio frente, después de B–G". El usuario ahora
+pide explícitamente continuar con él. Cierra §4.4 completo y §4.6: `CARTERA_FONDO_IMPREVISTOS`
+(1315)/`INGRESO_FONDO_IMPREVISTOS` (4115) llevan sembrados desde antes de este módulo sin que
+nada los consuma, y las dos columnas de `politicas_financieras`
+(`fondo_imprevistos_porcentaje`/`_base`) son parámetros que nadie lee.
+
+**Decisión — reusar la tubería de cobro existente, no crear una paralela.**
+
+- **Un `concepto` nuevo, no una tabla nueva.** `conceptos` ya soporta exactamente lo que
+  hace falta (`modo_calculo='distribucion'`, `formula_ael`, `tipo_recurrencia='recurrente'`,
+  `periodicidad='mensual'`) — mismo mecanismo que `ADMINISTRACION`. Se añade una cuarta fila a
+  `conceptos_plantilla` (`FONDO_IMPREVISTOS`), con el mismo patrón PC-3c: `fn_instanciar_conceptos`
+  (ya idempotente, `ON CONFLICT (tenant_id, codigo) DO NOTHING`) la copia a los tenants
+  existentes sin tocar la función. Nace en `estado='borrador'`: no cobra nada hasta que un
+  administrador la revise y apruebe (mismo maker-checker que ya rige todo concepto), lo que
+  además evita el caso "activo sin `fondo_imprevistos_porcentaje` configurado" — un concepto en
+  borrador no entra al snapshot (`snapshot-supabase.ts` filtra `estado='activo'`).
+- **La fórmula activa las dos columnas dormidas de `politicas_financieras`, con la función
+  `PORCENTAJE()` que AEL ya trae** (`02_AEL_Language...md`, `PORCENTAJE(total, pct) -> MONEY`,
+  ya cubierta por `functions.test.ts`) — no hace falta ninguna capacidad nueva de AEL:
+  ```
+  REGLA FONDO_IMPREVISTOS
+  DEFINIR porcentaje = PARAMETER.FONDO_IMPREVISTOS_PORCENTAJE
+  SI PARAMETER.FONDO_IMPREVISTOS_BASE_CUOTA_ADMIN ENTONCES
+    RETORNAR PORCENTAJE(CONCEPTO.ADMINISTRACION, porcentaje)
+  SINO
+    RETORNAR PORCENTAJE(PARAMETER.PRESUPUESTO_ANUAL, porcentaje)
+  FIN
+  ```
+  `CONCEPTO.ADMINISTRACION`/`PARAMETER.PRESUPUESTO_ANUAL` ya existen en el snapshot; lo único
+  que se añade es exponer `fondo_imprevistos_porcentaje`/`_base` (hoy sin ningún lector) como
+  dos parámetros más, mismo patrón que `redondeo_modo`/`redondeo_escala`. Referenciar
+  `CONCEPTO.ADMINISTRACION` en el texto de la fórmula crea una dependencia real en el grafo
+  (`graph.ts`, orden topológico) incluso para el tenant que usa la rama `presupuesto_anual`:
+  acoplamiento aceptado porque `ADMINISTRACION` es de facto obligatorio en toda copropiedad
+  operativa.
+- **Cargo → estado de cuenta → recaudo: cero cambios.** Un cargo de `FONDO_IMPREVISTOS` nace
+  de `fn_aplicar_liquidacion_idempotente` exactamente igual que uno de `ADMINISTRACION`
+  (mismo `concepto_id`, `categoria='capital'`); cartera, estado de cuenta e imputación de pagos
+  no distinguen conceptos, así que no hay nada que tocar ahí.
+- **Recaudo → aporte al fondo: un trigger nuevo, siguiendo el precedente de
+  `trg_descuento_pronto_pago`.** `pago_aplicaciones` ya tiene ese patrón exacto (trigger
+  `AFTER INSERT ... REFERENCING NEW TABLE`, `SECURITY DEFINER`, delegando a una función que
+  hace el trabajo real) para el descuento por pronto pago. `trg_aporte_fondo_imprevistos`
+  reutiliza el mismo patrón: por cada fila nueva de `pago_aplicaciones` cuyo cargo apunte a un
+  concepto `FONDO_IMPREVISTOS`, inserta un `fondo_movimientos` de tipo `aporte` (monto, `pago_id`
+  y `periodo_id` heredados de la aplicación/cargo). `fondo_movimientos.pago_id` ya existía desde
+  el bloque E — se diseñó para esto y estaba sin usar.
+- **Contabilidad:** el bloque de cargos y el de `pago_aplicaciones` de `contable_movimientos()`
+  distinguen `concepto.codigo = 'FONDO_IMPREVISTOS'` para resolver contra `CARTERA_FONDO_IMPREVISTOS`
+  (1315)/`INGRESO_FONDO_IMPREVISTOS` (4115) en vez de la resolución genérica por `categoria`/
+  `presupuesto_cuenta`, y pueblan `fondo_id` en esas líneas (antes `null` ahí) — las dos cuentas
+  ya exigían `requiere_fondo` desde BLOQUE L, así que sin esto `contable_dimensiones_faltantes()`
+  las reportaría como incompletas en cuanto alguien las usara. El "aporte" que dispara el
+  trigger genera una tercera línea (bloque D, ya existente desde BLOQUE E/L): el efectivo pasa
+  del banco general a `FONDO_IMPREVISTOS_EFECTIVO` (111015). Las tres líneas por cuota cobrada
+  son intencionales, no una duplicación: cargo (nace la CxC), recaudo (se cobra, se libera la
+  CxC), aporte (el efectivo se segrega al fondo) — es exactamente la cadena del Modelo §42
+  (`presupuesto → base → regla → liquidación → cargo → estado de cuenta → recaudo → aporte →
+  banco`), no el eslabón de conciliación bancaria real (`extracto_linea`), que sigue fuera de
+  alcance (D-36).
+
+**Límite explícito — anular un pago no reversa el aporte.** RC-2
+(`20260903130000_anulacion_pago.sql`) ya documentó, para el descuento por pronto pago, que
+anular un pago no reversa automáticamente sus efectos derivados; esta migración adopta la
+misma postura para el aporte al fondo, por la misma razón: el espejo negativo que genera una
+anulación no identifica de forma inequívoca cuál `fondo_movimientos` corresponde revertir
+cuando un mismo pago tuvo más de una aplicación contra `FONDO_IMPREVISTOS` (sin
+`aplicacion_id` en `fondo_movimientos`, emparejar por monto sería una heurística frágil).
+`trg_aporte_fondo_imprevistos` filtra `monto > 0` explícitamente para no procesar el espejo de
+una anulación ni romper con una excepción la propia anulación (`fondo_movimientos_monto_signo`
+exige que un `aporte` sea `> 0`, y el espejo llega en `<> 0`, potencialmente negativo). Anular
+un pago que cubrió una cuota del fondo exige hoy un movimiento manual de `reversion` contra el
+fondo — mismo criterio operativo que ya existe para cualquier corrección de `fondo_movimientos`.
+
+**Consecuencia.** Cierra §4.4 y §4.6 de `ANALISIS_FONDOS_BLOQUE_A.md`. Sigue fuera de alcance
+(D-36, sin cambios): uso → CxP → pago saliente → banco; instrumentos financieros y sus
+rendimientos con conciliación propia; proyectos.
+
+## D-39 — BLOQUE R (auditoría del dominio Fondos): audit_log solo donde una transición de estado sobreescribe el rastro; 3 controles automáticos nuevos, reusando el CCM existente
+
+|            |                                                                     |
+| ---------- | ------------------------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, BLOQUE R                                           |
+| **Estado** | Aceptada                                                             |
+| **Decide** | Usuario (2026-09-04, "sigue con R", tras cerrar B–G+J+L+K+P)         |
+
+**Contexto.** BLOQUE A (§6 de `ANALISIS_FONDOS_BLOQUE_A.md`) describe R como "`audit_log` +
+controles del módulo de auditoría interna", remitiendo al Prompt Fondos §37 (AUDITORÍA) y §60
+(AUDITORÍA CONTINUA). El repo ya tiene ambos mecanismos construidos para otros dominios
+(`audit_membership_rol_funcional_change`, 20260830170000; Continuous Control Monitoring vía
+`auditoria_control_ejecutar`, 20260914/20260917/20260918) — R no inventa nada, extiende los dos.
+
+**Decisión 1 — `audit_log` solo en fondos/fondo_compromisos/fondo_solicitudes_uso, no en
+fondo_movimientos ni fondo_autorizaciones.** Las dos últimas ya son append-only
+(`forbid_mutation`, Modelo §15): duplicar cada fila en `audit_log` sería el mismo dato dos
+veces, cero señal nueva. Las tres primeras SÍ mutan (`estado` se sobreescribe con cada
+transición, sin columna que registre quién la hizo) — `fondos` en particular no tiene ninguna
+columna `registrado_por`, así que sin el trigger no hay forma de saber quién creó un fondo. Un
+trigger AFTER por tabla (`audit_fondo_change`, `audit_fondo_compromiso_change`,
+`audit_fondo_solicitud_uso_change`), idéntico patrón al de rol funcional: INSERT →
+`<entidad>.creado`, UPDATE de `estado` → `<entidad>.estado_cambiado`. Esto cierra el registro
+que exige el Prompt Fondos §37 ("creación, aprobación, aporte, uso, compromiso, rendimiento,
+traslado, reversión, cierre"): los movimientos financieros ya están en `fondo_movimientos.tipo`
+(inmutable); lo que faltaba era quién cambió un estado y cuándo.
+
+**Decisión 2 — 3 controles automáticos nuevos en `auditoria_control_ejecutar`, no un motor de
+reglas separado para Fondos.** `FONDO_SIN_AUTORIZACION` (§37/§60 "Fondo sin autorización": un
+fondo de destinación específica que avanzó más allá de `propuesto` sin una fila en
+`fondo_autorizaciones` — el fondo de imprevistos queda exento, la Ley 675 art. 35 lo crea
+automático sin acta), `FONDO_COMPROMISO_EXCEDE_DISPONIBLE` (defensa en profundidad sobre
+R9/`guard_fondo_compromiso`, mismo criterio que `CARTERA_SOBREAPLICACION`: verificar que la
+guarda nunca se haya esquivado), `FONDO_CERRADO_CON_SALDO` (§37/§60 "fondo cerrado con
+obligaciones/saldo": `guard_fondo_estado_transicion` valida la máquina de estados, no que el
+saldo sea cero antes de `cerrado` — un fondo puede llegar a `cerrado` con saldo o comprometido
+pendiente porque BLOQUE O, la decisión estructurada del remanente, todavía no existe; este
+control cubre ese hueco mientras tanto). Verificado en vivo contra datos reales de desarrollo:
+un control real creado y ejecutado detectó que FON-CMP (activo, destinación específica, cero
+autorizaciones) era una excepción genuina, creó el hallazgo automático, y una segunda corrida
+tras registrar la autorización dio PASS.
+
+**Decisión 3 — `AuditarAhoraBoton` (ya existente, usado en `LiquidacionPanel.vue`) se integra
+en `FondoDetalleDrawer.vue`, no un botón nuevo.** `origen-tipo="fondo"` — `origen_tipo` en
+`auditoria_engagements` es texto libre, no una lista cerrada, así que no hace falta migración
+para el valor nuevo. Probado en vivo: crea el engagement vinculado, visible en Auditoría ›
+Auditorías con el badge "Desde fondo".
+
+**Límite explícito.** No se seedean filas de `auditoria_riesgos`/`auditoria_controles` para
+Fondos en ningún tenant — igual que el resto del catálogo CCM, es el auditor quien decide crear
+el control en su copropiedad; esta migración solo hace posible que lo cree (extiende el CHECK
+de `codigo_automatico` y el `CONTROLES_AUTOMATICOS` del frontend). Tampoco se audita
+`fondo_fuentes.activa` — activar/desactivar una fuente no está en la lista de eventos que exige
+el Prompt Fondos §37, y añadir un cuarto trigger de forma distinta a los otros tres habría sido
+alcance no pedido.
+
+**Consecuencia.** Cierra BLOQUE R de `ANALISIS_FONDOS_BLOQUE_A.md` §6. Migración
+`20260930100000_fondo_auditoria.sql`; 4 tests nuevos en
+`tests/rls/auditoria-controles-automaticos.test.ts`.
+
+## D-40 — BLOQUE O (cierre y remanentes): `fondo_remanentes` + `fn_fondo_cerrar` atómica; un candado real de BLOQUE F corregido en el proceso
+
+|            |                                                                     |
+| ---------- | ------------------------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, BLOQUE O                                           |
+| **Estado** | Aceptada                                                             |
+| **Decide** | Usuario (2026-09-05, "sigue con O", tras cerrar B–G+J+L+K+P+R)       |
+
+**Contexto.** BLOQUE A (§6 de `ANALISIS_FONDOS_BLOQUE_A.md`) describió O como "puro estado +
+documento" — una simplificación que resultó incompleta frente al Prompt Fondos §35 (REMANENTES:
+"saldo final → remanente → decisión competente → destino → traslado/devolución/aplicación →
+cierre") y §36 (CIERRE: "no cerrar si hay... compromisos pendientes... remanente sin decisión").
+Un simple cambio de `fondos.estado` no hace cumplir ninguna de las dos cosas. La corrección: el
+propio informe de BLOQUE A había reportado antes O como ya cerrado (error del reporte de cierre
+de BLOQUE P, corregido en esa misma conversación) — nunca se implementó hasta ahora.
+
+**Lo que ya existía y no había que reconstruir.** BLOQUE E/F (20260929120000/140000) ya reservan
+`cierre_remanente` como el único tipo de movimiento que un fondo `en_cierre` admite
+(`guard_fondo_movimiento`), y `fn_fondo_movimiento_efecto` ya sabe que resta del saldo. Solo
+faltaba el punto de entrada que registra la decisión y la guarda que impide llegar a `cerrado`
+saltándosela.
+
+**Decisión 1 — `fondo_remanentes`, append-only, mismo criterio que `fondo_autorizaciones`.**
+Guarda quién decidió (`organo_id`, reusa `ORGANO_DECISORIO`), hacia dónde (`destino` — vocabulario
+cerrado `traslado|devolucion|aplicacion`, D-24: gobierna si se exige `fondo_destino_id` y si se
+genera un segundo movimiento) y qué `fondo_movimientos` (`cierre_remanente`) materializó la
+decisión — enlace validado por trigger, no solo por convención.
+
+**Decisión 2 — `fn_fondo_cerrar`, operación atómica (Prompt §53), no una secuencia de writes del
+cliente.** Un cierre real es 1–3 escrituras (el `cierre_remanente`, la decisión, y si el destino es
+traslado, un `traslado_entrada` en el fondo destino) más la transición final — hacerlo en el
+cliente arriesgaría un estado intermedio si algo falla a mitad de camino. Si el saldo derivado ya
+es 0, la función cierra directo sin exigir destino/órgano/decisión — no hay nada que decidir.
+SECURITY INVOKER (mismo criterio que `fn_aprobar_novedad`): las mismas políticas RLS que ya
+protegen un insert directo protegen esto, no hace falta elevar privilegios.
+
+**Decisión 3 — `guard_fondo_cierre_completo` como trigger ADICIONAL, no una reescritura de
+`guard_fondo_estado_transicion`.** Este último sigue siendo la única fuente de verdad del grafo de
+estados válido (y tiene tests propios); el nuevo trigger solo añade la precondición de negocio
+para la arista en_cierre→cerrado específicamente — sin compromisos/solicitudes pendientes, saldo
+en 0. Cubre tanto la RPC como un UPDATE directo que intente saltársela.
+
+**Hallazgo real durante la verificación en vivo, corregido aquí — no un bug preexistente ajeno,
+sino un candado que BLOQUE O expuso al usar `en_cierre` por primera vez para algo con
+consecuencias.** `guard_fondo_compromiso` (BLOQUE F) exigía `fondo.estado = 'activo'` para
+*cualquier* insert o update sobre `fondo_compromisos` — antes de BLOQUE O eso no importaba, porque
+nada dependía de poder resolver un compromiso mientras el fondo estaba `en_cierre`. Con
+`guard_fondo_cierre_completo` exigiendo cero compromisos pendientes para cerrar, ese "solo activo"
+se volvió un candado real: un compromiso `proyectado`/`comprometido` en un fondo `en_cierre` no se
+podía ni liberar ni anular (la única vía, un UPDATE de estado, exigía `activo`), y por lo tanto
+tampoco dejaba cerrar el fondo. Encontrado en vivo, no en una revisión de código: FON-CMP (dato de
+prueba real, con un compromiso `proyectado` heredado de una sesión anterior) reprodujo el candado
+exacto al intentar cerrarlo desde la UI. Corregido en
+`20260930130000_fondo_compromiso_resolver_en_cierre.sql`: `guard_fondo_compromiso` ahora permite
+`liberado`/`anulado` también durante `en_cierre` (INSERT sigue exigiendo `activo` sin excepción;
+UPDATE hacia cualquier otro estado también). `fondo_solicitudes_uso` no necesitó el mismo arreglo:
+su guard ya restringía el chequeo de estado a `INSERT` únicamente.
+
+**Consecuencia — un control de BLOQUE R (D-39) pasa de alcanzable a defensa en profundidad.**
+`FONDO_CERRADO_CON_SALDO` era alcanzable cuando se escribió (D-39, 2026-09-04): nada impedía
+`activo → en_cierre → cerrado` con saldo ≠ 0. Con `guard_fondo_cierre_completo` en pie, esa
+condición ya no se puede alcanzar sin desactivar la propia guarda — mismo estatus que
+`CARTERA_SOBREAPLICACION`/`GUARDAS_INMUTABILIDAD_DESHABILITADAS`. Su test en
+`tests/rls/auditoria-controles-automaticos.test.ts` se reescribió para afirmar PASS sobre datos
+limpios en vez de forzar el FAIL ya irreproducible.
+
+**Límite explícito (mismo criterio D-36).** El Prompt §36 pide también "sin movimientos no
+conciliados" y "sin soportes faltantes" antes de cerrar — no se hacen cumplir: la conciliación
+bancaria no está enlazada por fondo, y volver `documento_id` obligatorio en `fondo_movimientos`
+rompería el aporte automático por recaudo de BLOQUE K (`fn_fondo_credito_recaudo` no adjunta
+documento). Quedan fuera, igual que CxP/instrumentos/proyectos.
+
+**Consecuencia.** Cierra BLOQUE O de `ANALISIS_FONDOS_BLOQUE_A.md` §6. Migraciones
+`20260930120000_fondo_cierre_remanente.sql` y
+`20260930130000_fondo_compromiso_resolver_en_cierre.sql`; 10 tests nuevos en
+`tests/tenancy/fondos-modelo-general.test.ts`; 1 test de D-39 corregido para reflejar la nueva
+guarda.

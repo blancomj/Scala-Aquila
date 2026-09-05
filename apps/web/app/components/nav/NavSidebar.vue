@@ -70,6 +70,7 @@ function activo(to: string): boolean {
 const COLOR_ICONO_GRUPO: Record<string, string> = {
   Copropiedad: 'text-teal-400',
   Presupuesto: 'text-violet-400',
+  Fondos: 'text-pink-400',
   Facturación: 'text-emerald-400',
   'Recaudo y Cartera': 'text-blue-400',
   Contabilidad: 'text-orange-400',

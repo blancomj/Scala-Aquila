@@ -27,6 +27,19 @@ import {
 const env = leerEntorno()
 const d = env ? describe : describe.skip
 
+/** TIPO_FONDO es catálogo de plataforma (tenant_id null) — GAP-22. */
+async function idTipoFondo(admin: Cliente, codigo: string): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_FONDO')
+    .is('tenant_id', null)
+    .eq('codigo', codigo)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture TIPO_FONDO ${codigo}: ${error.message}`)
+  return data.id
+}
+
 if (!env) {
   console.warn('SALTADO tests/rls/domain-isolation: faltan variables de Supabase en .env')
 }
@@ -79,7 +92,13 @@ d('Aislamiento de dominio PH entre tenants (SEC-11/12)', () => {
 
     const { data: fondoB, error: errFondoB } = await admin
       .from('fondos')
-      .insert({ tenant_id: tenantB.id, tipo: 'imprevistos', nombre: 'Fondo B' })
+      .insert({
+        tenant_id: tenantB.id,
+        naturaleza: 'imprevistos',
+        nombre: 'Fondo B',
+        codigo: 'FON-IMP',
+        tipo_id: await idTipoFondo(admin, 'imprevistos'),
+      })
       .select('id')
       .single<{ id: string }>()
     if (errFondoB) throw new Error(`fixture fondo B: ${errFondoB.message}`)

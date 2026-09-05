@@ -75,6 +75,9 @@ export const CONTROLES_AUTOMATICOS = [
   { value: 'BANCOS_CONCILIACION_PENDIENTE', label: 'Conciliación bancaria pendiente (+15 días)' },
   { value: 'TERCEROS_PROVEEDOR_DUPLICADO', label: 'Proveedor con documento duplicado (informativo)' },
   { value: 'GUARDAS_INMUTABILIDAD_DESHABILITADAS', label: 'Guardas de inmutabilidad deshabilitadas' },
+  { value: 'FONDO_SIN_AUTORIZACION', label: 'Fondo sin autorización registrada' },
+  { value: 'FONDO_COMPROMISO_EXCEDE_DISPONIBLE', label: 'Compromiso de fondo superior al disponible' },
+  { value: 'FONDO_CERRADO_CON_SALDO', label: 'Fondo cerrado con saldo o comprometido pendiente' },
 ] as const
 
 export interface ResultadoEjecucionControl {

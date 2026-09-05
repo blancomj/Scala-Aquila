@@ -4310,49 +4310,430 @@ export type Database = {
           },
         ]
       }
+      fondo_autorizaciones: {
+        Row: {
+          alcance: string | null
+          created_at: string
+          decision: string
+          documento_id: string | null
+          fecha_acta: string | null
+          fondo_id: string
+          id: string
+          numero_acta: string | null
+          organo_id: number
+          registrada_por: string | null
+          tenant_id: string
+          tipo_decision: string
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
+        }
+        Insert: {
+          alcance?: string | null
+          created_at?: string
+          decision: string
+          documento_id?: string | null
+          fecha_acta?: string | null
+          fondo_id: string
+          id?: string
+          numero_acta?: string | null
+          organo_id: number
+          registrada_por?: string | null
+          tenant_id: string
+          tipo_decision: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Update: {
+          alcance?: string | null
+          created_at?: string
+          decision?: string
+          documento_id?: string | null
+          fecha_acta?: string | null
+          fondo_id?: string
+          id?: string
+          numero_acta?: string | null
+          organo_id?: number
+          registrada_por?: string | null
+          tenant_id?: string
+          tipo_decision?: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_autorizaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_autorizaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondo_compromisos: {
+        Row: {
+          beneficiario_tercero_id: string | null
+          concepto: string
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["fondo_compromiso_estado_t"]
+          fecha: string
+          fecha_limite: string | null
+          fondo_id: string
+          id: string
+          monto: number
+          monto_ejecutado: number
+          registrado_por: string | null
+          solicitud_id: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          beneficiario_tercero_id?: string | null
+          concepto: string
+          created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_compromiso_estado_t"]
+          fecha?: string
+          fecha_limite?: string | null
+          fondo_id: string
+          id?: string
+          monto: number
+          monto_ejecutado?: number
+          registrado_por?: string | null
+          solicitud_id?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          beneficiario_tercero_id?: string | null
+          concepto?: string
+          created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_compromiso_estado_t"]
+          fecha?: string
+          fecha_limite?: string | null
+          fondo_id?: string
+          id?: string
+          monto?: number
+          monto_ejecutado?: number
+          registrado_por?: string | null
+          solicitud_id?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_compromisos_beneficiario_tercero_id_fkey"
+            columns: ["beneficiario_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_solicitudes_uso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_compromisos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondo_fuentes: {
+        Row: {
+          activa: boolean
+          autorizacion_id: string | null
+          base_calculo: string | null
+          created_at: string
+          documento_id: string | null
+          fondo_id: string
+          id: string
+          periodicidad: string | null
+          porcentaje: number | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+          valor: number | null
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
+        }
+        Insert: {
+          activa?: boolean
+          autorizacion_id?: string | null
+          base_calculo?: string | null
+          created_at?: string
+          documento_id?: string | null
+          fondo_id: string
+          id?: string
+          periodicidad?: string | null
+          porcentaje?: number | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+          valor?: number | null
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Update: {
+          activa?: boolean
+          autorizacion_id?: string | null
+          base_calculo?: string | null
+          created_at?: string
+          documento_id?: string | null
+          fondo_id?: string
+          id?: string
+          periodicidad?: string | null
+          porcentaje?: number | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          valor?: number | null
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_fuentes_autorizacion_id_fkey"
+            columns: ["autorizacion_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_autorizaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_fuentes_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fondo_movimientos: {
         Row: {
+          autorizacion_id: string | null
           autorizado_por: string | null
+          compromiso_id: string | null
           created_at: string
           descripcion: string | null
+          documento_id: string | null
+          extracto_linea_id: string | null
+          fecha: string
           fondo_id: string
           id: string
           liquidacion_id: string | null
           monto: number
+          motivo: string | null
+          pago_id: string | null
           periodo_id: string | null
+          registrado_por: string | null
+          reversion_de_id: string | null
+          solicitud_id: string | null
           tenant_id: string
           tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Insert: {
+          autorizacion_id?: string | null
           autorizado_por?: string | null
+          compromiso_id?: string | null
           created_at?: string
           descripcion?: string | null
+          documento_id?: string | null
+          extracto_linea_id?: string | null
+          fecha?: string
           fondo_id: string
           id?: string
           liquidacion_id?: string | null
           monto: number
+          motivo?: string | null
+          pago_id?: string | null
           periodo_id?: string | null
+          registrado_por?: string | null
+          reversion_de_id?: string | null
+          solicitud_id?: string | null
           tenant_id: string
           tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Update: {
+          autorizacion_id?: string | null
           autorizado_por?: string | null
+          compromiso_id?: string | null
           created_at?: string
           descripcion?: string | null
+          documento_id?: string | null
+          extracto_linea_id?: string | null
+          fecha?: string
           fondo_id?: string
           id?: string
           liquidacion_id?: string | null
           monto?: number
+          motivo?: string | null
+          pago_id?: string | null
           periodo_id?: string | null
+          registrado_por?: string | null
+          reversion_de_id?: string | null
+          solicitud_id?: string | null
           tenant_id?: string
           tipo?: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
         }
         Relationships: [
           {
+            foreignKeyName: "fondo_movimientos_autorizacion_id_fkey"
+            columns: ["autorizacion_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_autorizaciones"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fondo_movimientos_autorizado_por_fkey"
             columns: ["autorizado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_compromiso_id_fkey"
+            columns: ["compromiso_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_compromisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_extracto_linea_id_fkey"
+            columns: ["extracto_linea_id"]
+            isOneToOne: false
+            referencedRelation: "extracto_linea"
             referencedColumns: ["id"]
           },
           {
@@ -4370,10 +4751,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fondo_movimientos_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fondo_movimientos_periodo_id_fkey"
             columns: ["periodo_id"]
             isOneToOne: false
             referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_reversion_de_id_fkey"
+            columns: ["reversion_de_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_movimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_solicitudes_uso"
             referencedColumns: ["id"]
           },
           {
@@ -4392,35 +4801,288 @@ export type Database = {
           },
         ]
       }
-      fondos: {
+      fondo_remanentes: {
         Row: {
-          contable_cuenta_id: string | null
           created_at: string
+          decision: string
+          destino: string
+          documento_id: string | null
+          fondo_destino_id: string | null
+          fondo_id: string
           id: string
-          nombre: string
-          saldo_actual: number
+          monto: number
+          movimiento_id: string
+          organo_id: number
+          registrado_por: string | null
           tenant_id: string
-          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          destino: string
+          documento_id?: string | null
+          fondo_destino_id?: string | null
+          fondo_id: string
+          id?: string
+          monto: number
+          movimiento_id: string
+          organo_id: number
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          destino?: string
+          documento_id?: string | null
+          fondo_destino_id?: string | null
+          fondo_id?: string
+          id?: string
+          monto?: number
+          movimiento_id?: string
+          organo_id?: number
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_remanentes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_fondo_destino_id_fkey"
+            columns: ["fondo_destino_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_movimiento_id_fkey"
+            columns: ["movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_movimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_remanentes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondo_solicitudes_uso: {
+        Row: {
+          aprobador_id: string | null
+          compromiso_id: string | null
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["fondo_solicitud_uso_estado_t"]
+          fecha: string
+          fecha_aprobacion: string | null
+          fondo_id: string
+          id: string
+          justificacion: string | null
+          monto_solicitado: number
+          motivo_rechazo: string | null
+          objetivo: string
+          solicitante_id: string
+          tenant_id: string
           updated_at: string | null
         }
         Insert: {
-          contable_cuenta_id?: string | null
+          aprobador_id?: string | null
+          compromiso_id?: string | null
           created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_solicitud_uso_estado_t"]
+          fecha?: string
+          fecha_aprobacion?: string | null
+          fondo_id: string
           id?: string
-          nombre: string
-          saldo_actual?: number
+          justificacion?: string | null
+          monto_solicitado: number
+          motivo_rechazo?: string | null
+          objetivo: string
+          solicitante_id: string
           tenant_id: string
-          tipo: Database["public"]["Enums"]["fondo_tipo_t"]
           updated_at?: string | null
         }
         Update: {
+          aprobador_id?: string | null
+          compromiso_id?: string | null
+          created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_solicitud_uso_estado_t"]
+          fecha?: string
+          fecha_aprobacion?: string | null
+          fondo_id?: string
+          id?: string
+          justificacion?: string | null
+          monto_solicitado?: number
+          motivo_rechazo?: string | null
+          objetivo?: string
+          solicitante_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fondo_solicitudes_uso_aprobador_id_fkey"
+            columns: ["aprobador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_compromiso_id_fkey"
+            columns: ["compromiso_id"]
+            isOneToOne: false
+            referencedRelation: "fondo_compromisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_solicitudes_uso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fondos: {
+        Row: {
+          codigo: string
+          contable_cuenta_id: string | null
+          created_at: string
+          destinacion: string | null
+          documento_principal_id: string | null
+          estado: Database["public"]["Enums"]["fondo_estado_t"]
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          meta: number | null
+          naturaleza: Database["public"]["Enums"]["fondo_naturaleza_t"]
+          nombre: string
+          objetivo: string | null
+          permanente: boolean
+          saldo_actual: number
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          codigo: string
           contable_cuenta_id?: string | null
           created_at?: string
+          destinacion?: string | null
+          documento_principal_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_estado_t"]
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           id?: string
+          meta?: number | null
+          naturaleza: Database["public"]["Enums"]["fondo_naturaleza_t"]
+          nombre: string
+          objetivo?: string | null
+          permanente?: boolean
+          saldo_actual?: number
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string
+          contable_cuenta_id?: string | null
+          created_at?: string
+          destinacion?: string | null
+          documento_principal_id?: string | null
+          estado?: Database["public"]["Enums"]["fondo_estado_t"]
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          meta?: number | null
+          naturaleza?: Database["public"]["Enums"]["fondo_naturaleza_t"]
           nombre?: string
+          objetivo?: string | null
+          permanente?: boolean
           saldo_actual?: number
           tenant_id?: string
-          tipo?: Database["public"]["Enums"]["fondo_tipo_t"]
+          tipo_id?: number
           updated_at?: string | null
         }
         Relationships: [
@@ -4432,6 +5094,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fondos_documento_principal_id_fkey"
+            columns: ["documento_principal_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondos_documento_principal_id_fkey"
+            columns: ["documento_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fondos_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4445,12 +5121,20 @@ export type Database = {
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fondos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fuente_financiacion: {
         Row: {
           created_at: string
           descripcion: string | null
+          fondo_id: string | null
           fundamento_normativo_id: number | null
           id: string
           presupuesto_cuenta_id: string | null
@@ -4464,6 +5148,7 @@ export type Database = {
         Insert: {
           created_at?: string
           descripcion?: string | null
+          fondo_id?: string | null
           fundamento_normativo_id?: number | null
           id?: string
           presupuesto_cuenta_id?: string | null
@@ -4477,6 +5162,7 @@ export type Database = {
         Update: {
           created_at?: string
           descripcion?: string | null
+          fondo_id?: string | null
           fundamento_normativo_id?: number | null
           id?: string
           presupuesto_cuenta_id?: string | null
@@ -4488,6 +5174,13 @@ export type Database = {
           valor_disponible?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fuente_financiacion_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fuente_financiacion_fundamento_normativo_id_fkey"
             columns: ["fundamento_normativo_id"]
@@ -8762,6 +9455,18 @@ export type Database = {
           total_debito: number
         }[]
       }
+      contable_dimensiones_faltantes: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          cuenta_codigo: string
+          cuenta_nombre: string
+          dimension_faltante: string
+          entidad: string
+          fecha: string
+          origen: string
+          origen_id: string
+        }[]
+      }
       contable_movimientos: {
         Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
         Returns: {
@@ -8919,6 +9624,10 @@ export type Database = {
       }
       fn_aplicar_anticipos: {
         Args: { p_inmueble_id: string; p_tenant_id: string }
+        Returns: number
+      }
+      fn_aplicar_aporte_fondo: {
+        Args: { p_pago_aplicacion_id: string }
         Returns: number
       }
       fn_aplicar_descuento_pronto_pago: {
@@ -9133,6 +9842,69 @@ export type Database = {
           mes: string
         }[]
       }
+      fn_fondo_cerrar: {
+        Args: {
+          p_decision?: string
+          p_destino?: string
+          p_documento_id?: string
+          p_fondo_destino_id?: string
+          p_fondo_id: string
+          p_organo_id?: number
+        }
+        Returns: {
+          codigo: string
+          contable_cuenta_id: string | null
+          created_at: string
+          destinacion: string | null
+          documento_principal_id: string | null
+          estado: Database["public"]["Enums"]["fondo_estado_t"]
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          meta: number | null
+          naturaleza: Database["public"]["Enums"]["fondo_naturaleza_t"]
+          nombre: string
+          objetivo: string | null
+          permanente: boolean
+          saldo_actual: number
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fondos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_fondo_movimiento_efecto: {
+        Args: {
+          p_monto: number
+          p_tipo: Database["public"]["Enums"]["fondo_movimiento_tipo_t"]
+        }
+        Returns: number
+      }
+      fn_fondo_reconciliar: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          codigo: string
+          diferencia: number
+          fondo_id: string
+          nombre: string
+          saldo_derivado: number
+          saldo_materializado: number
+        }[]
+      }
+      fn_fondo_saldo_derivado: { Args: { p_fondo_id: string }; Returns: number }
+      fn_fondo_saldos: {
+        Args: { p_fondo_id: string }
+        Returns: {
+          comprometido: number
+          disponible: number
+          saldo: number
+        }[]
+      }
       fn_generar_cargos_novedades_periodo: {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: number
@@ -9275,6 +10047,35 @@ export type Database = {
           creadas: number
           existentes: number
         }[]
+      }
+      fn_instanciar_fondo_imprevistos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          codigo: string
+          contable_cuenta_id: string | null
+          created_at: string
+          destinacion: string | null
+          documento_principal_id: string | null
+          estado: Database["public"]["Enums"]["fondo_estado_t"]
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          id: string
+          meta: number | null
+          naturaleza: Database["public"]["Enums"]["fondo_naturaleza_t"]
+          nombre: string
+          objetivo: string | null
+          permanente: boolean
+          saldo_actual: number
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fondos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_instanciar_plan_contable: {
         Args: {
@@ -9459,6 +10260,7 @@ export type Database = {
       fn_registrar_fuente_financiacion: {
         Args: {
           p_descripcion?: string
+          p_fondo_id?: string
           p_fundamento_normativo_id?: number
           p_presupuesto_cuenta_id?: string
           p_presupuesto_id: string
@@ -9469,6 +10271,7 @@ export type Database = {
         Returns: {
           created_at: string
           descripcion: string | null
+          fondo_id: string | null
           fundamento_normativo_id: number | null
           id: string
           presupuesto_cuenta_id: string | null
@@ -9802,8 +10605,40 @@ export type Database = {
         | "judicial"
       extracto_origen_t: "banco" | "pasarela" | "datafono"
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
-      fondo_movimiento_tipo_t: "aporte" | "uso"
-      fondo_tipo_t: "imprevistos" | "otro"
+      fondo_compromiso_estado_t:
+        | "proyectado"
+        | "comprometido"
+        | "parcialmente_ejecutado"
+        | "ejecutado"
+        | "liberado"
+        | "anulado"
+      fondo_estado_t:
+        | "propuesto"
+        | "pendiente_autorizacion"
+        | "activo"
+        | "suspendido"
+        | "agotado"
+        | "en_cierre"
+        | "cerrado"
+        | "cancelado"
+      fondo_movimiento_tipo_t:
+        | "aporte"
+        | "uso"
+        | "rendimiento"
+        | "traslado_entrada"
+        | "traslado_salida"
+        | "ajuste"
+        | "reversion"
+        | "cierre_remanente"
+      fondo_naturaleza_t: "imprevistos" | "destinacion_especifica"
+      fondo_solicitud_uso_estado_t:
+        | "borrador"
+        | "en_revision"
+        | "aprobada"
+        | "rechazada"
+        | "comprometida"
+        | "ejecutada"
+        | "anulada"
       fundamento_estado_t: "activo" | "propuesto" | "rechazado"
       fundamento_tipo_t:
         | "ley"
@@ -10165,8 +11000,44 @@ export const Constants = {
       ],
       extracto_origen_t: ["banco", "pasarela", "datafono"],
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
-      fondo_movimiento_tipo_t: ["aporte", "uso"],
-      fondo_tipo_t: ["imprevistos", "otro"],
+      fondo_compromiso_estado_t: [
+        "proyectado",
+        "comprometido",
+        "parcialmente_ejecutado",
+        "ejecutado",
+        "liberado",
+        "anulado",
+      ],
+      fondo_estado_t: [
+        "propuesto",
+        "pendiente_autorizacion",
+        "activo",
+        "suspendido",
+        "agotado",
+        "en_cierre",
+        "cerrado",
+        "cancelado",
+      ],
+      fondo_movimiento_tipo_t: [
+        "aporte",
+        "uso",
+        "rendimiento",
+        "traslado_entrada",
+        "traslado_salida",
+        "ajuste",
+        "reversion",
+        "cierre_remanente",
+      ],
+      fondo_naturaleza_t: ["imprevistos", "destinacion_especifica"],
+      fondo_solicitud_uso_estado_t: [
+        "borrador",
+        "en_revision",
+        "aprobada",
+        "rechazada",
+        "comprometida",
+        "ejecutada",
+        "anulada",
+      ],
       fundamento_estado_t: ["activo", "propuesto", "rechazado"],
       fundamento_tipo_t: [
         "ley",

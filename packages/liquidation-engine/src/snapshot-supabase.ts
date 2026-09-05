@@ -384,7 +384,7 @@ export async function construirSnapshotDesdeSupabase(
 
   const { data: politica, error: errorPolitica } = await cliente
     .from('politicas_financieras')
-    .select('redondeo_modo, redondeo_escala')
+    .select('redondeo_modo, redondeo_escala, fondo_imprevistos_porcentaje, fondo_imprevistos_base')
     .eq('tenant_id', tenantId)
     .eq('estado', 'vigente')
     .single()
@@ -464,6 +464,22 @@ export async function construirSnapshotDesdeSupabase(
     parametros.FONDO_IMPREVISTOS_ANUAL = {
       tipo: 'MONEY',
       valor: money(sumaPorCodigo('fondo_imprevistos'), tenant.moneda),
+    }
+  }
+
+  // BLOQUE K (GAP-22, D-38): activa las dos columnas de politicas_financieras
+  // que hasta ahora nadie leía. Solo se exponen si hay porcentaje configurado —
+  // así un concepto FONDO_IMPREVISTOS activado sin porcentaje falla explícito
+  // (ContractoNoResueltoError) en vez de cobrar cero en silencio, mismo criterio
+  // que el resto del snapshot (17 §37 SNAPSHOT INCOMPLETE).
+  if (politica.fondo_imprevistos_porcentaje !== null) {
+    parametros.FONDO_IMPREVISTOS_PORCENTAJE = {
+      tipo: 'NUMBER',
+      valor: crearDecimal(politica.fondo_imprevistos_porcentaje),
+    }
+    parametros.FONDO_IMPREVISTOS_BASE_CUOTA_ADMIN = {
+      tipo: 'BOOLEAN',
+      valor: politica.fondo_imprevistos_base === 'cuota_administracion',
     }
   }
 

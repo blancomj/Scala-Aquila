@@ -54,6 +54,8 @@ export const NAV_ICONOS = {
   auditoria: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM21 21l-4.3-4.3',
   plataforma: 'M4 6h16M4 6v11a2 2 0 0 0 2 2h4M4 6l2.5-3h11L20 6M20 6v6M15 21l3-3-3-3M13 18h7',
   carteraDashboard: 'M4 19V9M10 19V5M16 19v-7M4 19h16',
+  // Cofre/bóveda: efectivo restringido, no de libre disposición (PC_01 §3.2).
+  fondos: 'M12 2v3M5 8a7 7 0 0 1 14 0v6c0 4-3 7-7 8-4-1-7-4-7-8V8ZM9 12h6M12 9v6',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -124,6 +126,18 @@ export const NAV_GRUPOS: NavGrupo[] = [
         permiso: 'data:create',
         modulo: 'financiero',
         icono: NAV_ICONOS.fundamentos,
+      },
+    ],
+  },
+  {
+    titulo: 'Fondos',
+    items: [
+      {
+        label: 'Fondos',
+        to: '/fondos',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.fondos,
       },
     ],
   },

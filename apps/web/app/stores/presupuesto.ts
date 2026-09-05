@@ -413,7 +413,7 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
       .from('fondos')
       .select('saldo_actual')
       .eq('tenant_id', tenantId)
-      .eq('tipo', 'imprevistos')
+      .eq('naturaleza', 'imprevistos')
       .maybeSingle()
     if (errorFondo) throw errorFondo
     fondoImprevistos.value = data ? Number(data.saldo_actual) : null

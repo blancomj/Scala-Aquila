@@ -111,4 +111,63 @@ d('create_tenant: parametrización contable del alta', () => {
 
     expect(pendientes).toEqual([])
   }, 30_000)
+
+  it('GAP-22: la copropiedad también nace con su fondo de imprevistos (Ley 675 art. 35)', async () => {
+    const usuario = await crearUsuario(admin, 'alta-fondo')
+    usuariosCreados.push(usuario)
+    const cliente = await clienteComo(env!, usuario)
+
+    const { data: tenant, error: errAlta } = await cliente
+      .rpc('create_tenant', { p_name: 'Alta fondo imprevistos', p_slug: `t-${RUN_ID}-alta-fondo` })
+      .single<{ id: string }>()
+    if (errAlta) throw new Error(`create_tenant falló: ${errAlta.message}`)
+    const tenantId = tenant.id
+    tenantsCreados.push(tenantId)
+
+    const { data: fondo, error: errFondo } = await admin
+      .from('fondos')
+      .select(
+        'id, codigo, naturaleza, estado, permanente, contable_cuenta:contable_cuenta_id(codigo)',
+      )
+      .eq('tenant_id', tenantId)
+      .eq('naturaleza', 'imprevistos')
+      .single<{
+        id: string
+        codigo: string
+        naturaleza: string
+        estado: string
+        permanente: boolean
+        contable_cuenta: { codigo: string } | null
+      }>()
+    if (errFondo) throw errFondo
+    const fondoId = fondo.id
+
+    // Nace activo (no propuesto): la ley lo manda, no es una decisión pendiente de aprobar.
+    expect(fondo.estado).toBe('activo')
+    expect(fondo.permanente).toBe(true)
+    expect(fondo.contable_cuenta?.codigo).toBe('111015')
+
+    // No se inventa una autorización que nunca ocurrió (Modelo §7): la existencia
+    // del fondo la manda la ley, no un acta de asamblea.
+    const { count: autorizaciones } = await admin
+      .from('fondo_autorizaciones')
+      .select('id', { count: 'exact', head: true })
+      .eq('fondo_id', fondoId)
+    expect(autorizaciones).toBe(0)
+
+    // Idempotente: llamar create_tenant() no puede duplicar el fondo si algo
+    // reintentara la instanciación (mismo contrato que los demás fn_instanciar_*).
+    const { data: segundaLlamada, error: errIdempotente } = await admin
+      .rpc('fn_instanciar_fondo_imprevistos', { p_tenant_id: tenantId })
+      .single<{ id: string }>()
+    expect(errIdempotente).toBeNull()
+    expect(segundaLlamada!.id).toBe(fondoId)
+
+    const { count: total } = await admin
+      .from('fondos')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('naturaleza', 'imprevistos')
+    expect(total).toBe(1)
+  }, 30_000)
 })
