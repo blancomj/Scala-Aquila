@@ -97,6 +97,19 @@ d('CAR F7 — jurídico (§15-16)', () => {
     politicaId = await crearPoliticaFinancieraVigente(admin, tenant.id)
   })
 
+  // Cachea el cliente autenticado por usuario: este archivo reutiliza los mismos 3 usuarios
+  // en decenas de tests/fixtures, y cada clienteComo() es un login real contra Supabase Auth —
+  // repetirlo por cada llamada agota el rate limit de auth del proyecto de prueba (visto en el
+  // bloque costas_judiciales, que llega al final del archivo con el presupuesto ya consumido).
+  const clientesPorUsuario = new Map<string, Cliente>()
+  async function clienteCacheado(usuario: UsuarioPrueba): Promise<Cliente> {
+    const existente = clientesPorUsuario.get(usuario.email)
+    if (existente) return existente
+    const cliente = await clienteComo(env!, usuario)
+    clientesPorUsuario.set(usuario.email, cliente)
+    return cliente
+  }
+
   afterAll(async () => {
     await eliminarTenant(admin, tenant.id)
     await eliminarUsuario(admin, agente.id)
@@ -128,7 +141,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
   }
 
   async function crearCertificacionVigente(): Promise<string> {
-    const clienteAdministrador = await clienteComo(env!, administrador)
+    const clienteAdministrador = await clienteCacheado(administrador)
     const { data, error } = await clienteAdministrador
       .from('certificaciones_deuda')
       .insert(payloadCertificacion())
@@ -140,14 +153,14 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
   describe('certificaciones_deuda', () => {
     it('CERTIFICACION_REQUIERE_ADMINISTRADOR: un agent simple no puede expedir una certificación', async () => {
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { error } = await clienteAgente.from('certificaciones_deuda').insert(payloadCertificacion())
       expect(error).not.toBeNull()
       expect(error?.message).toMatch(/CERTIFICACION_REQUIERE_ADMINISTRADOR/)
     })
 
     it('control positivo: un administrador expide la certificación — expedida_por queda estampado desde auth.uid()', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data, error } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -159,7 +172,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     })
 
     it('certificacion_monto_total_positivo: rechaza una certificación en cero', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { error } = await clienteAdministrador.from('certificaciones_deuda').insert(
         payloadCertificacion({
           monto_expensas_ordinarias: 0,
@@ -172,7 +185,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     })
 
     it('certificacion_total_coherente: rechaza un total que no cuadra con el desglose', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { error } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion({ monto_total: 999999 }))
@@ -181,7 +194,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     })
 
     it('CERTIFICACION_INMUTABLE: no se puede modificar el contenido de una certificación vigente', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: cert } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -197,7 +210,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     })
 
     it('CERTIFICACION_ANULACION_SIN_MOTIVO: anular exige explicar el motivo', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: cert } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -213,7 +226,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     })
 
     it('control positivo: anular con motivo deja estado=anulada y anulada_por/at estampados', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: cert } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -258,14 +271,14 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('CASO_JURIDICO_REQUIERE_ADMINISTRADOR: un agent simple no puede remitir un caso a jurídico', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { error } = await clienteAgente.from('casos_juridicos').insert(payloadCaso(certId))
       expect(error).not.toBeNull()
       expect(error?.message).toMatch(/CASO_JURIDICO_REQUIERE_ADMINISTRADOR/)
     })
 
     it('CASO_JURIDICO_CERTIFICACION_INVALIDA: no se puede abrir un caso sobre una certificación anulada', async () => {
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: cert } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -283,7 +296,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('control positivo: un administrador remite el caso — aprobado_por/at quedan estampados', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data, error } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
@@ -300,7 +313,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
       // del proyecto de prueba): crearCertificacionVigente() ya haría su
       // propio login por llamada, así que aquí se inserta directo con el
       // mismo cliente administrador ya autenticado.
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: certUnoRow, error: errorCertUno } = await clienteAdministrador
         .from('certificaciones_deuda')
         .insert(payloadCertificacion())
@@ -355,7 +368,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
         .single<{ id: string }>()
       if (errorTercero) throw new Error(`fixture tercero: ${errorTercero.message}`)
 
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { error } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId, { abogado_tercero_id: tercero.id }))
@@ -388,7 +401,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
         .insert({ tenant_id: tenant.id, tercero_id: tercero.id, rol_id: rolAbogadoId, vigente_desde: '2026-01-01' })
       if (errorRol) throw new Error(`fixture tenant_tercero_rol: ${errorRol.message}`)
 
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data, error } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId, { abogado_tercero_id: tercero.id }))
@@ -400,14 +413,14 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('un agent simple sí puede avanzar el estado del trámite (sin cerrar el caso)', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
         .select('id')
         .single<{ id: string }>()
 
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data, error } = await clienteAgente
         .from('casos_juridicos')
         .update({ estado: 'radicado', numero_radicado: '2026-00123' })
@@ -420,14 +433,14 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('CASO_JURIDICO_CIERRE_REQUIERE_ADMINISTRADOR: un agent simple no puede cerrar el caso', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
         .select('id')
         .single<{ id: string }>()
 
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { error } = await clienteAgente
         .from('casos_juridicos')
         .update({ estado: 'terminado', fecha_cierre: '2026-09-01', motivo_cierre: 'pago total' })
@@ -438,7 +451,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('caso_cierre_coherente: un estado terminal sin fecha_cierre se rechaza incluso para un administrador', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
@@ -455,14 +468,14 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('control positivo: un administrador distinto también puede cerrar el caso', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
         .select('id')
         .single<{ id: string }>()
 
-      const clienteAdministradorDos = await clienteComo(env!, administradorDos)
+      const clienteAdministradorDos = await clienteCacheado(administradorDos)
       const { data, error } = await clienteAdministradorDos
         .from('casos_juridicos')
         .update({ estado: 'terminado', fecha_cierre: '2026-09-01', motivo_cierre: 'pago total' })
@@ -476,7 +489,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     it('CASO_JURIDICO_CONTEXTO_INMUTABLE: no se puede reasignar el caso a otro inmueble', async () => {
       const certId = await crearCertificacionVigente()
       const otroInmuebleId = await crearInmueble(admin, tenant.id, 'JUR')
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert(payloadCaso(certId))
@@ -495,7 +508,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
   describe('caso_juridico_actuaciones', () => {
     it('agent registra una actuación — registrada_por queda estampado desde auth.uid(), append-only', async () => {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert({
@@ -511,7 +524,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
         .single<{ id: string }>()
 
       const tipoActuacionId = await listaTipoId(admin, 'TIPO_ACTUACION_JURIDICA', 'memorial')
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data: actuacion, error } = await clienteAgente
         .from('caso_juridico_actuaciones')
         .insert({
@@ -558,7 +571,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
   describe('costas_judiciales', () => {
     async function crearCasoParaCostas(): Promise<string> {
       const certId = await crearCertificacionVigente()
-      const clienteAdministrador = await clienteComo(env!, administrador)
+      const clienteAdministrador = await clienteCacheado(administrador)
       const { data: caso } = await clienteAdministrador
         .from('casos_juridicos')
         .insert({
@@ -577,7 +590,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('agent registra una costa con evidencia obligatoria (I-C11)', async () => {
       const casoId = await crearCasoParaCostas()
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data, error } = await clienteAgente
         .from('costas_judiciales')
         .insert({
@@ -598,7 +611,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('COSTA_JUDICIAL_INMUTABLE: no se puede modificar el monto o la evidencia', async () => {
       const casoId = await crearCasoParaCostas()
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data: costa } = await clienteAgente
         .from('costas_judiciales')
         .insert({
@@ -620,7 +633,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
 
     it('control positivo: estado y monto_recuperado sí se pueden actualizar', async () => {
       const casoId = await crearCasoParaCostas()
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data: costa } = await clienteAgente
         .from('costas_judiciales')
         .insert({
@@ -649,7 +662,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     // costas_judiciales.actuacion_id (20260908190000, roadmap §3.2).
     async function crearActuacion(casoId: string): Promise<string> {
       const tipoActuacionId = await listaTipoId(admin, 'TIPO_ACTUACION_JURIDICA', 'auto_judicial')
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data, error } = await clienteAgente
         .from('caso_juridico_actuaciones')
         .insert({
@@ -668,7 +681,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     it('control positivo: una costa puede enlazar la actuación que la respalda', async () => {
       const casoId = await crearCasoParaCostas()
       const actuacionId = await crearActuacion(casoId)
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data, error } = await clienteAgente
         .from('costas_judiciales')
         .insert({
@@ -691,7 +704,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
       const casoId = await crearCasoParaCostas()
       const otroCasoId = await crearCasoParaCostas()
       const actuacionDeOtroCaso = await crearActuacion(otroCasoId)
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { error } = await clienteAgente.from('costas_judiciales').insert({
         tenant_id: tenant.id,
         caso_id: casoId,
@@ -709,7 +722,7 @@ d('CAR F7 — jurídico (§15-16)', () => {
     it('COSTA_JUDICIAL_INMUTABLE: actuacion_id tampoco se puede cambiar después de creada', async () => {
       const casoId = await crearCasoParaCostas()
       const actuacionId = await crearActuacion(casoId)
-      const clienteAgente = await clienteComo(env!, agente)
+      const clienteAgente = await clienteCacheado(agente)
       const { data: costa } = await clienteAgente
         .from('costas_judiciales')
         .insert({

@@ -317,7 +317,7 @@ function imprimir(): void {
 
 <style scoped>
 .informe {
-  background: #f5f5f6;
+  background: var(--color-neutral-50);
   min-height: 100vh;
   padding: 24px 16px 80px;
 }
@@ -334,13 +334,13 @@ function imprimir(): void {
 
 .volver {
   font-size: 14px;
-  color: #55555a;
+  color: var(--color-neutral-600);
   text-decoration: none;
 }
 
 .acciones button {
-  background: #2563eb;
-  color: #fff;
+  background: var(--color-brand-600);
+  color: white;
   border: 0;
   border-radius: 5px;
   padding: 8px 16px;
@@ -356,18 +356,18 @@ function imprimir(): void {
 .mensaje {
   max-width: 820px;
   margin: 0 auto;
-  color: #55555a;
+  color: var(--color-neutral-600);
 }
 
 .mensaje.error {
-  color: #b91c1c;
+  color: var(--ui-color-error-600);
 }
 
 .hoja {
   max-width: 820px;
   margin: 0 auto;
-  background: #fff;
-  color: #1b1b1d;
+  background: white;
+  color: var(--color-neutral-900);
   padding: 48px 56px 72px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
   border-radius: 4px;
@@ -376,7 +376,7 @@ function imprimir(): void {
 }
 
 .portada {
-  border-bottom: 2px solid #1b1b1d;
+  border-bottom: 2px solid var(--color-neutral-900);
   padding-bottom: 16px;
   margin-bottom: 24px;
 }
@@ -399,7 +399,7 @@ function imprimir(): void {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #2563eb;
+  color: var(--color-brand-600);
 }
 
 .copropiedad {
@@ -409,7 +409,7 @@ function imprimir(): void {
 
 .corte {
   font-size: 13px;
-  color: #55555a;
+  color: var(--color-neutral-600);
   margin: 0;
 }
 
@@ -422,7 +422,7 @@ h2 {
   font-weight: 600;
   margin: 0 0 10px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #d9d9de;
+  border-bottom: 1px solid var(--color-neutral-200);
 }
 
 .datos {
@@ -433,7 +433,7 @@ h2 {
 }
 
 .datos dt {
-  color: #55555a;
+  color: var(--color-neutral-600);
 }
 
 .datos dd {
@@ -450,13 +450,13 @@ th,
 td {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid #ececee;
+  border-bottom: 1px solid var(--color-neutral-100);
   vertical-align: top;
 }
 
 th {
   font-weight: 600;
-  border-bottom: 1px solid #c4c4ca;
+  border-bottom: 1px solid var(--color-neutral-300);
 }
 
 .num {
@@ -465,12 +465,12 @@ th {
 }
 
 .nota {
-  color: #55555a;
+  color: var(--color-neutral-600);
   margin: 8px 0 0;
 }
 
 .vacio {
-  color: #8d8d93;
+  color: var(--color-neutral-400);
   font-style: italic;
 }
 
@@ -488,7 +488,7 @@ th {
 }
 
 .resumen-item.resumen-alerta .resumen-valor {
-  color: #b91c1c;
+  color: var(--ui-color-error-600);
 }
 
 .resumen-valor {
@@ -499,11 +499,11 @@ th {
 
 .resumen-etiqueta {
   font-size: 11px;
-  color: #55555a;
+  color: var(--color-neutral-600);
 }
 
 .hallazgo {
-  border: 1px solid #e2e2e6;
+  border: 1px solid var(--color-neutral-200);
   border-radius: 6px;
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -520,7 +520,7 @@ th {
 .hallazgo-estado {
   margin-left: auto;
   font-size: 11px;
-  color: #55555a;
+  color: var(--color-neutral-600);
   text-transform: uppercase;
 }
 
@@ -530,14 +530,14 @@ th {
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 3px;
-  color: #fff;
+  color: white;
 }
 
-.nivel-critico { background: #b91c1c; }
-.nivel-alto { background: #c2410c; }
-.nivel-medio { background: #a16207; }
-.nivel-bajo { background: #4d7c0f; }
-.nivel-observacion { background: #55555a; }
+.nivel-critico { background: var(--ui-color-error-600); }
+.nivel-alto { background: var(--ui-color-warning-600); }
+.nivel-medio { background: var(--color-neutral-600); }
+.nivel-bajo { background: var(--ui-color-success-600); }
+.nivel-observacion { background: var(--color-neutral-600); }
 
 .datos-hallazgo {
   grid-template-columns: 110px 1fr;
@@ -552,15 +552,15 @@ th {
 .pie {
   margin-top: 32px;
   padding-top: 8px;
-  border-top: 1px solid #d9d9de;
+  border-top: 1px solid var(--color-neutral-200);
   font-size: 10px;
-  color: #55555a;
+  color: var(--color-neutral-600);
   font-family: ui-monospace, monospace;
 }
 
 @media print {
   .informe {
-    background: #fff;
+    background: white;
     padding: 0;
     min-height: auto;
   }

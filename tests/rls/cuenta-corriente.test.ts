@@ -42,6 +42,18 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
   return data.id
 }
 
+async function formaPagoEfectivoId(admin: Cliente): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'FORMA_PAGO')
+    .eq('codigo', 'efectivo')
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture forma_pago efectivo: ${error.message}`)
+  return data.id
+}
+
 /** Arma un cargo de categoría capital mínimo (tenant, inmueble, periodo,
  * concepto, liquidacion, liquidacion_linea, cargo), todo vía admin. */
 async function armarCargoCapital(
@@ -230,6 +242,7 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
   })
 
   it('guard_pago_aplicacion_no_excede: CARGO_SOBREAPLICADO si la aplicación excede lo pendiente', async () => {
+    const formaPagoId = await formaPagoEfectivoId(admin)
     const { data: pago, error: errPago } = await admin
       .from('pagos')
       .insert({
@@ -237,6 +250,8 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
         inmueble_id: inmuebleAId,
         monto: 200_000,
         fecha_pago: '2027-01-15',
+        fecha_registro: '2027-01-15',
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()
@@ -252,6 +267,7 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
   })
 
   it('aplicación parcial: v_cargo_saldo refleja el pendiente correcto', async () => {
+    const formaPagoId = await formaPagoEfectivoId(admin)
     const { data: pago, error: errPago } = await admin
       .from('pagos')
       .insert({
@@ -259,6 +275,8 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
         inmueble_id: inmuebleAId,
         monto: 40_000,
         fecha_pago: '2027-01-16',
+        fecha_registro: '2027-01-16',
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()

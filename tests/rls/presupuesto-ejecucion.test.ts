@@ -261,7 +261,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('agent A puede registrar e insertar un movimiento en su tenant', async () => {
     const { data, error } = await clienteAgentA
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 100 })
+      .insert({
+        tenant_id: tenantA.id,
+        cuenta_id: cuentaEgresoA.id,
+        periodo_id: periodoA,
+        monto: 100,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single()
     expect(error).toBeNull()
@@ -498,7 +504,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('MOVIMIENTO_TENANT_INCONSISTENTE: no se puede revertir un movimiento de otro tenant', async () => {
     const { data: movimientoB } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantB.id, cuenta_id: cuentaEgresoB.id, periodo_id: periodoB, monto: 500 })
+      .insert({
+        tenant_id: tenantB.id,
+        cuenta_id: cuentaEgresoB.id,
+        periodo_id: periodoB,
+        monto: 500,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single<{ id: string }>()
 
@@ -516,7 +528,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     const otraCuenta = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'egreso', codigo: 'pej-otra-cuenta' })
     const { data: original } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 200 })
+      .insert({
+        tenant_id: tenantA.id,
+        cuenta_id: cuentaEgresoA.id,
+        periodo_id: periodoA,
+        monto: 200,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single<{ id: string }>()
 
@@ -534,7 +552,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
     const cuenta = await crearCuenta(admin, { tenantId: tenantA.id, naturaleza: 'egreso', codigo: 'pej-reversion-ok' })
     const { data: original, error: errOriginal } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuenta.id, periodo_id: periodoA, monto: 300 })
+      .insert({
+        tenant_id: tenantA.id,
+        cuenta_id: cuenta.id,
+        periodo_id: periodoA,
+        monto: 300,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single<{ id: string }>()
     expect(errOriginal).toBeNull()
@@ -561,7 +585,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('APPEND_ONLY: no admite UPDATE mientras el tenant existe', async () => {
     const { data: movimiento } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10 })
+      .insert({
+        tenant_id: tenantA.id,
+        cuenta_id: cuentaEgresoA.id,
+        periodo_id: periodoA,
+        monto: 10,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single<{ id: string }>()
 
@@ -575,7 +605,13 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
   it('APPEND_ONLY: no admite DELETE mientras el tenant existe', async () => {
     const { data: movimiento } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 10 })
+      .insert({
+        tenant_id: tenantA.id,
+        cuenta_id: cuentaEgresoA.id,
+        periodo_id: periodoA,
+        monto: 10,
+        liquidacion: 'pagado_caja',
+      })
       .select('id')
       .single<{ id: string }>()
 

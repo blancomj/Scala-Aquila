@@ -103,7 +103,7 @@ const columnas = [
 <template>
   <div class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
-      <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1 max-w-2xl">
+      <UiTituloDescripcion clase-descripcion="text-sm text-neutral-500 mt-1 max-w-2xl">
         <template #titulo>
           <h1 class="text-xl font-semibold">Actos interruptivos de prescripción</h1>
         </template>

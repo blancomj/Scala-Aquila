@@ -90,7 +90,7 @@ async function crear(): Promise<void> {
     </form>
 
     <template #footer>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         <NuxtLink to="/copropiedades" class="text-primary-500 font-medium"
           >Volver a mis copropiedades</NuxtLink
         >

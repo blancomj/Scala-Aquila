@@ -153,7 +153,13 @@ d('fn_anular_liquidacion rechaza si hay pagos imputados (hueco de test #3)', () 
     // flujo-dos-tiempos.test.ts). Registramos un pago primero para
     // ejercitar el caso que SÍ falta cubrir.
     const { response: respuestaPago } = await cAux.functions.invoke('registrar-pago', {
-      body: { inmueble_id: inmueble.id, monto: 50_000, fecha_pago: '2035-01-05' },
+      body: {
+        inmueble_id: inmueble.id,
+        monto: 50_000,
+        fecha_pago: '2035-01-05',
+        fecha_registro: '2035-01-05',
+        forma_pago: 'efectivo',
+      },
     })
     expect(respuestaPago?.status).toBe(200)
 

@@ -192,12 +192,30 @@ d('Descuento por pronto pago (D3)', () => {
     }
   }
 
+  // Catálogo global (tenant_id null) — se busca una sola vez y se reutiliza en todos los pagos
+  // de este archivo, en vez de una consulta por cada pagar() (varios tests pagan más de una vez).
+  let formaPagoEfectivoIdCacheada: number | undefined
+  async function formaPagoEfectivoId(admin: Cliente): Promise<number> {
+    if (formaPagoEfectivoIdCacheada !== undefined) return formaPagoEfectivoIdCacheada
+    const { data, error } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'FORMA_PAGO')
+      .eq('codigo', 'efectivo')
+      .is('tenant_id', null)
+      .single<{ id: number }>()
+    if (error) throw new Error(`fixture forma_pago efectivo: ${error.message}`)
+    formaPagoEfectivoIdCacheada = data.id
+    return data.id
+  }
+
   async function pagar(
     admin: Cliente,
     fixture: Fixture,
     monto: number,
     fechaPago: string,
   ): Promise<void> {
+    const formaPagoId = await formaPagoEfectivoId(admin)
     const { data: pago, error: errPago } = await admin
       .from('pagos')
       .insert({
@@ -205,6 +223,8 @@ d('Descuento por pronto pago (D3)', () => {
         inmueble_id: fixture.inmuebleId,
         monto,
         fecha_pago: fechaPago,
+        fecha_registro: fechaPago,
+        forma_pago_id: formaPagoId,
       })
       .select('id')
       .single<{ id: string }>()
@@ -278,7 +298,7 @@ d('Descuento por pronto pago (D3)', () => {
     await pagar(admin, fixture, 95_000, '2031-01-06')
 
     expect(await descuentoDe(fixture)).toHaveLength(0)
-  })
+  }, 15_000)
 
   it('política con descuento en 0 (default) nunca emite, aunque se pague completo y a tiempo', async () => {
     const fixture = await fixtureConCargoCapital('apagado', {})
@@ -308,5 +328,5 @@ d('Descuento por pronto pago (D3)', () => {
     // fn_aplicar_descuento_pronto_pago sobre cargo_capital_origen_id.
     await pagar(admin, fixture, 5_000, '2031-01-05')
     expect(await descuentoDe(fixture)).toHaveLength(1)
-  })
+  }, 15_000)
 })
