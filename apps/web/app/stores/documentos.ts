@@ -110,9 +110,37 @@ export const useDocumentosStore = defineStore('documentos', () => {
     return data.signedUrl
   }
 
+  /** Documento exacto por id, sin pasar por v_documento_vigente — esa vista solo expone la
+   * última versión de cada grupo_id, así que una referencia FK a una versión ya superada (ej.
+   * fondo_movimientos.documento_id) queda invisible ahí aunque siga siendo un documento real y
+   * legible por RLS (documentos_select_agent_auditor no filtra por versión). Un movimiento
+   * financiero append-only necesita poder resolver siempre el soporte exacto que citó, sin
+   * importar qué se suba después con el mismo nombre. */
+  async function documentoPorId(
+    id: string,
+  ): Promise<Pick<Database['public']['Tables']['documentos']['Row'], 'nombre_archivo' | 'storage_path'> | null> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .from('documentos')
+      .select('nombre_archivo, storage_path')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  }
+
   function limpiar(): void {
     documentos.value = []
   }
 
-  return { documentos, loading, subiendo, cargarDocumentos, subirDocumento, urlDescarga, limpiar }
+  return {
+    documentos,
+    loading,
+    subiendo,
+    cargarDocumentos,
+    subirDocumento,
+    urlDescarga,
+    documentoPorId,
+    limpiar,
+  }
 })

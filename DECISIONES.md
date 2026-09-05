@@ -1840,3 +1840,25 @@ fondos-modelo-general.test.ts` (describe "soporte documental diferenciado"); `FO
 REQUERIDO` registrado en `error-codes.ts`; verificado en vivo que el camino feliz del recaudo real
 (BLOQUE K, vía `fn_aplicar_aporte_fondo`) sigue sin exigir documento
 (`tests/liquidacion/fondo-imprevistos-cuota.test.ts` sigue en verde sin cambios).
+
+**Corrección 2026-09-05 — dejar que se pueda adjuntar un soporte sin poder revisarlo después no
+cierra el gap, solo lo mueve.** El usuario señaló, tras probar la pantalla en vivo, que la tabla
+de Movimientos no ofrecía ninguna forma de ver el detalle de un movimiento ya registrado ni de
+abrir su soporte adjunto — la columna de operaciones existía en el diseño de `UiTabla` pero
+`FondosTabMovimientos.vue` nunca la usaba. Se agregó una acción "Ver detalle" por fila
+(`UModal` de solo lectura: tipo, monto, fecha, descripción, motivo, y un botón de soporte si
+`documento_id` está presente).
+
+**Bug real encontrado al verificar esto en vivo, no solo la feature faltante.** El primer intento
+resolvía el documento contra `documentosStore.documentos` (poblado desde `v_documento_vigente`,
+que solo expone la última versión de cada `grupo_id`). Un movimiento real de prueba señalaba a
+una versión de documento que después quedó superada por una subida posterior sin relación (mismo
+`nombre_archivo`, subido de nuevo) — su soporte se volvió invisible en el detalle aunque el
+`documento_id` seguía siendo válido y el archivo seguía existiendo. `fondo_movimientos.documento_id`
+es una FK a una versión exacta e inmutable (append-only, como el resto del ledger) — necesita
+resolverse contra `documentos` directamente, no contra "la vigente de su grupo hoy". Se agregó
+`documentosStore.documentoPorId(id)` (lee la tabla base por id, sin el filtro de versión;
+`documentos_select_agent_auditor` no restringe por versión, así que RLS ya lo permite) y
+`FondosTabMovimientos.vue` lo usa en vez del array bulk-cargado. Verificado en vivo de punta a
+punta: `urlDescarga` generó una signed URL real y un `fetch()` contra ella devolvió el PDF exacto
+(200, `content-type: application/pdf`, tamaño coincidente con el registro de `documentos`).
