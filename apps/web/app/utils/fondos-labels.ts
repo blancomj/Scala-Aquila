@@ -41,6 +41,40 @@ export const ETIQUETA_NATURALEZA_FONDO: Record<string, string> = {
   destinacion_especifica: 'Destinación específica',
 }
 
+/** lista_tipos, familia TIPO_FONDO (20260929100000) — vocabulario de finalidad concreta, no de
+ * régimen legal (eso es `naturaleza`). Íconos/colores puramente decorativos para la vista de
+ * lista; si el tenant agrega un código nuevo al catálogo, cae en el genérico de abajo. */
+export const ICONO_TIPO_FONDO: Record<string, string> = {
+  imprevistos: 'i-lucide-shield',
+  proyecto: 'i-lucide-wrench',
+  obra: 'i-lucide-hammer',
+  mantenimiento: 'i-lucide-hard-hat',
+  renovacion: 'i-lucide-refresh-cw',
+  especial: 'i-lucide-star',
+}
+
+export const COLOR_TIPO_FONDO: Record<string, 'neutral' | 'primary' | 'success' | 'warning' | 'error'> = {
+  imprevistos: 'primary',
+  proyecto: 'neutral',
+  obra: 'warning',
+  mantenimiento: 'warning',
+  renovacion: 'success',
+  especial: 'neutral',
+}
+
+/** Clases completas (nunca interpoladas en runtime — Tailwind solo genera lo que encuentra
+ * como cadena literal en el código fuente) para el avatar circular de la vista de lista. */
+export const CLASE_AVATAR_TIPO_FONDO: Record<string, string> = {
+  imprevistos: 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400',
+  proyecto: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300',
+  obra: 'bg-warning-100 dark:bg-warning-900/40 text-warning-600 dark:text-warning-400',
+  mantenimiento: 'bg-warning-100 dark:bg-warning-900/40 text-warning-600 dark:text-warning-400',
+  renovacion: 'bg-success-100 dark:bg-success-900/40 text-success-600 dark:text-success-400',
+  especial: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300',
+}
+export const CLASE_AVATAR_TIPO_FONDO_GENERICO =
+  'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'
+
 export const ETIQUETA_TIPO_MOVIMIENTO_FONDO: Record<string, string> = {
   aporte: 'Aporte',
   uso: 'Uso',
