@@ -146,7 +146,7 @@ watch(indiceActivo, (i) => {
     <div
       v-if="abierto"
       class="selector-buscable-panel"
-      :class="variante === 'ficha' ? 'is-ficha' : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg'"
+      :class="variante === 'ficha' ? 'is-ficha' : 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg'"
     >
       <div class="relative">
         <input
