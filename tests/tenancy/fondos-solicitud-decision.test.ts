@@ -69,6 +69,30 @@ d('Edge Functions fondos-*-solicitud — decisión de solicitudes de uso (GAP-22
     return data.id
   }
 
+  /** Soporte documental (D-42, guard_fondo_movimiento) — el aporte de fixture lo exige. */
+  async function crearDocumentoFixture(tenantId: string): Promise<string> {
+    const { data: tipo, error: errTipo } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'TIPO_DOCUMENTO')
+      .is('tenant_id', null)
+      .eq('codigo', 'soporte_movimiento_fondo')
+      .single<{ id: number }>()
+    if (errTipo) throw new Error(`fixture TIPO_DOCUMENTO soporte_movimiento_fondo: ${errTipo.message}`)
+    const { data, error } = await admin
+      .from('documentos')
+      .insert({
+        tenant_id: tenantId,
+        tipo_documento_id: tipo.id,
+        nombre_archivo: 'soporte-fixture.pdf',
+        storage_path: `test/${String(Date.now())}.pdf`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture documento soporte: ${error.message}`)
+    return data.id
+  }
+
   async function crearSolicitud(monto: number): Promise<RespuestaSolicitud> {
     const { data, error } = await clSolicitante
       .from('fondo_solicitudes_uso')
@@ -124,9 +148,10 @@ d('Edge Functions fondos-*-solicitud — decisión de solicitudes de uso (GAP-22
     for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
       await admin.from('fondos').update({ estado }).eq('id', fondo.id)
     }
+    const documentoId = await crearDocumentoFixture(tenant.id)
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 200_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 200_000, documento_id: documentoId })
   }, 60_000)
 
   afterAll(async () => {

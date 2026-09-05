@@ -581,12 +581,13 @@ saber antes de retomar el módulo.
    Functions) pero no está enlazada por fondo — nada impide cerrar un fondo con movimientos
    bancarios sin conciliar. Bloqueado hasta que exista esa UI/enlace (FND-PR-09, todavía sin UI
    para toda la copropiedad, no solo para fondos).
-3. **"Soportes faltantes" (Prompt §36) no se hace cumplir.** `documento_id` en `fondo_movimientos`
-   es opcional a propósito — volverlo obligatorio rompería `fn_aplicar_aporte_fondo` (BLOQUE K),
-   que registra el aporte automático por recaudo sin documento adjunto (su soporte real es
-   `pago_id`, no un documento). Si algún día se quiere resolver de verdad, hay que diferenciar a
-   nivel de guard "movimiento automático por el sistema" (respaldo = la fila que lo originó) de
-   "movimiento manual" (respaldo = documento) — no una validación uniforme.
+3. ~~"Soportes faltantes" (Prompt §36) no se hace cumplir.~~ **Hecho 2026-09-05 (D-42).** Guard
+   diferenciado en `guard_fondo_movimiento`: `aporte` acepta `pago_id` (automático, BLOQUE K) o
+   `documento_id` (manual); `rendimiento`/`ajuste`/`uso`/`traslado_entrada`/`traslado_salida`
+   siempre exigen `documento_id` (no tienen ruta automática); `reversion`/`cierre_remanente` quedan
+   exentos (su respaldo ya es `reversion_de_id`/`fondo_remanentes`). `FondoMovimientoDrawer.vue`
+   ganó un campo de subida de soporte (no existía ningún selector de documento en Fondos hasta
+   ahora). ~26 fixtures de test retrofiteadas en 6 archivos.
 4. ~~Edge Function opcional sobre las RPC de decisión de solicitudes.~~ **Hecho 2026-09-05 (D-41).**
    `fondos-aprobar-solicitud`/`fondos-rechazar-solicitud`/`fondos-comprometer-solicitud`,
    desplegadas a desarrollo, wireadas en `stores/fondos.ts`/`FondosTabSolicitudes.vue`, 7 tests

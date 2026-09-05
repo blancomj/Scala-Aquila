@@ -766,9 +766,21 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const tenant = await crearTenant(admin, 'ccm-fondo-disponible', auditor.id)
     await crearMembership(admin, tenant.id, auditor.id, 'auditor')
     const fondoId = await crearFondoActivoFixture(admin, tenant.id, `FCD-${String(Date.now())}`)
+    const tipoDocumentoId = await listaTipoId(admin, 'TIPO_DOCUMENTO', 'soporte_movimiento_fondo')
+    const { data: documento, error: errorDocumento } = await admin
+      .from('documentos')
+      .insert({
+        tenant_id: tenant.id,
+        tipo_documento_id: tipoDocumentoId,
+        nombre_archivo: 'soporte-fixture.pdf',
+        storage_path: `test/${String(Date.now())}.pdf`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorDocumento) throw new Error(`fixture documento soporte: ${errorDocumento.message}`)
     const { error: errorMov } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondoId, tipo: 'aporte', monto: 200_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondoId, tipo: 'aporte', monto: 200_000, documento_id: documento.id })
     if (errorMov) throw new Error(`fixture aporte: ${errorMov.message}`)
 
     const { error: errorCompromiso } = await admin.from('fondo_compromisos').insert({

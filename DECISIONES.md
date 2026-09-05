@@ -1773,3 +1773,70 @@ tarea, no reportado por el usuario. Corregido en el mismo commit — no es un te
 desplegadas al proyecto de desarrollo (`hwjmlyzzvpmhadldavbq`, vía `--use-api`, sin Docker — mismo
 canal que D-19); 7 tests nuevos en `tests/tenancy/fondos-solicitud-decision.test.ts`; 10 códigos de
 error de D-40 registrados retroactivamente.
+
+## D-42 — Soporte documental diferenciado en `fondo_movimientos` (Modelo §36): automático (respaldo = la fila que lo originó) vs manual (respaldo = documento), nunca uniforme
+
+|            |                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------- |
+| **Fase**   | Módulo de Fondos, ítem pendiente §11.3 de `ANALISIS_FONDOS_BLOQUE_A.md`                |
+| **Estado** | Aceptada                                                                               |
+| **Decide** | Usuario (2026-09-05) — corrección explícita sobre una conclusión propia de la sesión   |
+
+**Contexto.** §11.3 dejaba anotado que exigir `documento_id` de forma uniforme en `fondo_
+movimientos` rompería el aporte automático por recaudo de BLOQUE K (`fn_aplicar_aporte_fondo` no
+adjunta documento — su respaldo real es `pago_id`). Esa conclusión seguía siendo cierta, pero la
+solución correcta —diferenciar el guard por tipo en vez de una validación pareja— se había
+descartado por un criterio de diseño en el momento (no repetir el patrón sin pensarlo bien), no
+porque faltara infraestructura. El usuario señaló la distinción exacta: la conclusión técnica
+("rompería BLOQUE K") era válida, pero se había usado para descartar más de lo que en realidad
+bloqueaba — solo bloqueaba la validación *uniforme*, no la *diferenciada*.
+
+**Qué cuenta como respaldo, por tipo** (verificado por grep: solo `fn_aplicar_aporte_fondo` y
+`fn_fondo_cerrar` insertan `fondo_movimientos` fuera de un INSERT directo del cliente — los otros
+seis tipos no tienen ninguna ruta automática hoy):
+
+- `aporte`: `pago_id` (automático, BLOQUE K) **o** `documento_id` (manual).
+- `rendimiento`/`ajuste`/`uso`/`traslado_entrada`/`traslado_salida`: siempre `documento_id` — no
+  existe ruta automática para estos cinco.
+- `reversion`: exenta — su respaldo ya es `reversion_de_id` (el movimiento que corrige), exigido
+  desde 20260929120000.
+- `cierre_remanente`: exento — solo lo inserta `fn_fondo_cerrar`, respaldado por la fila de
+  `fondo_remanentes` que `guard_fondo_remanente_referencias` ya exige (enlazada por
+  `movimiento_id`), en la misma transacción atómica.
+
+**El caso difícil: el `traslado_entrada` que `fn_fondo_cerrar` genera en el fondo DESTINO** (cuando
+el destino del remanente es "traslado") no tiene ninguna fila que lo enlace — `fondo_remanentes`
+solo referencia el `cierre_remanente` del fondo que se cierra, no el `traslado_entrada` del otro
+fondo. Se resolvió con la misma técnica de bandera de sesión que ya usa `propagar_solicitud_
+ejecutada` (`aquila.propagacion_solicitud`, 20260929150000): `fn_fondo_cerrar` activa `aquila.
+fondo_cierre_movimiento` mientras hace sus dos inserts (`cierre_remanente` + `traslado_entrada`
+condicional) y el guard exime el chequeo de soporte mientras esa bandera esté activa. Es seguro
+porque solo `fn_fondo_cerrar` la activa, dentro de su propia transacción atómica — nunca queda
+"abierta" para un INSERT sin relación.
+
+**UI: `FondoMovimientoDrawer.vue` no tenía ningún selector de documento** (ni éste ni ningún otro
+drawer de Fondos, verificado por grep) — la exigencia del guard sin un campo para satisfacerla
+habría bloqueado el registro de todo movimiento manual desde la pantalla. Se agregó un campo de
+archivo inline que sube el soporte ANTES de registrar el movimiento (no después, como el
+comprobante de un pago RC-7): `documento_id` vive en la propia fila de `fondo_movimientos`, tiene
+que existir antes del INSERT. Reutiliza `documentosStore.subirDocumento` con `inmuebleId: null`
+(documento de la copropiedad, no de un inmueble) — mismo mecanismo genérico ya usado por otros
+formularios, sin tocar el Edge Function `subir-documento` ni el esquema de `documentos`. Nuevo
+código de catálogo `TIPO_DOCUMENTO.soporte_movimiento_fondo` (mismo patrón que `acta_presupuesto`,
+20260830390000).
+
+**Hallazgo colateral, corregido en el mismo commit:** ~26 inserts de fixture en 6 archivos de test
+(la mayoría en `fondos-modelo-general.test.ts`) creaban movimientos `aporte`/`rendimiento`/`uso`/
+`ajuste` sin ningún respaldo — necesario solo para dejar un saldo de partida, no para probar
+soportes. Se retrofitearon con un documento de fixture compartido por `describe`/tenant (el guard
+no exige que sea distinto por movimiento). Un caso se dejó deliberadamente sin tocar
+(`errCruzado`/`COMPROMISO_INVALIDO` en `fondos-modelo-general.test.ts`): esa comprobación ocurre
+antes que el nuevo chequeo de soporte en el guard, así que el test sigue siendo válido sin
+`documento_id`.
+
+**Consecuencia.** Cierra el ítem §11.3 de `ANALISIS_FONDOS_BLOQUE_A.md`. Migración
+`20260930140000_fondo_movimiento_soporte_diferenciado.sql`; 5 tests nuevos en `tests/tenancy/
+fondos-modelo-general.test.ts` (describe "soporte documental diferenciado"); `FONDO_SOPORTE_
+REQUERIDO` registrado en `error-codes.ts`; verificado en vivo que el camino feliz del recaudo real
+(BLOQUE K, vía `fn_aplicar_aporte_fondo`) sigue sin exigir documento
+(`tests/liquidacion/fondo-imprevistos-cuota.test.ts` sigue en verde sin cambios).

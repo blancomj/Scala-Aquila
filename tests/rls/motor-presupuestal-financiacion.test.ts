@@ -321,9 +321,21 @@ d('fuente_financiacion / fundamento_normativo — Motor Presupuestal (GAP-19)', 
       if (errEstado) throw new Error(`fixture activar fondo → ${estado}: ${errEstado.message}`)
     }
 
+    const { data: documento, error: errDocumento } = await admin
+      .from('documentos')
+      .insert({
+        tenant_id: tenantA.id,
+        tipo_documento_id: await idCatalogo(admin, 'TIPO_DOCUMENTO', 'soporte_movimiento_fondo'),
+        nombre_archivo: 'soporte-fixture.pdf',
+        storage_path: `test/${String(Date.now())}.pdf`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errDocumento) throw new Error(`fixture documento soporte: ${errDocumento.message}`)
+
     const { error: errAporte } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenantA.id, fondo_id: fondo.id, tipo: 'aporte', monto: 500 })
+      .insert({ tenant_id: tenantA.id, fondo_id: fondo.id, tipo: 'aporte', monto: 500, documento_id: documento.id })
     if (errAporte) throw new Error(`fixture aporte: ${errAporte.message}`)
 
     const { error: errExceso } = await admin.from('fuente_financiacion').insert({

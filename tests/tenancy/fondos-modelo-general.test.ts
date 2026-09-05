@@ -59,11 +59,31 @@ async function idTipoFondo(admin: Cliente, codigo: string): Promise<number> {
   return idCatalogo(admin, 'TIPO_FONDO', codigo)
 }
 
+/** Soporte documental reutilizable (D-42, guard_fondo_movimiento) — un solo documento por
+ * tenant respalda todos los movimientos manuales de fixture de esta suite; el guard solo exige
+ * que documento_id exista y sea del tenant, no que sea distinto por movimiento. */
+async function crearDocumentoFixture(admin: Cliente, tenantId: string): Promise<string> {
+  const tipoDocumentoId = await idCatalogo(admin, 'TIPO_DOCUMENTO', 'soporte_movimiento_fondo')
+  const { data, error } = await admin
+    .from('documentos')
+    .insert({
+      tenant_id: tenantId,
+      tipo_documento_id: tipoDocumentoId,
+      nombre_archivo: 'soporte-fixture.pdf',
+      storage_path: `test/${String(Date.now())}.pdf`,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture documento soporte: ${error.message}`)
+  return data.id
+}
+
 d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
   const admin = clienteAdmin(env!)
   let tenant: TenantPrueba
   let tipoImprevistos: number
   let tipoProyecto: number
+  let documentoId: string
 
   async function crearFondo(
     codigo: string,
@@ -107,6 +127,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
     tenant = await crearTenant(admin, 'fondos-gap22')
     tipoImprevistos = await idTipoFondo(admin, 'imprevistos')
     tipoProyecto = await idTipoFondo(admin, 'proyecto')
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
   }, 60_000)
 
   afterAll(async () => {
@@ -119,7 +140,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
 
     const { error } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 1000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 1000, documento_id: documentoId })
     expect(error?.message).toMatch(/FONDO_ESTADO_NO_ADMITE_MOVIMIENTOS/)
   })
 
@@ -214,7 +235,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
     // en_cierre admite únicamente el tratamiento del remanente.
     const { error: errOrdinario } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 500 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 500, documento_id: documentoId })
     expect(errOrdinario?.message).toMatch(/FONDO_ESTADO_NO_ADMITE_MOVIMIENTOS/)
 
     await admin.from('fondos').update({ estado: 'cerrado' }).eq('id', fondo.id)
@@ -232,9 +253,9 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
     await activar(fondo.id)
 
     await admin.from('fondo_movimientos').insert([
-      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 100_000 },
-      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'rendimiento', monto: 3_000 },
-      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'uso', monto: 20_000 },
+      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 100_000, documento_id: documentoId },
+      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'rendimiento', monto: 3_000, documento_id: documentoId },
+      { tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'uso', monto: 20_000, documento_id: documentoId },
     ])
 
     expect(await saldo(fondo.id)).toBe(83_000)
@@ -255,7 +276,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
     await activar(fondo.id)
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 50_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 50_000, documento_id: documentoId })
 
     const { error } = await admin
       .from('fondos')
@@ -279,7 +300,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
 
     const { data: original } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 8_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 8_000, documento_id: documentoId })
       .select('id')
       .single<{ id: string }>()
 
@@ -343,7 +364,7 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
     await activar(fondo.id)
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 10_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 10_000, documento_id: documentoId })
 
     const { error: errSinMotivo } = await admin
       .from('fondo_movimientos')
@@ -356,13 +377,14 @@ d('Dominio Fondos — modelo general y saldo derivado (GAP-22)', () => {
       tipo: 'ajuste',
       monto: -150,
       motivo: 'diferencia de redondeo en la apertura',
+      documento_id: documentoId,
     })
     expect(await saldo(fondo.id)).toBe(9_850)
 
     // Un aporte, en cambio, no admite importe negativo.
     const { error: errNegativo } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: -100 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: -100, documento_id: documentoId })
     expect(errNegativo?.message).toMatch(/fondo_movimientos_monto_signo/)
   })
 })
@@ -493,6 +515,7 @@ d('Dominio Fondos — fuente_financiacion.fondo_id (cierra §4.5, GAP-22)', () =
   let presupuestoId: string
   let tipoFondoImprevistosFuente: number
   let fondoImprevistos: { id: string }
+  let documentoId: string
 
   async function activarFondo(fondoId: string): Promise<void> {
     for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
@@ -508,6 +531,7 @@ d('Dominio Fondos — fuente_financiacion.fondo_id (cierra §4.5, GAP-22)', () =
       'TIPO_FUENTE_FINANCIACION',
       'fondo_imprevistos',
     )
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
 
     const { data: presupuesto, error: errPresu } = await admin
       .from('presupuestos')
@@ -539,6 +563,7 @@ d('Dominio Fondos — fuente_financiacion.fondo_id (cierra §4.5, GAP-22)', () =
       fondo_id: fondoImprevistos.id,
       tipo: 'aporte',
       monto: 1_000,
+      documento_id: documentoId,
     })
   }, 60_000)
 
@@ -600,6 +625,7 @@ d('Dominio Fondos — fuente_financiacion.fondo_id (cierra §4.5, GAP-22)', () =
       fondo_id: fondoProyecto.id,
       tipo: 'aporte',
       monto: 120_000_000,
+      documento_id: documentoId,
     })
 
     const { data, error } = await admin.rpc('fn_registrar_fuente_financiacion', {
@@ -626,6 +652,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
   const admin = clienteAdmin(env!)
   let tenant: TenantPrueba
   let fondo: { id: string; codigo: string }
+  let documentoId: string
 
   interface Saldos {
     saldo: number
@@ -643,6 +670,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
 
   beforeAll(async () => {
     tenant = await crearTenant(admin, 'fondos-compromisos')
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
     const tipoProyecto = await idTipoFondo(admin, 'proyecto')
 
     const { data, error } = await admin
@@ -664,7 +692,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
     }
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 200_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 200_000, documento_id: documentoId })
   }, 60_000)
 
   afterAll(async () => {
@@ -731,6 +759,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
       tipo: 'uso',
       monto: 30_000,
       compromiso_id: compromiso!.id,
+      documento_id: documentoId,
     })
     let fila = await admin
       .from('fondo_compromisos')
@@ -745,6 +774,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
       tipo: 'uso',
       monto: 50_000,
       compromiso_id: compromiso!.id,
+      documento_id: documentoId,
     })
     fila = await admin
       .from('fondo_compromisos')
@@ -760,6 +790,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
       tipo: 'uso',
       monto: 1,
       compromiso_id: compromiso!.id,
+      documento_id: documentoId,
     })
     expect(errExtra?.message).toMatch(/COMPROMISO_ESTADO_NO_EJECUTABLE/)
 
@@ -795,6 +826,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
       tipo: 'uso',
       monto: 10_001,
       compromiso_id: compromiso!.id,
+      documento_id: documentoId,
     })
     expect(errSobreejecucion?.message).toMatch(/COMPROMISO_EJECUCION_EXCEDE_MONTO/)
 
@@ -814,7 +846,7 @@ d('Dominio Fondos — compromisos y disponible (GAP-22, BLOQUE F, R9)', () => {
     }
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: otroFondo!.id, tipo: 'aporte', monto: 50_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: otroFondo!.id, tipo: 'aporte', monto: 50_000, documento_id: documentoId })
 
     const { error: errCruzado } = await admin.from('fondo_movimientos').insert({
       tenant_id: tenant.id,
@@ -837,6 +869,7 @@ d('Dominio Fondos — solicitudes de uso y segregación de funciones (GAP-22, BL
   let clSolicitante: Cliente
   let clAprobador: Cliente
   let clEjecutor: Cliente
+  let documentoId: string
 
   interface Solicitud {
     id: string
@@ -883,6 +916,7 @@ d('Dominio Fondos — solicitudes de uso y segregación de funciones (GAP-22, BL
     clSolicitante = await clienteComo(env!, solicitante)
     clAprobador = await clienteComo(env!, aprobador)
     clEjecutor = await clienteComo(env!, ejecutor)
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
 
     const tipoProyecto = await idTipoFondo(admin, 'proyecto')
     const { data, error } = await admin
@@ -904,7 +938,7 @@ d('Dominio Fondos — solicitudes de uso y segregación de funciones (GAP-22, BL
     }
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 100_000 })
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 100_000, documento_id: documentoId })
   }, 60_000)
 
   afterAll(async () => {
@@ -1020,6 +1054,7 @@ d('Dominio Fondos — solicitudes de uso y segregación de funciones (GAP-22, BL
       tipo: 'uso',
       monto: 7_000,
       compromiso_id: comprometida!.compromiso_id!,
+      documento_id: documentoId,
     })
     const { data: solTrasParcial } = await admin
       .from('fondo_solicitudes_uso')
@@ -1035,6 +1070,7 @@ d('Dominio Fondos — solicitudes de uso y segregación de funciones (GAP-22, BL
       tipo: 'uso',
       monto: 8_000,
       compromiso_id: comprometida!.compromiso_id!,
+      documento_id: documentoId,
     })
     const { data: solFinal } = await admin
       .from('fondo_solicitudes_uso')
@@ -1049,6 +1085,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
   const admin = clienteAdmin(env!)
   let tenant: TenantPrueba
   let tipoProyecto: number
+  let documentoId: string
 
   async function crearFondoActivo(codigo: string): Promise<{ id: string; codigo: string }> {
     const { data, error } = await admin
@@ -1083,6 +1120,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
   beforeAll(async () => {
     tenant = await crearTenant(admin, 'fondos-cierre')
     tipoProyecto = await idTipoFondo(admin, 'proyecto')
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
   }, 60_000)
 
   afterAll(async () => {
@@ -1101,7 +1139,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('con saldo > 0, cerrar sin destino falla con FONDO_REMANENTE_SIN_DECISION', async () => {
     const fondo = await crearFondoActivo('FCI-SIN-DECISION')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 90_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 90_000, documento_id: documentoId })
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondo.id)
 
     const { error } = await admin.rpc('fn_fondo_cerrar', { p_fondo_id: fondo.id })
@@ -1110,7 +1148,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('destino devolución: registra el remanente, crea el movimiento cierre_remanente y cierra en 0', async () => {
     const fondo = await crearFondoActivo('FCI-DEVOLUCION')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 60_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 60_000, documento_id: documentoId })
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondo.id)
     const organoId = await idCatalogo(admin, 'ORGANO_DECISORIO', 'asamblea')
 
@@ -1146,7 +1184,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
   it('destino traslado: acredita traslado_entrada en el fondo destino por el mismo monto', async () => {
     const origen = await crearFondoActivo('FCI-TRASLADO-ORIGEN')
     const destino = await crearFondoActivo('FCI-TRASLADO-DESTINO')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: origen.id, tipo: 'aporte', monto: 45_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: origen.id, tipo: 'aporte', monto: 45_000, documento_id: documentoId })
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', origen.id)
     const organoId = await idCatalogo(admin, 'ORGANO_DECISORIO', 'consejo')
 
@@ -1172,7 +1210,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('no cierra con un compromiso pendiente (proyectado/comprometido/parcialmente_ejecutado)', async () => {
     const fondo = await crearFondoActivo('FCI-COMPROMISO-PENDIENTE')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000, documento_id: documentoId })
     await admin.from('fondo_compromisos').insert({
       tenant_id: tenant.id,
       fondo_id: fondo.id,
@@ -1192,7 +1230,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('un compromiso pendiente SÍ se puede anular/liberar durante en_cierre, para poder cerrar (no queda en candado)', async () => {
     const fondo = await crearFondoActivo('FCI-COMPROMISO-RESUELTO')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000, documento_id: documentoId })
     const { data: compromiso } = await admin
       .from('fondo_compromisos')
       .insert({ tenant_id: tenant.id, fondo_id: fondo.id, concepto: 'Compromiso a resolver', monto: 10_000 })
@@ -1222,7 +1260,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('un compromiso pendiente NO se puede comprometer/ejecutar más durante en_cierre (solo liberar/anular)', async () => {
     const fondo = await crearFondoActivo('FCI-COMPROMISO-BLOQUEADO')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 20_000, documento_id: documentoId })
     const { data: compromiso } = await admin
       .from('fondo_compromisos')
       .insert({ tenant_id: tenant.id, fondo_id: fondo.id, concepto: 'Compromiso a resolver', monto: 10_000 })
@@ -1241,7 +1279,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
     const solicitante = await crearUsuario(admin, 'ccm-fondo-cierre-solicitante')
     await crearMembership(admin, tenant.id, solicitante.id, 'auxiliar')
     const fondo = await crearFondoActivo('FCI-SOLICITUD-PENDIENTE')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 15_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 15_000, documento_id: documentoId })
     await admin.from('fondo_solicitudes_uso').insert({
       tenant_id: tenant.id,
       fondo_id: fondo.id,
@@ -1264,7 +1302,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('un UPDATE directo a cerrado sin pasar por fn_fondo_cerrar también queda bloqueado por el guard', async () => {
     const fondo = await crearFondoActivo('FCI-GUARD-DIRECTO')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 30_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 30_000, documento_id: documentoId })
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondo.id)
 
     const { error } = await admin.from('fondos').update({ estado: 'cerrado' }).eq('id', fondo.id)
@@ -1273,7 +1311,7 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
   it('fondo_remanentes es append-only', async () => {
     const fondo = await crearFondoActivo('FCI-INMUTABLE')
-    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 25_000 })
+    await admin.from('fondo_movimientos').insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 25_000, documento_id: documentoId })
     await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', fondo.id)
     await admin.rpc('fn_fondo_cerrar', {
       p_fondo_id: fondo.id,
@@ -1296,5 +1334,188 @@ d('Dominio Fondos — cierre y remanentes (GAP-22, BLOQUE O, Modelo §35/§36)',
 
     const { error: errDelete } = await admin.from('fondo_remanentes').delete().eq('id', remanente!.id)
     expect(errDelete?.message).toMatch(/FONDO_REMANENTE_INMUTABLE/)
+  })
+})
+
+d('Dominio Fondos — soporte documental diferenciado (GAP-22, D-42, Modelo §36)', () => {
+  const admin = clienteAdmin(env!)
+  let tenant: TenantPrueba
+  let fondo: { id: string }
+  let documentoId: string
+
+  beforeAll(async () => {
+    tenant = await crearTenant(admin, 'fondos-soporte')
+    const tipoProyecto = await idTipoFondo(admin, 'proyecto')
+    documentoId = await crearDocumentoFixture(admin, tenant.id)
+
+    const { data, error } = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: 'FON-SOP',
+        nombre: 'Fondo soporte diferenciado',
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture fondo: ${error.message}`)
+    fondo = data
+    for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+      await admin.from('fondos').update({ estado }).eq('id', fondo.id)
+    }
+  }, 60_000)
+
+  afterAll(async () => {
+    await eliminarTenant(admin, tenant.id)
+  }, 60_000)
+
+  it('un aporte manual (sin pago_id) exige documento_id — el automático por recaudo (BLOQUE K) no', async () => {
+    const { error: errSinRespaldo } = await admin
+      .from('fondo_movimientos')
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 1_000 })
+    expect(errSinRespaldo?.message).toMatch(/FONDO_SOPORTE_REQUERIDO/)
+
+    const { error: errConDocumento } = await admin
+      .from('fondo_movimientos')
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 1_000, documento_id: documentoId })
+    expect(errConDocumento).toBeNull()
+  })
+
+  it('rendimiento/ajuste/traslado_entrada/traslado_salida exigen documento_id siempre (no hay ruta automática)', async () => {
+    type TipoSinRutaAutomatica = 'rendimiento' | 'ajuste' | 'traslado_entrada' | 'traslado_salida'
+    const casos: Array<{ tipo: TipoSinRutaAutomatica; monto: number; extra?: Record<string, unknown> }> = [
+      { tipo: 'rendimiento', monto: 500 },
+      { tipo: 'ajuste', monto: -10, extra: { motivo: 'ajuste de prueba' } },
+      { tipo: 'traslado_entrada', monto: 200 },
+      { tipo: 'traslado_salida', monto: 200 },
+    ]
+
+    for (const caso of casos) {
+      const { error: errSinDocumento } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: caso.tipo,
+        monto: caso.monto,
+        ...caso.extra,
+      })
+      expect(errSinDocumento?.message, `${caso.tipo} sin documento`).toMatch(/FONDO_SOPORTE_REQUERIDO/)
+
+      const { error: errConDocumento } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: caso.tipo,
+        monto: caso.monto,
+        documento_id: documentoId,
+        ...caso.extra,
+      })
+      expect(errConDocumento, `${caso.tipo} con documento`).toBeNull()
+    }
+  })
+
+  it('un uso contra un compromiso exige documento_id', async () => {
+    const { data: compromiso, error: errCompromiso } = await admin
+      .from('fondo_compromisos')
+      .insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        concepto: 'Compromiso soporte',
+        monto: 100,
+        estado: 'comprometido',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errCompromiso) throw new Error(`fixture compromiso: ${errCompromiso.message}`)
+
+    const { error: errSinDocumento } = await admin.from('fondo_movimientos').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondo.id,
+      tipo: 'uso',
+      monto: 50,
+      compromiso_id: compromiso.id,
+    })
+    expect(errSinDocumento?.message).toMatch(/FONDO_SOPORTE_REQUERIDO/)
+
+    const { error: errConDocumento } = await admin.from('fondo_movimientos').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondo.id,
+      tipo: 'uso',
+      monto: 50,
+      compromiso_id: compromiso.id,
+      documento_id: documentoId,
+    })
+    expect(errConDocumento).toBeNull()
+  })
+
+  it('una reversión queda exenta — su respaldo es el movimiento que corrige, no un documento', async () => {
+    const { data: original } = await admin
+      .from('fondo_movimientos')
+      .insert({ tenant_id: tenant.id, fondo_id: fondo.id, tipo: 'aporte', monto: 3_000, documento_id: documentoId })
+      .select('id')
+      .single<{ id: string }>()
+
+    const { error } = await admin.from('fondo_movimientos').insert({
+      tenant_id: tenant.id,
+      fondo_id: fondo.id,
+      tipo: 'reversion',
+      monto: -3_000,
+      motivo: 'corrige aporte de prueba',
+      reversion_de_id: original!.id,
+    })
+    expect(error).toBeNull()
+  })
+
+  it('cierre_remanente y el traslado_entrada que fn_fondo_cerrar genera quedan exentos — su respaldo es fondo_remanentes', async () => {
+    const tipoProyecto = await idTipoFondo(admin, 'proyecto')
+    const origen = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: 'FON-SOP-ORIGEN',
+        nombre: 'Origen cierre',
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    const destino = await admin
+      .from('fondos')
+      .insert({
+        tenant_id: tenant.id,
+        codigo: 'FON-SOP-DESTINO',
+        nombre: 'Destino cierre',
+        naturaleza: 'destinacion_especifica',
+        tipo_id: tipoProyecto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    for (const f of [origen.data!.id, destino.data!.id]) {
+      for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+        await admin.from('fondos').update({ estado }).eq('id', f)
+      }
+    }
+    await admin
+      .from('fondo_movimientos')
+      .insert({ tenant_id: tenant.id, fondo_id: origen.data!.id, tipo: 'aporte', monto: 4_000, documento_id: documentoId })
+    await admin.from('fondos').update({ estado: 'en_cierre' }).eq('id', origen.data!.id)
+
+    const { error } = await admin.rpc('fn_fondo_cerrar', {
+      p_fondo_id: origen.data!.id,
+      p_destino: 'traslado',
+      p_organo_id: await idCatalogo(admin, 'ORGANO_DECISORIO', 'asamblea'),
+      p_decision: 'Traslado de prueba sin documento — exento por bandera de sesión.',
+      p_fondo_destino_id: destino.data!.id,
+    })
+    expect(error).toBeNull()
+
+    const { data: movimientos } = await admin
+      .from('fondo_movimientos')
+      .select('tipo, documento_id')
+      .in('fondo_id', [origen.data!.id, destino.data!.id])
+      .in('tipo', ['cierre_remanente', 'traslado_entrada'])
+    expect(movimientos).toHaveLength(2)
+    for (const m of movimientos!) {
+      expect(m.documento_id).toBeNull()
+    }
   })
 })

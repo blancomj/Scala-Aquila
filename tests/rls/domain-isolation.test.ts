@@ -103,9 +103,29 @@ d('Aislamiento de dominio PH entre tenants (SEC-11/12)', () => {
       .single<{ id: string }>()
     if (errFondoB) throw new Error(`fixture fondo B: ${errFondoB.message}`)
 
+    const { data: tipoDocumento, error: errTipoDoc } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'TIPO_DOCUMENTO')
+      .is('tenant_id', null)
+      .eq('codigo', 'soporte_movimiento_fondo')
+      .single<{ id: number }>()
+    if (errTipoDoc) throw new Error(`fixture TIPO_DOCUMENTO soporte_movimiento_fondo: ${errTipoDoc.message}`)
+    const { data: documento, error: errDocumento } = await admin
+      .from('documentos')
+      .insert({
+        tenant_id: tenantB.id,
+        tipo_documento_id: tipoDocumento.id,
+        nombre_archivo: 'soporte-fixture.pdf',
+        storage_path: `test/${String(Date.now())}.pdf`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errDocumento) throw new Error(`fixture documento soporte: ${errDocumento.message}`)
+
     await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenantB.id, fondo_id: fondoB.id, tipo: 'aporte', monto: 1000 })
+      .insert({ tenant_id: tenantB.id, fondo_id: fondoB.id, tipo: 'aporte', monto: 1000, documento_id: documento.id })
   }, 30_000)
 
   afterAll(async () => {

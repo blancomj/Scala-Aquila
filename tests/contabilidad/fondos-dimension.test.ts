@@ -79,11 +79,36 @@ async function idEventoContable(admin: Cliente, codigo: string): Promise<number>
   return data.id
 }
 
+/** Soporte documental (D-42, guard_fondo_movimiento) — rendimiento/aporte manual lo exigen. */
+async function crearDocumentoFixture(admin: Cliente, tenantId: string): Promise<string> {
+  const { data: tipo, error: errTipo } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_DOCUMENTO')
+    .is('tenant_id', null)
+    .eq('codigo', 'soporte_movimiento_fondo')
+    .single<{ id: number }>()
+  if (errTipo) throw new Error(`fixture TIPO_DOCUMENTO soporte_movimiento_fondo: ${errTipo.message}`)
+  const { data, error } = await admin
+    .from('documentos')
+    .insert({
+      tenant_id: tenantId,
+      tipo_documento_id: tipo.id,
+      nombre_archivo: 'soporte-fixture.pdf',
+      storage_path: `test/${String(Date.now())}.pdf`,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture documento soporte: ${error.message}`)
+  return data.id
+}
+
 d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
   const admin = clienteAdmin(env!)
   let usuario: UsuarioPrueba
   let tenantId: string
   let fondoImprevistos: { id: string }
+  let documentoId: string
 
   beforeAll(async () => {
     usuario = await crearUsuario(admin, 'fondos-contab')
@@ -108,6 +133,7 @@ d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
       .single<{ id: string }>()
     if (error) throw new Error(`fixture fondo (nacido con el alta): ${error.message}`)
     fondoImprevistos = fondo
+    documentoId = await crearDocumentoFixture(admin, tenantId)
   }, 60_000)
 
   afterAll(async () => {
@@ -151,7 +177,7 @@ d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
   it('aporte y rendimiento resuelven cuentas distintas: banco vs ingreso real (4605)', async () => {
     const { data: aporte } = await admin
       .from('fondo_movimientos')
-      .insert({ tenant_id: tenantId, fondo_id: fondoImprevistos.id, tipo: 'aporte', monto: 100_000 })
+      .insert({ tenant_id: tenantId, fondo_id: fondoImprevistos.id, tipo: 'aporte', monto: 100_000, documento_id: documentoId })
       .select('id')
       .single<{ id: string }>()
 
@@ -162,6 +188,7 @@ d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
         fondo_id: fondoImprevistos.id,
         tipo: 'rendimiento',
         monto: 3_000,
+        documento_id: documentoId,
       })
       .select('id')
       .single<{ id: string }>()
@@ -196,6 +223,7 @@ d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
         tipo: 'rendimiento',
         monto: 500,
         descripcion: 'a revertir',
+        documento_id: documentoId,
       })
       .select('id')
       .single<{ id: string }>()

@@ -116,6 +116,8 @@ export const ERROR_CODES = {
   FONDO_REMANENTE_SIN_DECISION: 'FONDO_REMANENTE_SIN_DECISION',
   FONDO_REMANENTE_SIN_DESTINO: 'FONDO_REMANENTE_SIN_DESTINO',
   FONDO_REVERSION_INVALIDA: 'FONDO_REVERSION_INVALIDA',
+  // D-42: soporte documental diferenciado — manual exige documento_id, automático (pago_id) no.
+  FONDO_SOPORTE_REQUERIDO: 'FONDO_SOPORTE_REQUERIDO',
   // R8: saldo_actual no se escribe a mano, se deriva de fondo_movimientos.
   FONDO_SALDO_DERIVADO: 'FONDO_SALDO_DERIVADO',
   // BLOQUE O: guard_fondo_cierre_completo — un saldo negativo nunca debería llegar a cerrarse.
