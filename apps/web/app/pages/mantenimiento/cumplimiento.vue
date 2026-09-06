@@ -146,6 +146,7 @@ async function registrar(): Promise<void> {
               { label: 'Con hallazgos', value: 'con_hallazgos' },
               { label: 'No conforme', value: 'no_conforme' },
             ]"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Evidencia (enlace o descripción)" name="evidencia">
@@ -156,6 +157,7 @@ async function registrar(): Promise<void> {
             <USelect
               v-model="form.terceroId"
               :items="terceros.map((t) => ({ label: t.nombre_completo ?? t.razon_social ?? '—', value: t.id }))"
+              class="w-full"
             />
           </UFormField>
           <UFormField label="Referencia de acreditación" name="acreditacion">

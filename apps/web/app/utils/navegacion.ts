@@ -378,6 +378,36 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.mantenimiento,
       },
       {
+        label: 'Planes de mantenimiento',
+        to: '/mantenimiento/planes',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Incidencias',
+        to: '/mantenimiento/incidencias',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Órdenes de trabajo',
+        to: '/mantenimiento/ordenes-trabajo',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Proveedores y contratistas',
+        to: '/mantenimiento/proveedores',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Contratos',
+        to: '/mantenimiento/contratos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
         label: 'Configuración de mantenimiento',
         to: '/mantenimiento/configuracion',
         permiso: 'settings:manage',

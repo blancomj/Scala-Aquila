@@ -122,12 +122,14 @@ function actualizarOpcion(codigo: string, valor: unknown): void {
             v-else-if="def.tipo_dato === 'booleano'"
             :model-value="booleanoValor(def.codigo)"
             :items="[{ label: 'Sí', value: true }, { label: 'No', value: false }]"
+            class="w-full"
             @update:model-value="(v) => actualizarBooleano(def.codigo, v)"
           />
           <USelect
             v-else-if="def.tipo_dato === 'opcion'"
             :model-value="opcionValor(def.codigo)"
             :items="(def.opciones ?? []).map((o) => ({ label: o, value: o }))"
+            class="w-full"
             @update:model-value="(v) => actualizarOpcion(def.codigo, v)"
           />
         </UFormField>

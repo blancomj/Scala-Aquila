@@ -7714,6 +7714,325 @@ export type Database = {
           },
         ]
       }
+      mant_consecutivo: {
+        Row: {
+          anio: number
+          serie_id: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          serie_id: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          serie_id?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_consecutivo_serie_id_fkey"
+            columns: ["serie_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_contrato_activos: {
+        Row: {
+          activo_id: string
+          contrato_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          activo_id: string
+          contrato_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          activo_id?: string
+          contrato_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_contrato_activos_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_activos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_contrato_clausulas: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          documento_id: string | null
+          id: string
+          orden: number
+          tenant_id: string
+          texto: string
+          titulo: string
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          orden?: number
+          tenant_id: string
+          texto: string
+          titulo: string
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          orden?: number
+          tenant_id?: string
+          texto?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_contrato_clausulas_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_clausulas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_clausulas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_clausulas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contrato_clausulas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_contratos: {
+        Row: {
+          codigo: string
+          contrato_anterior_id: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          documento_id: string | null
+          duracion_meses: number | null
+          estado: Database["public"]["Enums"]["contrato_estado_t"]
+          fecha_fin: string | null
+          fecha_inicio: string
+          forma_pago: string | null
+          id: string
+          objeto: string
+          periodicidad_id: number | null
+          preaviso_dias: number | null
+          presupuesto_cuenta_id: string | null
+          renovacion_automatica: boolean
+          sla_respuesta_horas: number | null
+          sla_solucion_horas: number | null
+          supervisor_ref: string | null
+          tenant_id: string
+          tercero_id: string
+          tipo_id: number
+          updated_at: string | null
+          valor_periodico: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          codigo: string
+          contrato_anterior_id?: string | null
+          created_at?: string
+          decision_id?: string | null
+          descripcion?: string | null
+          documento_id?: string | null
+          duracion_meses?: number | null
+          estado?: Database["public"]["Enums"]["contrato_estado_t"]
+          fecha_fin?: string | null
+          fecha_inicio: string
+          forma_pago?: string | null
+          id?: string
+          objeto: string
+          periodicidad_id?: number | null
+          preaviso_dias?: number | null
+          presupuesto_cuenta_id?: string | null
+          renovacion_automatica?: boolean
+          sla_respuesta_horas?: number | null
+          sla_solucion_horas?: number | null
+          supervisor_ref?: string | null
+          tenant_id: string
+          tercero_id: string
+          tipo_id: number
+          updated_at?: string | null
+          valor_periodico?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          codigo?: string
+          contrato_anterior_id?: string | null
+          created_at?: string
+          decision_id?: string | null
+          descripcion?: string | null
+          documento_id?: string | null
+          duracion_meses?: number | null
+          estado?: Database["public"]["Enums"]["contrato_estado_t"]
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          forma_pago?: string | null
+          id?: string
+          objeto?: string
+          periodicidad_id?: number | null
+          preaviso_dias?: number | null
+          presupuesto_cuenta_id?: string | null
+          renovacion_automatica?: boolean
+          sla_respuesta_horas?: number | null
+          sla_solucion_horas?: number | null
+          supervisor_ref?: string | null
+          tenant_id?: string
+          tercero_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          valor_periodico?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_contratos_contrato_anterior_id_fkey"
+            columns: ["contrato_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_periodicidad_id_fkey"
+            columns: ["periodicidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_contratos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_criticidad_banda: {
         Row: {
           created_at: string
@@ -8037,6 +8356,1717 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_garantia_reclamaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          fecha_reclamo: string
+          fecha_resolucion: string | null
+          garantia_id: string
+          id: string
+          registrado_por: string | null
+          resultado_id: number | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          garantia_id: string
+          id?: string
+          registrado_por?: string | null
+          resultado_id?: number | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          garantia_id?: string
+          id?: string
+          registrado_por?: string | null
+          resultado_id?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_garantia_id_fkey"
+            columns: ["garantia_id"]
+            isOneToOne: false
+            referencedRelation: "mant_garantias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_resultado_id_fkey"
+            columns: ["resultado_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantia_reclamaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_garantias: {
+        Row: {
+          activo_id: string
+          alcance: string | null
+          contrato_id: string | null
+          created_at: string
+          documento_id: string | null
+          exclusiones: string | null
+          id: string
+          origen: Database["public"]["Enums"]["garantia_origen_t"]
+          tenant_id: string
+          tercero_id: string | null
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          activo_id: string
+          alcance?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          documento_id?: string | null
+          exclusiones?: string | null
+          id?: string
+          origen: Database["public"]["Enums"]["garantia_origen_t"]
+          tenant_id: string
+          tercero_id?: string | null
+          updated_at?: string | null
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          activo_id?: string
+          alcance?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          documento_id?: string | null
+          exclusiones?: string | null
+          id?: string
+          origen?: Database["public"]["Enums"]["garantia_origen_t"]
+          tenant_id?: string
+          tercero_id?: string | null
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_garantias_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_garantias_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_habilitacion_requerida: {
+        Row: {
+          bloqueante: boolean
+          condicion_tipo: Database["public"]["Enums"]["mant_habilitacion_condicion_t"]
+          condicion_valor: string | null
+          created_at: string
+          id: string
+          tenant_id: string
+          tipo_habilitacion_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          bloqueante?: boolean
+          condicion_tipo: Database["public"]["Enums"]["mant_habilitacion_condicion_t"]
+          condicion_valor?: string | null
+          created_at?: string
+          id?: string
+          tenant_id: string
+          tipo_habilitacion_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          bloqueante?: boolean
+          condicion_tipo?: Database["public"]["Enums"]["mant_habilitacion_condicion_t"]
+          condicion_valor?: string | null
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          tipo_habilitacion_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_habilitacion_requerida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_habilitacion_requerida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_habilitacion_requerida_tipo_habilitacion_id_fkey"
+            columns: ["tipo_habilitacion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_incidencia_actuaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          id: string
+          incidencia_id: string
+          registrado_por: string | null
+          tenant_id: string
+          tipo_actuacion: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          id?: string
+          incidencia_id: string
+          registrado_por?: string | null
+          tenant_id: string
+          tipo_actuacion: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          id?: string
+          incidencia_id?: string
+          registrado_por?: string | null
+          tenant_id?: string
+          tipo_actuacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_incidencia_actuaciones_incidencia_id_fkey"
+            columns: ["incidencia_id"]
+            isOneToOne: false
+            referencedRelation: "mant_incidencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencia_actuaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencia_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencia_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_incidencias: {
+        Row: {
+          activo_id: string | null
+          agrupacion_id: string | null
+          anio: number
+          created_at: string
+          descartada_motivo: string | null
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["incidencia_estado_t"]
+          id: string
+          incidencia_padre_id: string | null
+          numero: number
+          orden_trabajo_id: string | null
+          origen_id: number
+          prioridad_id: number | null
+          prioridad_sobrescrita_motivo: string | null
+          prioridad_sugerida_id: number | null
+          registrada_por: string | null
+          reportada_at: string
+          reportante_contacto: string | null
+          reportante_inmueble_id: string | null
+          reportante_ref: string | null
+          severidad_id: number | null
+          tenant_id: string
+          tipo_id: number
+          titulo: string
+          updated_at: string | null
+          zona_comun_id: string | null
+        }
+        Insert: {
+          activo_id?: string | null
+          agrupacion_id?: string | null
+          anio?: number
+          created_at?: string
+          descartada_motivo?: string | null
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["incidencia_estado_t"]
+          id?: string
+          incidencia_padre_id?: string | null
+          numero?: number
+          orden_trabajo_id?: string | null
+          origen_id: number
+          prioridad_id?: number | null
+          prioridad_sobrescrita_motivo?: string | null
+          prioridad_sugerida_id?: number | null
+          registrada_por?: string | null
+          reportada_at?: string
+          reportante_contacto?: string | null
+          reportante_inmueble_id?: string | null
+          reportante_ref?: string | null
+          severidad_id?: number | null
+          tenant_id: string
+          tipo_id: number
+          titulo: string
+          updated_at?: string | null
+          zona_comun_id?: string | null
+        }
+        Update: {
+          activo_id?: string | null
+          agrupacion_id?: string | null
+          anio?: number
+          created_at?: string
+          descartada_motivo?: string | null
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["incidencia_estado_t"]
+          id?: string
+          incidencia_padre_id?: string | null
+          numero?: number
+          orden_trabajo_id?: string | null
+          origen_id?: number
+          prioridad_id?: number | null
+          prioridad_sobrescrita_motivo?: string | null
+          prioridad_sugerida_id?: number | null
+          registrada_por?: string | null
+          reportada_at?: string
+          reportante_contacto?: string | null
+          reportante_inmueble_id?: string | null
+          reportante_ref?: string | null
+          severidad_id?: number | null
+          tenant_id?: string
+          tipo_id?: number
+          titulo?: string
+          updated_at?: string | null
+          zona_comun_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_incidencias_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_incidencia_padre_id_fkey"
+            columns: ["incidencia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "mant_incidencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_orden_trabajo_fk"
+            columns: ["orden_trabajo_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_origen_id_fkey"
+            columns: ["origen_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_prioridad_sugerida_id_fkey"
+            columns: ["prioridad_sugerida_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_reportante_inmueble_id_fkey"
+            columns: ["reportante_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_reportante_inmueble_id_fkey"
+            columns: ["reportante_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_severidad_id_fkey"
+            columns: ["severidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_incidencias_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_matriz_prioridad: {
+        Row: {
+          banda_criticidad: string
+          created_at: string
+          id: string
+          prioridad_id: number
+          severidad_id: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          banda_criticidad: string
+          created_at?: string
+          id?: string
+          prioridad_id: number
+          severidad_id: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          banda_criticidad?: string
+          created_at?: string
+          id?: string
+          prioridad_id?: number
+          severidad_id?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_matriz_prioridad_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_matriz_prioridad_severidad_id_fkey"
+            columns: ["severidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_matriz_prioridad_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_matriz_prioridad_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_ordenes_trabajo: {
+        Row: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          anio: number
+          aprobada_at: string | null
+          aprobada_por: string | null
+          asignado_tercero_id: string | null
+          asignado_usuario_id: string | null
+          cancelada_motivo: string | null
+          cerrada_at: string | null
+          contrato_id: string | null
+          costo_estimado: number | null
+          created_at: string
+          descripcion: string | null
+          ejecutada_at: string | null
+          estado: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite: string | null
+          fecha_programada: string | null
+          id: string
+          incidencia_id: string | null
+          iniciada_at: string | null
+          inspeccion_id: string | null
+          numero: number
+          origen: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id: number | null
+          programacion_id: string | null
+          requiere_aprobacion: boolean
+          requiere_parada_servicio: boolean
+          requiere_trabajo_alturas: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          titulo: string
+          updated_at: string | null
+          ventana_hasta: string | null
+        }
+        Insert: {
+          acreditacion_referencia?: string | null
+          activo_id?: string | null
+          anio?: number
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          asignado_tercero_id?: string | null
+          asignado_usuario_id?: string | null
+          cancelada_motivo?: string | null
+          cerrada_at?: string | null
+          contrato_id?: string | null
+          costo_estimado?: number | null
+          created_at?: string
+          descripcion?: string | null
+          ejecutada_at?: string | null
+          estado?: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite?: string | null
+          fecha_programada?: string | null
+          id?: string
+          incidencia_id?: string | null
+          iniciada_at?: string | null
+          inspeccion_id?: string | null
+          numero?: number
+          origen: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id?: number | null
+          programacion_id?: string | null
+          requiere_aprobacion?: boolean
+          requiere_parada_servicio?: boolean
+          requiere_trabajo_alturas?: boolean
+          requisito_id?: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          titulo: string
+          updated_at?: string | null
+          ventana_hasta?: string | null
+        }
+        Update: {
+          acreditacion_referencia?: string | null
+          activo_id?: string | null
+          anio?: number
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          asignado_tercero_id?: string | null
+          asignado_usuario_id?: string | null
+          cancelada_motivo?: string | null
+          cerrada_at?: string | null
+          contrato_id?: string | null
+          costo_estimado?: number | null
+          created_at?: string
+          descripcion?: string | null
+          ejecutada_at?: string | null
+          estado?: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite?: string | null
+          fecha_programada?: string | null
+          id?: string
+          incidencia_id?: string | null
+          iniciada_at?: string | null
+          inspeccion_id?: string | null
+          numero?: number
+          origen?: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id?: number | null
+          programacion_id?: string | null
+          requiere_aprobacion?: boolean
+          requiere_parada_servicio?: boolean
+          requiere_trabajo_alturas?: boolean
+          requisito_id?: string | null
+          tenant_id?: string
+          tipo_mantenimiento_id?: number
+          titulo?: string
+          updated_at?: string | null
+          ventana_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_ordenes_trabajo_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_asignado_tercero_id_fkey"
+            columns: ["asignado_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_asignado_usuario_id_fkey"
+            columns: ["asignado_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_incidencia_fk"
+            columns: ["incidencia_id"]
+            isOneToOne: false
+            referencedRelation: "mant_incidencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_programaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_requisito_id_fkey"
+            columns: ["requisito_id"]
+            isOneToOne: false
+            referencedRelation: "mant_requisito"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_tipo_mantenimiento_id_fkey"
+            columns: ["tipo_mantenimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_ot_estado_historial: {
+        Row: {
+          created_at: string
+          estado_anterior: Database["public"]["Enums"]["ot_estado_t"] | null
+          estado_nuevo: Database["public"]["Enums"]["ot_estado_t"]
+          id: string
+          motivo: string | null
+          ot_id: string
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["ot_estado_t"] | null
+          estado_nuevo: Database["public"]["Enums"]["ot_estado_t"]
+          id?: string
+          motivo?: string | null
+          ot_id: string
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["ot_estado_t"] | null
+          estado_nuevo?: Database["public"]["Enums"]["ot_estado_t"]
+          id?: string
+          motivo?: string | null
+          ot_id?: string
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_ot_estado_historial_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_estado_historial_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_estado_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_estado_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_ot_evidencias: {
+        Row: {
+          created_at: string
+          documento_id: string
+          id: string
+          ot_id: string
+          subido_por: string | null
+          tarea_id: string | null
+          tenant_id: string
+          tipo_evidencia_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          documento_id: string
+          id?: string
+          ot_id: string
+          subido_por?: string | null
+          tarea_id?: string | null
+          tenant_id: string
+          tipo_evidencia_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string
+          id?: string
+          ot_id?: string
+          subido_por?: string | null
+          tarea_id?: string | null
+          tenant_id?: string
+          tipo_evidencia_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_ot_evidencias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ot_tareas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_evidencias_tipo_evidencia_id_fkey"
+            columns: ["tipo_evidencia_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_ot_mediciones: {
+        Row: {
+          atributo_definicion_id: string
+          created_at: string
+          fuera_de_rango: boolean
+          id: string
+          incidencia_generada_id: string | null
+          observacion: string | null
+          ot_id: string
+          rango_max: number | null
+          rango_min: number | null
+          tarea_id: string | null
+          tenant_id: string
+          unidad_id: number | null
+          valor: number
+        }
+        Insert: {
+          atributo_definicion_id: string
+          created_at?: string
+          fuera_de_rango?: boolean
+          id?: string
+          incidencia_generada_id?: string | null
+          observacion?: string | null
+          ot_id: string
+          rango_max?: number | null
+          rango_min?: number | null
+          tarea_id?: string | null
+          tenant_id: string
+          unidad_id?: number | null
+          valor: number
+        }
+        Update: {
+          atributo_definicion_id?: string
+          created_at?: string
+          fuera_de_rango?: boolean
+          id?: string
+          incidencia_generada_id?: string | null
+          observacion?: string | null
+          ot_id?: string
+          rango_max?: number | null
+          rango_min?: number | null
+          tarea_id?: string | null
+          tenant_id?: string
+          unidad_id?: number | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_ot_mediciones_atributo_definicion_id_fkey"
+            columns: ["atributo_definicion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_atributo_definicion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_incidencia_generada_id_fkey"
+            columns: ["incidencia_generada_id"]
+            isOneToOne: false
+            referencedRelation: "mant_incidencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ot_tareas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_mediciones_unidad_id_fkey"
+            columns: ["unidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_ot_tareas: {
+        Row: {
+          created_at: string
+          descripcion: string
+          ejecutada_at: string | null
+          ejecutada_por: string | null
+          estado: Database["public"]["Enums"]["tarea_estado_t"]
+          id: string
+          no_aplica_motivo: string | null
+          obligatoria: boolean
+          observaciones: string | null
+          orden: number
+          ot_id: string
+          requiere_evidencia_foto: boolean
+          requiere_medicion: boolean
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          ejecutada_at?: string | null
+          ejecutada_por?: string | null
+          estado?: Database["public"]["Enums"]["tarea_estado_t"]
+          id?: string
+          no_aplica_motivo?: string | null
+          obligatoria?: boolean
+          observaciones?: string | null
+          orden: number
+          ot_id: string
+          requiere_evidencia_foto?: boolean
+          requiere_medicion?: boolean
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          ejecutada_at?: string | null
+          ejecutada_por?: string | null
+          estado?: Database["public"]["Enums"]["tarea_estado_t"]
+          id?: string
+          no_aplica_motivo?: string | null
+          obligatoria?: boolean
+          observaciones?: string | null
+          orden?: number
+          ot_id?: string
+          requiere_evidencia_foto?: boolean
+          requiere_medicion?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_ot_tareas_ejecutada_por_fkey"
+            columns: ["ejecutada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_tareas_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_tareas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ot_tareas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_plan_activos: {
+        Row: {
+          activo_id: string
+          id: string
+          plan_id: string
+          resuelto_at: string
+          tenant_id: string
+        }
+        Insert: {
+          activo_id: string
+          id?: string
+          plan_id: string
+          resuelto_at?: string
+          tenant_id: string
+        }
+        Update: {
+          activo_id?: string
+          id?: string
+          plan_id?: string
+          resuelto_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_plan_activos_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_plan_activos_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "mant_planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_plan_activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_plan_activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_plan_tareas: {
+        Row: {
+          cantidad_prevista: number | null
+          created_at: string
+          descripcion: string
+          duracion_estimada_min: number | null
+          id: string
+          orden: number
+          plan_id: string
+          repuesto_previsto_id: string | null
+          requiere_evidencia_foto: boolean
+          requiere_medicion: boolean
+          tenant_id: string
+        }
+        Insert: {
+          cantidad_prevista?: number | null
+          created_at?: string
+          descripcion: string
+          duracion_estimada_min?: number | null
+          id?: string
+          orden: number
+          plan_id: string
+          repuesto_previsto_id?: string | null
+          requiere_evidencia_foto?: boolean
+          requiere_medicion?: boolean
+          tenant_id: string
+        }
+        Update: {
+          cantidad_prevista?: number | null
+          created_at?: string
+          descripcion?: string
+          duracion_estimada_min?: number | null
+          id?: string
+          orden?: number
+          plan_id?: string
+          repuesto_previsto_id?: string | null
+          requiere_evidencia_foto?: boolean
+          requiere_medicion?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_plan_tareas_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "mant_planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_plan_tareas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_plan_tareas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_planes: {
+        Row: {
+          activo: boolean
+          alcance: Database["public"]["Enums"]["plan_alcance_t"]
+          alcance_activo_id: string | null
+          alcance_agrupacion_id: string | null
+          alcance_categoria_id: number | null
+          alcance_tipo_activo_id: number | null
+          alcance_zona_comun_id: string | null
+          codigo: string
+          contrato_id: string | null
+          created_at: string
+          descripcion: string | null
+          duracion_estimada_min: number | null
+          encadenar_desde_ejecucion_real: boolean
+          frecuencia_meses: number
+          frecuencia_origen: Database["public"]["Enums"]["plan_frecuencia_origen_t"]
+          horizonte_meses: number
+          id: string
+          nombre: string
+          requiere_parada_servicio: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          updated_at: string | null
+          ventana_dias: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          activo?: boolean
+          alcance: Database["public"]["Enums"]["plan_alcance_t"]
+          alcance_activo_id?: string | null
+          alcance_agrupacion_id?: string | null
+          alcance_categoria_id?: number | null
+          alcance_tipo_activo_id?: number | null
+          alcance_zona_comun_id?: string | null
+          codigo: string
+          contrato_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          encadenar_desde_ejecucion_real?: boolean
+          frecuencia_meses: number
+          frecuencia_origen: Database["public"]["Enums"]["plan_frecuencia_origen_t"]
+          horizonte_meses: number
+          id?: string
+          nombre: string
+          requiere_parada_servicio?: boolean
+          requisito_id?: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          updated_at?: string | null
+          ventana_dias: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          activo?: boolean
+          alcance?: Database["public"]["Enums"]["plan_alcance_t"]
+          alcance_activo_id?: string | null
+          alcance_agrupacion_id?: string | null
+          alcance_categoria_id?: number | null
+          alcance_tipo_activo_id?: number | null
+          alcance_zona_comun_id?: string | null
+          codigo?: string
+          contrato_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          encadenar_desde_ejecucion_real?: boolean
+          frecuencia_meses?: number
+          frecuencia_origen?: Database["public"]["Enums"]["plan_frecuencia_origen_t"]
+          horizonte_meses?: number
+          id?: string
+          nombre?: string
+          requiere_parada_servicio?: boolean
+          requisito_id?: string | null
+          tenant_id?: string
+          tipo_mantenimiento_id?: number
+          updated_at?: string | null
+          ventana_dias?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_planes_alcance_activo_id_fkey"
+            columns: ["alcance_activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_alcance_agrupacion_id_fkey"
+            columns: ["alcance_agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_alcance_categoria_id_fkey"
+            columns: ["alcance_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_alcance_tipo_activo_id_fkey"
+            columns: ["alcance_tipo_activo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_alcance_zona_comun_id_fkey"
+            columns: ["alcance_zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_requisito_id_fkey"
+            columns: ["requisito_id"]
+            isOneToOne: false
+            referencedRelation: "mant_requisito"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_planes_tipo_mantenimiento_id_fkey"
+            columns: ["tipo_mantenimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_politica_aprobacion_ot: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          exige_por_parada_servicio: boolean
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          exige_por_parada_servicio?: boolean
+          id?: string
+          monto_umbral?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          exige_por_parada_servicio?: boolean
+          id?: string
+          monto_umbral?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_politica_aprobacion_ot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_politica_aprobacion_ot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_programaciones: {
+        Row: {
+          activo_id: string
+          created_at: string
+          estado: Database["public"]["Enums"]["programacion_estado_t"]
+          fecha_programada: string
+          generada_at: string | null
+          id: string
+          omitida_motivo: string | null
+          orden_trabajo_id: string | null
+          plan_id: string
+          tenant_id: string
+          ventana_hasta: string
+        }
+        Insert: {
+          activo_id: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["programacion_estado_t"]
+          fecha_programada: string
+          generada_at?: string | null
+          id?: string
+          omitida_motivo?: string | null
+          orden_trabajo_id?: string | null
+          plan_id: string
+          tenant_id: string
+          ventana_hasta: string
+        }
+        Update: {
+          activo_id?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["programacion_estado_t"]
+          fecha_programada?: string
+          generada_at?: string | null
+          id?: string
+          omitida_motivo?: string | null
+          orden_trabajo_id?: string | null
+          plan_id?: string
+          tenant_id?: string
+          ventana_hasta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_programaciones_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_programaciones_orden_trabajo_fk"
+            columns: ["orden_trabajo_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_programaciones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "mant_planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_programaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_programaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_proveedor_evaluacion: {
+        Row: {
+          created_at: string
+          criterios: Json
+          evaluado_por: string | null
+          id: string
+          observaciones: string | null
+          periodo: string
+          puntaje: number
+          tenant_id: string
+          tercero_id: string
+        }
+        Insert: {
+          created_at?: string
+          criterios: Json
+          evaluado_por?: string | null
+          id?: string
+          observaciones?: string | null
+          periodo: string
+          puntaje: number
+          tenant_id: string
+          tercero_id: string
+        }
+        Update: {
+          created_at?: string
+          criterios?: Json
+          evaluado_por?: string | null
+          id?: string
+          observaciones?: string | null
+          periodo?: string
+          puntaje?: number
+          tenant_id?: string
+          tercero_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_proveedor_evaluacion_evaluado_por_fkey"
+            columns: ["evaluado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_evaluacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_evaluacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_evaluacion_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_proveedor_habilitacion: {
+        Row: {
+          created_at: string
+          documento_id: string | null
+          entidad_emisora: string | null
+          id: string
+          numero_referencia: string | null
+          tenant_id: string
+          tercero_id: string
+          tipo_id: number
+          updated_at: string | null
+          verificado_at: string | null
+          verificado_por: string | null
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          documento_id?: string | null
+          entidad_emisora?: string | null
+          id?: string
+          numero_referencia?: string | null
+          tenant_id: string
+          tercero_id: string
+          tipo_id: number
+          updated_at?: string | null
+          verificado_at?: string | null
+          verificado_por?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string | null
+          entidad_emisora?: string | null
+          id?: string
+          numero_referencia?: string | null
+          tenant_id?: string
+          tercero_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          verificado_at?: string | null
+          verificado_por?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_habilitacion_verificado_por_fkey"
+            columns: ["verificado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_proveedor_perfil: {
+        Row: {
+          categorias_servicio: number[]
+          created_at: string
+          especialidades: string[]
+          estado_comercial_id: number | null
+          id: string
+          tenant_id: string
+          tercero_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          categorias_servicio?: number[]
+          created_at?: string
+          especialidades?: string[]
+          estado_comercial_id?: number | null
+          id?: string
+          tenant_id: string
+          tercero_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          categorias_servicio?: number[]
+          created_at?: string
+          especialidades?: string[]
+          estado_comercial_id?: number | null
+          id?: string
+          tenant_id?: string
+          tercero_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_proveedor_perfil_estado_comercial_id_fkey"
+            columns: ["estado_comercial_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
             referencedColumns: ["id"]
           },
         ]
@@ -9854,6 +11884,7 @@ export type Database = {
           agrupacion_id: string | null
           ajusta_movimiento_id: string | null
           centro_costo_id: number | null
+          contrato_id: string | null
           created_at: string
           cuenta_bancaria_id: string | null
           cuenta_id: string
@@ -9873,6 +11904,7 @@ export type Database = {
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
+          contrato_id?: string | null
           created_at?: string
           cuenta_bancaria_id?: string | null
           cuenta_id: string
@@ -9892,6 +11924,7 @@ export type Database = {
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
+          contrato_id?: string | null
           created_at?: string
           cuenta_bancaria_id?: string | null
           cuenta_id?: string
@@ -9933,6 +11966,13 @@ export type Database = {
             columns: ["centro_costo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
             referencedColumns: ["id"]
           },
           {
@@ -11686,6 +13726,10 @@ export type Database = {
         }
       }
       cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
+      cron_mant_generar_programaciones_diario: {
+        Args: never
+        Returns: undefined
+      }
       current_tenant_id: { Args: never; Returns: string }
       finanzas_posicion_tesoreria: {
         Args: { p_fecha?: string; p_tenant_id: string }
@@ -12408,9 +14452,147 @@ export type Database = {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: string
       }
+      fn_mant_activar_plan: {
+        Args: { p_plan_id: string }
+        Returns: {
+          activo: boolean
+          alcance: Database["public"]["Enums"]["plan_alcance_t"]
+          alcance_activo_id: string | null
+          alcance_agrupacion_id: string | null
+          alcance_categoria_id: number | null
+          alcance_tipo_activo_id: number | null
+          alcance_zona_comun_id: string | null
+          codigo: string
+          contrato_id: string | null
+          created_at: string
+          descripcion: string | null
+          duracion_estimada_min: number | null
+          encadenar_desde_ejecucion_real: boolean
+          frecuencia_meses: number
+          frecuencia_origen: Database["public"]["Enums"]["plan_frecuencia_origen_t"]
+          horizonte_meses: number
+          id: string
+          nombre: string
+          requiere_parada_servicio: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          updated_at: string | null
+          ventana_dias: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_planes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_mant_capitalizar_activo: {
         Args: { p_activo_id: string; p_periodo_id: string; p_tenant_id: string }
         Returns: string
+      }
+      fn_mant_cerrar_ot: {
+        Args: {
+          p_aprobada_por?: string
+          p_evidencia_referencia?: string
+          p_fecha_cierre?: string
+          p_ot_id: string
+        }
+        Returns: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          anio: number
+          aprobada_at: string | null
+          aprobada_por: string | null
+          asignado_tercero_id: string | null
+          asignado_usuario_id: string | null
+          cancelada_motivo: string | null
+          cerrada_at: string | null
+          contrato_id: string | null
+          costo_estimado: number | null
+          created_at: string
+          descripcion: string | null
+          ejecutada_at: string | null
+          estado: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite: string | null
+          fecha_programada: string | null
+          id: string
+          incidencia_id: string | null
+          iniciada_at: string | null
+          inspeccion_id: string | null
+          numero: number
+          origen: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id: number | null
+          programacion_id: string | null
+          requiere_aprobacion: boolean
+          requiere_parada_servicio: boolean
+          requiere_trabajo_alturas: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          titulo: string
+          updated_at: string | null
+          ventana_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_ordenes_trabajo"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_mant_convertir_incidencia_a_ot: {
+        Args: {
+          p_asignado_tercero_id?: string
+          p_asignado_usuario_id?: string
+          p_incidencia_id: string
+          p_tipo_mantenimiento_id: number
+          p_titulo?: string
+        }
+        Returns: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          anio: number
+          aprobada_at: string | null
+          aprobada_por: string | null
+          asignado_tercero_id: string | null
+          asignado_usuario_id: string | null
+          cancelada_motivo: string | null
+          cerrada_at: string | null
+          contrato_id: string | null
+          costo_estimado: number | null
+          created_at: string
+          descripcion: string | null
+          ejecutada_at: string | null
+          estado: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite: string | null
+          fecha_programada: string | null
+          id: string
+          incidencia_id: string | null
+          iniciada_at: string | null
+          inspeccion_id: string | null
+          numero: number
+          origen: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id: number | null
+          programacion_id: string | null
+          requiere_aprobacion: boolean
+          requiere_parada_servicio: boolean
+          requiere_trabajo_alturas: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          titulo: string
+          updated_at: string | null
+          ventana_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_ordenes_trabajo"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_mant_dar_baja_activo: {
         Args: {
@@ -12421,6 +14603,78 @@ export type Database = {
         }
         Returns: string
       }
+      fn_mant_generar_ot_desde_programacion: {
+        Args: { p_programacion_id: string }
+        Returns: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          anio: number
+          aprobada_at: string | null
+          aprobada_por: string | null
+          asignado_tercero_id: string | null
+          asignado_usuario_id: string | null
+          cancelada_motivo: string | null
+          cerrada_at: string | null
+          contrato_id: string | null
+          costo_estimado: number | null
+          created_at: string
+          descripcion: string | null
+          ejecutada_at: string | null
+          estado: Database["public"]["Enums"]["ot_estado_t"]
+          fecha_limite: string | null
+          fecha_programada: string | null
+          id: string
+          incidencia_id: string | null
+          iniciada_at: string | null
+          inspeccion_id: string | null
+          numero: number
+          origen: Database["public"]["Enums"]["ot_origen_t"]
+          prioridad_id: number | null
+          programacion_id: string | null
+          requiere_aprobacion: boolean
+          requiere_parada_servicio: boolean
+          requiere_trabajo_alturas: boolean
+          requisito_id: string | null
+          tenant_id: string
+          tipo_mantenimiento_id: number
+          titulo: string
+          updated_at: string | null
+          ventana_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_ordenes_trabajo"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_mant_generar_programaciones: {
+        Args: { p_plan_id: string }
+        Returns: {
+          generadas: number
+          omitidas: number
+        }[]
+      }
+      fn_mant_politica_aprobacion_vigente: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          exige_por_parada_servicio: boolean
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_politica_aprobacion_ot"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_mant_reconocer_depreciacion: {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: {
@@ -12429,6 +14683,14 @@ export type Database = {
           comprobante_id: string
           detalle: string
         }[]
+      }
+      fn_mant_resolver_alcance_plan: {
+        Args: { p_plan_id: string }
+        Returns: number
+      }
+      fn_mant_siguiente_numero: {
+        Args: { p_anio: number; p_serie_id: number; p_tenant_id: string }
+        Returns: number
       }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
@@ -12711,6 +14973,16 @@ export type Database = {
       }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      mant_activo_garantias_vigentes: {
+        Args: { p_activo_id: string; p_fecha?: string }
+        Returns: {
+          alcance: string
+          exclusiones: string
+          garantia_id: string
+          origen: Database["public"]["Enums"]["garantia_origen_t"]
+          vigente_hasta: string
+        }[]
+      }
       mant_atributos_huerfanos: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -12732,6 +15004,19 @@ export type Database = {
           meses_transcurridos: number
         }[]
       }
+      mant_cobertura_requisitos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          activo_codigo: string
+          activo_id: string
+          cubierto: boolean
+          plan_frecuencia_meses: number
+          plan_id: string
+          plan_nombre: string
+          requisito_id: string
+          requisito_nombre: string
+        }[]
+      }
       mant_conciliacion_ppe: {
         Args: { p_fecha_corte: string; p_tenant_id: string }
         Returns: {
@@ -12740,6 +15025,21 @@ export type Database = {
           valor_neto_activos: number
         }[]
       }
+      mant_contrato_ejecucion: {
+        Args: { p_contrato_id: string }
+        Returns: {
+          comprometido: number
+          ejecutado: number
+        }[]
+      }
+      mant_contrato_estado_visible: {
+        Args: {
+          p_contrato_id: string
+          p_fecha?: string
+          p_umbral_dias?: number
+        }
+        Returns: string
+      }
       mant_criticidad: {
         Args: { p_activo_id: string }
         Returns: {
@@ -12747,6 +15047,10 @@ export type Database = {
           desglose: Json
           puntaje_total: number
         }[]
+      }
+      mant_diagnostico_cron_job_existe: {
+        Args: { p_jobname: string }
+        Returns: boolean
       }
       mant_estado_cumplimiento: {
         Args: { p_fecha?: string; p_tenant_id: string; p_umbral_dias?: number }
@@ -12758,6 +15062,17 @@ export type Database = {
           requisito_nombre: string
           ultima_fecha: string
           vence_at: string
+        }[]
+      }
+      mant_habilitaciones_semaforo: {
+        Args: { p_fecha?: string; p_tercero_id: string; p_umbral_dias?: number }
+        Returns: {
+          estado: string
+          habilitacion_id: string
+          tipo_id: number
+          tipo_nombre: string
+          vigente_desde: string
+          vigente_hasta: string
         }[]
       }
       mant_ppe_movimiento_ejercicio: {
@@ -12787,6 +15102,90 @@ export type Database = {
           depreciacion_acumulada: number
           valor_adquisicion: number
           valor_neto: number
+        }[]
+      }
+      mant_previsualizar_alcance: {
+        Args: {
+          p_activo_id?: string
+          p_agrupacion_id?: string
+          p_alcance: Database["public"]["Enums"]["plan_alcance_t"]
+          p_categoria_id?: number
+          p_tenant_id: string
+          p_tipo_activo_id?: number
+          p_zona_comun_id?: string
+        }
+        Returns: {
+          activo_padre_id: string | null
+          agrupacion_id: string | null
+          atributos: Json
+          capitalizado: boolean
+          categoria_id: number
+          centro_costo_id: number | null
+          codigo: string
+          contable_cuenta_id: string | null
+          created_at: string
+          descripcion: string | null
+          documento_soporte_id: string | null
+          estado: Database["public"]["Enums"]["activo_estado_t"]
+          fabricante: string | null
+          fecha_adquisicion: string | null
+          fecha_inicio_depreciacion: string | null
+          fecha_instalacion: string | null
+          fecha_puesta_servicio: string | null
+          fecha_retiro: string | null
+          id: string
+          imagen_documento_id: string | null
+          marca: string | null
+          metodo_depreciacion:
+            | Database["public"]["Enums"]["depreciacion_metodo_t"]
+            | null
+          modelo: string | null
+          naturaleza_bien: Database["public"]["Enums"]["activo_naturaleza_bien_t"]
+          nombre: string
+          numero_serie: string | null
+          origen: Database["public"]["Enums"]["activo_origen_t"]
+          qr_token: string | null
+          tenant_id: string
+          tipo_id: number
+          ubicacion_detalle: string | null
+          updated_at: string | null
+          valor_adquisicion: number | null
+          valor_residual: number
+          vida_util_meses: number | null
+          zona_comun_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "activos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mant_prioridad_sugerida: {
+        Args: { p_activo_id: string; p_severidad_id: number }
+        Returns: {
+          banda_criticidad: string
+          encontrada: boolean
+          prioridad_id: number
+          prioridad_nombre: string
+          severidad_nombre: string
+        }[]
+      }
+      mant_verificar_habilitacion_tercero: {
+        Args: {
+          p_activo_id?: string
+          p_costo_estimado?: number
+          p_requiere_parada_servicio?: boolean
+          p_requiere_trabajo_alturas?: boolean
+          p_tenant_id: string
+          p_tercero_id: string
+          p_tipo_mantenimiento_id?: number
+        }
+        Returns: {
+          bloqueante: boolean
+          motivo: string
+          tipo_habilitacion_id: number
+          tipo_habilitacion_nombre: string
         }[]
       }
       presupuesto_cuenta_ejecucion: {
@@ -12958,6 +15357,7 @@ export type Database = {
       contable_comprobante_estado_t: "borrador" | "contabilizado" | "anulado"
       contable_naturaleza_t: "debito" | "credito"
       contable_periodo_estado_t: "abierto" | "cerrado" | "bloqueado"
+      contrato_estado_t: "borrador" | "vigente" | "suspendido" | "terminado"
       copropiedad_uso_t: "residencial" | "comercial" | "mixto"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
       cumplimiento_resultado_t: "conforme" | "con_hallazgos" | "no_conforme"
@@ -13072,6 +15472,17 @@ export type Database = {
         | "decision_asamblea"
         | "otra"
         | "orientacion_tecnica"
+      garantia_origen_t:
+        | "constructora"
+        | "fabricante"
+        | "proveedor"
+        | "contrato"
+      incidencia_estado_t:
+        | "reportada"
+        | "en_evaluacion"
+        | "convertida"
+        | "resuelta"
+        | "descartada"
       inmueble_estado_t: "activo" | "inactivo"
       intencion_pago_estado_t:
         | "creada"
@@ -13096,6 +15507,12 @@ export type Database = {
         | "descartada"
         | "anulada"
         | "fallida"
+      mant_habilitacion_condicion_t:
+        | "categoria_activo"
+        | "tipo_mantenimiento"
+        | "trabajo_alturas"
+        | "parada_servicio"
+        | "monto_minimo"
       marco_contable_grupo_t: "grupo_2" | "grupo_3"
       member_status_t: "active" | "revoked"
       nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
@@ -13110,9 +15527,21 @@ export type Database = {
       origen_accion_cobranza_t: "job" | "manual"
       origen_acuse_t: "proveedor" | "manual"
       origen_evento_t: "job" | "usuario" | "sistema" | "integracion"
+      ot_estado_t:
+        | "borrador"
+        | "programada"
+        | "asignada"
+        | "en_ejecucion"
+        | "ejecutada"
+        | "pendiente_aprobacion"
+        | "cerrada"
+        | "cancelada"
+      ot_origen_t: "programacion" | "incidencia" | "inspeccion" | "manual"
       pasarela_modo_t: "sandbox" | "produccion"
       pasarela_proveedor_t: "wompi" | "payu" | "epayco" | "bold"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
+      plan_alcance_t: "activo" | "tipo_activo" | "categoria" | "ubicacion"
+      plan_frecuencia_origen_t: "heredada_requisito" | "propia"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       posicion_naturaleza_t:
         | "activo_liquido"
@@ -13122,6 +15551,7 @@ export type Database = {
       presupuesto_cuenta_naturaleza_t: "ingreso" | "egreso"
       presupuesto_estado_t: "borrador" | "aprobado" | "vigente" | "cerrado"
       presupuesto_reconocimiento_ingreso_t: "causacion" | "caja"
+      programacion_estado_t: "pendiente" | "generada" | "omitida" | "cancelada"
       propuesta_estado_t: "pendiente" | "aprobada" | "rechazada"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       requisito_tipo_t:
@@ -13141,6 +15571,7 @@ export type Database = {
         | "rechazo_deudor"
         | "datos_incorrectos"
         | "no_aplica"
+      tarea_estado_t: "pendiente" | "ejecutada" | "no_aplica"
       tenant_role_t: "auxiliar" | "auditor" | "administrador"
       tenant_status_t: "active" | "suspended" | "deleted"
       tercero_tipo_t: "natural" | "juridica"
@@ -13405,6 +15836,7 @@ export const Constants = {
       contable_comprobante_estado_t: ["borrador", "contabilizado", "anulado"],
       contable_naturaleza_t: ["debito", "credito"],
       contable_periodo_estado_t: ["abierto", "cerrado", "bloqueado"],
+      contrato_estado_t: ["borrador", "vigente", "suspendido", "terminado"],
       copropiedad_uso_t: ["residencial", "comercial", "mixto"],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
       cumplimiento_resultado_t: ["conforme", "con_hallazgos", "no_conforme"],
@@ -13532,6 +15964,19 @@ export const Constants = {
         "otra",
         "orientacion_tecnica",
       ],
+      garantia_origen_t: [
+        "constructora",
+        "fabricante",
+        "proveedor",
+        "contrato",
+      ],
+      incidencia_estado_t: [
+        "reportada",
+        "en_evaluacion",
+        "convertida",
+        "resuelta",
+        "descartada",
+      ],
       inmueble_estado_t: ["activo", "inactivo"],
       intencion_pago_estado_t: [
         "creada",
@@ -13560,6 +16005,13 @@ export const Constants = {
         "anulada",
         "fallida",
       ],
+      mant_habilitacion_condicion_t: [
+        "categoria_activo",
+        "tipo_mantenimiento",
+        "trabajo_alturas",
+        "parada_servicio",
+        "monto_minimo",
+      ],
       marco_contable_grupo_t: ["grupo_2", "grupo_3"],
       member_status_t: ["active", "revoked"],
       nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
@@ -13575,9 +16027,22 @@ export const Constants = {
       origen_accion_cobranza_t: ["job", "manual"],
       origen_acuse_t: ["proveedor", "manual"],
       origen_evento_t: ["job", "usuario", "sistema", "integracion"],
+      ot_estado_t: [
+        "borrador",
+        "programada",
+        "asignada",
+        "en_ejecucion",
+        "ejecutada",
+        "pendiente_aprobacion",
+        "cerrada",
+        "cancelada",
+      ],
+      ot_origen_t: ["programacion", "incidencia", "inspeccion", "manual"],
       pasarela_modo_t: ["sandbox", "produccion"],
       pasarela_proveedor_t: ["wompi", "payu", "epayco", "bold"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
+      plan_alcance_t: ["activo", "tipo_activo", "categoria", "ubicacion"],
+      plan_frecuencia_origen_t: ["heredada_requisito", "propia"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       posicion_naturaleza_t: [
         "activo_liquido",
@@ -13588,6 +16053,7 @@ export const Constants = {
       presupuesto_cuenta_naturaleza_t: ["ingreso", "egreso"],
       presupuesto_estado_t: ["borrador", "aprobado", "vigente", "cerrado"],
       presupuesto_reconocimiento_ingreso_t: ["causacion", "caja"],
+      programacion_estado_t: ["pendiente", "generada", "omitida", "cancelada"],
       propuesta_estado_t: ["pendiente", "aprobada", "rechazada"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       requisito_tipo_t: [
@@ -13609,6 +16075,7 @@ export const Constants = {
         "datos_incorrectos",
         "no_aplica",
       ],
+      tarea_estado_t: ["pendiente", "ejecutada", "no_aplica"],
       tenant_role_t: ["auxiliar", "auditor", "administrador"],
       tenant_status_t: ["active", "suspended", "deleted"],
       tercero_tipo_t: ["natural", "juridica"],

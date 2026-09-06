@@ -32,10 +32,17 @@ export function leerEntorno(): Entorno | null {
   return { url, anonKey, serviceKey }
 }
 
+/** `fetch` nativo de Node explícito — el fetch/undici por defecto de
+ * `@supabase/supabase-js` falla intermitentemente (`ConnectTimeoutError`) contra el
+ * host remoto de Supabase en este entorno (Windows). Mismo workaround ya aplicado
+ * en `scripts/dev-login.mjs`. */
+const FETCH_NATIVO = { global: { fetch } }
+
 /** service_role — tiene BYPASSRLS. Se usa solo para preparar fixtures. */
 export function clienteAdmin(env: Entorno): Cliente {
   return crearClienteAquila(env.url, env.serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    ...FETCH_NATIVO,
   })
 }
 
@@ -125,6 +132,7 @@ export async function crearMembership(
 export async function clienteComo(env: Entorno, usuario: UsuarioPrueba): Promise<Cliente> {
   const cliente = crearClienteAquila(env.url, env.anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    ...FETCH_NATIVO,
   })
   const { error } = await cliente.auth.signInWithPassword({
     email: usuario.email,
@@ -140,5 +148,6 @@ export async function clienteComo(env: Entorno, usuario: UsuarioPrueba): Promise
 export function clienteAnonimo(env: Entorno): Cliente {
   return crearClienteAquila(env.url, env.anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    ...FETCH_NATIVO,
   })
 }

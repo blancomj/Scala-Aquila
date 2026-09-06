@@ -2596,3 +2596,262 @@ con sus compromisos vigentes, click en el saldo abre el Libro Mayor filtrado (se
 query `?cuenta=<uuid>` a `contabilidad/libros.vue`, sin cambiar su comportamiento por defecto), y
 la pantalla de política con simulación de la liquidez utilizable antes de guardar. Verificado en
 navegador contra un tenant con datos reales (evidencia en `FIN_01_INFORME.md`).
+
+## D-55 — MANT-3: encadenamiento de programaciones desde la ejecución real (no la teórica),
+cobertura calculada en vivo sobre `mant_planes` (no sobre el snapshot de `mant_plan_activos`), y
+backfill retroactivo de `MIGRACIONES_LEDGER.md` (nunca se había actualizado desde CO-1)
+
+**Contexto.** `MANT_03_planes_programacion.md` §3.3 exige que, al cerrarse una orden de trabajo con
+retraso, la siguiente programación se calcule desde la fecha de ejecución **real**, no desde la
+fecha programada — así un mantenimiento mensual ejecutado con dos semanas de atraso no hereda esa
+deuda de calendario hacia adelante. Se implementó como un booleano por plan,
+`mant_planes.encadenar_desde_ejecucion_real` (default `true`, parametrizable si el contador de
+mantenimiento lo discute más adelante — el corte lo pedía explícito). `fn_mant_generar_
+programaciones` distingue dos casos por (plan, activo): si ya existe historial, encadena desde
+`generada_at` de la última fila `'generada'` cuando la política lo pide (o desde `fecha_programada`
+si no); si es la primera programación, ancla en `greatest(hoy, vigente_desde, último
+mant_cumplimiento del requisito)` — nunca hacia el pasado, sin necesitar un caso especial.
+
+**Cobertura (`mant_cobertura_requisitos`) se calcula en vivo sobre `mant_planes.alcance`, no sobre
+`mant_plan_activos`.** `mant_plan_activos` es el snapshot materializado que consume el motor de
+programación (se refresca en cada corrida de `fn_mant_generar_programaciones` y al activar un
+plan) — depender de él para el panel de cobertura habría dejado un plan recién creado (todavía sin
+resolver) marcado como "sin cobertura" hasta la próxima corrida. Se prefirió repetir la expansión
+de alcance como consulta de solo lectura (mismo criterio que `contable_estado_financiero`/
+`mant_estado_cumplimiento`: un estado derivable no se almacena) — el costo es aceptable porque el
+catálogo de una copropiedad (AD-24: un tenant = un edificio) es chico por diseño.
+
+**`MIGRACIONES_LEDGER.md` nunca se había actualizado.** La regla de `HOJA_DE_RUTA.md` §4 (cada
+corte añade su fila al cerrar) no se siguió ni una vez desde CO-1 — el archivo solo tenía la fila
+base. Se hizo un backfill retroactivo de las 11 filas de CO-1 a FIN-1 (rangos tomados de cada
+`*_INFORME.md`, verificados contra `ls supabase/migrations` — la última migración real coincidía
+exactamente con lo documentado, `20260930810000`) antes de empezar MANT-3, para que el mecanismo
+vuelva a ser confiable para el siguiente corte. Fechas de cierre aproximadas (no hay historial de
+git sobre esa carpeta, que vive fuera del repo); los rangos de timestamp sí son exactos.
+
+**Alcance de un plan modelado con cinco columnas mutuamente excluyentes en `mant_planes`
+(`alcance_activo_id`/`alcance_tipo_activo_id`/`alcance_categoria_id`/`alcance_agrupacion_id`/
+`alcance_zona_comun_id`), no una tabla de destino polimórfica.** Con solo cuatro valores posibles
+de `plan_alcance_t` y sin necesidad de agregar un quinto tipo de destino a futuro (el corte no lo
+pide), una tabla `objeto_tipo`/`objeto_id` genérica habría sido una abstracción sin segundo caso de
+uso real. `guard_mant_plan` exige que exactamente el destino correspondiente a `alcance` esté
+poblado (`PLAN_ALCANCE_INCONSISTENTE`).
+
+**13/13 pruebas propias verdes** (`tests/mantenimiento/planes-programacion.test.ts`) + regresión de
+toda la serie MANT (MANT-0/1/2, 61/61) sin hallazgos atribuibles a este corte. `pnpm build`/
+`typecheck`/`lint` sin errores nuevos (la deuda preexistente documentada desde CO-1 se mantiene,
+recontada en este corte: 34 errores de `tsc` / 2302 de `eslint`, no 32/2300 — drift acumulado de
+cortes intermedios, no introducido aquí). `supabase db lint` sin hallazgos nuevos (los 8
+preexistentes, incluido el falso positivo ya documentado de `contable_estado_financiero`, se
+mantienen). Verificado en navegador de punta a punta contra JARDINES DE BABILONIA: creación de un
+plan heredado de `ASCENSOR_REVISION_ANUAL`, previsualización de alcance (0 activos — correcto, el
+tenant no tiene ascensores registrados), tarea, activación y desaparición del hueco de cobertura
+para los requisitos que sí tienen activos reales sin plan.
+
+## D-56 — MANT-4: `aquila.cerrando_ot` como único portal a `cerrada`, política de aprobación
+versionada limitada a monto/parada de servicio, y tres adiciones de esquema no previstas en el
+corte original
+
+**Contexto.** `MANT_04_incidencias_ordenes_trabajo.md` §3.3 exige que cerrar una OT dispare, en un
+solo paso atómico, la validación de completitud, el registro de cumplimiento (MANT-2), el
+encadenamiento de la siguiente programación (MANT-3, D-55) y la resolución de la incidencia origen
+— pero ninguno de esos efectos puede vivir en un trigger de `mant_ordenes_trabajo` sin que la
+inserción/actualización de las filas relacionadas ocurra fuera de la transacción del propio
+`UPDATE`. Se resolvió con el mismo mecanismo que `aquila.propagacion_solicitud` (Fondos, D-37):
+`fn_mant_cerrar_ot` hace todo el trabajo previo (excepciones incluidas: `OT_CIERRE_INCOMPLETO` con
+el detalle exacto de qué falta, `OT_CUMPLIMIENTO_SIN_ACREDITACION`), marca
+`set_config('aquila.cerrando_ot', 'true', true)` y solo entonces ejecuta su propio `UPDATE ... SET
+estado = 'cerrada'` — `guard_mant_ot` rechaza esa transición desde cualquier otro origen
+(`OT_TRANSICION_INVALIDA`). `cerrada` también es inmutable para *cualquier* columna, no solo
+`estado` (`OT_CERRADA_INMUTABLE` chequeado primero en el guard, antes de cualquier otra
+validación) — lección de D-54/D-55 aplicada desde el arranque de este corte, no descubierta a
+mitad de camino.
+
+**Política de aprobación de OT (`mant_politica_aprobacion_ot`) versionada
+(`vigencia_estado_t`, D-52), igual que `finanzas_politica_tesoreria`/`contable_politica_deterioro`,
+deliberadamente simplificada a monto y parada de servicio — sin umbral por banda de
+criticidad.** Un umbral "la OT se autoaprueba si el activo es de banda crítica" exigiría un orden
+total entre bandas de criticidad que MANT-1 nunca definió (`mant_criticidad_banda.etiqueta` es
+texto libre por tenant, sin posición ordinal) — inventar ese orden aquí habría sido cerrar una
+decisión de MANT-1 por la puerta de atrás. El guard aplica la política como **piso, nunca techo**:
+si el usuario ya marcó `requiere_aprobacion = true` a mano, la política nunca lo relaja a `false`.
+Un administrador siempre puede marcar `requiere_aprobacion` manualmente sin depender del cálculo.
+
+**Tres adiciones de columnas sobre el corte original, documentadas como adición, no como omisión**
+(las tres surgieron de que una regla de negocio exigida por el propio corte era irrepresentable sin
+ellas):
+- `mant_ordenes_trabajo.acreditacion_referencia` — sin ella, `OT_CUMPLIMIENTO_SIN_ACREDITACION`
+  (un requisito que exige tercero acreditado) no tendría dónde guardar la referencia real.
+- `mant_ot_tareas.requiere_medicion` / `requiere_evidencia_foto` — sin ellas, `OT_CIERRE_INCOMPLETO`
+  no podría distinguir una tarea que solo exige marcarse ejecutada de una que además exige una
+  medición o una foto. Se copian 1:1 de `mant_plan_tareas` (MANT-3) cuando la OT nace de una
+  programación.
+
+**Dos fixes encontrados al correr las pruebas por primera vez, antes de cerrar el corte** (detalle
+completo en la cabecera de `20260930980000` y `20260930990000`):
+1. `guard_mant_incidencia`/`guard_mant_ot` validaban todo pero nunca llamaban a
+   `fn_mant_siguiente_numero` — `numero`/`anio` quedaban en el valor placeholder. Se corrigió
+   asignándolos dentro del propio guard en `INSERT`.
+2. Una medición fuera de rango debía generar una incidencia de anomalía enlazada
+   (`incidencia_generada_id`) — implementado primero como un trigger `AFTER INSERT` separado que
+   hacía un `UPDATE` de vuelta sobre la misma fila. Postgres no refleja ese `UPDATE` posterior en el
+   `RETURNING` de la sentencia `INSERT` original que ve el cliente (comportamiento de Postgres, no
+   un bug de la lógica) — la prueba 9 lo detectó porque el cliente de prueba leía
+   `medicion.incidencia_generada_id` directo del resultado del insert. Se movió la generación al
+   propio guard `BEFORE INSERT`, fijando `new.incidencia_generada_id` antes de que la fila se
+   guarde.
+
+**Regresión de MANT-3 causada por este corte, no un bug de MANT-3.** El test 8 de
+`planes-programacion.test.ts` usaba `randomUUID()` como `orden_trabajo_id` de relleno en
+`mant_programaciones` — válido mientras esa columna no tenía FK. `20260930970000` (este corte) le
+agregó la FK real hacia `mant_ordenes_trabajo`, y el placeholder empezó a fallar con `23503`. Es la
+consecuencia esperada de que MANT-4 cierre lo que MANT-3 había dejado deliberadamente sin
+constraint — se corrigió el fixture del test (insertar una OT real), no el esquema.
+
+**Bug encontrado durante la verificación en navegador, no por los tests automatizados** (los tests
+de RLS/integración no ejercitan los stores de Pinia): `mantenimientoOrdenesTrabajo.ts`/
+`mantenimientoIncidencias.ts` — `actualizarOt`/`actualizarIncidencia` actualizaban `otActual`/
+`incidenciaActual` con la fila devuelta por el propio `UPDATE`, pero nunca releían
+`mant_ot_estado_historial`/`mant_incidencia_actuaciones` (ambas pobladas por el guard de la base,
+no por el cliente) — la bitácora/historial quedaba desactualizada en pantalla hasta el próximo
+`F5`, aunque el dato en BD ya era correcto. Se corrigió recargando esas dos tablas al final de cada
+`actualizar*`.
+
+**Adición de UI no prevista en el corte original: `TIPO_DOCUMENTO` código `evidencia_ot`
+(`20260931010000`).** `mant_ot_evidencias.documento_id` exige una fila de `documentos` (la
+librería general), y la Edge Function `subir-documento` exige un `tipo_documento_id` de la familia
+`TIPO_DOCUMENTO` — ningún código existente (`personeria_juridica`, `comprobante_pago`,
+`soporte_movimiento_fondo`...) describe "evidencia de una OT". Se añadió uno propio, mismo criterio
+que cada corte anterior que necesitó subir un documento nuevo (D-42). No confundir con
+`EVIDENCIA_OT_TIPO` (`20260930950000`): esa familia clasifica *qué representa* el archivo dentro de
+la OT (foto antes/después/firma/otro); la nueva clasifica el documento dentro de la librería
+general del tenant.
+
+**AD-26 aplicado tal como se cerró con el usuario: solo staff con sesión inserta una incidencia.**
+`reportante_ref`/`reportante_contacto` son siempre texto libre — nunca un principal de
+autenticación. `registrada_por` se completa siempre desde `auth.uid()` si llega `null` (prueba 12).
+La captura anónima vía QR queda fuera de alcance hasta que exista `GOB_00_DECISION_AD26.md`; el
+Edge Function `ver-activo`/`generar-qr-activo` (MANT-0) se reutilizó sin cambios porque MANT-4 no
+agrega ninguna escritura por QR (prueba 13: la ficha pública no expone costos ni proveedores).
+
+**16/16 pruebas propias verdes** (`tests/mantenimiento/ot-incidencias.test.ts`) + regresión de toda
+la serie MANT (MANT-0/1/2/3, 77/77) tras el fix del fixture de MANT-3. `pnpm build`/`typecheck`/
+`lint` sin errores nuevos atribuibles a este corte (34 errores de `tsc` raíz preexistentes, sin
+cambios; **94 de `eslint` raíz, no 2302** — la cifra de 2302 venía de `.claude/skills/**`/
+`.github/skills/**` sin excluir del linter, corregido en `eslint.config.js` por otra sesión en
+paralelo el mismo día, ver `project_deuda_tecnica_preexistente` en memoria; `apps/web` bajó de 9 a
+6 errores de lint — mismo drift ajeno a este corte — y quedó en **0 de typecheck** (los 7
+preexistentes de producción, ajenos a este corte, los arregló esa misma sesión en paralelo, dos
+eran bugs funcionales reales), tras corregir los 3 propios encontrados aquí:
+`import/first` en las tres páginas nuevas). `supabase db lint --linked` sin hallazgos nuevos.
+Verificado en navegador de punta a punta contra JARDINES DE BABILONIA (membresía de administrador
+agregada para la verificación, aprobada explícitamente por el usuario): alta de incidencia →
+evaluación → conversión a OT → cierre → resolución automática de la incidencia origen; alta de OT
+manual con una tarea propia → ejecución → cierre; ambos árboles de estado (incidencia y OT)
+recorridos hasta su hoja terminal; vista responsiva verificada en viewport móvil (375×812).
+
+## D-57 — MANT-5: `contrato_estado_t` sin `por_vencer`/`vencido` (cálculo puro, mismo patrón que
+`mant_estado_cumplimiento`), `presupuesto_ejecucion.contrato_id` para comprometido/ejecutado
+siempre leído en vivo, y una regresión propia encontrada y corregida antes de cerrar el corte
+
+**Contexto.** `MANT_05_proveedores_contratos_garantias.md` exige que un contrato "vigente" pueda
+presentarse como `por_vencer`/`vencido` según su `fecha_fin`, sin que eso invente un estado real de
+negocio nuevo — la máquina de estados real de un contrato (§4.3) es
+`borrador → vigente → suspendido/terminado`, con `terminado` inmutable. Se confirmó con el usuario
+(pregunta explícita vía `AskUserQuestion`, respuesta "cálculo puro, fuera del enum") que
+`por_vencer`/`vencido` **nunca** entran a `contrato_estado_t` ni se guardan — son presentación,
+calculada por `mant_contrato_estado_visible(p_contrato_id, p_fecha default current_date,
+p_umbral_dias integer default 30)`, exactamente el mismo patrón que `mant_estado_cumplimiento`
+(MANT-2) y `mant_habilitaciones_semaforo`/`mant_contrato_ejecucion` de este mismo corte — marco
+principio #1 ("un número calculado nunca es una decisión") aplicado de entrada, no como corrección.
+Un intento directo de `UPDATE mant_contratos SET estado = 'por_vencer'` falla a nivel de Postgres
+(no es un valor válido de `contrato_estado_t`) — prueba 6 de
+`tests/mantenimiento/proveedores-contratos.test.ts`.
+
+**"Comprometido" vs "ejecutado" de un contrato — interpretación propia, confirmada con el usuario**
+(segunda pregunta vía `AskUserQuestion`, respuesta "agregar `presupuesto_ejecucion.contrato_id`").
+"Comprometido" es el propio `valor_total` del contrato (un término pactado, nunca un saldo
+calculado que pueda divergir); "ejecutado" es `sum(presupuesto_ejecucion.monto) where contrato_id =
+X`, siempre leído en vivo desde `mant_contrato_ejecucion(p_contrato_id uuid) returns
+table(comprometido numeric, ejecutado numeric)` — nunca cacheado ni duplicado en `mant_contratos`.
+Se agregó `presupuesto_ejecucion.contrato_id` (nullable, mismo patrón incremental que
+`activo_id`/`agrupacion_id`/`centro_costo_id`/`tercero_id` ya agregados por MANT-0/PC/PC-4) y se
+extendió `guard_presupuesto_ejecucion_activo()` (`create or replace`) para validar su consistencia
+de tenant, reutilizando `CONTRATO_TENANT_INCONSISTENTE`. Prueba 7 confirma explícitamente que el
+`ejecutado` de un contrato NO cuenta los movimientos de otro contrato sobre la misma cuenta.
+
+**Regresión propia encontrada por la regresión de todo el directorio `tests/mantenimiento`, no por
+lectura ni por las 12 pruebas propias del corte** (que pasaron 12/12 a la primera). La reescritura
+completa de `guard_mant_ot()` en `20260931080000` (para sumar la validación de contrato/SLA y el
+bloqueo por contratista no habilitado) perdió por accidente el bloque que asigna `numero`/`anio` en
+el `INSERT` — el mismo bloque que D-56 ya había documentado como "asignado siempre por
+`guard_mant_ot` vía `fn_mant_siguiente_numero`". Sin él, `numero` se quedaba en su `DEFAULT`
+placeholder (`0`, ver `20260931000000`) para toda OT nueva, y la prueba 1 de
+`ot-incidencias.test.ts` ("consecutivos de incidencia y de OT sin huecos") empezó a fallar con
+`23505` (violación de la unique `(tenant_id, anio, numero)`) al crear la segunda OT de un mismo
+tenant/año. Se corrigió con una migración nueva (`20260931110000`, nunca editando la ya aplicada)
+que repone el bloque en la misma posición original (justo tras `OT_CERRADA_INMUTABLE`) preservando
+el resto de la función tal cual. Lección: reescribir una función completa con `create or replace`
+para extenderla es más propenso a perder líneas existentes que insertar el bloque nuevo dentro de
+la definición ya vigente — para la próxima extensión de un guard grande, preferir un diff mínimo
+sobre el cuerpo existente en vez de reescribirlo entero desde cero.
+
+**`GARANTIA_RESULTADO_INVALIDO` como código nuevo, no reutilización de
+`GARANTIA_ORIGEN_INCONSISTENTE`.** El guard de `mant_garantia_reclamaciones` inicialmente reutilizó
+`GARANTIA_ORIGEN_INCONSISTENTE` (pensado para la consistencia origen/`contrato_id` de
+`mant_garantias`) para señalar también un `resultado_id` que no resuelve contra
+`RESULTADO_RECLAMACION_GARANTIA` — un error de categoría, detectado antes de correr las pruebas.
+Corregido introduciendo el código dedicado y registrándolo en `error-codes.ts`.
+
+**Cero tablas de proveedor nuevas (criterio de aceptación explícito del corte).** El corte extiende
+`terceros`/`tenant_tercero_rol` (ya existentes) en vez de crear `mant_proveedores`: un proveedor es
+un tercero con rol `proveedor`/`contratista`, y `mant_proveedor_perfil`/
+`mant_proveedor_habilitacion`/`mant_proveedor_evaluacion` cuelgan de `tercero_id`, no de una entidad
+nueva. Prueba 1 (grep estático de migraciones) verifica que ninguna migración crea una tabla
+`mant_proveedores`/`supplier`.
+
+**Cero valores sembrados en `mant_habilitacion_requerida`** (marco principio #6) — verificado por
+grep estático (prueba 5), igual que `mant_matriz_prioridad`/`mant_politica_aprobacion_ot` en
+cortes anteriores: es una tabla de reglas por tenant, nunca un catálogo con contenido de fábrica.
+
+**`mant_verificar_habilitacion_tercero()` reusada por UI y guard, no duplicada.** Toma los mismos
+parámetros que `guard_mant_ot()` ya tiene a mano (`activo_id`, `tipo_mantenimiento_id`,
+`requiere_trabajo_alturas`, `requiere_parada_servicio`, `costo_estimado`) y devuelve solo las
+habilitaciones faltantes/vencidas; el guard filtra a `bloqueante` y rechaza
+(`OT_CONTRATISTA_NO_HABILITADO`), la UI puede llamarla antes de guardar para advertir sobre las no
+bloqueantes sin bloquear el alta (prueba 4). Una garantía vigente sobre el activo NUNCA bloquea una
+OT correctiva — `mant_activo_garantias_vigentes()` es de solo lectura, puramente informativa (marco
+principio #4, "un número calculado nunca es una decisión"; prueba 9).
+
+**`requiere_trabajo_alturas` — columna agregada durante el corte, documentada como adición, no
+omisión** (mismo estilo que `acreditacion_referencia` de D-56): ninguna columna existente de
+`mant_ordenes_trabajo` capturaba "esta tarea implica trabajo en alturas", y
+`mant_habilitacion_requerida` la necesita como tipo de condición (`condicion_tipo =
+'trabajo_alturas'`).
+
+**`FORMA_PAGO` (lista_tipos existente) vs. `mant_contratos.forma_pago` (texto libre, nuevo) —
+deliberadamente NO unificados.** `FORMA_PAGO` describe el medio de pago de un recaudo de cartera
+(efectivo/transferencia/PSE/débito automático/nota débito); `mant_contratos.forma_pago` describe el
+plazo pactado de pago de un contrato (ej. "45 días fecha factura") — un concepto distinto aunque el
+nombre se preste a confusión, documentado así en el comentario de la migración. Mismo criterio para
+`ESTADO_TERCERO` (activo/inactivo del tercero en el sistema) vs. `ESTADO_COMERCIAL_PROVEEDOR`
+(nuevo: la relación comercial específica de la copropiedad con ese proveedor).
+
+**12/12 pruebas propias verdes** (`tests/mantenimiento/proveedores-contratos.test.ts`) + regresión
+de toda la serie MANT (MANT-0 a MANT-4, 89/89 tras el fix de la regresión propia arriba) — sin la
+corrección, 88/89 con el único fallo siendo la propia regresión de este corte, nunca un bug
+preexistente. `pnpm build`/`typecheck` en verde total (0 errores en todo el monorepo, incluido
+`apps/web`); `pnpm exec eslint .` raíz en **89 errores, sin cambio** frente a la medición de D-56
+(ninguno atribuible a este corte, verificado por grep de rutas); `supabase db lint --linked` en los
+mismos 8 hallazgos preexistentes de siempre (7 funciones con `shadowed_variables`/variable no leída
++ 1 falso positivo de `contable_estado_financiero` sobre una tabla temporal). Verificado en
+navegador de punta a punta contra JARDINES DE BABILONIA: vincular un tercero existente como
+contratista, perfil de servicios (categorías/especialidades/estado comercial) guardado y persistente
+tras recargar, evaluación con desglose por criterio visible (nunca solo el puntaje general), alta de
+contrato con cuenta presupuestal hoja, transición borrador→vigente reflejada de inmediato en el
+badge calculado del listado, comprometido/ejecutado mostrados con su fuente explícita, cláusula
+agregada y visible. La cobertura de "activos cubiertos"/habilitación con archivo real no se pudo
+verificar en navegador por falta de datos: JARDINES DE BABILONIA no tiene ningún activo registrado
+todavía (fuera de alcance de este corte crear datos de MANT-0 en un tenant compartido) — ambos
+caminos quedan cubiertos por las pruebas automatizadas de RLS/integración (pruebas 3/4/8/9 crean su
+propio activo de fixture).

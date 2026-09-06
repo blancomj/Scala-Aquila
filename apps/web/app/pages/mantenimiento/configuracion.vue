@@ -293,6 +293,13 @@ async function quitarRequisitoDrawer(): Promise<void> {
   await configStore.quitarRequisito(tenantId, r.id)
   drawerRequisitoAbierto.value = false
 }
+
+const pestanaActiva = ref<'atributos' | 'criticidad' | 'cumplimiento'>('atributos')
+const PESTANAS = [
+  { label: 'Atributos por tipo de activo', value: 'atributos' as const },
+  { label: 'Criterios de criticidad', value: 'criticidad' as const },
+  { label: 'Cumplimiento normativo', value: 'cumplimiento' as const },
+]
 </script>
 
 <template>
@@ -307,10 +314,14 @@ async function quitarRequisitoDrawer(): Promise<void> {
       </template>
     </UiTituloDescripcion>
 
+    <UTabs
+      :items="PESTANAS" :model-value="pestanaActiva" variant="link" :content="false" class="w-full"
+      @update:model-value="(v) => (pestanaActiva = v as typeof pestanaActiva)"
+    />
+
     <!-- Atributos por tipo de activo -->
-    <section class="space-y-4 rounded-lg border border-default p-4">
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <h2 class="font-medium">Atributos por tipo de activo</h2>
+    <section v-if="pestanaActiva === 'atributos'" class="space-y-4 rounded-lg border border-default p-4">
+      <div class="flex items-center justify-end flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <UButton variant="ghost" size="sm" @click="verHuerfanos()">Ver atributos huérfanos</UButton>
           <UButton size="sm" icon="i-lucide-plus" :disabled="tipoSeleccionadoId == null" @click="nuevaDefinicion()">
@@ -348,9 +359,8 @@ async function quitarRequisitoDrawer(): Promise<void> {
     </section>
 
     <!-- Criticidad -->
-    <section class="space-y-4 rounded-lg border border-default p-4">
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <h2 class="font-medium">Criterios de criticidad</h2>
+    <section v-else-if="pestanaActiva === 'criticidad'" class="space-y-4 rounded-lg border border-default p-4">
+      <div class="flex items-center justify-end flex-wrap gap-2">
         <UButton size="sm" icon="i-lucide-plus" @click="nuevaVersion()">Nueva versión</UButton>
       </div>
 
@@ -421,16 +431,13 @@ async function quitarRequisitoDrawer(): Promise<void> {
     </section>
 
     <!-- Cumplimiento normativo (MANT-2) -->
-    <section class="space-y-4 rounded-lg border border-default p-4">
+    <section v-else class="space-y-4 rounded-lg border border-default p-4">
       <div class="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 class="font-medium">Cumplimiento normativo</h2>
-          <p class="text-xs text-muted max-w-2xl mt-1">
-            Predefinidos desde la creación de tu copropiedad, con la evidencia que verificamos —
-            desde ese momento son 100% tuyos: edítalos, cámbiales la frecuencia o quítalos.
-            Ninguno se aplica ni se revisa solo desde afuera.
-          </p>
-        </div>
+        <p class="text-xs text-muted max-w-2xl">
+          Predefinidos desde la creación de tu copropiedad, con la evidencia que verificamos —
+          desde ese momento son 100% tuyos: edítalos, cámbiales la frecuencia o quítalos. Ninguno
+          se aplica ni se revisa solo desde afuera.
+        </p>
         <UButton size="sm" icon="i-lucide-plus" @click="abrirNuevoRequisito()">Agregar requisito propio</UButton>
       </div>
 
@@ -525,7 +532,7 @@ async function quitarRequisitoDrawer(): Promise<void> {
           <UFormField label="Código" name="codigo"><UInput v-model="definicionEditando.codigo" /></UFormField>
           <UFormField label="Nombre" name="nombre"><UInput v-model="definicionEditando.nombre" /></UFormField>
           <UFormField label="Tipo de dato" name="tipoDato">
-            <USelect v-model="definicionEditando.tipoDato" :items="TIPOS_DATO" />
+            <USelect v-model="definicionEditando.tipoDato" :items="TIPOS_DATO" class="w-full" />
           </UFormField>
           <UFormField v-if="definicionEditando.tipoDato === 'opcion'" label="Opciones (separadas por coma)" name="opciones">
             <UInput v-model="definicionEditando.opciones" />
@@ -534,6 +541,7 @@ async function quitarRequisitoDrawer(): Promise<void> {
             <USelect
               v-model="definicionEditando.unidadId"
               :items="[{ label: 'Sin unidad', value: undefined }, ...unidades.map((u) => ({ label: u.nombre, value: u.id }))]"
+              class="w-full"
             />
           </UFormField>
           <UCheckbox v-model="definicionEditando.obligatorio" label="Obligatorio antes de pasar a en_servicio" />

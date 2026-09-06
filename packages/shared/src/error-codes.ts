@@ -631,6 +631,124 @@ export const ERROR_CODES = {
   // guard_finanzas_politica_tesoreria: banco/fondo en bancos_utilizables/fondos_utilizables que
   // no pertenece al tenant.
   POLITICA_TESORERIA_ENTIDAD_AJENA: 'POLITICA_TESORERIA_ENTIDAD_AJENA',
+
+  // ── MANT-3: planes de mantenimiento y motor de programación (20260930820000+) ──
+  // guard_mant_plan: tipo_mantenimiento_id no pertenece a TIPO_MANTENIMIENTO.
+  PLAN_TIPO_MANTENIMIENTO_INVALIDO: 'PLAN_TIPO_MANTENIMIENTO_INVALIDO',
+  // guard_mant_plan: no exactamente un destino de alcance_* poblado según `alcance`, o el
+  // tipo_activo_id/categoria_id de destino no pertenece a su familia de lista_tipos.
+  PLAN_ALCANCE_INCONSISTENTE: 'PLAN_ALCANCE_INCONSISTENTE',
+  // guard_mant_plan: requisito/activo/agrupación/zona común referenciados de otro tenant.
+  PLAN_TENANT_INCONSISTENTE: 'PLAN_TENANT_INCONSISTENTE',
+  // guard_mant_plan: frecuencia_origen = 'heredada_requisito' sin requisito_id.
+  PLAN_HERENCIA_SIN_REQUISITO: 'PLAN_HERENCIA_SIN_REQUISITO',
+  // guard_mant_plan: prueba central del corte — un plan no puede programar con frecuencia mayor
+  // (menos seguido) que la que exige su requisito.
+  PLAN_FRECUENCIA_INFERIOR_A_EXIGIDA: 'PLAN_FRECUENCIA_INFERIOR_A_EXIGIDA',
+  // guard_mant_plan: ventana_dias excede la frecuencia del plan.
+  PLAN_VENTANA_INVALIDA: 'PLAN_VENTANA_INVALIDA',
+  // guard_mant_plan: un plan no puede nacer activo (INSERT) ni activarse (UPDATE) sin tareas.
+  PLAN_SIN_TAREAS: 'PLAN_SIN_TAREAS',
+  // fn_mant_resolver_alcance_plan / fn_mant_activar_plan / fn_mant_generar_programaciones.
+  PLAN_INEXISTENTE: 'PLAN_INEXISTENTE',
+  // fn_mant_generar_programaciones: el plan no está activo.
+  PLAN_INACTIVO: 'PLAN_INACTIVO',
+  // guard_mant_programacion_transicion: generada/omitida/cancelada son terminales — ninguna
+  // columna admite cambios después, no solo `estado` (lección de D-54/FIN-1).
+  PROGRAMACION_TERMINAL_INMUTABLE: 'PROGRAMACION_TERMINAL_INMUTABLE',
+  PROGRAMACION_TRANSICION_INVALIDA: 'PROGRAMACION_TRANSICION_INVALIDA',
+  PROGRAMACION_OMISION_SIN_MOTIVO: 'PROGRAMACION_OMISION_SIN_MOTIVO',
+
+  // ── MANT-4: incidencias y órdenes de trabajo (20260930890000+) ──────────
+  // guard_mant_incidencia: tipo_id/origen_id/severidad_id/prioridad_id no pertenecen a su
+  // familia de lista_tipos.
+  INCIDENCIA_TIPO_INVALIDO: 'INCIDENCIA_TIPO_INVALIDO',
+  INCIDENCIA_ORIGEN_INVALIDO: 'INCIDENCIA_ORIGEN_INVALIDO',
+  INCIDENCIA_SEVERIDAD_INVALIDA: 'INCIDENCIA_SEVERIDAD_INVALIDA',
+  INCIDENCIA_PRIORIDAD_INVALIDA: 'INCIDENCIA_PRIORIDAD_INVALIDA',
+  // guard_mant_incidencia: activo/zona_comun/agrupacion/inmueble/incidencia padre de otro tenant.
+  INCIDENCIA_TENANT_INCONSISTENTE: 'INCIDENCIA_TENANT_INCONSISTENTE',
+  // guard_mant_incidencia: prioridad_id difiere de la sugerida sin prioridad_sobrescrita_motivo.
+  PRIORIDAD_SOBRESCRITA_SIN_MOTIVO: 'PRIORIDAD_SOBRESCRITA_SIN_MOTIVO',
+  // guard_mant_incidencia: estado -> 'descartada' sin descartada_motivo.
+  INCIDENCIA_DESCARTE_SIN_MOTIVO: 'INCIDENCIA_DESCARTE_SIN_MOTIVO',
+  // guard_mant_incidencia / fn_mant_convertir_incidencia_a_ot: transición de estado no permitida.
+  INCIDENCIA_TRANSICION_INVALIDA: 'INCIDENCIA_TRANSICION_INVALIDA',
+  // fn_mant_cerrar_ot / fn_mant_convertir_incidencia_a_ot / fn_mant_generar_ot_desde_programacion.
+  INCIDENCIA_INEXISTENTE: 'INCIDENCIA_INEXISTENTE',
+  OT_INEXISTENTE: 'OT_INEXISTENTE',
+  // guard_mant_ot: tipo_mantenimiento_id no pertenece a TIPO_MANTENIMIENTO.
+  OT_TIPO_MANTENIMIENTO_INVALIDO: 'OT_TIPO_MANTENIMIENTO_INVALIDO',
+  // guard_mant_ot: programacion_id/incidencia_id/inspeccion_id en desacuerdo con `origen`.
+  OT_ORIGEN_INCONSISTENTE: 'OT_ORIGEN_INCONSISTENTE',
+  // guard_mant_ot: activo/programación/requisito/tercero de otro tenant.
+  OT_TENANT_INCONSISTENTE: 'OT_TENANT_INCONSISTENTE',
+  // guard_mant_ot: estado -> 'cancelada' sin cancelada_motivo.
+  OT_CANCELACION_SIN_MOTIVO: 'OT_CANCELACION_SIN_MOTIVO',
+  // guard_mant_ot: transición de estado no permitida, o 'cerrada' fuera de fn_mant_cerrar_ot.
+  OT_TRANSICION_INVALIDA: 'OT_TRANSICION_INVALIDA',
+  // guard_mant_ot / guard_mant_ot_tarea / guard_mant_ot_medicion: la OT ya está cerrada —
+  // terminal para cualquier columna, propia o de sus tablas hijas.
+  OT_CERRADA_INMUTABLE: 'OT_CERRADA_INMUTABLE',
+  // fn_mant_cerrar_ot: falta una tarea obligatoria, una medición o una evidencia exigida —
+  // prueba central del corte, el mensaje enumera exactamente qué falta.
+  OT_CIERRE_INCOMPLETO: 'OT_CIERRE_INCOMPLETO',
+  // fn_mant_cerrar_ot: el requisito exige tercero acreditado y la OT no lo tiene.
+  OT_CUMPLIMIENTO_SIN_ACREDITACION: 'OT_CUMPLIMIENTO_SIN_ACREDITACION',
+  // guard_mant_ot_tarea: estado -> 'no_aplica' sin no_aplica_motivo.
+  TAREA_NO_APLICA_SIN_MOTIVO: 'TAREA_NO_APLICA_SIN_MOTIVO',
+
+  // ── MANT-5: proveedores, contratos y garantías (20260931020000+) ────────
+  // guard_mant_proveedor_habilitacion / guard_mant_habilitacion_requerida: tipo_id/
+  // tipo_habilitacion_id no pertenecen a TIPO_HABILITACION.
+  HABILITACION_TIPO_INVALIDO: 'HABILITACION_TIPO_INVALIDO',
+  // guard_mant_proveedor_habilitacion: tercero/documento de otro tenant.
+  HABILITACION_TENANT_INCONSISTENTE: 'HABILITACION_TENANT_INCONSISTENTE',
+  // guard_mant_proveedor_habilitacion: sin documento_id — una habilitación sin certificado es
+  // una afirmación (§4.1). Columna nullable a propósito para poder emitir este mensaje propio.
+  HABILITACION_SIN_SOPORTE: 'HABILITACION_SIN_SOPORTE',
+  // guard_mant_habilitacion_requerida: condicion_tipo categoria_activo/tipo_mantenimiento sin
+  // condicion_valor.
+  HABILITACION_CONDICION_VALOR_REQUERIDO: 'HABILITACION_CONDICION_VALOR_REQUERIDO',
+  // guard_mant_habilitacion_requerida: condicion_tipo trabajo_alturas/parada_servicio con un
+  // condicion_valor que no aplica (la condición es la bandera misma).
+  HABILITACION_CONDICION_VALOR_NO_APLICA: 'HABILITACION_CONDICION_VALOR_NO_APLICA',
+  // guard_mant_habilitacion_requerida: condicion_valor no resuelve contra la familia de
+  // lista_tipos esperada, o no es un numérico válido.
+  HABILITACION_CONDICION_VALOR_INVALIDO: 'HABILITACION_CONDICION_VALOR_INVALIDO',
+  // guard_mant_habilitacion_requerida: condicion_tipo = monto_minimo sin un condicion_valor
+  // numérico no negativo.
+  HABILITACION_MONTO_INVALIDO: 'HABILITACION_MONTO_INVALIDO',
+  // guard_mant_proveedor_perfil / guard_mant_proveedor_evaluacion: tercero de otro tenant.
+  PROVEEDOR_TENANT_INCONSISTENTE: 'PROVEEDOR_TENANT_INCONSISTENTE',
+  // guard_mant_proveedor_perfil: un elemento de categorias_servicio (o estado_comercial_id) no
+  // pertenece a su familia de lista_tipos.
+  PROVEEDOR_CATEGORIA_INVALIDA: 'PROVEEDOR_CATEGORIA_INVALIDA',
+  // guard_mant_ot (extendido, MANT-5 §4.2): el tercero asignado no tiene una habilitación
+  // bloqueante vigente que la OT exige — prueba central del corte, el mensaje da el detalle.
+  OT_CONTRATISTA_NO_HABILITADO: 'OT_CONTRATISTA_NO_HABILITADO',
+  // guard_mant_contrato: tipo_id/periodicidad_id no pertenecen a su familia de lista_tipos.
+  CONTRATO_TIPO_INVALIDO: 'CONTRATO_TIPO_INVALIDO',
+  CONTRATO_PERIODICIDAD_INVALIDA: 'CONTRATO_PERIODICIDAD_INVALIDA',
+  // guard_mant_contrato / guard_mant_contrato_activos / guard_mant_contrato_clausulas /
+  // guard_mant_ot (extendido): tercero/activo/contrato de otro tenant.
+  CONTRATO_TENANT_INCONSISTENTE: 'CONTRATO_TENANT_INCONSISTENTE',
+  // guard_mant_contrato: transición de estado no permitida (solo borrador/vigente/suspendido/
+  // terminado — 'por_vencer'/'vencido' nunca son estados escribibles, se calculan en
+  // mant_contrato_estado_visible).
+  CONTRATO_TRANSICION_INVALIDA: 'CONTRATO_TRANSICION_INVALIDA',
+  // guard_mant_contrato: 'terminado' es terminal para cualquier columna.
+  CONTRATO_TERMINADO_INMUTABLE: 'CONTRATO_TERMINADO_INMUTABLE',
+  // guard_mant_contrato: contrato_anterior_id se referencia a sí mismo o a otro tenant.
+  CONTRATO_ANTERIOR_INVALIDO: 'CONTRATO_ANTERIOR_INVALIDO',
+  // guard_mant_garantia / guard_mant_garantia_reclamacion: activo/tercero/contrato/garantía de
+  // otro tenant.
+  GARANTIA_TENANT_INCONSISTENTE: 'GARANTIA_TENANT_INCONSISTENTE',
+  // guard_mant_garantia: origen = 'contrato' sin contrato_id, o un origen distinto con
+  // contrato_id poblado.
+  GARANTIA_ORIGEN_INCONSISTENTE: 'GARANTIA_ORIGEN_INCONSISTENTE',
+  // guard_mant_garantia_reclamacion: resultado_id no pertenece a RESULTADO_RECLAMACION_GARANTIA.
+  GARANTIA_RESULTADO_INVALIDO: 'GARANTIA_RESULTADO_INVALIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
