@@ -487,6 +487,102 @@ export const ERROR_CODES = {
   // ── Auditoría interna (20260915100000, PROMPT AUDITORÍA §34, §70) ────────
   HALLAZGO_NO_ENCONTRADO: 'HALLAZGO_NO_ENCONTRADO',
   EVIDENCIA_DUPLICADA: 'EVIDENCIA_DUPLICADA',
+
+  // ── CO-1: marco contable y tributario de la copropiedad (20260930160000) ─
+  MARCO_GRUPO_INMUTABLE_CON_CIERRE: 'MARCO_GRUPO_INMUTABLE_CON_CIERRE',
+  MARCO_USO_INCOHERENTE: 'MARCO_USO_INCOHERENTE',
+
+  // ── CO-2: núcleo del libro contable (20260930180000-20260930220000) ──────
+  CONTABLE_PERIODO_TRANSICION_INVALIDA: 'CONTABLE_PERIODO_TRANSICION_INVALIDA',
+  CONTABLE_PERIODO_REAPERTURA_SIN_MOTIVO: 'CONTABLE_PERIODO_REAPERTURA_SIN_MOTIVO',
+  CONTABLE_PERIODO_CERRADO: 'CONTABLE_PERIODO_CERRADO',
+  COMPROBANTE_ESTADO_INVALIDO: 'COMPROBANTE_ESTADO_INVALIDO',
+  COMPROBANTE_SIN_DETALLE: 'COMPROBANTE_SIN_DETALLE',
+  COMPROBANTE_DESCUADRADO: 'COMPROBANTE_DESCUADRADO',
+  COMPROBANTE_DIMENSION_REQUERIDA: 'COMPROBANTE_DIMENSION_REQUERIDA',
+  COMPROBANTE_FECHA_FUERA_DE_PERIODO: 'COMPROBANTE_FECHA_FUERA_DE_PERIODO',
+  COMPROBANTE_NUMERO_NO_ASIGNABLE: 'COMPROBANTE_NUMERO_NO_ASIGNABLE',
+  COMPROBANTE_CONTABILIZADO_INMUTABLE: 'COMPROBANTE_CONTABILIZADO_INMUTABLE',
+  COMPROBANTE_YA_REVERSADO: 'COMPROBANTE_YA_REVERSADO',
+  COMPROBANTE_MOTIVO_REQUERIDO: 'COMPROBANTE_MOTIVO_REQUERIDO',
+  // Se surte como violación de contable_comprobante_origen_unico (unique_violation de
+  // Postgres, 23505), no como `raise exception` — se registra igual para que el mapeo de
+  // errores del frontend tenga un nombre estable que mostrar (CO-2 §3.3).
+  COMPROBANTE_ORIGEN_DUPLICADO: 'COMPROBANTE_ORIGEN_DUPLICADO',
+
+  // ── CO-3: materialización — de la proyección al asiento persistido
+  //    (20260930240000-20260930260000) ─────────────────────────────────────
+  // fn_contabilizar_periodo: precondición dura, contable_parametrizacion_pendiente()
+  // no está vacío (excluyendo 'movimiento_sin_contrapartida', que no bloquea).
+  CONTABLE_PARAMETRIZACION_PENDIENTE: 'CONTABLE_PARAMETRIZACION_PENDIENTE',
+
+  // ── MANT-0: registro de activos, ficha contable y depreciación
+  //    (20260930280000-20260930290000) ────────────────────────────────────
+  ACTIVO_CATEGORIA_INVALIDA: 'ACTIVO_CATEGORIA_INVALIDA',
+  ACTIVO_TIPO_INVALIDO: 'ACTIVO_TIPO_INVALIDO',
+  ACTIVO_TENANT_INCONSISTENTE: 'ACTIVO_TENANT_INCONSISTENTE',
+  ACTIVO_JERARQUIA_CICLICA: 'ACTIVO_JERARQUIA_CICLICA',
+  ACTIVO_VALOR_RESIDUAL_INVALIDO: 'ACTIVO_VALOR_RESIDUAL_INVALIDO',
+  ACTIVO_VIDA_UTIL_INVALIDA: 'ACTIVO_VIDA_UTIL_INVALIDA',
+  ACTIVO_BLOQUE_CONTABLE_INCOMPLETO: 'ACTIVO_BLOQUE_CONTABLE_INCOMPLETO',
+  ACTIVO_CUENTA_CLASE_INVALIDA: 'ACTIVO_CUENTA_CLASE_INVALIDA',
+  ACTIVO_TRANSICION_INVALIDA: 'ACTIVO_TRANSICION_INVALIDA',
+  // Hallazgo de esta sesión (Ley 675 art. 20, CTCP 243/2025): un bien común esencial nunca
+  // puede capitalizarse, sin importar los demás campos — guard a nivel de trigger, no solo en
+  // fn_mant_capitalizar_activo.
+  ACTIVO_BIEN_ESENCIAL_NO_CAPITALIZABLE: 'ACTIVO_BIEN_ESENCIAL_NO_CAPITALIZABLE',
+  ACTIVO_VALOR_ADQUISICION_NO_CONCILIA: 'ACTIVO_VALOR_ADQUISICION_NO_CONCILIA',
+  // Documentado, nunca levantado por un `raise exception`: mant_calcular_depreciacion excluye
+  // estructuralmente estado='retirado' de su proyección (mismo criterio que
+  // COMPROBANTE_ORIGEN_DUPLICADO en CO-2 — un código con nombre estable para un comportamiento
+  // que no pasa por raise exception).
+  ACTIVO_RETIRADO_NO_DEPRECIA: 'ACTIVO_RETIRADO_NO_DEPRECIA',
+  ACTIVO_MOTIVO_REQUERIDO: 'ACTIVO_MOTIVO_REQUERIDO',
+  ACTIVO_INVALIDO: 'ACTIVO_INVALIDO',
+
+  // ── CO-7: deterioro de cartera (20260930400000-20260930410000) ─────────
+  DETERIORO_TRAMOS_INCOMPLETOS: 'DETERIORO_TRAMOS_INCOMPLETOS',
+  DETERIORO_TRAMOS_SOLAPADOS: 'DETERIORO_TRAMOS_SOLAPADOS',
+  DETERIORO_PORCENTAJE_INVALIDO: 'DETERIORO_PORCENTAJE_INVALIDO',
+  DETERIORO_SIN_POLITICA: 'DETERIORO_SIN_POLITICA',
+  // El método 'individual' es un valor válido del enum deterioro_metodo_t pero no tiene
+  // estructura ni cálculo definidos en este corte (CO-7 §4.1) — falla explícito, no improvisa.
+  DETERIORO_METODO_NO_IMPLEMENTADO: 'DETERIORO_METODO_NO_IMPLEMENTADO',
+
+  // ── CO-5: estados financieros y notas (20260930440000-20260930480000) ──
+  MARCO_CONTABLE_SIN_CLASIFICAR: 'MARCO_CONTABLE_SIN_CLASIFICAR',
+  ESTADO_NO_REQUERIDO_PARA_GRUPO: 'ESTADO_NO_REQUERIDO_PARA_GRUPO',
+  NOTA_OBLIGATORIA_VACIA: 'NOTA_OBLIGATORIA_VACIA',
+  // Defensivo: una formula mal escrita en el catálogo (contable_estado_linea) referencia un
+  // codigo que no existe o que aún no se ha calculado en ese orden — nunca debería dispararse
+  // con las plantillas sembradas por esta serie, pero el motor lo valida en vez de asumir.
+  FORMULA_ESTADO_INVALIDA: 'FORMULA_ESTADO_INVALIDA',
+
+  // ── CO-6: cierre, apertura y corrección de errores (20260930520000+) ────
+  // fn_contable_cerrar_periodo: bloquea si contable_validacion_cierre() reporta al menos un
+  // hallazgo bloqueante y forzar_advertencias no cubre advertencias (que nunca son forzables).
+  CONTABLE_CIERRE_BLOQUEADO: 'CONTABLE_CIERRE_BLOQUEADO',
+  // fn_contable_reabrir_periodo: ya existe un periodo posterior contable_estado en
+  // ('cerrado','bloqueado') — reabrir este dejaría huecos en la secuencia contable.
+  CONTABLE_PERIODO_POSTERIOR_CERRADO: 'CONTABLE_PERIODO_POSTERIOR_CERRADO',
+  // fn_contable_reabrir_periodo: el ejercicio del periodo ya tiene comprobante CIERRE —
+  // reabrir un periodo de un ejercicio ya cerrado exige antes deshacer el cierre del ejercicio.
+  CONTABLE_EJERCICIO_YA_CERRADO: 'CONTABLE_EJERCICIO_YA_CERRADO',
+  // fn_contable_cerrar_ejercicio: exige los 12 periodos del año en contable_estado='cerrado'
+  // antes de construir el comprobante CIERRE.
+  CONTABLE_EJERCICIO_PERIODOS_INCOMPLETOS: 'CONTABLE_EJERCICIO_PERIODOS_INCOMPLETOS',
+  // fn_contable_abrir_ejercicio: la suma de débitos/créditos del comprobante APERTURA
+  // construido a partir del balance de cierre no cuadra — nunca debería dispararse si el
+  // balance de prueba previo estaba cuadrado, pero se valida antes de contabilizar.
+  CONTABLE_APERTURA_DESCUADRADA: 'CONTABLE_APERTURA_DESCUADRADA',
+  // fn_contable_corregir_error: origen en un periodo todavía abierto — se corrige por
+  // anulación directa (CO-2, fn_reversar_comprobante), no por esta ruta.
+  CONTABLE_CORRECCION_PERIODO_ABIERTO: 'CONTABLE_CORRECCION_PERIODO_ABIERTO',
+  // fn_contable_corregir_error: ejercicio cerrado + tenant Grupo 2 (Grupo 1 Pleno NIIF /
+  // Grupo 2 Pyme bajo NIIF) — CTCP 0146/2025 solo habilita la corrección en el periodo
+  // corriente para Grupo 3; Grupo 2 exige reexpresión de estados comparativos, fuera de
+  // alcance de este corte.
+  CONTABLE_CORRECCION_GRUPO_NO_RESUELTO: 'CONTABLE_CORRECCION_GRUPO_NO_RESUELTO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

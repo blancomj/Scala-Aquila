@@ -1939,3 +1939,484 @@ mismo criterio que `PresupuestoTabEjecucion.vue`), Saldo de fondos, Hallazgos de
 abiertos, Miembros activos, Eventos recientes. `stores/auditoria.ts` gana
 `cargarResumenLigero`/`ResumenLigeroAuditoria`. Sin migraciones, sin tablas nuevas, sin tests de
 backend nuevos (lectura de solo conteo ya cubierta por RLS existente).
+
+## D-45 — CO-2: `contable_comprobante.estado` con 3 valores, no los 6 del prompt maestro original
+
+**Contexto.** `CO_02_nucleo_libro_contable.md` (Casos de uso/Tres Modulos/Contabilidad) es el
+segundo corte de la hoja de ruta de los 29 cortes de Contabilidad/Gobierno/Mantenimiento — crea
+el comprobante contable con partida doble persistida, consecutivo sin huecos y reversión, sin
+contabilizar todavía ninguna operación real (eso es CO-3). El prompt maestro original de este
+corte proponía seis estados: `borrador`, `pendiente_aprobacion`, `aprobado`, `contabilizado`,
+`anulado`, `reversado`.
+
+**Por qué solo tres (`borrador`, `contabilizado`, `anulado`).**
+1. `reversado` no es un estado sino una relación: ya está modelado por
+   `reversado_por_id`/`reversa_comprobante_id`, y un comprobante contabilizado que fue reversado
+   sigue siendo, en sí mismo, un comprobante `contabilizado` — la reversión es un comprobante
+   nuevo enlazado, no un cambio de estado del original.
+2. `aprobado`/`pendiente_aprobacion` exigirían segregación de funciones (quién captura vs. quién
+   aprueba) que el modelo de permisos del repo no soporta hoy (`MARCO_MAESTRO.md` §5.5: `auxiliar`
+   y `administrador` comparten la misma capacidad de escritura sobre datos de tenant; no hay
+   noción de "aprobador" distinto de "quien captura"). Modelar el estado sin el permiso real
+   detrás sería decorativo — un botón "aprobar" que cualquier auxiliar puede pulsar no es
+   segregación de funciones, es teatro.
+3. Menos estados es menos superficie de transición inválida que probar y mantener.
+
+**Consecuencia.** `contable_comprobante_estado_t` queda como `('borrador', 'contabilizado',
+'anulado')`. Las columnas `aprobado_por`/`aprobado_at` se dejan en el esquema de
+`contable_comprobante` (20260930200000), sin usar y sin ningún guard que las lea o escriba en
+este corte — quedan reservadas para cuando un corte posterior implemente el flujo de aprobación
+con su propio permiso (`Permission` en `apps/web/app/types/permissions.ts` + T-MATRIX), en vez de
+inventar aquí un permiso o una segregación de funciones no autorizada por el marco (`MARCO_MAESTRO.md`
+§5.5: "no inventes permisos con notación de punto... preséntalo como propuesta y espera
+confirmación").
+
+**Si el contador exige flujo de aprobación real** más adelante, se añade como ampliación de este
+enum (D-24 permite ampliar un enum ya justificado sin disparar el gate de gobernanza, ver
+`fundamento_tipo_t`/`orientacion_tecnica` en PC-7) o como un enum nuevo si la semántica de
+transición resulta suficientemente distinta — decisión para ese corte, no para este.
+
+## D-46 — CO-3: materialización por lote (camino B) para cartera, por hecho (camino A) para
+presupuesto/fondos; y dos hallazgos que cerraron partes del alcance original del corte
+
+**Contexto.** `CO_03_materializacion_asientos.md` exige elegir y justificar, entre **camino A**
+(un comprobante por hecho — máxima trazabilidad, un comprobante por cargo/pago/movimiento) y
+**camino B** (un comprobante por `(periodo, entidad)` — menos comprobantes, más parecido a la
+práctica contable real de una PH), documentando la elección en este archivo.
+
+**Elección: camino B para `cartera` (`cargos`, `pago_aplicaciones`, `pagos`), camino A para
+`presupuesto_ejecucion` y `fondo_movimientos`.**
+1. `cartera` genera un hecho por cuota/recaudo/anticipo — en una copropiedad de varios cientos de
+   unidades, el camino A produciría cientos de comprobantes solo por la causación mensual de
+   cuotas ordinarias, haciendo el libro diario ilegible. El camino B agrupa esos hechos en un
+   comprobante por `(periodo, entidad)` (uno para causación de cartera, uno para recaudo
+   aplicado, uno para anticipos), preservando la trazabilidad al hecho individual en
+   `contable_comprobante_detalle.origen_entidad`/`origen_id` (columnas añadidas en CO-2 para
+   esto exactamente).
+2. `presupuesto_ejecucion` y `fondo_movimientos` tienen, cada uno, su propio soporte documental
+   (factura, comprobante de egreso) — un contador espera un comprobante por documento, no un
+   agregado mensual que oculte a qué factura corresponde cada línea. Camino A aquí.
+3. Idempotencia de un comprobante de lote: como `contable_comprobante`'s índice único es
+   `(tenant_id, origen_modulo, origen_entidad, origen_id, origen_evento)` y Postgres trata NULLs
+   múltiples como no-conflictivos, el `origen_id` de un comprobante de lote no puede ser NULL — se
+   usa `periodo_id` (compartido por todos los lotes de ese periodo, diferenciado por
+   `origen_entidad`).
+
+**Hallazgo 1 — el ámbito `movimiento_sin_contrapartida` (y el caso que el corte pedía probar en su
+prueba #5) ya estaba cerrado antes de que CO-3 empezara.** El corte, siguiendo el prompt maestro,
+pedía que un `presupuesto_ejecucion` con `liquidacion IS NULL` (dato anterior a PC-4) se saltara
+como `sin_contrapartida` en vez de bloquear todo el periodo. Verificado contra la base real: la
+migración `20260830490000_purga_ejecucion_sin_contrapartida.sql` (anterior a este corte, no tocada
+aquí) ya había purgado esas filas y puesto la columna `NOT NULL`, y el guard de la tabla exige
+`cuenta_bancaria_id` siempre que `liquidacion = 'pagado_banco'` — entre las dos cosas, hoy es
+imposible insertar una fila que llegue a `fn_contabilizar_periodo()` sin una contrapartida
+resoluble. La lógica de `fn_contabilizar_periodo()` para ese caso (reportar `'sin_contrapartida'`
+en vez de reventar) se dejó igual — es general (comprueba `cuenta_debito`/`cuenta_credito` NULL
+de `contable_hechos()`, no la causa específica) y no hace daño como red de seguridad, pero el
+ámbito de `contable_parametrizacion_pendiente()` es hoy código inerte y la prueba #5 original ya
+no es construible. Confirmado con el usuario: se documenta el cierre en vez de forzar un fixture
+artificial (deshabilitar el trigger del guard solo para el test), y la prueba #5 de
+`tests/contabilidad/materializacion.test.ts` verifica en su lugar que el caso es hoy
+irrepresentable (0 filas con `liquidacion` NULL, un intento de insertar sin ella falla).
+
+**Hallazgo 2 — "usar el fondo" no debita una cuenta de gasto; es reclasificación de efectivo,
+igual que un aporte pero al revés.** La prueba #8 del corte esperaba que un `fondo_movimientos`
+de tipo `'uso'` generara débito en una cuenta de gasto y crédito en `111015`. Verificado
+empíricamente contra `contable_hechos()` (bloque D, sin tocar en este corte — es lógica de PC-5/
+GAP-22, anterior a CO-3): un `'uso'` debita `111005` (banco) y acredita `111015` (fondo) — el
+mismo par de cuentas que un `'aporte'`, con los lados invertidos. El gasto real de esa plata
+ocurre después, en un hecho aparte (`presupuesto_ejecucion`) cuando el banco ya paga al proveedor
+— `fondo_movimientos` no tiene ningún campo que vincule un `'uso'` a una cuenta de gasto
+específica, así que no hay forma de que el hecho por sí solo produzca esa línea sin inventar una
+resolución que el modelo de datos no sostiene. Confirmado con el usuario: la prueba #8 de
+`tests/contabilidad/materializacion.test.ts` verifica el comportamiento real (reclasificación
+`111005`↔`111015`, `fondo_id` poblado en ambas líneas) en vez del texto original del corte.
+
+## D-47 — MANT-0: bienes comunes esenciales nunca se capitalizan (Ley 675 art. 20, CTCP
+243/2025); reclasificación vs. causación para el nacimiento contable de un activo
+
+**Contexto.** `MANT_00_activos_ficha_contable.md` deja "reconocimiento inicial de bienes
+recibidos de la constructora" y "vidas útiles y umbral de capitalización" como gate del contador
+(`APENDICE_MANT.md` §"Qué NO se resuelve por defecto"). Siguiendo instrucción explícita del
+usuario ("hagamos una investigación y decidamos" en vez de esperar la reunión con el contador),
+se investigó la doctrina colombiana real en vez de tratarlo como hueco puramente numérico.
+
+**Hallazgo — la distinción esencial/no esencial no es un parámetro que el contador ajuste; es un
+límite legal que ningún valor de umbral o vida útil puede saltarse.** Ley 675 de 2001 art. 20 +
+CTCP Concepto 243 de 2025 + DOT 15 (Documento de Orientación Técnica): un bien común **esencial**
+(indivisible e indispensable para la existencia del edificio — ascensores, estructura, tanques;
+la inmensa mayoría de lo recibido de la constructora) **nunca** puede reconocerse como activo en
+los estados financieros de la copropiedad, sin importar qué vida útil o umbral fije el contador.
+Solo un bien común **no esencial**, y solo después de una **desafectación formal** (escritura
+pública + voto del 70% de los coeficientes en asamblea — acto jurídico que este corte no modela),
+entra al balance, a valor razonable, con contrapartida en patrimonio (no en ingreso).
+
+**Decisión 1 (aprobada por el usuario vía AskUserQuestion): incorporar esta distinción al Plan de
+MANT-0 antes de implementar.** Se agregó el enum `activo_naturaleza_bien_t`
+(`bien_comun_esencial | bien_comun_no_esencial_desafectado | bien_propio`,
+`20260930280000_mant0_activos_catalogo.sql`) con un guard duro dentro de `guard_activo_ficha`
+que bloquea `capitalizado = true` para `bien_comun_esencial` (`ACTIVO_BIEN_ESENCIAL_NO_CAPITALIZABLE`)
+**a nivel de trigger**, no solo dentro de la RPC de capitalización — así ningún camino de
+escritura (RPC, admin, cliente directo) puede saltarse la regla. Los tres fundamentos citados se
+registraron en `fundamento_normativo` (`20260930340000_mant0_fundamento_normativo.sql`) con
+`fecha_validacion = NULL`: WebFetch falló contra `ctcp.gov.co` ("unable to verify the first
+certificate") y `secretariasenado.gov.co` (`ECONNREFUSED`) — mismo problema de entorno que ya
+documentó CO-1 (`20260930170000`), no de las fuentes. El contenido citado viene de WebSearch
+(agregadores como accounter.co, ambitojuridico.com), no de haber leído el documento primario
+completo — validación de primer grado pendiente, explícita como pregunta abierta para el
+contador matriculado (Ley 43 de 1990), no dada por hecha.
+
+**Decisión 2 (aprobada por el usuario vía AskUserQuestion): el nacimiento contable de un activo
+capitalizado es reclasificación del gasto ya pagado, no un asiento nuevo desde cero.**
+`MANT_00_activos_ficha_contable.md` no explicaba cómo se contabiliza el momento en que un activo
+pasa a estar capitalizado — solo la depreciación periódica ya en curso. `fn_mant_capitalizar_activo`
+(`20260930290000_mant0_depreciacion_ppe.sql`) resuelve dos caminos:
+1. **Comprado** (el común): si existen filas de `presupuesto_ejecucion.activo_id` vinculadas cuya
+   suma iguala `valor_adquisicion`, genera un comprobante `RECLASIFICACION` — débito a la cuenta
+   clase 15 del activo, crédito a la(s) cuenta(s) de gasto original(es), preservando
+   `centro_costo_id`/`tercero_id`/`agrupacion_id` de cada fila fuente (fix
+   `20260930300000_mant0_fix_reclasificacion_dimensiones.sql`, ver más abajo).
+2. **Desafectado** (raro, sin pago vinculado): genera un comprobante `CAUSACION` contra el evento
+   `RECONOCIMIENTO_BIEN_DESAFECTADO`, contrapartida en patrimonio.
+
+**Hallazgo 2 — "no inventes cuentas" no significa "deja el evento sin mapear".** La migración
+`20260930290000` sembró `RECONOCIMIENTO_BIEN_DESAFECTADO` deliberadamente sin default, razonando
+que es un caso raro que cada tenant debería mapear solo si le aplica. `tests/contabilidad/
+alta-parametrizacion-contable.test.ts` (PC-3c) y `tests/contabilidad/materializacion.test.ts`
+(CO-3) — ninguno de los dos tocado por este corte — fallaron porque ambos verifican una
+invariante ya cerrada: **todo evento contable global activo tiene un default sembrado al alta**,
+comparado 1:1 contra el catálogo precisamente para que un evento nuevo sin mapear se note aquí.
+Corregido en `20260930350000_mant0_fix_reconocimiento_bien_desafectado_default.sql`: se mapea a
+`3105` (Patrimonio inicial) — la única cuenta de patrimonio genérica del PUC vigente, ya
+existente, no inventada — con backfill para tenants ya creados. El tenant conserva la opción de
+remapear a otra subcuenta si su contador lo prefiere; lo que no puede hacer es no tener ningún
+default al nacer.
+
+**Cinco bugs adicionales encontrados por smoke-test manual (no por `db lint`, que se mantuvo en 7
+warnings preexistentes durante todo el corte):** dimensiones faltantes en la reclasificación
+(`20260930300000`), `guard_activo_transicion` no permitía retiro desde `planificado`
+(`20260930310000`), fecha del comprobante de baja fuera del periodo fiscal y líneas de detalle en
+cero violando el check "un solo lado" (`20260930320000`), y centro de costo faltante en la línea
+de pérdida de retiro (`20260930330000`) — mismo patrón que CO-2/CO-3: bugs de lógica de negocio
+que solo aparecen con datos reales, nunca con lint sintáctico.
+
+## D-48 — CO-4: los libros leen lo persistido (nunca la proyección); netear correctoras por
+naturaleza de la fila de clase, no por convención fija; export cliente + auditoría por RPC
+
+**Contexto.** CO-4 pide cuatro funciones de solo lectura (Diario, Mayor, Balance de prueba,
+Inventarios y Balances) más `contable_conciliacion_cartera`. Ninguna existía (`grep` sin
+resultados, gap real confirmado en el Plan del corte).
+
+**Decisión 1 — fuente de verdad: `contable_comprobante`/`contable_comprobante_detalle`, nunca
+`contable_movimientos()`.** `contable_movimientos()` (PC-5/CO-3) es la proyección de solo lectura
+previa a materializar — útil para simular, no para un libro legal. Los cuatro libros de CO-4 leen
+exclusivamente lo ya contabilizado, filtrando `numero is not null` (no `estado = 'contabilizado'`):
+un comprobante `anulado` **conserva** su número (CO-2, guard de inmutabilidad), así que incluirlo
+es lo que garantiza "sin saltos en el consecutivo" — ocultarlo crearía un hueco aparente que el
+principio invariable #5 (un asiento no se edita, se corrige con reversión) exige que sea visible.
+
+**Decisión 2 — el consecutivo es por `(tenant, año, tipo_id)`, no global por tenant.**
+`contable_consecutivo` (CO-2) ya lo modela así; la prueba de "sin saltos" del corte se implementó
+agrupando por tipo de comprobante, no como una sola secuencia global — un comprobante `AJUSTE` y
+uno `EGRESO` tienen numeraciones independientes, ambas sin huecos, no una numeración compartida.
+
+**Hallazgo — netear una cuenta correctora exige leer la naturaleza de la fila de CLASE, no asumir
+que toda una clase comparte una sola naturaleza.** `1399`/`1592`/`1698` son naturaleza crédito
+dentro de clase 1 (activo, fundamentalmente débito). El primer diseño de
+`contable_libro_inventarios_balances` sumaba `saldo_final` crudo de todas las cuentas de clase 1
+para el total de "activo" del CUADRE — con eso, una correctora con movimiento real SUMABA en vez
+de RESTAR, rompiendo `activo = pasivo + patrimonio + resultado` en cuanto hubiera cualquier
+deterioro o depreciación acumulada. Corregido (`20260930390000`, antes de la primera corrida de
+pruebas, no en producción) leyendo la naturaleza de la fila de `contable_cuenta` cuyo código ES la
+clase misma (`codigo = '1'/'2'/'3'`, que ya existe como fila propia del plan — mismo principio "la
+naturaleza se lee de la cuenta, jamás se infiere" aplicado a nivel de clase) y neteando cualquier
+fila cuya naturaleza difiera de la de su clase. El saldo mostrado por cuenta no cambia — sigue en
+su propio lado natural, igual que el Mayor — solo cambia cómo se agrega para el total de control.
+
+**Hallazgo 2 — `contable_conciliacion_cartera` filtraba de más.** El primer diseño devolvía
+cualquier inmueble con saldo distinto de cero en cualquiera de los dos lados, no solo
+discrepancias — un cargo de interés legítimamente sin pagar (saldo contable = saldo auxiliar,
+diferencia = 0) aparecía igual, porque casi cualquier cartera con movimiento real tiene *algún*
+lado distinto de cero. Corregido (`20260930380000`) a filtrar únicamente `diferencia <> 0` —
+"cero filas = cuadrado" (§7 del corte) significa exactamente eso, no "cero filas = cero
+actividad".
+
+**Decisión 3 — exportación 100% cliente (xlsx/pdfmake por import dinámico, mismo patrón que
+PC-5), con una única función `security definer` para la auditoría.** Como no hay round-trip al
+servidor al exportar, se agregó `fn_registrar_exportacion_libro` — el cliente la invoca justo
+antes de generar el archivo. Verificado en navegador contra un tenant real (JARDINES DE
+BABILONIA): el clic en "Exportar a PDF" deja una fila real en `audit_log` (`action =
+'contabilidad.libro.exportar'`), confirmando el flujo de punta a punta — esas dos filas quedan en
+el audit log real porque `audit_log` es append-only (SEC-14, no se pueden borrar ni deberían: son
+un registro legítimo de una acción real).
+
+**Hallazgo 3 — un color hex hardcodeado en el estilo del PDF violaba D-26 (gobernanza de diseño),
+detectado por `tests/governance/design-system-coverage.test.ts` antes del cierre.** `pdfmake`
+exige un color literal (no puede leer variables CSS), pero el archivo no puede tener un `#hex`
+propio. Resuelto creando un elemento oculto con la clase semántica ya usada en el resto del
+repo (`text-error-600`, ver `comprobantes.vue`/`movimientos.vue`) y leyendo su color ya computado
+por el tema activo en tiempo de ejecución, convertido a hex solo en memoria — cero hex estático en
+el archivo fuente, y el color del PDF queda automáticamente consistente con el tema claro/oscuro
+de la app en vez de una constante congelada.
+
+**Nota — el "worker CSP" del navegador no es de esta serie.** Durante la verificación en
+navegador apareció `Creating a worker from 'blob:...' violates... script-src` en la consola al
+exportar el PDF. Verificado contra el bundle de `pdfmake` (`grep "new Worker"` en
+`pdfmake/build/pdfmake.js`): no existe ninguna creación de Worker en todo el paquete — su mecanismo
+de descarga es `file-saver` vía `URL.createObjectURL` + clic en un `<a download>`, no un Worker.
+La exportación no lanzó ninguna excepción (sin banner de error en la página) y sí dejó su fila de
+auditoría — el mensaje de consola es ruido de otro proceso de la app (Nuxt DevTools/HMR), no un
+defecto de esta serie.
+
+## D-49 — CO-7: motor de política de deterioro (3 métodos, solo `antiguedad` implementado
+completo), resolución de cuenta por `categoria` del cargo, reversión por signo del ajuste
+
+**Contexto.** CO-7 pide un motor de deterioro de cartera versionado, sin porcentajes
+incrustados en código (`grep` confirmó que `contable_calcular_deterioro`/
+`contable_politica_deterioro` no existían — gap real). El corte nombra tres métodos
+(`antiguedad | porcentaje_global | individual`) pero solo detalla estructura y pruebas para
+`antiguedad`.
+
+**Decisión 1 — alcance de los 3 métodos, acordada con el usuario en el Plan del corte.**
+`antiguedad` se implementa completo (tramos + guards de cobertura + cálculo). `porcentaje_global`
+se resuelve con un único campo `porcentaje_global` en la política, sin tabla nueva — aplicado
+plano sobre el saldo elegible. `individual` queda como valor válido del enum (para no inventar
+un enum distinto de los tres que el corte nombra explícitamente) pero
+`contable_calcular_deterioro` falla con `DETERIORO_METODO_NO_IMPLEMENTADO` si se activa una
+política con ese método — no hay tabla de excepciones por inmueble especificada en el corte, e
+inventarla habría violado "no inventes tablas" del marco.
+
+**Decisión 2 — "cuenta de cartera" se resuelve por `cargos.categoria` vía
+`contable_cuenta_default`, reutilizando exactamente la resolución de `contable_hechos()` (CO-3,
+`20260930230000`): `CARTERA_CUOTA_ORDINARIA` (capital), `CARTERA_INTERES_MORA` (interés),
+`CARTERA_OTROS` (otro).** No se construyó una resolución nueva vía `concepto_id →
+presupuesto_cuenta_id` (que sí usa CO-3 para el lado del INGRESO, no para la cuenta de cartera en
+sí) — la que ya existe es tenant-configurable y evita repetir lógica.
+
+**Decisión 3 — el reconocimiento registra solo el ajuste, con el asiento invertido cuando el
+ajuste es negativo (recuperación de cartera).** `fn_contable_reconocer_deterioro` compara el
+deterioro recién calculado contra la suma de `contable_deterioro_detalle.ajuste` de
+reconocimientos previos (vía `contable_comprobante.fecha <= p_fecha_corte`); si el neto da
+positivo, débito `GASTO_DETERIORO_CARTERA`/crédito `DETERIORO_CARTERA`; si da negativo, se
+invierte. Detalle por inmueble persistido en `contable_deterioro_detalle` (comprobante_id +
+inmueble_id + cuenta_cartera_id), aunque la línea agregada en `contable_comprobante_detalle` no
+lleva `inmueble_id` (correctora agregada, per §4.3) — verificado que la suma del detalle iguala
+exactamente la línea agregada (prueba 10).
+
+**Bug 1 — `v_tipo_id` declarado `uuid` cuando `lista_tipos.id`/`contable_comprobante.tipo_id` son
+`bigint`.** Encontrado por `supabase db lint --linked` **antes** de correr ninguna prueba (no en
+runtime) — mismo nivel de rigor que los bugs de CO-4 encontrados por revisión manual. Corregido
+con `create or replace function` (`20260930420000`), la migración original
+(`20260930410000`) se deja intacta.
+
+**Bug 2 — `contable_calcular_deterioro` nunca encontraba una política cuyo `vigente_desde`
+quedó en `null`.** `vigente_desde <= p_fecha_corte` con `vigente_desde = null` evalúa a `NULL`, no
+a `true`, así que el `WHERE` la descartaba en silencio — una política activada sin fecha
+explícita (campo deliberadamente opcional en el diseño) quedaba permanentemente invisible para el
+cálculo, aunque apareciera "Vigente" en la UI. **Encontrado en verificación manual en el
+navegador** (las 11 pruebas siempre pasan `vigente_desde` explícito, un gap real de cobertura de
+pruebas) contra el tenant real JARDINES DE BABILONIA — la primera política creada desde la UI, sin
+llenar "Vigente desde", fallaba con `DETERIORO_SIN_POLITICA` pese a mostrarse "Vigente". Corregido
+(`20260930430000`) con `coalesce(vigente_desde, '0001-01-01'::date)` — sin fecha explícita, la
+política rige desde siempre, mismo criterio que usa `contable_libro_inventarios_balances` (CO-4)
+para "desde el origen".
+
+**Bug 3 (solo UI) — el aviso de éxito de "reconocer" nunca llegaba a mostrarse.** `simular()` se
+llamaba automáticamente después de `reconocer()` para refrescar la simulación con el nuevo estado,
+pero `simular()` reseteaba la misma variable donde `reconocer()` acababa de guardar el id del
+comprobante — el aviso de éxito se borraba a sí mismo antes de que Vue pintara el cambio.
+Encontrado clicando "Reconocer" en el navegador. Corregido separando el reset (solo en la
+simulación disparada por el usuario, `simularManual()`) de la simulación de refresco interna que
+dispara `reconocer()` (que ya no toca ese estado). De paso se agregó un mensaje distinto para
+"ajuste neto en cero" (nada que reconocer) — antes ese caso no mostraba ningún aviso, ni de éxito
+ni de error, dejando al usuario sin saber si el clic había hecho algo.
+
+**Hallazgo — `acuerdos_pago` (CAR F5) no admite insertar directo en `estado = 'vigente'`**
+(`guard_acuerdo_transicion`, `ACUERDO_ESTADO_INICIAL_INVALIDO`) — la transición real es
+`borrador → pendiente_aprobacion → vigente`. No es un guard de esta serie ni se tocó; la prueba 9
+(acuerdo de pago vigente) se ajustó para seguir el camino de dos `UPDATE` en vez de insertar el
+estado final directamente.
+
+**Verificado en navegador (datos reales, tenant JARDINES DE BABILONIA):** creación de política v1
+(método antiguedad, tramos 0-30/31-60/61+), activación, y simulación real contra 6
+inmuebles/cuentas de cartera vigente — sin deterioro porque ninguno está vencido todavía (dato de
+producción, no sintético). La política v1 queda activa en este tenant tras la verificación
+(inmutable una vez vigente — no se revierte, igual que las filas de `audit_log` que dejó CO-4).
+
+## D-50 — CO-5: motor de presentación 100% en tabla (fórmula DSL), EFE como otra plantilla más,
+notas por rama `if/elsif` sobre 14 códigos conocidos
+
+**Contexto.** El corte exige que la estructura de ESF/ER/ECP/EFE viva en tablas, no incrustada en
+SQL, y que las 14 notas se generen con cifras reales. No existía ningún motor de presentación
+previo (`grep` confirmó cero coincidencias de `contable_estado_plantilla`/`contable_estado_linea`)
+— gap real, sin precedente que reutilizar.
+
+**Decisión 1 — fórmula DSL mínima en vez de un motor de expresiones genérico.**
+`contable_estado_linea.formula` es una cadena de suma/resta de otros `codigo` de la MISMA
+plantilla (o un entero literal), parseada con `regexp_matches(formula, '([+-]?)([A-Za-z0-9_]+)',
+'g')` en un bucle — cada token ya debe haberse calculado antes en `orden`, o se levanta
+`FORMULA_ESTADO_INVALIDA`. Se descartó un lenguaje de expresiones completo (paréntesis,
+multiplicación, referencias cruzadas entre plantillas) porque ninguna de las 4 plantillas
+sembradas lo necesita —「no inventes de más」del marco.
+
+**Decisión 2 — EFE es una `contable_estado_plantilla` más (`modo_valor='variacion'`), no un motor
+aparte.** Sus líneas de actividad (operación/inversión/financiación) usan el mismo mecanismo
+`selector_cuentas` que ESF/ER. La cuenta `11` (efectivo, incluye 111005 banco y 111015 fondo de
+imprevistos) **nunca** aparece en ninguna línea de actividad — solo en las dos líneas de
+conciliación de apertura/cierre (`momento='inicio'` y una fórmula de cierre que suma la variación
+neta al saldo inicial, sin releer la cuenta 11 en la fecha de corte). Esto garantiza por
+construcción que el traslado 111005↔111015 (aporte al fondo de imprevistos) nunca se vea como
+flujo de efectivo (CTCP 0146/2025) — no por un caso especial en tiempo de ejecución, sino porque
+el catálogo de líneas simplemente no lo selecciona.
+
+**Decisión 3 — 14 notas por una rama `if/elsif` en `fn_generar_notas`, no un motor de plantillas
+abierto.** Hay exactamente 14 notas conocidas (el corte las nombra una por una, §4.3) — no un
+catálogo extensible. Cada rama sustituye sus propios `{{token}}` con una consulta real. El
+`codigo = 'resultado_ejercicio'` es un valor reservado, inyectado directo desde
+`contable_resultado_ejercicio()` (misma fórmula que la CTE de CO-4, extraída a función propia para
+que ESF/ER/ECP/EFE nunca puedan divergir en el mismo número — prueba 2 del corte).
+
+**Bug 1 — `contable_estado_financiero` marcada `stable` no puede hacer `DROP TABLE`/`CREATE
+TEMPORARY TABLE`** (`DROP TABLE is not allowed in a non volatile function`). Encontrado por
+`supabase db lint --linked` **antes** de correr ninguna prueba. Corregido marcándola `volatile`
+(`20260930490000`) — sigue sin escribir ningún dato de negocio real, solo una tabla temporal de
+sesión.
+
+**Bug 2 — `contable_parametrizacion_pendiente` (PC-5b, corte previo) nunca aprendió la resolución
+especial de `FONDO_IMPREVISTOS`** (BLOQUE K, `20260929180000`): un cargo de ese concepto siempre
+tiene `presupuesto_cuenta_id` NULL a propósito (resuelve contra el evento predeterminado
+`INGRESO_FONDO_IMPREVISTOS`, igual que `contable_movimientos()` ya sabe hacer), pero el ámbito
+`cargo_sin_cuenta_ingreso` lo reportaba como pendiente igual que un concepto mal configurado —
+bloqueando `fn_contabilizar_periodo` con `CONTABLE_PARAMETRIZACION_PENDIENTE` para cualquier
+tenant que use el circuito de cobro del fondo. Encontrado al construir el fixture de
+`tests/contabilidad/estados-financieros.test.ts` (ningún test previo había materializado nunca un
+cargo de ese concepto). Corregido (`20260930500000`) con la misma excepción que ya existía para
+`categoria='interes'`.
+
+**Bug 3 — `if not v_marco.clasificado` no distingue `false` de `NULL`.** Para un `p_tenant_id` que
+el llamante no puede ver por RLS, `tenant_marco_contable()` no encuentra la fila de `tenants` y
+`v_marco` queda con todos los campos NULL — `not NULL` es `NULL`, no `true`, así que el `raise` de
+`MARCO_CONTABLE_SIN_CLASIFICAR` nunca disparaba y el código seguía hasta un segundo guard, también
+NULL-seguro por accidente, terminando en `ESTADO_NO_REQUERIDO_PARA_GRUPO: ... para <NULL>` — sin
+fuga de datos real (la prueba 13 de aislamiento lo confirma: nunca se devuelve ninguna fila), pero
+con un código de error confuso para un caso que es, en esencia, el mismo "no clasificado".
+Encontrado escribiendo la prueba 13. Corregido (`20260930510000`) con `is not true`, que trata
+`false` y `NULL` de forma idéntica.
+
+**Verificado en navegador (datos reales, tenant JARDINES DE BABILONIA, clasificado Grupo 2 para
+esta verificación):** las 5 pestañas (ESF/ER/ECP/EFE/Notas) cargaron correctamente; "Generar
+notas" produjo las 14 notas con cifras reales — incluida la nota 5 (fondo de imprevistos, saldo
+final $158,000 desde `fondo_movimientos` histórico de CO-7) y la nota 6 (cartera real de 6
+inmuebles con política de deterioro "antiguedad" ya vigente de una verificación anterior); edición
+de la nota 13 conservó la marca "Editada" tras regenerar el resto; exportación a PDF completada sin
+error (verificada leyendo el PDF real generado en memoria del navegador vía consola, 44 KB, y
+reconstruida contra los mismos datos con un script Node/pdfmake como evidencia adjunta en
+`Casos de uso/Tres Modulos/Contabilidad/evidencia/CO5_estados_financieros_evidencia.pdf`).
+
+## D-51 — CO-6: el asiento CIERRE se contabiliza en un periodo ya `cerrado` (excepción puntual y
+acotada, no relajación del guard), agregación por tupla de dimensiones completa para CIERRE/
+APERTURA, `fn_contable_corregir_error` con un quinto parámetro (`comprobante_correcto_id`)
+
+**Contexto.** CO-6 depende de CO-1/CO-2/CO-3/CO-4/CO-5 y cierra el primer hito de los tres
+(Contabilidad legal completa). Tres decisiones de mecanismo no estaban explícitas letra por letra
+en el corte y exigieron diseño propio; se documentan aquí para que no parezcan improvisación
+posterior.
+
+**Decisión 1 — excepción puntual en `fn_contabilizar_comprobante` (CO-2) para el tipo `CIERRE`.**
+El corte exige (§3.4) "los 12 periodos del ejercicio cerrados" ANTES de construir el comprobante
+CIERRE, y que ese comprobante "se contabilice por la vía normal ... hereda todas las
+validaciones". Pero `fn_contabilizar_comprobante` (CO-2) exigía `contable_estado='abierto'` —el
+periodo de diciembre, donde cae la fecha del CIERRE, YA está `'cerrado'` en ese momento por la
+propia precondición del corte. Sin ajuste, `fn_contable_cerrar_ejercicio` nunca podría contabilizar
+su propio asiento. Se añadió (`20260930540000`, `create or replace`) una excepción NARROW: admite
+`contable_estado='cerrado'` únicamente cuando el tipo del comprobante es exactamente `'CIERRE'`
+— cualquier otro tipo (INGRESO/EGRESO/CAUSACION/AJUSTE/...) sigue rechazado exactamente igual que
+antes (prueba obligatoria #4 del corte lo confirma). No es relajar el guard para el caso general
+(MARCO §9.2 lo prohíbe) — es el mismo patrón contable real: el asiento de cierre se contabiliza en
+el instante mismo de cerrar, no como "una operación más" que el periodo admitiría de por sí.
+APERTURA no necesita esta excepción: se contabiliza en enero del ejercicio NUEVO, que
+`fn_contable_abrir_ejercicio` deja `'abierto'` antes de contabilizar.
+
+**Decisión 2 — CIERRE/APERTURA agregan por la tupla completa de dimensiones, no "una línea por
+cuenta".** El guard `COMPROBANTE_DIMENSION_REQUERIDA` (CO-2) exige que cada línea de una cuenta con
+`requiere_tercero/centro_costo/fondo/inmueble` traiga esa dimensión. Colapsar toda la actividad de
+una cuenta en una sola línea perdería esas dimensiones cuando distintas líneas originales
+difirieran en ellas — violaría un guard existente. Ambas funciones agregan por
+`(cuenta_id, tercero_id, centro_costo_id, fondo_id, inmueble_id, agrupacion_id)` —
+`presupuesto_cuenta_id` queda fuera a propósito (no es una dimensión que el guard exija, y
+agregar por ella fragmentaría el cierre sin ningún propósito real). CIERRE reversa el saldo neto de
+cada grupo de clases 4/5/6 a cero, con una única línea de balanceo sin dimensiones hacia la cuenta
+mapeada a `RESULTADO_EJERCICIO` (3310, `dim=''` — confirmado directamente en el seed del plan de
+cuentas). APERTURA reproduce el saldo (mismo lado débito/crédito, no lo reversa) de cada grupo de
+clases 1/2/3 al cierre anterior.
+
+**Decisión 3 — `fn_contable_corregir_error` recibe `p_comprobante_correcto_id` además de los
+cuatro parámetros que menciona la prosa del corte (`comprobante_origen, periodo_destino, motivo,
+tipo_correccion`).** El contenido correcto de un asiento (qué cuentas, qué valores) es un juicio
+contable que ningún dato existente permite derivar del asiento erróneo — inventar esa fórmula
+violaría MARCO §9.2. El flujo real: el usuario captura el comprobante correcto por la vía normal
+(borrador, la misma pantalla de captura manual que hoy usa AJUSTE/RECLASIFICACION) en el periodo
+destino; la función decide la ruta, reversa si aplica, lo contabiliza y deja la traza — nunca
+inventa sus líneas. `tipo_correccion` es `text` libre, no `lista_tipos` (D-24 exige que el
+vocabulario de `lista_tipos` venga de un catálogo real; el corte no cierra un catálogo de
+"naturaleza del error"). La ruta se enruta así: periodo abierto → `CONTABLE_CORRECCION_PERIODO_
+ABIERTO` (anular y rehacer, CO-2); periodo cerrado + ejercicio abierto → reversión
+(`fn_reversar_comprobante`, reutilizado tal cual) + comprobante correcto, ambos enlazados;
+ejercicio cerrado (periodo `'bloqueado'`) + `tenant_marco_contable().marco_grupo <> 'grupo_3'` →
+`CONTABLE_CORRECCION_GRUPO_NO_RESUELTO` (Grupo 2 exige reexpresión de comparativos, doctrina no
+validada de fuente primaria en este corte — pregunta abierta para el contador); Grupo 3 → corrige
+en el periodo corriente sin reversar el original (CTCP 0146/2025, ya validado), `comprobante_
+reversion_id` queda NULL en `contable_correccion` (la propia traza distingue la ruta sin necesitar
+un campo "tipo de ruta" aparte).
+
+**Hallazgo mayor y corregido en este corte — duplicación exacta de saldos de balance tras
+`fn_contable_abrir_ejercicio`.** `contable_estado_financiero` (CO-5), `contable_libro_mayor` y
+`contable_balance_prueba` (CO-4) calculan el saldo de toda cuenta de balance (clases ≠ 4/5) como
+una suma acumulada desde el origen (`c.fecha <= fecha_corte`, sin partición por ejercicio) —
+correcto mientras solo existiera actividad económica real. `fn_contable_abrir_ejercicio` (CO-6)
+introduce un comprobante APERTURA real que REPRODUCE (mismo lado débito/crédito, no lo reversa)
+el saldo de cada cuenta de balance al cierre del ejercicio anterior — un saldo que la propia suma
+acumulada YA contaba correctamente desde la actividad real. El resultado: cualquier estado o libro
+pedido a una fecha en o después de la apertura reportaba el DOBLE del saldo real de toda cuenta de
+balance (confirmado empíricamente: 120000 en vez de 60000). Encontrado por la prueba 12 de
+`tests/contabilidad/cierre-apertura.test.ts` ("el ESF de apertura del ejercicio nuevo es idéntico
+al ESF de cierre del anterior"). CIERRE no tiene este problema: sus líneas reversan clases 4/5/6 a
+CERO (no reproducen un saldo ya contado), así que se cancelan por construcción sin duplicar nada;
+el único valor nuevo que introduce (el crédito a 3310) es la primera vez que esa cuenta recibe
+algo, nunca una repetición. El asiento de apertura debe seguir existiendo tal cual —el corte lo
+exige explícito, con motivo de auditoría, cuadrado por construcción e idempotente— el motor de
+reportes simplemente no debe sumarlo una segunda vez. **Fix:** cuatro migraciones `create or
+replace function`, cada una excluyendo `origen_evento = 'apertura_ejercicio'` de la suma
+acumulada de cuentas de balance: `contable_estado_financiero` (`20260930620000`),
+`contable_libro_mayor` (`20260930630000`), `contable_balance_prueba` (`20260930640000`) y,
+encontrado por revisión posterior de qué otras funciones comparten el mismo patrón de suma
+acumulada sobre `contable_comprobante_detalle`, `contable_conciliacion_cartera` (`20260930650000`
+— las cuentas 13xx exigen dimensión `inmueble_id`, así que la apertura también reproduce saldos de
+cartera por inmueble; sin el fix, cualquier inmueble con cartera pendiente al cierre mostraría una
+diferencia espuria contra el auxiliar tras la apertura). Verificado sin regresiones: suite completa
+de CO-4 (`libros-oficiales.test.ts`, 11/11) y CO-5 (`estados-financieros.test.ts`, 13/13) tras el
+fix, además de las 15 pruebas propias de CO-6.
+
+**Endurecimiento (entregable 2 del corte).** `guard_marco_contable_tenant()` (CO-1) comparaba
+contra `periodos.estado='cerrado'` (el ciclo de LIQUIDACIÓN, no el contable) con un comentario
+propio que ya anunciaba "se endurecerá cuando CO-6 introduzca la semántica completa de cierre".
+Se cambió (`20260930600000`) a `periodos.contable_estado in ('cerrado','bloqueado')` — el ciclo
+contable real.
+
+**Confirmación de consistencia CO-5↔CO-6 (sin cambio de código).** Se verificó que el selector
+`resultados_anteriores` de CO-5 (`'33'`, cubre 3305 y 3310) no duplica el resultado de un ejercicio
+ya cerrado: `resultado_ejercicio` de CO-5 recalcula en vivo, acotado por fecha, el resultado del
+ejercicio ACTUAL (arranca en cero en un año nuevo), mientras `resultados_anteriores` acumula lo que
+el libro ya tenga de ejercicios previos — la interacción resuelve correctamente por construcción,
+sin necesitar una reclasificación explícita 3310→3305.
+
+**Hallazgo (no corregido en este corte, fuera de su alcance):** `contable_conciliacion_proyeccion`
+(CO-3) compara TODO lo persistido contra la proyección de
+`cargos/pagos/presupuesto_ejecucion/fondo_movimientos` — un comprobante manual (tipo AJUSTE,
+INGRESO, etc.) que toque una cuenta dentro de ese universo SIEMPRE aparece como diferencia,
+sin importar qué cuentas use, bloqueando permanentemente el cierre de su periodo (bloqueante, no
+forzable). Encontrado al construir `tests/contabilidad/cierre-apertura.test.ts` (prueba 13):
+resuelto en el fixture usando un comprobante materializado normalmente (que por construcción nunca
+diverge de su propia proyección) en vez de uno insertado a mano. Documentado como pregunta abierta
+para el contador/equipo en `CO_06_INFORME.md` — no es un defecto de CO-6, es una característica
+preexistente de CO-3 que ningún test anterior había ejercido.

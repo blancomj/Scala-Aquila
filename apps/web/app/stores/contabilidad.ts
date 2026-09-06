@@ -24,6 +24,8 @@ type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 type PresupuestoCuentaRow = Database['public']['Tables']['presupuesto_cuenta']['Row']
 export type ParametrizacionPendiente =
   Database['public']['Functions']['contable_parametrizacion_pendiente']['Returns'][number]
+export type MarcoContableTenant =
+  Database['public']['Functions']['tenant_marco_contable']['Returns'][number]
 
 /** Nodo con lo derivado ya resuelto, para no recalcularlo en cada componente. */
 export interface ContableCuentaNodo extends ContableCuentaRow {
@@ -38,6 +40,7 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
   const eventos = shallowRef<ListaTipoRow[]>([])
   const cuentasPresupuestales = shallowRef<PresupuestoCuentaRow[]>([])
   const pendientes = shallowRef<ParametrizacionPendiente[]>([])
+  const marcoContable = shallowRef<MarcoContableTenant | null>(null)
   /** Plantilla global (no por tenant): el vínculo a fundamento_normativo vive aquí, no en
    * contable_cuenta — se instancia una vez y responde "por qué existe esta cuenta" para
    * cualquier plan, sin repetirse por tenant (PC-9, cierre de "contabilidad explicable" §58). */
@@ -272,6 +275,18 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
     await cargarDefaults(tenantId)
   }
 
+  /** CO-1: único lugar que traduce marco_grupo a los estados financieros exigidos. Se recarga
+   * después de cualquier cambio de clasificación (ver useCopropiedadStore().actualizarTenant). */
+  async function cargarMarcoContable(tenantId: string): Promise<MarcoContableTenant | null> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente
+      .rpc('tenant_marco_contable', { p_tenant_id: tenantId })
+      .single()
+    if (error) throw error
+    marcoContable.value = data ?? null
+    return marcoContable.value
+  }
+
   /** Lo que impide exportar (PC-3/PC-5b). Debe quedar vacío antes de emitir información. */
   async function cargarPendientes(tenantId: string): Promise<ParametrizacionPendiente[]> {
     const cliente = useSupabaseClient<Database>()
@@ -289,6 +304,7 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
     eventos.value = []
     cuentasPresupuestales.value = []
     pendientes.value = []
+    marcoContable.value = null
   }
 
   return {
@@ -298,6 +314,7 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
     cuentasPresupuestales,
     pendientes,
     planCuentas,
+    marcoContable,
     loading,
     arbol,
     tienePlan,
@@ -314,6 +331,7 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
     cargarDefaults,
     guardarDefault,
     cargarPendientes,
+    cargarMarcoContable,
     limpiar,
   }
 })

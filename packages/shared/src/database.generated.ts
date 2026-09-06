@@ -16,31 +16,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       acciones_cobranza: {
@@ -422,6 +397,301 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activo_estado_historial: {
+        Row: {
+          activo_id: string
+          created_at: string
+          documento_id: string | null
+          estado_anterior: Database["public"]["Enums"]["activo_estado_t"] | null
+          estado_nuevo: Database["public"]["Enums"]["activo_estado_t"]
+          id: string
+          motivo: string | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          activo_id: string
+          created_at?: string
+          documento_id?: string | null
+          estado_anterior?:
+            | Database["public"]["Enums"]["activo_estado_t"]
+            | null
+          estado_nuevo: Database["public"]["Enums"]["activo_estado_t"]
+          id?: string
+          motivo?: string | null
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          activo_id?: string
+          created_at?: string
+          documento_id?: string | null
+          estado_anterior?:
+            | Database["public"]["Enums"]["activo_estado_t"]
+            | null
+          estado_nuevo?: Database["public"]["Enums"]["activo_estado_t"]
+          id?: string
+          motivo?: string | null
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activo_estado_historial_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activo_estado_historial_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activo_estado_historial_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activo_estado_historial_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activo_estado_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activo_estado_historial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activos: {
+        Row: {
+          activo_padre_id: string | null
+          agrupacion_id: string | null
+          capitalizado: boolean
+          categoria_id: number
+          centro_costo_id: number | null
+          codigo: string
+          contable_cuenta_id: string | null
+          created_at: string
+          descripcion: string | null
+          documento_soporte_id: string | null
+          estado: Database["public"]["Enums"]["activo_estado_t"]
+          fabricante: string | null
+          fecha_adquisicion: string | null
+          fecha_inicio_depreciacion: string | null
+          fecha_instalacion: string | null
+          fecha_puesta_servicio: string | null
+          fecha_retiro: string | null
+          id: string
+          imagen_documento_id: string | null
+          marca: string | null
+          metodo_depreciacion:
+            | Database["public"]["Enums"]["depreciacion_metodo_t"]
+            | null
+          modelo: string | null
+          naturaleza_bien: Database["public"]["Enums"]["activo_naturaleza_bien_t"]
+          nombre: string
+          numero_serie: string | null
+          origen: Database["public"]["Enums"]["activo_origen_t"]
+          qr_token: string | null
+          tenant_id: string
+          tipo_id: number
+          ubicacion_detalle: string | null
+          updated_at: string | null
+          valor_adquisicion: number | null
+          valor_residual: number
+          vida_util_meses: number | null
+          zona_comun_id: string | null
+        }
+        Insert: {
+          activo_padre_id?: string | null
+          agrupacion_id?: string | null
+          capitalizado?: boolean
+          categoria_id: number
+          centro_costo_id?: number | null
+          codigo: string
+          contable_cuenta_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          documento_soporte_id?: string | null
+          estado?: Database["public"]["Enums"]["activo_estado_t"]
+          fabricante?: string | null
+          fecha_adquisicion?: string | null
+          fecha_inicio_depreciacion?: string | null
+          fecha_instalacion?: string | null
+          fecha_puesta_servicio?: string | null
+          fecha_retiro?: string | null
+          id?: string
+          imagen_documento_id?: string | null
+          marca?: string | null
+          metodo_depreciacion?:
+            | Database["public"]["Enums"]["depreciacion_metodo_t"]
+            | null
+          modelo?: string | null
+          naturaleza_bien: Database["public"]["Enums"]["activo_naturaleza_bien_t"]
+          nombre: string
+          numero_serie?: string | null
+          origen: Database["public"]["Enums"]["activo_origen_t"]
+          qr_token?: string | null
+          tenant_id: string
+          tipo_id: number
+          ubicacion_detalle?: string | null
+          updated_at?: string | null
+          valor_adquisicion?: number | null
+          valor_residual?: number
+          vida_util_meses?: number | null
+          zona_comun_id?: string | null
+        }
+        Update: {
+          activo_padre_id?: string | null
+          agrupacion_id?: string | null
+          capitalizado?: boolean
+          categoria_id?: number
+          centro_costo_id?: number | null
+          codigo?: string
+          contable_cuenta_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          documento_soporte_id?: string | null
+          estado?: Database["public"]["Enums"]["activo_estado_t"]
+          fabricante?: string | null
+          fecha_adquisicion?: string | null
+          fecha_inicio_depreciacion?: string | null
+          fecha_instalacion?: string | null
+          fecha_puesta_servicio?: string | null
+          fecha_retiro?: string | null
+          id?: string
+          imagen_documento_id?: string | null
+          marca?: string | null
+          metodo_depreciacion?:
+            | Database["public"]["Enums"]["depreciacion_metodo_t"]
+            | null
+          modelo?: string | null
+          naturaleza_bien?: Database["public"]["Enums"]["activo_naturaleza_bien_t"]
+          nombre?: string
+          numero_serie?: string | null
+          origen?: Database["public"]["Enums"]["activo_origen_t"]
+          qr_token?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          ubicacion_detalle?: string | null
+          updated_at?: string | null
+          valor_adquisicion?: number | null
+          valor_residual?: number
+          vida_util_meses?: number | null
+          zona_comun_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activos_activo_padre_id_fkey"
+            columns: ["activo_padre_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_documento_soporte_id_fkey"
+            columns: ["documento_soporte_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_documento_soporte_id_fkey"
+            columns: ["documento_soporte_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_imagen_documento_id_fkey"
+            columns: ["imagen_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_imagen_documento_id_fkey"
+            columns: ["imagen_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activos_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
             referencedColumns: ["id"]
           },
         ]
@@ -3161,6 +3431,88 @@ export type Database = {
           },
         ]
       }
+      contable_castigo_cartera: {
+        Row: {
+          acta_referencia: string
+          autorizado_at: string | null
+          autorizado_por: string | null
+          creado_por: string | null
+          created_at: string
+          id: string
+          inmueble_id: string
+          monto: number
+          motivo: string | null
+          tenant_id: string
+        }
+        Insert: {
+          acta_referencia: string
+          autorizado_at?: string | null
+          autorizado_por?: string | null
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          monto: number
+          motivo?: string | null
+          tenant_id: string
+        }
+        Update: {
+          acta_referencia?: string
+          autorizado_at?: string | null
+          autorizado_por?: string | null
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          monto?: number
+          motivo?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_castigo_cartera_autorizado_por_fkey"
+            columns: ["autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contable_codigo_retirado: {
         Row: {
           codigo: string
@@ -3196,6 +3548,418 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "contable_plan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_comprobante: {
+        Row: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          contabilizado_at: string | null
+          creado_por: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["contable_comprobante_estado_t"]
+          fecha: string
+          id: string
+          numero: number | null
+          origen_entidad: string | null
+          origen_evento: string | null
+          origen_id: string | null
+          origen_modulo: string | null
+          periodo_id: string
+          reversa_comprobante_id: string | null
+          reversado_por_id: string | null
+          tenant_id: string
+          tipo_id: number
+        }
+        Insert: {
+          anio: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          contabilizado_at?: string | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion: string
+          estado?: Database["public"]["Enums"]["contable_comprobante_estado_t"]
+          fecha: string
+          id?: string
+          numero?: number | null
+          origen_entidad?: string | null
+          origen_evento?: string | null
+          origen_id?: string | null
+          origen_modulo?: string | null
+          periodo_id: string
+          reversa_comprobante_id?: string | null
+          reversado_por_id?: string | null
+          tenant_id: string
+          tipo_id: number
+        }
+        Update: {
+          anio?: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          contabilizado_at?: string | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion?: string
+          estado?: Database["public"]["Enums"]["contable_comprobante_estado_t"]
+          fecha?: string
+          id?: string
+          numero?: number | null
+          origen_entidad?: string | null
+          origen_evento?: string | null
+          origen_id?: string | null
+          origen_modulo?: string | null
+          periodo_id?: string
+          reversa_comprobante_id?: string | null
+          reversado_por_id?: string | null
+          tenant_id?: string
+          tipo_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_comprobante_anulado_por_fkey"
+            columns: ["anulado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_reversa_comprobante_id_fkey"
+            columns: ["reversa_comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_reversado_por_id_fkey"
+            columns: ["reversado_por_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_comprobante_detalle: {
+        Row: {
+          agrupacion_id: string | null
+          centro_costo_id: number | null
+          comprobante_id: string
+          credito: number
+          cuenta_id: string
+          debito: number
+          descripcion: string | null
+          fondo_id: string | null
+          id: string
+          inmueble_id: string | null
+          linea: number
+          origen_entidad: string | null
+          origen_id: string | null
+          presupuesto_cuenta_id: string | null
+          tenant_id: string
+          tercero_id: string | null
+        }
+        Insert: {
+          agrupacion_id?: string | null
+          centro_costo_id?: number | null
+          comprobante_id: string
+          credito?: number
+          cuenta_id: string
+          debito?: number
+          descripcion?: string | null
+          fondo_id?: string | null
+          id?: string
+          inmueble_id?: string | null
+          linea: number
+          origen_entidad?: string | null
+          origen_id?: string | null
+          presupuesto_cuenta_id?: string | null
+          tenant_id: string
+          tercero_id?: string | null
+        }
+        Update: {
+          agrupacion_id?: string | null
+          centro_costo_id?: number | null
+          comprobante_id?: string
+          credito?: number
+          cuenta_id?: string
+          debito?: number
+          descripcion?: string | null
+          fondo_id?: string | null
+          id?: string
+          inmueble_id?: string | null
+          linea?: number
+          origen_entidad?: string | null
+          origen_id?: string | null
+          presupuesto_cuenta_id?: string | null
+          tenant_id?: string
+          tercero_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_comprobante_detalle_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_comprobante_id_fkey"
+            columns: ["comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_comprobante_detalle_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          tipo_id: number
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          tipo_id: number
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          tipo_id?: number
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_consecutivo_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_correccion: {
+        Row: {
+          comprobante_correcto_id: string
+          comprobante_origen_id: string
+          comprobante_reversion_id: string | null
+          creado_por: string | null
+          created_at: string
+          fundamento_normativo_id: number | null
+          id: string
+          motivo: string
+          tenant_id: string
+          tipo_correccion: string
+        }
+        Insert: {
+          comprobante_correcto_id: string
+          comprobante_origen_id: string
+          comprobante_reversion_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          motivo: string
+          tenant_id: string
+          tipo_correccion: string
+        }
+        Update: {
+          comprobante_correcto_id?: string
+          comprobante_origen_id?: string
+          comprobante_reversion_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          motivo?: string
+          tenant_id?: string
+          tipo_correccion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_correccion_comprobante_correcto_id_fkey"
+            columns: ["comprobante_correcto_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_comprobante_origen_id_fkey"
+            columns: ["comprobante_origen_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_comprobante_reversion_id_fkey"
+            columns: ["comprobante_reversion_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_correccion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3342,6 +4106,308 @@ export type Database = {
           },
         ]
       }
+      contable_deterioro_detalle: {
+        Row: {
+          ajuste: number
+          comprobante_id: string
+          created_at: string
+          cuenta_cartera_id: string
+          deterioro_calculado: number
+          deterioro_reconocido_previo: number
+          id: string
+          inmueble_id: string
+          saldo: number
+          tenant_id: string
+        }
+        Insert: {
+          ajuste: number
+          comprobante_id: string
+          created_at?: string
+          cuenta_cartera_id: string
+          deterioro_calculado: number
+          deterioro_reconocido_previo?: number
+          id?: string
+          inmueble_id: string
+          saldo: number
+          tenant_id: string
+        }
+        Update: {
+          ajuste?: number
+          comprobante_id?: string
+          created_at?: string
+          cuenta_cartera_id?: string
+          deterioro_calculado?: number
+          deterioro_reconocido_previo?: number
+          id?: string
+          inmueble_id?: string
+          saldo?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_deterioro_detalle_comprobante_id_fkey"
+            columns: ["comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_deterioro_detalle_cuenta_cartera_id_fkey"
+            columns: ["cuenta_cartera_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_deterioro_detalle_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_deterioro_detalle_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_deterioro_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_deterioro_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_estado_linea: {
+        Row: {
+          codigo: string
+          etiqueta: string
+          formula: string | null
+          fundamento_normativo_id: number | null
+          id: string
+          momento: string | null
+          nivel: number
+          nota_referencia: number | null
+          orden: number
+          plantilla_id: string
+          selector_cuentas: string | null
+          signo: number
+          tipo_linea: Database["public"]["Enums"]["estado_linea_tipo_t"]
+        }
+        Insert: {
+          codigo: string
+          etiqueta: string
+          formula?: string | null
+          fundamento_normativo_id?: number | null
+          id?: string
+          momento?: string | null
+          nivel: number
+          nota_referencia?: number | null
+          orden: number
+          plantilla_id: string
+          selector_cuentas?: string | null
+          signo?: number
+          tipo_linea: Database["public"]["Enums"]["estado_linea_tipo_t"]
+        }
+        Update: {
+          codigo?: string
+          etiqueta?: string
+          formula?: string | null
+          fundamento_normativo_id?: number | null
+          id?: string
+          momento?: string | null
+          nivel?: number
+          nota_referencia?: number | null
+          orden?: number
+          plantilla_id?: string
+          selector_cuentas?: string | null
+          signo?: number
+          tipo_linea?: Database["public"]["Enums"]["estado_linea_tipo_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_estado_linea_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_estado_linea_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contable_estado_plantilla"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_estado_plantilla: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          marco_grupo: Database["public"]["Enums"]["marco_contable_grupo_t"]
+          modo_valor: string
+          nombre: string
+          version: number
+          vigente: boolean
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          marco_grupo: Database["public"]["Enums"]["marco_contable_grupo_t"]
+          modo_valor: string
+          nombre: string
+          version?: number
+          vigente?: boolean
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          marco_grupo?: Database["public"]["Enums"]["marco_contable_grupo_t"]
+          modo_valor?: string
+          nombre?: string
+          version?: number
+          vigente?: boolean
+        }
+        Relationships: []
+      }
+      contable_nota: {
+        Row: {
+          cuerpo: string
+          editada_at: string | null
+          editada_por: string | null
+          ejercicio: number
+          estado: string
+          generada_at: string
+          id: string
+          numero: number
+          plantilla_id: string
+          tenant_id: string
+          titulo: string
+        }
+        Insert: {
+          cuerpo: string
+          editada_at?: string | null
+          editada_por?: string | null
+          ejercicio: number
+          estado?: string
+          generada_at?: string
+          id?: string
+          numero: number
+          plantilla_id: string
+          tenant_id: string
+          titulo: string
+        }
+        Update: {
+          cuerpo?: string
+          editada_at?: string | null
+          editada_por?: string | null
+          ejercicio?: number
+          estado?: string
+          generada_at?: string
+          id?: string
+          numero?: number
+          plantilla_id?: string
+          tenant_id?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_nota_editada_por_fkey"
+            columns: ["editada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_nota_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contable_nota_plantilla"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_nota_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_nota_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_nota_plantilla: {
+        Row: {
+          codigo: string
+          created_at: string
+          cuerpo_plantilla: string
+          fundamento_normativo_id: number | null
+          id: string
+          marco_grupo:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
+          numero: number
+          obligatoria: boolean
+          orden: number
+          titulo: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          cuerpo_plantilla: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          marco_grupo?:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
+          numero: number
+          obligatoria?: boolean
+          orden: number
+          titulo: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          cuerpo_plantilla?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          marco_grupo?:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
+          numero?: number
+          obligatoria?: boolean
+          orden?: number
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_nota_plantilla_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contable_plan: {
         Row: {
           codigo: string
@@ -3447,6 +4513,134 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "contable_plan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_politica_deterioro: {
+        Row: {
+          acta_referencia: string | null
+          aprobada_at: string | null
+          aprobada_por: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          excluir_cargos_con_acuerdo_vigente: boolean
+          fundamento: string | null
+          id: string
+          metodo: Database["public"]["Enums"]["deterioro_metodo_t"]
+          porcentaje_global: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          acta_referencia?: string | null
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          excluir_cargos_con_acuerdo_vigente?: boolean
+          fundamento?: string | null
+          id?: string
+          metodo: Database["public"]["Enums"]["deterioro_metodo_t"]
+          porcentaje_global?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          acta_referencia?: string | null
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          excluir_cargos_con_acuerdo_vigente?: boolean
+          fundamento?: string | null
+          id?: string
+          metodo?: Database["public"]["Enums"]["deterioro_metodo_t"]
+          porcentaje_global?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_politica_deterioro_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_deterioro_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_deterioro_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_politica_deterioro_tramo: {
+        Row: {
+          created_at: string
+          dias_desde: number
+          dias_hasta: number | null
+          id: string
+          politica_id: string
+          porcentaje: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          dias_desde: number
+          dias_hasta?: number | null
+          id?: string
+          politica_id: string
+          porcentaje: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          dias_desde?: number
+          dias_hasta?: number | null
+          id?: string
+          politica_id?: string
+          porcentaje?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_politica_deterioro_tramo_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "contable_politica_deterioro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_deterioro_tramo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_deterioro_tramo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -6199,6 +7393,84 @@ export type Database = {
           },
         ]
       }
+      mant_depreciacion_detalle: {
+        Row: {
+          activo_id: string
+          acumulada_nueva: number
+          acumulada_previa: number
+          base_depreciable: number
+          comprobante_id: string
+          created_at: string
+          cuota_periodo: number
+          id: string
+          meses_transcurridos: number
+          periodo_id: string
+          tenant_id: string
+        }
+        Insert: {
+          activo_id: string
+          acumulada_nueva: number
+          acumulada_previa: number
+          base_depreciable: number
+          comprobante_id: string
+          created_at?: string
+          cuota_periodo: number
+          id?: string
+          meses_transcurridos: number
+          periodo_id: string
+          tenant_id: string
+        }
+        Update: {
+          activo_id?: string
+          acumulada_nueva?: number
+          acumulada_previa?: number
+          base_depreciable?: number
+          comprobante_id?: string
+          created_at?: string
+          cuota_periodo?: number
+          id?: string
+          meses_transcurridos?: number
+          periodo_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_depreciacion_detalle_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_depreciacion_detalle_comprobante_id_fkey"
+            columns: ["comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_depreciacion_detalle_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_depreciacion_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_depreciacion_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_roles_funcionales: {
         Row: {
           asignado_en: string
@@ -6980,6 +8252,10 @@ export type Database = {
           anio: number
           cerrado_at: string | null
           cerrado_por: string | null
+          contable_cerrado_at: string | null
+          contable_cerrado_por: string | null
+          contable_estado: Database["public"]["Enums"]["contable_periodo_estado_t"]
+          contable_reabierto_motivo: string | null
           created_at: string
           estado: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento: string | null
@@ -6993,6 +8269,10 @@ export type Database = {
           anio: number
           cerrado_at?: string | null
           cerrado_por?: string | null
+          contable_cerrado_at?: string | null
+          contable_cerrado_por?: string | null
+          contable_estado?: Database["public"]["Enums"]["contable_periodo_estado_t"]
+          contable_reabierto_motivo?: string | null
           created_at?: string
           estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
@@ -7006,6 +8286,10 @@ export type Database = {
           anio?: number
           cerrado_at?: string | null
           cerrado_por?: string | null
+          contable_cerrado_at?: string | null
+          contable_cerrado_por?: string | null
+          contable_estado?: Database["public"]["Enums"]["contable_periodo_estado_t"]
+          contable_reabierto_motivo?: string | null
           created_at?: string
           estado?: Database["public"]["Enums"]["periodo_estado_t"]
           fecha_vencimiento?: string | null
@@ -7019,6 +8303,13 @@ export type Database = {
           {
             foreignKeyName: "periodos_cerrado_por_fkey"
             columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "periodos_contable_cerrado_por_fkey"
+            columns: ["contable_cerrado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -7916,6 +9207,7 @@ export type Database = {
       }
       presupuesto_ejecucion: {
         Row: {
+          activo_id: string | null
           agrupacion_id: string | null
           ajusta_movimiento_id: string | null
           centro_costo_id: number | null
@@ -7934,6 +9226,7 @@ export type Database = {
           tercero_id: string | null
         }
         Insert: {
+          activo_id?: string | null
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
@@ -7952,6 +9245,7 @@ export type Database = {
           tercero_id?: string | null
         }
         Update: {
+          activo_id?: string | null
           agrupacion_id?: string | null
           ajusta_movimiento_id?: string | null
           centro_costo_id?: number | null
@@ -7970,6 +9264,13 @@ export type Database = {
           tercero_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuesto_ejecucion_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "presupuesto_ejecucion_agrupacion_id_fkey"
             columns: ["agrupacion_id"]
@@ -8612,6 +9913,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          agente_retencion: boolean
           canal_notificacion: string | null
           ciudad: string | null
           compositor_correo_activo: boolean
@@ -8623,13 +9925,21 @@ export type Database = {
           dia_facturacion: number | null
           direccion: string | null
           email: string | null
+          explota_bienes_comunes: boolean
           id: string
           logo_path: string | null
           logo_storage_path: string | null
+          marco_clasificado_at: string | null
+          marco_clasificado_por: string | null
+          marco_fundamento: string | null
+          marco_grupo:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
           moneda: string
           name: string
           nit: string | null
           nit_digito_verificacion: string | null
+          responsable_iva: boolean
           settings: Json
           slug: string
           status: Database["public"]["Enums"]["tenant_status_t"]
@@ -8637,9 +9947,11 @@ export type Database = {
           telefono_2: string | null
           tipo_division_id: number
           updated_at: string | null
+          uso_economico: Database["public"]["Enums"]["copropiedad_uso_t"] | null
           zona_horaria: string
         }
         Insert: {
+          agente_retencion?: boolean
           canal_notificacion?: string | null
           ciudad?: string | null
           compositor_correo_activo?: boolean
@@ -8651,13 +9963,21 @@ export type Database = {
           dia_facturacion?: number | null
           direccion?: string | null
           email?: string | null
+          explota_bienes_comunes?: boolean
           id?: string
           logo_path?: string | null
           logo_storage_path?: string | null
+          marco_clasificado_at?: string | null
+          marco_clasificado_por?: string | null
+          marco_fundamento?: string | null
+          marco_grupo?:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
           moneda?: string
           name: string
           nit?: string | null
           nit_digito_verificacion?: string | null
+          responsable_iva?: boolean
           settings?: Json
           slug: string
           status?: Database["public"]["Enums"]["tenant_status_t"]
@@ -8665,9 +9985,13 @@ export type Database = {
           telefono_2?: string | null
           tipo_division_id?: number
           updated_at?: string | null
+          uso_economico?:
+            | Database["public"]["Enums"]["copropiedad_uso_t"]
+            | null
           zona_horaria?: string
         }
         Update: {
+          agente_retencion?: boolean
           canal_notificacion?: string | null
           ciudad?: string | null
           compositor_correo_activo?: boolean
@@ -8679,13 +10003,21 @@ export type Database = {
           dia_facturacion?: number | null
           direccion?: string | null
           email?: string | null
+          explota_bienes_comunes?: boolean
           id?: string
           logo_path?: string | null
           logo_storage_path?: string | null
+          marco_clasificado_at?: string | null
+          marco_clasificado_por?: string | null
+          marco_fundamento?: string | null
+          marco_grupo?:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
           moneda?: string
           name?: string
           nit?: string | null
           nit_digito_verificacion?: string | null
+          responsable_iva?: boolean
           settings?: Json
           slug?: string
           status?: Database["public"]["Enums"]["tenant_status_t"]
@@ -8693,12 +10025,22 @@ export type Database = {
           telefono_2?: string | null
           tipo_division_id?: number
           updated_at?: string | null
+          uso_economico?:
+            | Database["public"]["Enums"]["copropiedad_uso_t"]
+            | null
           zona_horaria?: string
         }
         Relationships: [
           {
             foreignKeyName: "tenants_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_marco_clasificado_por_fkey"
+            columns: ["marco_clasificado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -9445,6 +10787,60 @@ export type Database = {
         Args: { p_bucket: string; p_max_hits: number; p_window: string }
         Returns: boolean
       }
+      contable_balance_prueba: {
+        Args: {
+          p_desde: string
+          p_hasta: string
+          p_nivel?: number
+          p_tenant_id: string
+        }
+        Returns: {
+          codigo: string
+          creditos_periodo: number
+          debitos_periodo: number
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          nombre: string
+          saldo_anterior: number
+          saldo_final: number
+        }[]
+      }
+      contable_calcular_deterioro: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          ajuste: number
+          cuenta_cartera_id: string
+          cuenta_codigo: string
+          cuenta_nombre: string
+          deterioro_calculado: number
+          deterioro_reconocido: number
+          dias_vencido: number
+          inmueble_id: string
+          porcentaje: number
+          saldo: number
+          tramo_id: string
+        }[]
+      }
+      contable_conciliacion_cartera: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          diferencia: number
+          inmueble_id: string
+          saldo_auxiliar: number
+          saldo_contable: number
+        }[]
+      }
+      contable_conciliacion_proyeccion: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          credito_persistido: number
+          credito_proyeccion: number
+          cuenta_codigo: string
+          debito_persistido: number
+          debito_proyeccion: number
+          diferencia_credito: number
+          diferencia_debito: number
+        }[]
+      }
       contable_cuadre: {
         Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
         Returns: {
@@ -9465,6 +10861,94 @@ export type Database = {
           fecha: string
           origen: string
           origen_id: string
+        }[]
+      }
+      contable_estado_financiero: {
+        Args: {
+          p_codigo_estado: string
+          p_comparativo?: boolean
+          p_fecha_corte: string
+          p_tenant_id: string
+        }
+        Returns: {
+          codigo: string
+          etiqueta: string
+          nivel: number
+          nota_referencia: number
+          orden: number
+          tipo_linea: string
+          valor: number
+          valor_anterior: number
+          variacion_absoluta: number
+          variacion_relativa: number
+        }[]
+      }
+      contable_hechos: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          agrupacion_id: string
+          centro_costo_id: number
+          cuenta_credito: string
+          cuenta_debito: string
+          descripcion: string
+          documento: string
+          entidad: string
+          fecha: string
+          fondo_id: string
+          inmueble_id: string
+          monto: number
+          origen: string
+          origen_id: string
+          tercero_id: string
+        }[]
+      }
+      contable_libro_diario: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          agrupacion_id: string
+          centro_costo_id: number
+          comprobante: string
+          comprobante_id: string
+          credito: number
+          cuenta_codigo: string
+          cuenta_nombre: string
+          debito: number
+          descripcion: string
+          fecha: string
+          fondo_id: string
+          inmueble_id: string
+          numero: number
+          tercero_id: string
+          tipo_codigo: string
+        }[]
+      }
+      contable_libro_inventarios_balances: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          clase: number
+          codigo: string
+          cuadra: boolean
+          diferencia: number
+          nombre: string
+          saldo: number
+        }[]
+      }
+      contable_libro_mayor: {
+        Args: {
+          p_cuenta_id?: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cuenta_codigo: string
+          cuenta_id: string
+          cuenta_nombre: string
+          movimiento_credito: number
+          movimiento_debito: number
+          naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          saldo_final: number
+          saldo_inicial: number
         }[]
       }
       contable_movimientos: {
@@ -9495,9 +10979,26 @@ export type Database = {
           referencia: string
         }[]
       }
+      contable_resultado_ejercicio: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: number
+      }
+      contable_validacion_cierre: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: {
+          detalle: string
+          hallazgo: string
+          severidad: string
+        }[]
+      }
+      contable_validar_notas_completas: {
+        Args: { p_ejercicio: number; p_tenant_id: string }
+        Returns: undefined
+      }
       create_tenant: {
         Args: { p_name: string; p_slug: string }
         Returns: {
+          agente_retencion: boolean
           canal_notificacion: string | null
           ciudad: string | null
           compositor_correo_activo: boolean
@@ -9509,13 +11010,21 @@ export type Database = {
           dia_facturacion: number | null
           direccion: string | null
           email: string | null
+          explota_bienes_comunes: boolean
           id: string
           logo_path: string | null
           logo_storage_path: string | null
+          marco_clasificado_at: string | null
+          marco_clasificado_por: string | null
+          marco_fundamento: string | null
+          marco_grupo:
+            | Database["public"]["Enums"]["marco_contable_grupo_t"]
+            | null
           moneda: string
           name: string
           nit: string | null
           nit_digito_verificacion: string | null
+          responsable_iva: boolean
           settings: Json
           slug: string
           status: Database["public"]["Enums"]["tenant_status_t"]
@@ -9523,6 +11032,7 @@ export type Database = {
           telefono_2: string | null
           tipo_division_id: number
           updated_at: string | null
+          uso_economico: Database["public"]["Enums"]["copropiedad_uso_t"] | null
           zona_horaria: string
         }
         SetofOptions: {
@@ -9790,6 +11300,59 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_contabilizar_comprobante: {
+        Args: { p_comprobante_id: string }
+        Returns: string
+      }
+      fn_contabilizar_periodo: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: {
+          categoria: string
+          comprobante_id: string
+          detalle: string
+          hecho_entidad: string
+          hecho_id: string
+        }[]
+      }
+      fn_contable_abrir_ejercicio: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: string
+      }
+      fn_contable_cerrar_ejercicio: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: string
+      }
+      fn_contable_cerrar_periodo: {
+        Args: {
+          p_forzar_advertencias?: boolean
+          p_periodo_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      fn_contable_corregir_error: {
+        Args: {
+          p_comprobante_correcto_id: string
+          p_comprobante_origen_id: string
+          p_motivo: string
+          p_periodo_destino: string
+          p_tenant_id: string
+          p_tipo_correccion: string
+        }
+        Returns: string
+      }
+      fn_contable_reabrir_periodo: {
+        Args: { p_motivo: string; p_periodo_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      fn_contable_reconocer_deterioro: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      fn_contable_siguiente_numero: {
+        Args: { p_anio: number; p_tenant_id: string; p_tipo_id: number }
+        Returns: number
+      }
       fn_contar_acciones_acreditadas: {
         Args: { p_inmueble_id: string; p_tenant_id: string }
         Returns: number
@@ -9908,6 +11471,28 @@ export type Database = {
       fn_generar_cargos_novedades_periodo: {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: number
+      }
+      fn_generar_notas: {
+        Args: { p_ejercicio: number; p_tenant_id: string }
+        Returns: {
+          cuerpo: string
+          editada_at: string | null
+          editada_por: string | null
+          ejercicio: number
+          estado: string
+          generada_at: string
+          id: string
+          numero: number
+          plantilla_id: string
+          tenant_id: string
+          titulo: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "contable_nota"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       fn_guardar_credencial_pasarela: {
         Args: {
@@ -10151,6 +11736,28 @@ export type Database = {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: string
       }
+      fn_mant_capitalizar_activo: {
+        Args: { p_activo_id: string; p_periodo_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      fn_mant_dar_baja_activo: {
+        Args: {
+          p_activo_id: string
+          p_motivo: string
+          p_periodo_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      fn_mant_reconocer_depreciacion: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          categoria: string
+          comprobante_id: string
+          detalle: string
+        }[]
+      }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
         Returns: undefined
@@ -10257,6 +11864,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_registrar_exportacion_libro: {
+        Args: {
+          p_filtros?: Json
+          p_formato: string
+          p_libro: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       fn_registrar_fuente_financiacion: {
         Args: {
           p_descripcion?: string
@@ -10302,6 +11918,14 @@ export type Database = {
         Returns: string
       }
       fn_resetear_copropiedad: { Args: { p_tenant_id: string }; Returns: Json }
+      fn_reversar_comprobante: {
+        Args: {
+          p_comprobante_id: string
+          p_motivo: string
+          p_periodo_destino: string
+        }
+        Returns: string
+      }
       fn_sembrar_configuracion_cartera: {
         Args: { p_tenant_id: string }
         Returns: string
@@ -10415,6 +12039,55 @@ export type Database = {
       }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      mant_calcular_depreciacion: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          acumulada_nueva: number
+          acumulada_previa: number
+          base_depreciable: number
+          cuota_mensual: number
+          cuota_periodo: number
+          meses_transcurridos: number
+        }[]
+      }
+      mant_conciliacion_ppe: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          diferencia: number
+          saldo_contable_clase_15: number
+          valor_neto_activos: number
+        }[]
+      }
+      mant_ppe_movimiento_ejercicio: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: {
+          adiciones: number
+          categoria_codigo: string
+          depreciacion_ejercicio: number
+          retiros: number
+          saldo_final: number
+          saldo_inicial: number
+        }[]
+      }
+      mant_ppe_pendiente_depreciacion: {
+        Args: { p_periodo_id: string; p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          cuota_periodo: number
+        }[]
+      }
+      mant_ppe_por_activo: {
+        Args: { p_fecha_corte: string; p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          categoria_codigo: string
+          cuenta_codigo: string
+          depreciacion_acumulada: number
+          valor_adquisicion: number
+          valor_neto: number
+        }[]
+      }
       presupuesto_cuenta_ejecucion: {
         Args: { p_presupuesto_id: string }
         Returns: {
@@ -10473,6 +12146,18 @@ export type Database = {
       }
       shares_tenant_with: { Args: { p_user: string }; Returns: boolean }
       switch_tenant: { Args: { p_tenant_id: string }; Returns: undefined }
+      tenant_marco_contable: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          agente_retencion: boolean
+          clasificado: boolean
+          estados_requeridos: string[]
+          explota_bienes_comunes: boolean
+          marco_grupo: string
+          responsable_iva: boolean
+          uso_economico: string
+        }[]
+      }
       tiene_rol_funcional: {
         Args: { p_modulo: string; p_tenant: string }
         Returns: boolean
@@ -10511,6 +12196,25 @@ export type Database = {
       }
     }
     Enums: {
+      activo_estado_t:
+        | "planificado"
+        | "adquirido"
+        | "instalado"
+        | "en_servicio"
+        | "en_mantenimiento"
+        | "fuera_de_servicio"
+        | "en_reparacion"
+        | "retirado"
+        | "dispuesto"
+      activo_naturaleza_bien_t:
+        | "bien_comun_esencial"
+        | "bien_comun_no_esencial_desafectado"
+        | "bien_propio"
+      activo_origen_t:
+        | "comprado"
+        | "recibido_constructora"
+        | "donado"
+        | "reposicion"
       alcance_accion_cobranza_t: "inmueble" | "cargo"
       canal_cobranza_t:
         | "email"
@@ -10542,9 +12246,14 @@ export type Database = {
         | "conciliada_manual"
         | "descartada"
       conciliacion_metodo_t: "referencia" | "monto_fecha" | "heuristico"
+      contable_comprobante_estado_t: "borrador" | "contabilizado" | "anulado"
       contable_naturaleza_t: "debito" | "credito"
+      contable_periodo_estado_t: "abierto" | "cerrado" | "bloqueado"
+      copropiedad_uso_t: "residencial" | "comercial" | "mixto"
       cuenta_bancaria_tipo_t: "ahorros" | "corriente" | "billetera"
+      depreciacion_metodo_t: "linea_recta" | "no_deprecia"
       descuento_pronto_pago_modo_t: "reduce_deuda" | "saldo_a_favor"
+      deterioro_metodo_t: "antiguedad" | "porcentaje_global" | "individual"
       ejecucion_liquidacion_t: "pagado_banco" | "pagado_caja" | "por_pagar"
       estado_accion_cobranza_t:
         | "programada"
@@ -10596,6 +12305,12 @@ export type Database = {
         | "vencida"
         | "incumplida"
         | "cancelada"
+      estado_linea_tipo_t:
+        | "grupo"
+        | "detalle"
+        | "subtotal"
+        | "total"
+        | "calculada"
       estado_promesa_t: "pendiente" | "cumplida" | "incumplida" | "cancelada"
       etapa_cobranza_t:
         | "preventiva"
@@ -10671,6 +12386,7 @@ export type Database = {
         | "descartada"
         | "anulada"
         | "fallida"
+      marco_contable_grupo_t: "grupo_2" | "grupo_3"
       member_status_t: "active" | "revoked"
       nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
       novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
@@ -10890,11 +12606,30 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
+      activo_estado_t: [
+        "planificado",
+        "adquirido",
+        "instalado",
+        "en_servicio",
+        "en_mantenimiento",
+        "fuera_de_servicio",
+        "en_reparacion",
+        "retirado",
+        "dispuesto",
+      ],
+      activo_naturaleza_bien_t: [
+        "bien_comun_esencial",
+        "bien_comun_no_esencial_desafectado",
+        "bien_propio",
+      ],
+      activo_origen_t: [
+        "comprado",
+        "recibido_constructora",
+        "donado",
+        "reposicion",
+      ],
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
       canal_cobranza_t: [
         "email",
@@ -10930,9 +12665,14 @@ export const Constants = {
         "descartada",
       ],
       conciliacion_metodo_t: ["referencia", "monto_fecha", "heuristico"],
+      contable_comprobante_estado_t: ["borrador", "contabilizado", "anulado"],
       contable_naturaleza_t: ["debito", "credito"],
+      contable_periodo_estado_t: ["abierto", "cerrado", "bloqueado"],
+      copropiedad_uso_t: ["residencial", "comercial", "mixto"],
       cuenta_bancaria_tipo_t: ["ahorros", "corriente", "billetera"],
+      depreciacion_metodo_t: ["linea_recta", "no_deprecia"],
       descuento_pronto_pago_modo_t: ["reduce_deuda", "saldo_a_favor"],
+      deterioro_metodo_t: ["antiguedad", "porcentaje_global", "individual"],
       ejecucion_liquidacion_t: ["pagado_banco", "pagado_caja", "por_pagar"],
       estado_accion_cobranza_t: [
         "programada",
@@ -10989,6 +12729,13 @@ export const Constants = {
         "vencida",
         "incumplida",
         "cancelada",
+      ],
+      estado_linea_tipo_t: [
+        "grupo",
+        "detalle",
+        "subtotal",
+        "total",
+        "calculada",
       ],
       estado_promesa_t: ["pendiente", "cumplida", "incumplida", "cancelada"],
       etapa_cobranza_t: [
@@ -11075,6 +12822,7 @@ export const Constants = {
         "anulada",
         "fallida",
       ],
+      marco_contable_grupo_t: ["grupo_2", "grupo_3"],
       member_status_t: ["active", "revoked"],
       nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
       novedad_estado_t: ["pendiente", "aprobada", "rechazada"],

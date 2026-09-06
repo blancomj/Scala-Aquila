@@ -49,6 +49,14 @@ export interface ActualizarTenantParams {
   zona_horaria?: string
   dia_facturacion?: number | null
   canal_notificacion?: string | null
+  // CO-1: marco contable y tributario. marco_clasificado_por/at los estampa
+  // guard_marco_contable_tenant automáticamente — nunca se envían desde aquí.
+  marco_grupo?: Database['public']['Enums']['marco_contable_grupo_t'] | null
+  uso_economico?: Database['public']['Enums']['copropiedad_uso_t'] | null
+  explota_bienes_comunes?: boolean
+  responsable_iva?: boolean
+  agente_retencion?: boolean
+  marco_fundamento?: string | null
 }
 
 export const useCopropiedadStore = defineStore('copropiedad', () => {
