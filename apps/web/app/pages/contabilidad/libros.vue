@@ -12,15 +12,20 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const contabilidadStore = useContabilidadStore()
 const librosStore = useLibrosStore()
+const route = useRoute()
 
 const hoy = new Date()
 const desde = ref(`${hoy.getFullYear()}-01-01`)
 const hasta = ref(`${hoy.getFullYear()}-12-31`)
 const fechaCorte = ref(hasta.value)
 const nivel = ref(5)
-const cuentaFiltro = ref('')
+// Prefiltro por query (?cuenta=<uuid>) — así FIN-1 (posicion.vue) puede enlazar el saldo de una
+// cuenta bancaria directo al Mayor filtrado, sin que esta página deje de funcionar sin el query.
+const cuentaFiltro = ref(typeof route.query.cuenta === 'string' ? route.query.cuenta : '')
 
-const pestanaActiva = ref<'diario' | 'mayor' | 'balance' | 'inventarios'>('diario')
+const pestanaActiva = ref<'diario' | 'mayor' | 'balance' | 'inventarios'>(
+  cuentaFiltro.value ? 'mayor' : 'diario',
+)
 const PESTANAS = [
   { label: 'Diario', value: 'diario' as const },
   { label: 'Mayor', value: 'mayor' as const },

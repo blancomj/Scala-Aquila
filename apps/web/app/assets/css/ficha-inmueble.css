@@ -1156,6 +1156,87 @@
   border-top: 1px solid var(--line);
 }
 
+/* MANT-2 · fix: UiDrawer usado fuera de una ficha de inmueble (mantenimiento/configuracion.vue,
+ * mantenimiento/cumplimiento.vue) montaba el diálogo en el DOM pero sin ningún estilo — todas
+ * las reglas de arriba están prefijadas bajo `.ficha-inmueble`, que ni esas páginas ni las otras
+ * que ya usaban UiDrawer (comprobantes.vue, fundamentos/index.vue, presupuesto/index.vue)
+ * envuelven en esa clase. `position: static` heredado dejaba el panel dentro del flujo normal
+ * del documento en vez de como overlay anclado a la derecha — encontrado al verificar en
+ * navegador, no por ninguna prueba (esto es Vue/CSS, no hay prueba automatizada de layout).
+ * Mismas reglas de posición/layout que arriba, sin depender de ese ancestro, usando los tokens
+ * semánticos de Nuxt UI (los mismos que ya usan `border-default`/`bg-elevated`/`text-muted` en
+ * el resto de la app) en vez de duplicar la paleta local de `.ficha-inmueble`. Especificidad
+ * menor que `.ficha-inmueble .drawer*`, así que no cambia nada donde esa clase ya envuelve. */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 30;
+}
+.drawer {
+  height: 100%;
+  width: 100%;
+  max-width: 460px;
+  background: var(--ui-bg);
+  border-left: 1px solid var(--ui-border);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+}
+.drawer.drawer--ancho {
+  max-width: 760px;
+}
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.5rem 1.75rem 1.25rem;
+  border-bottom: 1px solid var(--ui-border);
+}
+.drawer-head h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ui-text);
+  margin: 0 0 3px;
+}
+.drawer-head p {
+  font-size: 12.5px;
+  color: var(--ui-text-muted);
+  margin: 0;
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem;
+  color: var(--ui-text);
+}
+.drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid var(--ui-border);
+}
+/* El botón "✕" de UiDrawer usa esta misma clase que el modal centrado legacy. */
+.modal-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--ui-text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+.modal-close:hover {
+  color: var(--ui-text);
+}
+
 .drawer-transition-enter-active,
 .drawer-transition-leave-active {
   transition: opacity 0.18s ease;

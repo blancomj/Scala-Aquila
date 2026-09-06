@@ -56,6 +56,11 @@ export const NAV_ICONOS = {
   carteraDashboard: 'M4 19V9M10 19V5M16 19v-7M4 19h16',
   // Cofre/bóveda: efectivo restringido, no de libre disposición (PC_01 §3.2).
   fondos: 'M12 2v3M5 8a7 7 0 0 1 14 0v6c0 4-3 7-7 8-4-1-7-4-7-8V8ZM9 12h6M12 9v6',
+  // Llave inglesa: mantenimiento de activos.
+  mantenimiento:
+    'M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-2Z',
+  // Billetera con signo de moneda: posición de tesorería (FIN-1).
+  tesoreria: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H8a2 2 0 0 0 0 4h9.5',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -342,6 +347,41 @@ export const NAV_GRUPOS: NavGrupo[] = [
         permiso: 'data:read',
         modulo: 'financiero',
         icono: NAV_ICONOS.contabilidad,
+      },
+    ],
+  },
+  {
+    titulo: 'Finanzas',
+    items: [
+      {
+        label: 'Posición de tesorería',
+        to: '/finanzas/posicion',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.tesoreria,
+      },
+    ],
+  },
+  {
+    titulo: 'Mantenimiento',
+    items: [
+      {
+        label: 'Activos',
+        to: '/mantenimiento/activos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Cumplimiento normativo',
+        to: '/mantenimiento/cumplimiento',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Configuración de mantenimiento',
+        to: '/mantenimiento/configuracion',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.configuracion,
       },
     ],
   },

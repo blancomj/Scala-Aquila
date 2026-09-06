@@ -583,6 +583,54 @@ export const ERROR_CODES = {
   // corriente para Grupo 3; Grupo 2 exige reexpresión de estados comparativos, fuera de
   // alcance de este corte.
   CONTABLE_CORRECCION_GRUPO_NO_RESUELTO: 'CONTABLE_CORRECCION_GRUPO_NO_RESUELTO',
+
+  // ── MANT-1: atributos técnicos dinámicos y criticidad (20260930660000+) ─
+  // guard_atributo_definicion_valida: tipo_activo_id/unidad_id no pertenecen a su familia de
+  // lista_tipos, u opciones presente/ausente en desacuerdo con tipo_dato.
+  ATRIBUTO_DEFINICION_TIPO_ACTIVO_INVALIDO: 'ATRIBUTO_DEFINICION_TIPO_ACTIVO_INVALIDO',
+  ATRIBUTO_DEFINICION_UNIDAD_INVALIDA: 'ATRIBUTO_DEFINICION_UNIDAD_INVALIDA',
+  ATRIBUTO_DEFINICION_OPCIONES_REQUERIDAS: 'ATRIBUTO_DEFINICION_OPCIONES_REQUERIDAS',
+  // guard_activo_atributos: una clave de activos.atributos no está definida para el tipo del
+  // activo, o su valor no corresponde al tipo_dato declarado.
+  ATRIBUTO_NO_DEFINIDO: 'ATRIBUTO_NO_DEFINIDO',
+  ATRIBUTO_TIPO_INVALIDO: 'ATRIBUTO_TIPO_INVALIDO',
+  ATRIBUTO_OPCION_INVALIDA: 'ATRIBUTO_OPCION_INVALIDA',
+  // guard_activo_atributos_obligatorios: falta un atributo obligatorio al entrar a en_servicio.
+  ATRIBUTO_OBLIGATORIO_FALTANTE: 'ATRIBUTO_OBLIGATORIO_FALTANTE',
+  // guard_criticidad_set_pesos_completos: la suma de pesos del set no es 100 al pasar a vigente.
+  CRITICIDAD_PESOS_INVALIDOS: 'CRITICIDAD_PESOS_INVALIDOS',
+  // guard_activo_criticidad_puntaje: `valor` no es una clave real de la escala del criterio.
+  CRITICIDAD_VALOR_INVALIDO: 'CRITICIDAD_VALOR_INVALIDO',
+  // mant_criticidad: el tenant del activo no tiene ningún set de criterios vigente.
+  CRITICIDAD_SIN_SET_VIGENTE: 'CRITICIDAD_SIN_SET_VIGENTE',
+  // mant_criticidad: falta la evaluación de al menos un criterio del set vigente para este
+  // activo — falla explícito en vez de devolver un puntaje parcial silencioso (Plan del corte).
+  CRITICIDAD_EVALUACION_INCOMPLETA: 'CRITICIDAD_EVALUACION_INCOMPLETA',
+
+  // ── MANT-2: cumplimiento normativo (20260930740000+) ────────────────────
+  // guard_requisito_referencia: un requisito tecnico_fabricante/contractual/interno sin
+  // norma_referencia propia — sin norma pública detrás, sería una invención.
+  REQUISITO_SIN_REFERENCIA: 'REQUISITO_SIN_REFERENCIA',
+  // guard_mant_cumplimiento: sin evidencia_referencia, sin tercero/acreditación cuando el
+  // requisito lo exige, o el activo no es del tipo que el requisito exige.
+  CUMPLIMIENTO_SIN_EVIDENCIA: 'CUMPLIMIENTO_SIN_EVIDENCIA',
+  CUMPLIMIENTO_SIN_ACREDITACION: 'CUMPLIMIENTO_SIN_ACREDITACION',
+  CUMPLIMIENTO_ACTIVO_TIPO_INVALIDO: 'CUMPLIMIENTO_ACTIVO_TIPO_INVALIDO',
+
+  // ── FIN-1: posición de tesorería (20260930780000+) ──────────────────────
+  // guard_finanzas_compromiso_bancario reutiliza CUENTA_BANCARIA_INEXISTENTE/
+  // CUENTA_BANCARIA_TENANT_INCONSISTENTE (ya registrados arriba, línea ~199).
+  // origen_id ausente/presente en desacuerdo con el origen del compromiso.
+  COMPROMISO_BANCARIO_ORIGEN_INVALIDO: 'COMPROMISO_BANCARIO_ORIGEN_INVALIDO',
+  // R central del corte: un compromiso reservado dejaría el disponible en negativo.
+  COMPROMISO_BANCARIO_EXCEDE_DISPONIBLE: 'COMPROMISO_BANCARIO_EXCEDE_DISPONIBLE',
+  // guard_finanzas_compromiso_bancario_transicion.
+  COMPROMISO_BANCARIO_TERMINAL_INMUTABLE: 'COMPROMISO_BANCARIO_TERMINAL_INMUTABLE',
+  COMPROMISO_BANCARIO_TRANSICION_INVALIDA: 'COMPROMISO_BANCARIO_TRANSICION_INVALIDA',
+  COMPROMISO_BANCARIO_SIN_MOTIVO: 'COMPROMISO_BANCARIO_SIN_MOTIVO',
+  // guard_finanzas_politica_tesoreria: banco/fondo en bancos_utilizables/fondos_utilizables que
+  // no pertenece al tenant.
+  POLITICA_TESORERIA_ENTIDAD_AJENA: 'POLITICA_TESORERIA_ENTIDAD_AJENA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

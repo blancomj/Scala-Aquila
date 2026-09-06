@@ -2420,3 +2420,179 @@ resuelto en el fixture usando un comprobante materializado normalmente (que por 
 diverge de su propia proyección) en vez de uno insertado a mano. Documentado como pregunta abierta
 para el contador/equipo en `CO_06_INFORME.md` — no es un defecto de CO-6, es una característica
 preexistente de CO-3 que ningún test anterior había ejercido.
+
+## D-52 — MANT-1: jsonb + catálogo de esquema (no EAV) para atributos técnicos; gap de RLS
+heredado de MANT-0 descubierto y corregido; guard de inmutabilidad de `mant_criticidad_set`
+corregido antes de escribir pruebas
+
+**Contexto.** MANT-1 abre el Hito 2 (Operación diaria de mantenimiento), depende de MANT-0. El
+Plan del corte planteaba explícitamente dos decisiones de diseño para confirmar con el usuario
+antes de implementar.
+
+**Decisión 1 — jsonb + catálogo de esquema, no EAV, para atributos técnicos dinámicos.**
+Confirmada con el usuario ("Aprobado MANT-1, PROCEDE") sobre la opción que el propio corte ya
+recomendaba: sin precedente de EAV en el repositorio, penalización de rendimiento de consulta
+conocida, y el patrón jsonb ya vive en `estados_cuenta_datos_jsonb`/`presupuesto_ejecucion`.
+`mant_atributo_definicion` (esquema por tipo de activo, por tenant) valida `activos.atributos`
+(columna jsonb nueva) por trigger — nunca EAV clásico de `TipoActivo → AtributoTecnico → Valor`.
+
+**Hallazgo 1 — gap real heredado de MANT-0, encontrado en la primera UI real construida sobre
+`activos`.** `activos`, `activo_estado_historial` y `mant_depreciacion_detalle` tenían `ENABLE +
+FORCE ROW LEVEL SECURITY` desde MANT-0 pero **cero políticas** — inaccesibles para cualquier
+cliente autenticado real, solo el `service_role` podía leerlas o escribirlas. MANT-0 nunca
+construyó UI (documentado explícitamente en su propio informe como pendiente) y su suite de
+pruebas usa exclusivamente el cliente admin, así que el gap era invisible hasta este corte. No es
+relajar un guard — es completar una política de autorización que nunca se escribió (Definición de
+Terminado del marco: "autorización aplicada en UI y en RLS"). Corregido en `20260930730000` con
+las políticas estándar del repositorio (`is_member` para lectura, `has_role(['auxiliar'])` para
+escritura en `activos`/`activo_estado_historial`; solo lectura en `mant_depreciacion_detalle`, que
+un trigger `SECURITY DEFINER` puebla exclusivamente). Verificado en el navegador antes y después
+del fix.
+
+**Hallazgo 2 — reutilizar `guard_politica_inmutable` tal cual en `mant_criticidad_set` habría
+hecho irrealizable la prueba obligatoria 7 (encontrado por lectura de un precedente, antes de
+escribir ninguna prueba).** Ese guard genérico bloquea cualquier UPDATE sobre una fila cuyo
+`estado` ya sea `vigente`/`historica`, incluida la transición `vigente → historica` que hace falta
+para retirar una versión antes de activar la siguiente (el índice único parcial solo admite una
+fila vigente por tenant). Es el mismo gap ya documentado y ya resuelto en este repositorio para
+`coeficiente_sets` (`20260830220000_coeficiente_set_reemplazar_vigente.sql`) — deliberadamente no
+corregido para `politicas_financieras`/`contable_politica_deterioro` (deuda de otras series, fuera
+de este corte). Corregido para `mant_criticidad_set` con un guard dedicado
+(`guard_criticidad_set_inmutable`, `20260930710000`) que permite exactamente ese único cambio.
+
+**Nota menor de tipos.** `mant_activo_criticidad.puntaje` (calculada por trigger desde
+`criterio.escala[valor]`, nunca escrita directo por el cliente) era `not null` sin `default`, lo
+que forzaba al `Insert` generado por `pnpm db:types` a exigirla de todos modos — contradiciendo la
+intención documentada en su propio comentario. Corregido con `default 0` (`20260930720000`); el
+guard sigue sobrescribiéndolo siempre antes de persistir.
+
+## D-53 — MANT-2: rediseño a una sola tabla de requisitos (sin catálogo global resuelto por
+municipio); bug real en `create_tenant()` encontrado por la propia prueba de regresión de GAP-22
+
+**Contexto.** El corte original (`MANT_02_cumplimiento_normativo.md`) planteaba un catálogo global
+inmutable (`mant_requisito_catalogo`) resuelto automáticamente contra el municipio de la
+copropiedad (`mant_requisitos_aplicables()`), con un gate externo pendiente (abogado/especialista
+en cumplimiento de PH) para verificar qué normas aplican en qué municipios antes de sembrar nada.
+
+**Investigación previa al Plan del corte.** Antes de plantear el diseño se hizo una investigación
+en tres frentes paralelos (transporte vertical/piscinas, RETIE/RETILAP/agua/gas,
+incendio/extintores), verificando cada norma contra fuente primaria (gaceta, decreto, resolución,
+sitio de la entidad reguladora) — documentada en `MANT_02_INVESTIGACION_NORMATIVA.md`. Hallazgo
+central: la NTC 5926 (ascensores) **nunca fue de obligatoriedad nacional** — el Proyecto de Ley
+109/2021C que buscaba nacionalizarla fue archivado (verificado en camara.gov.co); su adopción es
+exclusivamente municipal y heterogénea (verificada con texto completo para Bogotá y Bucaramanga,
+parcial para Cali, contradictoria y no sembrada para Medellín). El resto de las ~9 normas
+(piscinas, tanques, extintores, bomberos, RETIE, RETILAP, gas, sistemas contra incendio) sí
+quedaron verificadas con confianza suficiente para el catálogo nacional.
+
+**Decisión (pedida explícitamente por el usuario): eliminar la dependencia del gate externo
+sembrando TODO como configurable, no solo lo verificado.** En vez de que el sistema "resuelva"
+automáticamente qué aplica por municipio (con el riesgo de acertar mal), se colapsa el diseño
+original de dos tablas (`mant_requisito_catalogo` global + `mant_requisito_tenant` propio) en
+**una sola tabla `mant_requisito`**, con `tenant_id` nullable: las filas con `tenant_id is null`
+son semilla (nunca expuestas a ningún cliente autenticado — sin policy de RLS que las alcance) y
+`fn_instanciar_requisitos_cumplimiento()` las copia a filas propias del tenant en el momento del
+alta (mismo contrato que `fn_instanciar_cuentas_default`, PC-3c) — desde ese instante son 100% del
+tenant: editar norma, fuente, frecuencia o acreditador, o quitarlas (`activo = false`, nunca
+`DELETE` físico — un `mant_cumplimiento` ya registrado sigue apuntando a ese id), no depende de que
+el sistema haya adivinado bien el municipio. La UI (grilla + un solo drawer de edición para
+cualquier requisito, predefinido o propio, con campo de "norma/decreto/resolución" y campo de
+"enlace a la fuente" separados) se validó con el usuario mediante una vista previa HTML antes de
+implementar. `ASCENSOR_REVISION_ANUAL` se siembra con `norma_referencia`/`fuente_url` en `null` a
+propósito, con el `detalle` explicando por qué — el administrador completa el decreto de su
+municipio.
+
+**Consecuencia**: el gate externo deja de bloquear el corte — ya no hay una "resolución automática"
+de la que el sistema deba responder legalmente. `mant_requisitos_aplicables()` del diseño original
+se simplifica a `mant_estado_cumplimiento()` (calculado, nunca almacenado, mismo criterio que
+`contable_estado_financiero` de CO-5), que expande un requisito por cada activo de su
+`tipo_activo_id` cuando aplica, o lo trata a nivel de copropiedad cuando no.
+
+**Bug real encontrado por regresión, no por una prueba nueva de este corte.** Al redefinir
+`create_tenant()` para agregar la llamada a `fn_instanciar_requisitos_cumplimiento()`, se reprodujo
+el cuerpo de la función a partir de `20260903120000` (la primera copia encontrada por búsqueda) en
+vez de `20260929170000` (la última redefinición real, que GAP-22 había agregado después) — perdiendo
+la llamada a `fn_instanciar_fondo_imprevistos()`. La prueba de regresión ya existente
+`tests/contabilidad/alta-parametrizacion-contable.test.ts` ("GAP-22: la copropiedad también nace con
+su fondo de imprevistos") lo detectó de inmediato. Corregido con una migración nueva
+(`20260930770000`) que reproduce el cuerpo correcto (verificado con
+`grep -rl "create or replace function public.create_tenant"` sobre **todas** las migraciones, no
+solo la primera coincidencia) más la línea de MANT-2. **Lección reutilizable**: antes de reproducir
+el cuerpo de cualquier función para agregarle una línea, listar TODAS las migraciones que la
+redefinen y usar la última — no asumir que la primera copia encontrada es la vigente.
+
+## D-54 — FIN-1: disponibilidad bancaria calcada de `fn_fondo_saldos`; tres casos de deriva de
+esquema atrapados por la disciplina de D-53 antes de convertirse en bugs; gap de alcance estrecho
+en el guard de terminal-inmutabilidad corregido antes de escribir la prueba que lo habría hallado
+
+**Contexto.** `APENDICE_FIN.md`/`FIN_01_posicion_tesoreria.md` piden replicar para cuentas
+bancarias el patrón ya probado en `fondo_compromisos`/`fn_fondo_saldos` (`20260929140000`):
+disponible = saldo contable − comprometido, nunca almacenado. Se agregan
+`finanzas_cuenta_bancaria_compromiso` (con los mismos guards de exceso-de-disponible/motivo/
+terminal-inmutable que Fondos), `fn_cuenta_bancaria_disponible`, `finanzas_posicion_tesoreria`
+(consulta pura sobre funciones ya existentes: `fn_cuenta_bancaria_disponible`, `fn_fondo_saldos`,
+`contable_libro_mayor`, `fn_posicion_cartera`, `presupuesto_ejecucion`) y
+`finanzas_politica_tesoreria` versionada (reutiliza `vigencia_estado_t`, D-24 ya resuelto para
+`coeficiente_sets`/`politicas_financieras`/`mant_criticidad_set` — no se crea un enum nuevo).
+
+**Tres hallazgos de deriva de esquema, atrapados por aplicar la lección de D-53 (buscar en TODAS
+las migraciones antes de asumir la forma de una columna), no por un error de `db push` sin más
+contexto:**
+
+1. `cuentas_bancarias.contable_cuenta_id` ya existía (agregada por PC-3,
+   `20260830460000_contable_puentes_mapeo.sql`, con su propio guard
+   `guard_cuenta_bancaria_contable`) — la migración inicial de este corte traía un
+   `ALTER TABLE ADD COLUMN` redundante; se quitó y el comentario de cabecera documenta el
+   hallazgo en vez de callarlo.
+2. `cuentas_bancarias.banco` (text) ya no existe — reemplazada por `entidad_financiera_id` (FK a
+   `lista_tipos` familia `ENTIDAD_FINANCIERA`, `20260822170000`). `finanzas_posicion_tesoreria`
+   resuelve el nombre de la entidad con un join a `lista_tipos`, igual que el resto del código que
+   ya conocía este cambio.
+3. `fondos.tipo` fue renombrada a `fondos.naturaleza` (`fondo_tipo_t` → `fondo_naturaleza_t`,
+   `20260929100000_fondos_modelo_general.sql`). `finanzas_posicion_tesoreria` clasifica
+   `naturaleza = 'imprevistos'` como `restringido` (no cuenta como liquidez utilizable por
+   defecto) y todo lo demás como `activo_liquido`.
+
+Los tres se detectaron en la fase de `db push` (antes de correr ninguna prueba), exactamente el
+patrón que D-53 pedía prevenir — ninguno llegó a producir un bug en tiempo de ejecución.
+
+**Gap de alcance estrecho en el guard de terminal-inmutabilidad, corregido antes de escribir la
+prueba 4 (no por una prueba fallida).** Al diseñar la prueba obligatoria 4 ("un compromiso
+terminal no admite modificación"), se advirtió que un trigger `before update of estado` —el
+patrón que ya trae `guard_fondo_compromiso_transicion` sin que nadie lo haya notado todavía— solo
+se dispara cuando la columna `estado` misma cambia: editar `monto` sobre un compromiso ya
+`ejecutado`/`liberado`/`anulado` no quedaba bloqueado. Corregido en
+`20260930810000_fin1_fix_compromiso_terminal_cualquier_campo.sql`, moviendo el chequeo de estado
+terminal al inicio de `guard_finanzas_compromiso_bancario` (`before insert or update`, todas las
+columnas) — la prueba 4 se escribió después, ya contra el guard corregido. El mismo gap sigue sin
+corregir en `fondo_compromisos` porque está fuera del alcance de este corte; queda anotado en el
+propio comentario de la migración para quien toque ese módulo después.
+
+**Guard de inmutabilidad de política dedicado desde el arranque, no como fix posterior.**
+`finanzas_politica_tesoreria` recibió su propio `guard_finanzas_politica_tesoreria_inmutable`
+(modelado en `guard_criticidad_set_inmutable`) en vez de reusar el guard genérico —MANT-1 (D-52)
+ya había encontrado que ese guard genérico bloquea la transición `vigente→historica` necesaria
+para activar una segunda versión. Aplicar la lección proactivamente, no volver a tropezar con
+ella, era el punto de documentarla en D-52.
+
+**Bug de fixture de prueba, no de la base de datos: año lejano incompatible con `now()`.** El
+primer borrador de `tests/finanzas/posicion-tesoreria.test.ts` copió la convención de año fiscal
+lejano (2031) de `tests/contabilidad/comprobante-nucleo.test.ts` — convención que existe ahí para
+aislar datos de `periodos` entre archivos de prueba que **comparten tenants**. FIN-1 no tiene ese
+problema (cada prueba crea su propio tenant dedicado con `crearTenantConPlan`), así que copiar la
+convención sin copiar su razón de ser introdujo un bug distinto: `guard_finanzas_compromiso_
+bancario` llama `fn_cuenta_bancaria_disponible(..., now())` con la fecha real de hoy (~2026) para
+su chequeo de negocio — un comprobante fechado en 2031 nunca aparece contabilizado "a hoy", así
+que el guard veía siempre `saldo_contable = 0` y rechazaba reservas que debían aceptarse (5 de
+las 12 pruebas fallaban con `COMPROMISO_BANCARIO_EXCEDE_DISPONIBLE` sobre datos que sí tenían
+saldo). Corregido cambiando el año fiscal del fixture a 2020 (pasado real, sin necesidad de
+inyectar `p_fecha` explícito en ninguna llamada). **Lección reutilizable**: una convención de
+aislamiento de otro archivo de prueba no se copia sin verificar que el problema que resuelve
+también aplica aquí — puede introducir un bug nuevo en vez de evitar uno viejo.
+
+**UI**: `apps/web/app/pages/finanzas/posicion.vue` + `apps/web/app/stores/posicionTesoreria.ts` —
+encabezado con liquidez utilizable, tarjetas por dimensión, detalle expandible por cuenta bancaria
+con sus compromisos vigentes, click en el saldo abre el Libro Mayor filtrado (se agregó soporte de
+query `?cuenta=<uuid>` a `contabilidad/libros.vue`, sin cambiar su comportamiento por defecto), y
+la pantalla de política con simulación de la liquidez utilizable antes de guardar. Verificado en
+navegador contra un tenant con datos reales (evidencia en `FIN_01_INFORME.md`).
