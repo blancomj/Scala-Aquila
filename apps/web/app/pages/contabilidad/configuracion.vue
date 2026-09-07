@@ -130,13 +130,19 @@ async function guardar(): Promise<void> {
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Marco de información financiera">
           <USelect
-            v-model="form.marcoGrupo"
+            :model-value="form.marcoGrupo ?? undefined"
             :items="OPCIONES_GRUPO"
             placeholder="Sin clasificar"
+            class="w-full"
+            @update:model-value="(v) => (form.marcoGrupo = v ?? null)"
           />
         </UFormField>
         <UFormField label="Uso económico">
-          <USelect v-model="form.usoEconomico" :items="OPCIONES_USO" placeholder="Sin clasificar" />
+          <USelect
+            :model-value="form.usoEconomico ?? undefined" :items="OPCIONES_USO" placeholder="Sin clasificar"
+            class="w-full"
+            @update:model-value="(v) => (form.usoEconomico = v ?? null)"
+          />
         </UFormField>
       </div>
 

@@ -35,6 +35,10 @@ if (!env) {
   console.warn('SALTADO tests/liquidacion/coeficiente-set-reemplazo: faltan variables de Supabase en .env')
 }
 
+interface RespuestaSimular {
+  liquidacion_id: string
+}
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -144,11 +148,11 @@ d('Reemplazo de coeficiente_set a mitad de año (hueco de test #4)', () => {
       .single<{ id: string }>()
     if (errPerEnero) throw new Error(`fixture periodo enero: ${errPerEnero.message}`)
 
-    const { data: simEnero, error: errSimEnero } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultadoEnero = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodoEnero.id },
     })
-    if (errSimEnero) throw errSimEnero
-    const liquidacionEneroId = (simEnero as { liquidacion_id: string }).liquidacion_id
+    if (resultadoEnero.error) throw resultadoEnero.error
+    const liquidacionEneroId = resultadoEnero.data!.liquidacion_id
 
     const { error: errSolicitar } = await cAux
       .from('liquidaciones')
@@ -217,11 +221,11 @@ d('Reemplazo de coeficiente_set a mitad de año (hueco de test #4)', () => {
       .single<{ id: string }>()
     if (errPerJulio) throw new Error(`fixture periodo julio: ${errPerJulio.message}`)
 
-    const { data: simJulio, error: errSimJulio } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultadoJulio = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodoJulio.id },
     })
-    if (errSimJulio) throw errSimJulio
-    const liquidacionJulioId = (simJulio as { liquidacion_id: string }).liquidacion_id
+    if (resultadoJulio.error) throw resultadoJulio.error
+    const liquidacionJulioId = resultadoJulio.data!.liquidacion_id
 
     const { data: liqJulio, error: errLeerJulio } = await admin
       .from('liquidaciones')

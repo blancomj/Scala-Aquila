@@ -90,7 +90,7 @@ async function resolverCandidatosPorReferencia(
     .limit(1)
   if (error) throw new Error(`No se pudo resolver la referencia: ${error.message}`)
 
-  return (data ?? []).map((i) => ({ inmuebleId: i.inmueble_id, coincideExacto: true }))
+  return data.map((i) => ({ inmuebleId: i.inmueble_id, coincideExacto: true }))
 }
 
 async function resolverCandidatosPorMontoFecha(
@@ -108,7 +108,7 @@ async function resolverCandidatosPorMontoFecha(
   if (error) throw new Error(`No se pudo leer el saldo pendiente: ${error.message}`)
 
   const porInmueble = new Map<string, { total: number; codigo: string; fechaMasCercana: string }>()
-  for (const fila of data ?? []) {
+  for (const fila of data) {
     // v_cargo_saldo.inmueble_id pierde el NOT NULL de cargos en el tipo
     // generado de la vista — en la práctica todo cargo tiene inmueble.
     if (fila.inmueble_id === null) continue
@@ -164,7 +164,7 @@ async function resolverCandidatosHeuristicos(
 
   const montoFechaPorInmueble = new Map(candidatosMontoFecha.map((c) => [c.inmuebleId, c]))
 
-  return (data ?? []).map((fila): CandidatoHeuristico => {
+  return data.map((fila): CandidatoHeuristico => {
     const montoFecha = montoFechaPorInmueble.get(fila.inmueble_id)
     return {
       inmuebleId: fila.inmueble_id,
@@ -511,7 +511,7 @@ async function verificarLineaPendiente(
   if (data.estado !== 'pendiente') throw new LineaYaResueltaError(lineaId)
   return {
     inmuebleId: null,
-    monto: Number(data.monto),
+    monto: data.monto,
     fechaMovimiento: data.fecha_movimiento,
     referenciaBanco: data.referencia_banco,
   }
@@ -616,8 +616,8 @@ export async function medirAutoConciliacion(
     .gt('monto', 0)
   if (error) throw new Error(`No se pudo medir la conciliación: ${error.message}`)
 
-  const candidatasAPago = data?.length ?? 0
-  const autoConciliadas = (data ?? []).filter((f) => f.estado === 'conciliada_auto').length
+  const candidatasAPago = data.length
+  const autoConciliadas = data.filter((f) => f.estado === 'conciliada_auto').length
   return {
     candidatasAPago,
     autoConciliadas,

@@ -60,6 +60,18 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
   return data.id
 }
 
+async function formaPagoEfectivoId(admin: Cliente): Promise<number> {
+  const { data, error } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'FORMA_PAGO')
+    .eq('codigo', 'efectivo')
+    .is('tenant_id', null)
+    .single<{ id: number }>()
+  if (error) throw new Error(`fixture forma de pago: ${error.message}`)
+  return data.id
+}
+
 async function crearPeriodo(
   admin: Cliente,
   tenantId: string,
@@ -199,9 +211,10 @@ d('cartera-dashboard (Edge Function, CAR §23.1/§23.2)', () => {
     await crearCargo(admin, tenant.id, inmueble2Id, periodoFuturoId, liquidacionFuturaId, 'capital', 150_000)
 
     // inmueble2: sobrepago sin aplicar → saldo_credito.
+    const formaPagoId = await formaPagoEfectivoId(admin)
     const { error: errPago } = await admin
       .from('pagos')
-      .insert({ tenant_id: tenant.id, inmueble_id: inmueble2Id, monto: 50_000, fecha_pago: '2026-02-01' })
+      .insert({ tenant_id: tenant.id, inmueble_id: inmueble2Id, monto: 50_000, fecha_pago: '2026-02-01', forma_pago_id: formaPagoId })
     if (errPago) throw new Error(`fixture pago: ${errPago.message}`)
   }, 30_000)
 

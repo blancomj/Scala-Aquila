@@ -210,7 +210,9 @@ describe('evaluarEscalamiento', () => {
       }),
     )
     expect(resultado.tipo).toBe('bloqueado')
-    expect(resultado).toMatchObject({ requisitoFaltante: expect.stringContaining('I-C23') })
+    if (resultado.tipo === 'bloqueado') {
+      expect(resultado.requisitoFaltante).toContain('I-C23')
+    }
   })
 
   it('I-C23 no estorba el des-escalamiento: sin evidencia igual se vuelve a preventiva con saldo cero', () => {

@@ -44,7 +44,7 @@ async function crearInmuebleFixture(admin: Cliente, tenantId: string) {
   const tipoId = await tipoApartamentoId(admin)
   const { data, error } = await admin
     .from('inmuebles')
-    .insert({ tenant_id: tenantId, codigo: `CTRL-${Date.now()}`, tipo_id: tipoId })
+    .insert({ tenant_id: tenantId, codigo: `CTRL-${String(Date.now())}`, tipo_id: tipoId })
     .select('id')
     .single<{ id: string }>()
   if (error) throw new Error(`fixture inmueble: ${error.message}`)
@@ -190,7 +190,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const { data: hallazgo } = await admin
       .from('auditoria_hallazgos')
       .select('nivel, estado')
-      .eq('id', resultado.hallazgo_id!)
+      .eq('id', resultado.hallazgo_id)
       .single()
     expect(hallazgo?.nivel).toBe('ALTO')
     expect(hallazgo?.estado).toBe('ABIERTO')
@@ -229,7 +229,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const { data: hallazgo } = await admin
       .from('auditoria_hallazgos')
       .select('nivel')
-      .eq('id', resultado.hallazgo_id!)
+      .eq('id', resultado.hallazgo_id)
       .single()
     expect(hallazgo?.nivel).toBe('MEDIO')
 
@@ -380,7 +380,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const { data: hallazgo } = await admin
       .from('auditoria_hallazgos')
       .select('nivel')
-      .eq('id', resultado.hallazgo_id!)
+      .eq('id', resultado.hallazgo_id)
       .single()
     expect(hallazgo?.nivel).toBe('MEDIO')
 
@@ -527,7 +527,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const { data: hallazgo } = await admin
       .from('auditoria_hallazgos')
       .select('nivel')
-      .eq('id', resultado.hallazgo_id!)
+      .eq('id', resultado.hallazgo_id)
       .single()
     expect(hallazgo?.nivel).toBe('MEDIO')
 
@@ -656,7 +656,7 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const { data: hallazgo } = await admin
       .from('auditoria_hallazgos')
       .select('nivel')
-      .eq('id', resultado.hallazgo_id!)
+      .eq('id', resultado.hallazgo_id)
       .single()
     expect(hallazgo?.nivel).toBe('ALTO')
 

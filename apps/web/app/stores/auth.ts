@@ -7,6 +7,7 @@
  * Los tokens nunca se persisten aquí a mano (§10.2 "prohibido").
  */
 import { defineStore } from 'pinia'
+import type { Ref, ShallowRef, ComputedRef } from 'vue'
 import type { Database } from '@aquila/shared'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
@@ -18,8 +19,28 @@ export interface Shortcut {
   orden: number
 }
 
-export const useAuthStore = defineStore('auth', () => {
-  const profile = ref<ProfileRow | null>(null)
+// Anotación explícita del store — sin ella, Pinia infiere la forma completa del
+// objeto retornado y, al combinarse con lo enorme que ya es `Database` (generado,
+// 220+ migraciones), la comprobación de tipos revienta con TS2589 "Type
+// instantiation is excessively deep and possibly infinite" en vez de inferirlo.
+interface AuthStoreApi {
+  profile: ShallowRef<ProfileRow | null>
+  loading: Ref<boolean>
+  isPlatformAdmin: ComputedRef<boolean>
+  shortcuts: ComputedRef<Shortcut[]>
+  cargarPerfil: (opciones?: { forzar?: boolean }) => Promise<ProfileRow | null>
+  actualizarPerfil: (cambios: { fullName: string | null; phone: string | null }) => Promise<void>
+  subirAvatar: (archivo: File) => Promise<void>
+  actualizarShortcuts: (items: Shortcut[]) => Promise<void>
+  limpiar: () => void
+}
+
+export const useAuthStore = defineStore('auth', (): AuthStoreApi => {
+  // `shallowRef`, no `ref`: con `ref` Vue aplica `UnwrapRef<ProfileRow>` recursivo
+  // sobre el tipo `Database` generado (220+ migraciones) y la comprobación de
+  // tipos revienta con TS2589. `profile.value` siempre se reemplaza entero
+  // (nunca se muta una propiedad anidada en sitio), así que shallow es correcto.
+  const profile = shallowRef<ProfileRow | null>(null)
   const loading = ref(false)
 
   const isPlatformAdmin = computed(() => profile.value?.is_platform_admin ?? false)

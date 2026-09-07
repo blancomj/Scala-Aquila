@@ -48,6 +48,14 @@ if (!env) {
 const CUOTA = 120_000
 const UNIDADES = 3
 
+interface RespuestaSimular {
+  liquidacion_id: string
+  estado: string
+  tenant_total: string
+  lineas: number
+  descarto_anteriores: number
+}
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -62,11 +70,11 @@ async function tipoApartamentoId(admin: Cliente): Promise<number> {
 
 d('Liquidación en dos tiempos (L0-L7)', () => {
   const admin = clienteAdmin(env!)
-  let auxiliar: UsuarioPrueba
-  let administrador: UsuarioPrueba
+  let auxiliar: UsuarioPrueba | undefined
+  let administrador: UsuarioPrueba | undefined
   let cAux: Cliente
   let cAdm: Cliente
-  let tenant: TenantPrueba
+  let tenant: TenantPrueba | undefined
   let periodo: string
   let conceptoId: string
   let liquidacionId: string
@@ -92,7 +100,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .from('inmuebles')
       .insert(
         Array.from({ length: UNIDADES }, (_, i) => ({
-          tenant_id: tenant.id,
+          tenant_id: tenant!.id,
           codigo: `L7-${String(i + 1).padStart(3, '0')}`,
           tipo_id: tipoId,
         })),
@@ -117,7 +125,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
     // resto tendrá residuo — justo lo que interesa ejercitar.
     const { error: errCoef } = await admin.from('coeficientes').insert(
       inmuebles.map((i, idx) => ({
-        tenant_id: tenant.id,
+        tenant_id: tenant!.id,
         set_id: set.id,
         inmueble_id: i.id,
         valor: idx === 0 ? 0.333334 : 0.333333,
@@ -182,18 +190,18 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
 
   it('el pre-vuelo no reporta bloqueos en una copropiedad bien configurada', async () => {
     const { data, error } = await admin.rpc('fn_liquidacion_prevuelo', {
-      p_tenant_id: tenant.id,
+      p_tenant_id: tenant!.id,
       p_periodo_id: periodo,
     })
     if (error) throw error
-    const bloqueos = (data ?? []).filter((h) => h.severidad === 'bloqueo')
+    const bloqueos = data.filter((h) => h.severidad === 'bloqueo')
     expect(bloqueos).toEqual([])
   })
 
   it('sin fecha de vencimiento, el pre-vuelo bloquea (GAP-CAR-001)', async () => {
     await admin.from('periodos').update({ fecha_vencimiento: null }).eq('id', periodo)
     const { data } = await admin.rpc('fn_liquidacion_prevuelo', {
-      p_tenant_id: tenant.id,
+      p_tenant_id: tenant!.id,
       p_periodo_id: periodo,
     })
     const codigos = (data ?? []).map((h) => h.codigo)
@@ -205,10 +213,11 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
   // ── Simular (L2) ───────────────────────────────────────────────────
 
   it('el auxiliar simula: calcula, no compromete nada', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultado = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (resultado.error) throw resultado.error
+    const data = resultado.data!
     liquidacionId = data.liquidacion_id
 
     expect(data.estado).toBe('pre_liquidada')
@@ -235,15 +244,16 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
     expect(data!.snapshot).not.toBeNull()
     expect(data!.snapshot_hash).not.toBeNull()
     expect(data!.sello_datos).toHaveLength(32)
-    expect(data!.simulada_por).toBe(auxiliar.id)
+    expect(data!.simulada_por).toBe(auxiliar!.id)
   })
 
   it('re-simular descarta la corrida anterior: solo queda una viva', async () => {
     const anterior = liquidacionId
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultado = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (resultado.error) throw resultado.error
+    const data = resultado.data!
     liquidacionId = data.liquidacion_id
     expect(data.descarto_anteriores).toBe(1)
 
@@ -283,7 +293,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .select('propuesta_por, propuesta_at')
       .eq('id', liquidacionId)
       .single()
-    expect(data!.propuesta_por).toBe(auxiliar.id)
+    expect(data!.propuesta_por).toBe(auxiliar!.id)
     expect(data!.propuesta_at).not.toBeNull()
   })
 
@@ -332,7 +342,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .select('monto_original')
       .eq('periodo_id', periodo)
       .eq('origen_tipo', 'liquidacion_linea')
-    const suma = cargos!.reduce((s, c) => s + Number(c.monto_original), 0)
+    const suma = cargos!.reduce((s, c) => s + c.monto_original, 0)
     expect(suma).toBe(CUOTA)
   })
 
@@ -343,7 +353,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .eq('id', periodo)
       .single()
     expect(data!.estado).toBe('cerrado')
-    expect(data!.cerrado_por).toBe(administrador.id)
+    expect(data!.cerrado_por).toBe(administrador!.id)
   })
 
   it('la liquidación registra a ambos actores y congela los avisos', async () => {
@@ -353,8 +363,8 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .eq('id', liquidacionId)
       .single()
     expect(data!.estado).toBe('aplicada')
-    expect(data!.propuesta_por).toBe(auxiliar.id)
-    expect(data!.aprobada_por).toBe(administrador.id)
+    expect(data!.propuesta_por).toBe(auxiliar!.id)
+    expect(data!.aprobada_por).toBe(administrador!.id)
     expect(data!.aplicada_at).not.toBeNull()
     expect(Array.isArray(data!.avisos_aceptados)).toBe(true)
   })
@@ -381,11 +391,11 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
   })
 
   it('ya no se puede simular sobre un periodo liquidado', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultado = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
     // La Edge Function devuelve 422; supabase-js lo reporta como error.
-    expect(error ?? data).toBeTruthy()
+    expect(resultado.error ?? resultado.data).toBeTruthy()
     const { data: aplicadas } = await admin
       .from('liquidaciones')
       .select('id')
@@ -438,7 +448,7 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
       .from('cargos')
       .select('monto_original, cargo_reversado_id')
       .eq('periodo_id', periodo)
-    const neto = todos!.reduce((s, c) => s + Number(c.monto_original), 0)
+    const neto = todos!.reduce((s, c) => s + c.monto_original, 0)
     expect(neto).toBe(0)
 
     // …pero los cargos originales siguen ahí: el ledger es append-only.
@@ -455,10 +465,11 @@ d('Liquidación en dos tiempos (L0-L7)', () => {
     expect(per!.estado).toBe('abierto')
     expect(per!.cerrado_at).toBeNull()
 
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultado = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (resultado.error) throw resultado.error
+    const data = resultado.data!
     expect(data.estado).toBe('pre_liquidada')
     expect(data.lineas).toBe(UNIDADES)
   }, 60_000)

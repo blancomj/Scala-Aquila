@@ -32,9 +32,10 @@ await useAsyncData('auditoria-reciente', () => {
   const tenantId = tenantStore.activeTenant?.id
   return tenantId ? auditStore.cargarEventos(tenantId, 5) : Promise.resolve([])
 })
-await useAsyncData('onboarding-checklist', () => {
+await useAsyncData('onboarding-checklist', async () => {
   const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? onboardingStore.cargarEstado(tenantId) : Promise.resolve()
+  if (tenantId) await onboardingStore.cargarEstado(tenantId)
+  return null
 })
 
 const resumenExpandido = useCookie<boolean>('dashboard-resumen-expandido', { default: () => true })

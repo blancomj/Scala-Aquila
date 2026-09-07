@@ -78,8 +78,8 @@ async function crearTercero(admin: Cliente, tenantId: string, documento: string)
       .is('tenant_id', null)
       .single<{ id: number }>(),
   ])
-  if (errorIdent || !tipoIdent) throw new Error(`fixture tipo identificación: ${errorIdent?.message}`)
-  if (errorEstado || !estado) throw new Error(`fixture estado tercero: ${errorEstado?.message}`)
+  if (errorIdent) throw new Error(`fixture tipo identificación: ${errorIdent.message}`)
+  if (errorEstado) throw new Error(`fixture estado tercero: ${errorEstado.message}`)
 
   const { data, error } = await admin
     .from('terceros')

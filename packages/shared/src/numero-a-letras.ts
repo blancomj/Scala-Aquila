@@ -98,7 +98,7 @@ function grupoATresDigitos(n: number): string {
       const decena = Math.floor(resto / 10)
       const unidad = resto % 10
       const textoDecena = DECENAS[decena] as string
-      partes.push(unidad === 0 ? textoDecena : `${textoDecena} y ${UNIDADES[unidad]}`)
+      partes.push(unidad === 0 ? textoDecena : `${textoDecena} y ${UNIDADES[unidad] as string}`)
     }
   }
 
@@ -123,10 +123,10 @@ function conMil(grupo: number, texto: string): string {
  */
 export function numeroEnteroALetras(n: number): string {
   if (!Number.isInteger(n) || n < 0) {
-    throw new Error(`numeroEnteroALetras: se esperaba un entero no negativo, recibido ${n}`)
+    throw new Error(`numeroEnteroALetras: se esperaba un entero no negativo, recibido ${String(n)}`)
   }
   if (n > 999_999_999_999) {
-    throw new Error(`numeroEnteroALetras: ${n} excede el rango soportado (hasta 999.999.999.999)`)
+    throw new Error(`numeroEnteroALetras: ${String(n)} excede el rango soportado (hasta 999.999.999.999)`)
   }
   if (n === 0) return 'cero'
 
@@ -162,7 +162,7 @@ export function numeroEnteroALetras(n: number): string {
  */
 export function montoEnLetras(monto: number): string {
   if (!Number.isFinite(monto) || monto < 0) {
-    throw new Error(`montoEnLetras: se esperaba un monto no negativo, recibido ${monto}`)
+    throw new Error(`montoEnLetras: se esperaba un monto no negativo, recibido ${String(monto)}`)
   }
   // Evita el error de coma flotante de 0.1+0.2: se opera en centavos enteros.
   const centavosTotal = Math.round(monto * 100)
@@ -170,7 +170,7 @@ export function montoEnLetras(monto: number): string {
   const centavos = centavosTotal % 100
 
   const primera = numeroEnteroALetras(pesos)
-  const textoPesos = `${primera[0]!.toUpperCase()}${primera.slice(1)} ${pesos === 1 ? 'peso' : 'pesos'}`
+  const textoPesos = `${primera.charAt(0).toUpperCase()}${primera.slice(1)} ${pesos === 1 ? 'peso' : 'pesos'}`
 
   if (centavos === 0) {
     return `${textoPesos} M/CTE`

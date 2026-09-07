@@ -28,6 +28,12 @@ export default tseslint.config(
       // Generado por `supabase gen types` (Fase I §3.3): no se edita ni se
       // lintea a mano. Se regenera con `pnpm db:types`.
       '**/database.generated.ts',
+      // Assets vendorizados de la skill `impeccable` (bundles de terceros
+      // para captura de pantalla en navegador, ej. modern-screenshot) —
+      // no son código de este repo y nunca deberían haberse lenteado; sin
+      // este ignore inflaban el conteo de errores de ~94 a ~2300.
+      '.claude/skills/**',
+      '.github/skills/**',
     ],
   },
   js.configs.recommended,
@@ -173,6 +179,7 @@ export default tseslint.config(
       'packages/liquidation-engine/src/cartera-alertas-supabase.ts',
       'packages/liquidation-engine/src/cartera-actividad-reciente-supabase.ts',
       'packages/liquidation-engine/src/cartera-destinatarios-supabase.ts',
+      'packages/liquidation-engine/src/conciliacion-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

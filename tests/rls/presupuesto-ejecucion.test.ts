@@ -293,7 +293,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
 
     const escritura = await clienteAuditorA
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 50 })
+      .insert({ tenant_id: tenantA.id, cuenta_id: cuentaEgresoA.id, periodo_id: periodoA, monto: 50, liquidacion: 'pagado_caja' })
     expect(escritura.error).not.toBeNull()
   })
 
@@ -304,6 +304,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: '00000000-0000-0000-0000-000000000000',
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_INEXISTENTE/)
   })
@@ -314,6 +315,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoB.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_TENANT_INCONSISTENTE/)
   })
@@ -327,6 +329,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: grupo.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_NO_ES_HOJA/)
   })
@@ -337,6 +340,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: '00000000-0000-0000-0000-000000000000',
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/PERIODO_INEXISTENTE/)
   })
@@ -347,6 +351,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoB,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/PERIODO_TENANT_INCONSISTENTE/)
   })
@@ -419,6 +424,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: hoja.id,
       periodo_id: periodoA,
       monto: 10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/CUENTA_CONCEPTO_AUTOMATICO/)
   })
@@ -486,6 +492,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
     })
     expect(error?.message).toMatch(/REVERSION_SIN_ORIGEN/)
   })
@@ -496,6 +503,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: '00000000-0000-0000-0000-000000000000',
     })
     expect(error?.message).toMatch(/MOVIMIENTO_INEXISTENTE/)
@@ -519,6 +527,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuentaEgresoA.id,
       periodo_id: periodoA,
       monto: -10,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: movimientoB!.id,
     })
     expect(error?.message).toMatch(/MOVIMIENTO_TENANT_INCONSISTENTE/)
@@ -543,6 +552,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: otraCuenta.id,
       periodo_id: periodoA,
       monto: -200,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: original!.id,
     })
     expect(error?.message).toMatch(/REVERSION_CUENTA_DISTINTA/)
@@ -568,6 +578,7 @@ d('presupuesto_ejecucion — ejecución presupuestal (E9) y seguimiento', () => 
       cuenta_id: cuenta.id,
       periodo_id: periodoA,
       monto: -300,
+      liquidacion: 'pagado_caja',
       ajusta_movimiento_id: original!.id,
     })
     expect(errReversion).toBeNull()

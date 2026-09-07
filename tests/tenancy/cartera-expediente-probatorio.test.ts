@@ -17,6 +17,7 @@
  * de §34.5 — y se prueban cuando se construyan.
  */
 import { afterAll, describe, expect, it } from 'vitest'
+import type { Database } from '@aquila/shared'
 import {
   clienteAdmin,
   clienteComo,
@@ -30,6 +31,8 @@ import {
   type TenantPrueba,
   type UsuarioPrueba,
 } from '../rls/helpers.js'
+
+type TipoAccionCobranza = Database['public']['Enums']['tipo_accion_cobranza_t']
 
 const env = leerEntorno()
 const d = env ? describe : describe.skip
@@ -85,7 +88,7 @@ d('CAR §34 — expediente probatorio: envíos, acuses y acreditación', () => {
   })
 
   /** Crea una acción de cobranza mínima con contexto congelado válido. */
-  async function crearAccion(tipoAccion: string, fechaProgramada = '2026-02-15'): Promise<string> {
+  async function crearAccion(tipoAccion: TipoAccionCobranza, fechaProgramada = '2026-02-15'): Promise<string> {
     const { data, error } = await admin
       .from('acciones_cobranza')
       .insert({

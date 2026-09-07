@@ -152,7 +152,7 @@ export function evaluarLinea(
         explicacion: [
           {
             factor: 'monto_exacto_ambiguo',
-            detalle: `${c.codigo}: monto coincide pero hay más de un inmueble candidato en la ventana de ${VENTANA_DIAS_MONTO_FECHA} días.`,
+            detalle: `${c.codigo}: monto coincide pero hay más de un inmueble candidato en la ventana de ${String(VENTANA_DIAS_MONTO_FECHA)} días.`,
             aporte: 0.6,
           },
         ],
@@ -181,7 +181,7 @@ function armarPropuestaHeuristica(c: CandidatoHeuristico): PropuestaCandidata {
   const factorFecha = Math.max(0, 1 - Math.abs(c.diasDeDiferencia) / 30) * 0.1
   factores.push({
     factor: 'distancia_fecha',
-    detalle: `${c.diasDeDiferencia} día(s) de diferencia con el movimiento del extracto.`,
+    detalle: `${String(c.diasDeDiferencia)} día(s) de diferencia con el movimiento del extracto.`,
     aporte: factorFecha,
   })
 

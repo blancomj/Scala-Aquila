@@ -2855,3 +2855,453 @@ verificar en navegador por falta de datos: JARDINES DE BABILONIA no tiene ningú
 todavía (fuera de alcance de este corte crear datos de MANT-0 en un tenant compartido) — ambos
 caminos quedan cubiertos por las pruebas automatizadas de RLS/integración (pruebas 3/4/8/9 crean su
 propio activo de fixture).
+
+## D-58 — FIN-2: descomposición contable de la factura resuelta sin tocar `contable_hechos()`,
+GOB-1 documentado en vez de implementado, y una regresión propia de arqueo encontrada probando la
+ficha en el navegador contra un tenant real no responsable de IVA
+
+**Contexto.** `FIN_02_factura_proveedor.md` §3.4 marca la integración con CO-3 como "la parte más
+delicada del corte" e invita explícitamente a evaluar entre dos opciones: extender
+`contable_hechos()` para que reconozca facturas, o resolver la descomposición con columnas simples
+en la propia factura. Se confirmó con el usuario (`AskUserQuestion`) "extender `contable_hechos()`
+(recomendado)" — pero al implementar se encontró una solución más quirúrgica que cumple la misma
+intención sin tocar esa función: `contable_hechos()` sigue emitiendo un solo `(cuenta_debito,
+cuenta_credito, monto)` por hecho de `presupuesto_ejecucion`, exactamente igual que para cualquier
+otro egreso; son sus dos CONSUMIDORES — `contable_movimientos()` (proyección) y
+`fn_contabilizar_periodo()` (materialización) — los que, al encontrar un hecho de
+`presupuesto_ejecucion` enlazado a una factura (`finanzas_facturas_proveedor.presupuesto_
+ejecucion_id`), delegan la expansión a `finanzas_factura_descomposicion(p_ejecucion_id)` en vez de
+su expansión genérica de 2 líneas por signo. Cualquier otro hecho (sin factura asociada) sigue el
+camino original sin cambios. Esto preserva "cero diferencias siempre"
+(`contable_conciliacion_proyeccion`) porque proyección y materialización llaman a la MISMA función
+fuente — nunca pudieron divergir por definición, en vez de por disciplina de mantenerlas
+sincronizadas a mano. `finanzas_factura_descomposicion()` es también la fuente que consume la ficha
+de la UI para mostrar el desglose antes de aprobar (`[id].vue`, sección "Descomposición contable").
+
+**Dos columnas añadidas sobre el corte original, encontradas al preparar los fixtures de prueba —
+nunca en producción.** `presupuesto_cuenta_id` (rubro presupuestal de la factura, resuelto por el
+usuario al registrarla, distinto de `presupuesto_ejecucion_id` que solo se llena al aprobar) y
+`centro_costo_id` (toda hoja de egreso del PUC sembrado exige centro de costo en su comprobante,
+verificado contra la base real — mismo hallazgo que ya documentó `materializacion.test.ts` para sus
+propios fixtures — sin la columna, `fn_finanzas_aprobar_factura` no tendría de dónde sacar el valor
+que `presupuesto_ejecucion`/CO-2 exigen). Ambas nullable, mismo patrón incremental que
+`activo_id`/`agrupacion_id`/`contrato_id` de cortes anteriores.
+
+**`IVA_DESCONTABLE` como nuevo `EVENTO_CONTABLE` global expuso el radio de impacto real de agregar
+un evento contable: no es local al corte.** `contable_parametrizacion_pendiente()` exige,
+incondicionalmente, que TODO tenant tenga un `contable_cuenta_default` para CADA evento contable
+global activo — lo use o no ese tenant en el periodo — así que un evento nuevo bloqueaba
+`fn_contabilizar_periodo()` para cualquier tenant existente hasta sembrarle el mapeo. Se mapeó a la
+cuenta `2505` ("Impuestos sobre las ventas (IVA)", clase 25 "Impuestos por pagar" en el PUC PH de
+este repo — clase 24 aquí es "Obligaciones laborales", no el grupo de pasivos/impuestos del PUC
+nacional estándar) dentro de `fn_instanciar_cuentas_default()`, con el mismo backfill retroactivo
+para tenants existentes que ya documentó MANT-0 para `RECONOCIMIENTO_BIEN_DESAFECTADO`. Lección para
+la próxima vez que un corte necesite un `EVENTO_CONTABLE` nuevo: el mapeo por defecto y su backfill
+no son opcionales ni locales, son parte obligatoria del mismo corte.
+
+**Regresión propia de arqueo (sum(débito) ≠ sum(crédito)) encontrada probando la ficha en el
+navegador contra JARDINES DE BABILONIA (tenant real, `responsable_iva = false`), no por las 16
+pruebas propias del corte, que pasaron 16/16 a la primera.** `finanzas_factura_descomposicion()`
+debitaba solo `subtotal` a la cuenta de gasto pero acreditaba `total_neto_pagar` (`subtotal +
+iva_generado`) a proveedores — cualquier factura con `iva_generado > 0` e `iva_descontable` parcial
+o nulo (obligatorio para un tenant no responsable de IVA, `IVA_DESCONTABLE_INCONSISTENTE`) rompía la
+invariante central de CO-3. Las 16 pruebas no lo detectaron porque siempre usaban
+`iva_descontable = iva_generado` (recuperación total, donde la fórmula original coincide con la
+correcta por casualidad). Corregido (`20260931210000`): el gasto debita `subtotal + (iva_generado -
+iva_descontable)` — el IVA no recuperado es costo real de la copropiedad, no un activo. De paso se
+cerró un hueco relacionado que el mismo bug expuso: nada impedía `iva_descontable > iva_generado`
+(deducir más IVA del que la factura generó), lo que habría producido un gasto negativo con la
+fórmula nueva — mismo código `IVA_DESCONTABLE_INCONSISTENTE`, misma familia de inconsistencia.
+Pruebas 17-18 añadidas como regresión permanente. Lección: los 16 escenarios "obligatorios" del
+corte no agotan el espacio de combinaciones reales — verificar en navegador contra un tenant con
+configuración distinta a la de los fixtures (aquí, `responsable_iva = false`) encontró en minutos lo
+que 16 pruebas verdes no cubrían.
+
+**GOB-1 (`gobierno_organos`, atribución `aprobar_gasto`) no existe todavía — confirmado con el
+usuario (`AskUserQuestion`, "solo documentar la propuesta") que este corte NO implementa ningún
+código de gobierno.** `fn_finanzas_aprobar_factura()` registra una advertencia persistida e
+inspeccionable (`finanzas_factura_advertencia`, nunca un `RAISE NOTICE` que PostgREST no expone al
+cliente) cuando una factura supera el umbral de `finanzas_politica_aprobacion_pago` y
+`gobierno_organos` no existe — nunca bloquea. Propuesta documentada para cuando GOB-1 exista:
+agregar `'aprobar_gasto'` a `ATRIBUCION_ORGANO` y llamar `gobierno_organo_competente(tenant,
+'aprobar_gasto', hoy)` desde el mismo punto, rechazando con `FACTURA_APROBACION_ORGANO_INCOMPETENTE`
+si no hay órgano competente vigente.
+
+**Política de aprobación de pago (`finanzas_politica_aprobacion_pago`) versionada
+(`vigencia_estado_t`), mismo patrón que `mant_politica_aprobacion_ot`/`contable_politica_deterioro`:
+guard de inmutabilidad dedicado (no el genérico), cero valores sembrados (marco principio #6),
+único `vigente` por tenant vía índice único parcial.** Deliberadamente simplificada a un solo
+`monto_umbral` — sin banda de criticidad ni categoría de gasto, mismo criterio y misma razón que
+D-56 (`mant_politica_aprobacion_ot`): inventar una dimensión de segmentación aquí habría sido cerrar
+una decisión de otro corte por la puerta de atrás.
+
+**Retenciones (`finanzas_factura_retencion`) sin FK a un catálogo tributario que todavía no
+existe (CO-8).** `concepto_id bigint not null` sin referencia, documentado en la migración; su
+guard bloquea CUALQUIER inserción mientras `to_regclass('public.tributario_concepto_retencion') is
+null` (`RETENCION_CATALOGO_TRIBUTARIO_AUSENTE`) — la factura se registra igual, declarando el hueco
+en vez de fingir que no existe. La ficha de la UI muestra explícitamente "el catálogo tributario
+(CO-8) todavía no existe en este tenant" en vez de una lista vacía sin explicación.
+
+**18/18 pruebas propias verdes** (`tests/finanzas/facturas-proveedor.test.ts`, 16 obligatorias +
+17-18 de regresión) — confirmado libre de la flakiness ambiental ya documentada del entorno (fetch
+de Node contra Supabase remoto bajo carga sostenida: corridas repetidas consecutivas producen
+timeouts de 5000ms rotando en tests distintos cada vez, nunca el mismo dos veces; una corrida
+espaciada resulta siempre 18/18 limpia). `pnpm build`/`typecheck` en verde total en todo el
+monorepo. `pnpm exec eslint .` raíz en **89 errores, sin cambio** frente a D-57 (0 atribuibles a
+este corte — el archivo de test propio quedó en cero tras corregir dos `Number()` redundantes y una
+aserción de tipo innecesaria, deuda introducida y corregida dentro del mismo corte, nunca dejada
+para después). `supabase db lint --linked` en los mismos 8 hallazgos preexistentes de siempre.
+Verificado en navegador de punta a punta contra JARDINES DE BABILONIA: alta de factura con
+proveedor/cuenta presupuestal/centro de costo/documento soporte reales, desglose calculado en vivo,
+transición borrador→registrada→en_revision→aprobada, descomposición contable visible y cuadrada tras
+el fix de arqueo, advertencia de umbral no aplicable (política sin sembrar en este tenant),
+retenciones mostrando el hueco de CO-8 explícitamente. Datos de prueba (factura, advertencia y
+documento) borrados al cerrar; la fila de `presupuesto_ejecucion` que la aprobación creó no se pudo
+borrar (`APPEND_ONLY`, SEC-14, por diseño) y queda como el único rastro visible de la verificación —
+mismo criterio de inmutabilidad que ya aplica a toda la tabla, no una excepción para datos de prueba.
+
+## D-59 — FIN-3: motor de conciliación bancaria confirmado como exclusivo de recaudo entrante (FK
+pasiva propia, no modificación), tabla de umbral propia para el lote, "criticidad_proveedor"
+omitida por no existir, y un bug real de secuencia de triggers encontrado por las 16 pruebas antes
+de cualquier verificación manual
+
+**Contexto.** `FIN_03_lotes_pago.md` §3.7 asume que "el motor de conciliación existente
+(`extracto_bancario`/`extracto_linea`/`conciliacion_propuesta`) detecta la línea que corresponde"
+a un pago de lote. La investigación de objetos existentes (agente de exploración, antes de
+escribir el Plan del corte) confirmó que eso es estructuralmente imposible sin modificar ese
+motor: `conciliacion_propuesta.inmueble_id` es `not null` — el motor completo está construido para
+emparejar recaudo entrante contra un propietario, nunca contra un proveedor o un lote. Confirmado
+con el usuario (`AskUserQuestion`, "FK pasiva + función propia de confirmación") replicar el único
+patrón real que ya existe para este caso: `fondo_movimientos.extracto_linea_id`, una FK de solo
+lectura sin conciliación activa (su propio comentario: "el fondo no tiene ni tendrá un motor de
+conciliación propio"). `finanzas_lotes_pago.extracto_linea_id` sigue el mismo criterio;
+`fn_finanzas_conciliar_lote()` es la única función que la asigna, nunca escribe en
+`extracto_bancario`/`extracto_linea`/`conciliacion_propuesta` — el motor no se modificó. La regla
+de oro del motor ("nunca aplica dinero por sí solo") se cumple porque la función exige una llamada
+explícita del usuario, jamás automática.
+
+**`criticidad_proveedor`, que pide `finanzas_facturas_pagables()`, no existe como concepto en el
+repositorio — confirmado con el usuario (`AskUserQuestion`, "omitir la columna") que se declara el
+hueco en vez de inventar la equivalencia.** MANT-1 solo modela criticidad de ACTIVOS
+(`mant_criticidad`); MANT-5 solo modela evaluación de DESEMPEÑO de proveedor
+(`mant_proveedor_evaluacion`, puntaje por criterio) — ninguna responde "qué tan grave es si este
+proveedor no cobra a tiempo". Mismo criterio que FIN-2 usó para los huecos de CO-8/GOB-1.
+
+**`finanzas_politica_aprobacion_lote` como tabla propia, no extensión de
+`finanzas_politica_aprobacion_pago` (FIN-2)** — confirmado con el usuario (`AskUserQuestion`,
+"tabla propia"). Sigue el patrón ya establecido de una tabla de política por decisión de negocio,
+nunca compartida entre conceptos de la misma serie (tesorería, factura, lote son tres decisiones
+distintas aunque compartan la forma versión/umbral/cero-sembrado).
+
+**Un bug real de orden de ejecución de triggers, encontrado por las 16 pruebas del corte antes de
+cualquier verificación manual (no en producción).** El diseño original de `guard_finanzas_lote_item`
+creaba el compromiso bancario reservado DENTRO de su propio `BEFORE INSERT`, con
+`origen_id = new.id` — pero `new.id` ya existe por el `DEFAULT` antes de que el trigger corra,
+mientras que la FILA MISMA todavía no está escrita en el heap de `finanzas_lote_items` (un
+`BEFORE INSERT` corre antes de que Postgres escriba la fila). `guard_finanzas_compromiso_bancario`
+(que valida que `origen_id` resuelva a una fila real, cerrando la obligación de FIN-1) nunca
+encontraba esa fila, así que TODO alta de ítem fallaba con `COMPROMISO_BANCARIO_ORIGEN_INVALIDO`
+— 8 de las 16 pruebas en cascada desde este único punto. Corregido (`20260931310000`) moviendo la
+creación del compromiso a un `AFTER INSERT` (`fn_finanzas_lote_item_crear_compromiso`, donde la
+fila ya es visible), seguido de un `UPDATE` que rellena `compromiso_bancario_id` bajo la bandera de
+sesión `aquila.creando_lote_item` — mismo mecanismo que `aquila.aprobando_factura`. Lección
+reutilizable, complementa la de MANT-4/D-56 (que advertía sobre el caso inverso: un `AFTER INSERT`
+con `UPDATE` de vuelta no se refleja en el `RETURNING` de la sentencia original): cuando un
+`BEFORE INSERT` necesita crear una fila en OTRA tabla cuyo guard valida la existencia real de ESTA
+fila por `id`, esa creación debe esperar al `AFTER INSERT` — un `BEFORE INSERT` nunca es visible a
+una subconsulta de otra tabla, ni siquiera dentro de la misma transacción. Ninguna de las dos
+lecciones sustituye a la otra: cuál trigger-timing usar depende de qué dirección necesita ver la
+fila primero.
+
+**16/16 pruebas propias verdes** (`tests/finanzas/lotes-pago.test.ts`) tras el fix — confirmado que
+7 de los 8 fallos cascada desaparecieron con la única corrección; el octavo (prueba 9) fue un
+hallazgo separado y menor en el propio fixture de prueba (leía `compromiso_bancario_id` del
+`RETURNING` del INSERT original, que por el mismo motivo del bug de arriba tampoco lo refleja —
+corregido releyendo la fila). Regresión de FIN-1 (12/12) y FIN-2 (18/18) confirmada sin hallazgos
+atribuibles a este corte. `pnpm build`/`typecheck` en verde total. `pnpm exec eslint .` raíz en
+**89 errores, sin cambio** frente a D-58 (cero atribuibles a este corte). `supabase db lint
+--linked` en los mismos 8 hallazgos preexistentes de siempre. Verificado en navegador contra
+JARDINES DE BABILONIA: lote creado con numero/anio reales asignados por el consecutivo
+(`2026-00001`), disponibilidad de la cuenta bancaria mostrada en vivo (saldo/reservado/disponible
+reales), botón "Pasar a programado" correctamente deshabilitado sin ítems, anulación con motivo
+funcionando de punta a punta. No había ninguna factura aprobada en ese tenant para probar el
+armado completo del lote (agregar ítem → aprobar → ejecutar → conciliar) — cubierto en su totalidad
+por las 16 pruebas automatizadas, mismo criterio que MANT-5 documentó para su propio hueco de datos
+reales.
+
+## D-60 — GOB-0: el "Camino A" del corte quedó obsoleto por un rename que el propio spec no vio,
+tenedor resuelto sin tabla nueva, AD-26 resuelto con Opción 1 (token), y el secreto de
+`link_token.ts` no es reconstruible fuera de Deno con el `SUPABASE_SERVICE_ROLE_KEY` local
+
+**Contexto.** `GOB_00_prerrequisitos_bloqueantes.md` §3.3 y `GOB_MARCO_OBLIGATORIO.md` §4.2 daban
+por existentes `propietarios`/`inmueble_propietario` y pedían elegir entre crear `inmueble_tenedor`
+(Camino A, análoga a `inmueble_propietario`) o una entidad `residentes` separada (Camino B). La
+búsqueda de objetos existentes (regla operativa del marco, §4.3) encontró que esas tablas ya
+habían sido renombradas y generalizadas DOS veces antes de que este corte empezara:
+`20260820100000_personas_roles_flexibles.sql` las renombró a `personas`/`inmueble_persona_rol` con
+rol flexible contra `PERSONA_PREDIO` (ya con arrendatario/inquilino/visitante/apoderado/codeudor
+sembrados, y `locatario` añadido después en `20260830380000`), y **un día después**
+`20260821100000_terceros_generalizacion.sql` renombró `personas` → `terceros` (la MISMA tabla que
+ya usan proveedores y contratistas de MANT-5/FIN-2) y `inmueble_persona_rol.persona_id` →
+`tercero_id`. El "Camino A" tal como el spec lo describía (tabla nueva) ya no podía construirse sin
+violar la prohibición del marco de "no crear entidades que ya existen bajo otro nombre" — la
+entidad de tenedor con vigencia histórica y varios simultáneos por inmueble YA EXISTÍA. Se
+implementó una versión reducida: solo se agregó el código `usufructuario` a `PERSONA_PREDIO` (el
+único hueco real frente al art. 18/59 — arrendatario/inquilino/locatario ya cubrían arriendo y
+leasing) y dos funciones de resolución histórica, `fn_tenedores_vigentes()` y
+`fn_propietario_responsable()`, sobre `inmueble_persona_rol`/`terceros` tal cual existen hoy. Cero
+tablas nuevas en la Parte A. El primer intento de migración (`20260931330000`) se escribió contra
+`personas`/`persona_id` (el nombre de un día antes del rename real) y falló en `db:push` con
+`relation "public.personas" does not exist` — corregido en el momento contra el esquema real.
+
+**AD-26 (Parte B), decidido por el usuario: Opción 1** (extender el mecanismo de token existente),
+no Opción 2 (derogar AD-26, cuentas reales) ni Opción 3 (híbrida). El radio de explosión de la
+Opción 2 se documentó tabla por tabla en `GOB_00_DECISION_AD26.md` — 574 usos de
+`is_member()`/`has_role()` en 135 archivos de migración distintos (conteo real vía `grep`), más el
+núcleo de identidad (`profiles`, `memberships`, `invitations`, `rate_limit_hits`) y el middleware
+completo. Se implementó **solo** la Opción 1 en su versión mínima (§4.4 del spec: es la única que
+no depende de la decisión): dos Edge Functions nuevas (`generar-enlace-documento`,
+`ver-documento`) que reutilizan `supabase/functions/_shared/link_token.ts` **sin ninguna
+modificación** — el mismo HMAC determinista que ya usan `ver-estado-cuenta` (D-27) y `ver-activo`
+(MANT-0), aplicado ahora a `documentos` (la librería general de documentos del tenant, ya
+generalizada desde `documentos_inmueble` en `20260822130000`, sin necesidad de ninguna migración
+SQL para esta parte).
+
+**Hallazgo de infraestructura de pruebas: el material HMAC de `link_token.ts` no es reconstruible
+fuera de Deno usando el `SUPABASE_SERVICE_ROLE_KEY` del `.env` local**, pese a que
+`supabase secrets list` confirma que no hay `ESTADO_CUENTA_LINK_SECRET` configurado (por lo que
+`link_token.ts` debería derivar la clave de `SUPABASE_SERVICE_ROLE_KEY`) y que el valor JWT legacy
+de ese secreto coincide, carácter por carácter, con el del `.env` local. El proyecto tiene además
+el sistema nuevo de API keys (`sb_secret_*`/`sb_publishable_*`, visibles en
+`supabase projects api-keys`) y no es observable desde fuera cuál de las dos ve
+`Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` en el runtime desplegado — un intento de replicar el
+HMAC en Node (`node:crypto`) para fabricar un token vencido sin esperar produjo una firma que el
+propio `ver-documento` desplegado rechazó como `invalido` en vez de `vencido`. Resuelto sin
+necesidad de conocer el secreto: `generar-enlace-documento` acepta `vigencia_dias: 0` (vencimiento
+inmediato, válido también como revocación instantánea real, no solo como artificio de prueba) — el
+viaje de red hasta la segunda invocación (`ver-documento`) ya deja el token real, correctamente
+firmado, vencido por sí solo. **Lección reutilizable**: nunca reconstruir el HMAC de
+`link_token.ts` fuera de Deno para pruebas — usar el flujo real de emisión con una vigencia
+mínima/cero en su lugar.
+
+**10/10 pruebas propias verdes** (`tests/gobierno/prerrequisitos.test.ts` — 8 exigidas por el spec
+más 2 adicionales: flujo feliz de punta a punta de las dos Edge Functions, y constancia explícita
+de cumplimiento D-24 ya que este corte no crea ningún enum). `pnpm build`/`typecheck` en verde
+total. `pnpm exec eslint .` en la raíz (packages/tests/supabase) en verde — el lint de `apps/web`
+falla con 6 errores preexistentes en 8 archivos que este corte no tocó (confirmado con
+`git status --porcelain` sobre cada archivo: sin diff, deuda técnica ya presente en HEAD antes de
+este corte, ver memoria `project_deuda_tecnica_preexistente`). Documento de decisión
+`GOB_00_DECISION_AD26.md` entregado con las tres opciones y el radio de explosión tabla por tabla
+de la Opción 2, cumpliendo el criterio de aceptación explícito del corte.
+
+## D-61 — GOB-1: `persona_ref` resuelto como `tercero_id` (consecuencia directa de D-60), umbral
+del art. 53 verificado (residencial nunca obligatorio), y un efecto colateral real sobre FIN-2/
+FIN-3 encontrado por `pnpm test`, no en producción
+
+**Contexto.** `GOB_01_organos_gobierno.md` §4.3 pedía resolver `gobierno_miembros.persona_ref`
+como "propietario o tercero, según el camino elegido en GOB-0". Con D-60 ya resuelto (GOB-0: el
+tenedor es un `tercero` con rol `PERSONA_PREDIO`, no una entidad separada), la pregunta del spec
+ya no tiene dos ramas — solo hay `terceros`. `gobierno_miembros.tercero_id` referencia esa tabla
+directamente, sin ninguna columna condicional. Un miembro del consejo (propietario o apoderado) y
+un revisor fiscal (profesional externo) son, ambos, simplemente un `tercero`.
+
+**Umbral del art. 53 verificado contra fuente primaria** (funcionpublica.gov.co/leyes.co,
+cruzados con el mirror de secretariasenado.gov.co) en esta sesión, tal como el propio corte exigía
+antes de implementar la validación: el consejo de administración es obligatorio **solo** para uso
+comercial o mixto con más de 30 unidades privadas (parqueaderos y depósitos excluidos del
+conteo) — para uso **residencial nunca es obligatorio**, sin importar el tamaño de la
+copropiedad. Implementado en `gobierno_obligatoriedad_faltante()`, calculado en vivo (nunca
+almacenado, marco §6.3), nunca bloqueante.
+
+**Reglas de modelado explícitas, no obvias, documentadas en los propios guards**: (1) "rol de
+dirección duplicado" (`ROL_ORGANO_DUPLICADO`) se interpretó literal — solo `presidente`/
+`secretario`, no `vicepresidente`/`vocal`/`suplente` (un consejo de número impar ≥3 necesita
+varios vocales); (2) el período del comité de convivencia (`COMITE_CONVIVENCIA_PERIODO_EXCEDIDO`)
+se interpretó como PISO y TECHO legal a la vez (art. 58 par. 1: "para un período de un año"),
+exigiendo `hasta` no nulo y ≤ un año — un período indefinido también incumple la ley, no solo uno
+más largo; (3) "administracion" y "comite" (ad hoc) quedaron deliberadamente FUERA de la
+restricción de unicidad que dispara `ORGANO_DUPLICADO_VIGENTE` — el spec solo pide unicidad para
+asamblea_general/consejo_administracion/comite_convivencia/revisoria_fiscal, y extenderla a los
+otros dos habría sido inventar una regla no pedida.
+
+**Efecto colateral real sobre FIN-2/FIN-3, encontrado por `pnpm test` (no en producción, no
+manualmente) al aplicar las migraciones de este corte**: ambos guards (`fn_finanzas_aprobar_
+factura`, `fn_finanzas_aprobar_lote`) escribían su advertencia `*_APROBACION_ORGANO_INCOMPETENTE`
+solo bajo `if to_regclass('public.gobierno_organos') is null` — una condición que este corte,
+al crear esa tabla, vuelve permanentemente falsa. Ninguna de las dos funciones tenía un `else` que
+llamara `gobierno_organo_competente()` (ese llamado era un comentario "cuando GOB-1 exista", nunca
+código real) — así que, sin ningún cambio en FIN-2/FIN-3 mismos, ambas pasaron de "advertir
+explícitamente que no se pudo verificar" a "no advertir absolutamente nada", en silencio. Resuelto
+en `20260931400000` quitando la condición sobre `to_regclass` (la advertencia se inserta siempre
+que se supera el umbral, ya que `ATRIBUCION_ORGANO` — sembrada por este mismo corte — sigue sin un
+código para "aprobar un gasto"/"aprobar un lote", que FIN-2 propuso en su propio informe pero que
+GOB-1 no tenía en su lista de siembra). Añadir esa atribución sería decidir algo de FIN-2 desde
+GOB-1 — se deja fuera, documentado, no resuelto de más. La prueba 5 de
+`tests/finanzas/facturas-proveedor.test.ts` (que verificaba, por `grep` de migraciones, que
+`gobierno_organos` NO existiera — precondición de la prueba 6) se actualizó para verificar en su
+lugar que `ATRIBUCION_ORGANO.aprobar_gasto` no existe, que es la razón real por la que el hueco
+sigue abierto. **Lección reutilizable**: un corte que crea una tabla que otro corte usaba como
+"todavía no existe" en una condición `to_regclass(...) is null` sin `else` real puede apagar por
+completo — no solo cambiar — el comportamiento de esa otra función, en silencio; correr `pnpm test`
+completo (no solo los archivos propios) es la única forma de detectarlo antes de declarar el corte
+terminado.
+
+**10/10 pruebas propias verdes** (`tests/gobierno/organos.test.ts` — 12 exigidas, 2 de ellas
+desdobladas en 10b/10c para separar el caso ">30 unidades" del caso "residencial nunca
+obligatorio", ambos necesarios para probar el umbral verificado del art. 53 sin ambigüedad).
+`pnpm build`/`typecheck` en verde total (tras reconstruir `@aquila/shared` — el `Database`
+regenerado por `db:types` no se ve reflejado en `tsc` hasta que el paquete se recompila, mismo
+patrón ya conocido de cortes anteriores). `pnpm exec eslint .` en la raíz en verde. Regresión de
+FIN-2 confirmada verde tras el fix de `20260931400000` (ver arriba); FIN-3 no tenía ninguna prueba
+que ejercitara este camino, así que no requirió actualización de test, solo el fix de la
+migración.
+
+## D-62
+
+GOB-2 (reunión, convocatoria, asistencia y poderes) — `fn_coeficiente_set_vigente()` nueva sobre
+tabla existente, `gobierno_poderes` genuinamente nueva (nada reutilizable), decisión explícita de
+NO construir el envío real de convocatoria, y un hallazgo real de inmutabilidad encontrado en
+verificación manual en el navegador (no por las 14 pruebas automatizadas)
+
+**Contexto.** El Plan del corte confirmó, con `grep` real contra todas las migraciones, que no
+existe en el repo ninguna función que resuelva "el coeficiente_set vigente a una fecha dada" —
+todo consumidor existente (`estado_cuenta`, `liquidacion`, etc.) solo filtra `estado='vigente'`
+(el actual), nunca por fecha histórica. GOB-2 necesitaba exactamente eso para congelar
+`gobierno_reuniones.coeficiente_set_id` al instalar de forma reproducible (marco §4.1: el quórum
+de una reunión pasada no puede cambiar si los coeficientes cambian después). Se añadió
+`fn_coeficiente_set_vigente(tenant_id, fecha)` — una función nueva sobre `coeficiente_sets`, tabla
+ya existente, no una tabla nueva. La resolución del coeficiente de cada `gobierno_asistencia`
+también llama a esta misma función de forma independiente (no a través de
+`gobierno_reuniones.coeficiente_set_id`, que todavía es `null` cuando se registra asistencia antes
+de instalar) — ambas resoluciones usan la misma fecha, así que siempre coinciden por construcción.
+
+**`gobierno_poderes` es genuinamente nueva**: confirmado por grep que no existe ninguna tabla de
+poder/apoderado en todo el repositorio — el único rastro previo es el código `apoderado` en
+`lista_tipos.PERSONA_PREDIO` (una etiqueta de rol sobre un inmueble, no un poder), y el propio
+comentario de GOB-0 (`fn_tenedores_vigentes`) que ya excluía `apoderado`/`codeudor` de la familia
+tenedor a propósito ("representan o garantizan, no ocupan").
+
+**Decisión explícita del usuario (Plan del corte, confirmada por `AskUserQuestion`)**: el corte
+original pedía "reutiliza la infraestructura de envío existente... si la generalización resulta
+invasiva, detente y repórtalo" — se confirmó que generalizar `acciones_cobranza_envios`/`_acuses`
+sería invasivo (acoplados a cobranza: FK obligatoria a `acciones_cobranza`, columnas de mora), pero
+en vez de detener el corte se implementó SOLO el modelo de datos propio
+(`gobierno_convocatorias`/`gobierno_convocatoria_envios`, tal como el spec ya lo pedía en su forma
+literal — una tabla plana, no un motor) — el envío real (Brevo) queda para cuando se necesite,
+registrado manualmente desde la UI mientras tanto. Ninguna de las 14 pruebas obligatorias exige
+disparo automático de email/SMS.
+
+**Segregación de funciones confirmada explícitamente** (marco §5.5 lo exige antes de implementar):
+`auxiliar` registra reunión/convocatoria/agenda/asistencia/poderes; instalar y cerrar (transiciones
+con efecto jurídico) exigen rol `administrador` — mismo patrón que el cierre contable de CO-6 y
+`ACUERDO_REQUIERE_ADMINISTRADOR` de cartera. Implementado dentro del propio guard (no vía RLS),
+mismo patrón que `guard_acuerdo_transicion()`: `if (select auth.uid()) is not null then ... end
+if` — se salta la verificación cuando no hay sesión real (fixtures con `service_role`), se aplica
+siempre que hay un usuario autenticado real.
+
+**Hallazgo real, encontrado en la verificación manual en el navegador contra JARDINES DE
+BABILONIA, no por las 14 pruebas automatizadas**: al cerrar una reunión instalada, nada impedía
+seguir registrando asistencia nueva, salidas, o poderes nuevos — `guard_gobierno_asistencia` y
+`guard_gobierno_poder` validaban tenant/tenedor/coeficiente/soporte, pero nunca miraban el estado
+de la reunión. Esto contradice el mismo principio de inmutabilidad que ya rige sobre la propia
+`gobierno_reuniones` (`REUNION_CERRADA_INMUTABLE`) y, de forma más estricta todavía, sobre
+`gobierno_agenda_puntos` (`AGENDA_INMUTABLE_TRAS_INSTALAR`). Corregido en `20260931480000`
+(`ASISTENCIA_REUNION_CERRADA`/`PODER_REUNION_CERRADA`) + una prueba nueva (no de las 14 exigidas,
+extiende la 12) + la UI oculta los formularios de alta cuando la reunión ya no está abierta.
+**Lección reutilizable**: verificar el flujo COMPLETO en el navegador (crear → agendar → instalar
+→ cerrar → intentar seguir operando), no solo cada transición aislada — el guard de cada tabla
+hija puede validar todo lo suyo y aun así olvidar mirar el ciclo de vida del padre.
+
+**Bug propio, corregido antes de correr ninguna prueba** (no un hallazgo de test): la primera
+versión de `SEGUNDA_CONVOCATORIA_SIN_ANTECEDENTE` se modeló como un `CHECK constraint` plano cuyo
+mensaje de Postgres nunca contiene el código `SCREAMING_SNAKE_CASE` que el resto del repositorio
+usa (marco §5.4, `raise exception 'CODIGO: ...'`). Corregido en `20260931470000`, moviendo la
+validación al guard.
+
+**14/14 pruebas propias verdes** (`tests/gobierno/reuniones.test.ts`). Regresión de
+`tests/governance`/`tests/gobierno`/`tests/liquidacion/coeficiente-set-reemplazo.test.ts` (45/45)
+confirmada sin hallazgos — a diferencia de GOB-1, GOB-2 no crea ninguna tabla que otro corte
+estuviera usando como "todavía no existe", así que no repite el tipo de regresión cruzada de D-61.
+
+## D-63
+
+GOB-3 (motor de quórum y votación) — el art. 46 de la Ley 675 de 2001 tiene diez numerales, no
+siete como afirmaba el propio texto del corte; `gobierno_asistencia.inmueble_id` vuelto nullable
+para asistencia de órgano (art. 54); segregación de funciones para abrir/cerrar votación y para
+configurar `gobierno_regla_mayoria`; default-piso-legal cuando el tenant no configuró mayoría; y una
+regresión de cobertura de pruebas encontrada al preparar la suite, no al ejecutarla
+
+**Hallazgo legal, confirmado con el usuario antes de sembrar los datos**: `GOB_03_quorum_votacion.md`
+afirma que el art. 46 tiene siete numerales. WebFetch directo contra dominios `.gov.co` volvió a
+fallar por TLS (mismo problema documentado en CO-1/MANT-0/GOB-2). Se verificó cruzando 3 fuentes
+secundarias independientes, incluyendo mirrors no-gov que sí respondieron (`leyes.co`,
+`revistapropiedadhorizontal.com`), y las tres coinciden en que el artículo tiene **diez** numerales.
+Confirmado explícitamente con el usuario vía `AskUserQuestion` antes de escribir la migración de
+vocabulario — se sembraron los diez reales, no los siete del spec. Mismo precedente que D-60
+(GOB-0): confiar en la fuente verificada, no en el texto desactualizado del propio spec del corte.
+De los diez, solo dos (`expensas_extraordinarias`, `reforma_estatutos_reglamento`) quedan vinculados
+a un código real de `ATRIBUCION_ORGANO` (GOB-1) — los ocho restantes quedan sin
+`organo_competente_atribucion_id`, confirmado explícitamente con el usuario para no inventar códigos
+nuevos a mitad de corte (mismo criterio que la deferencia de `aprobar_gasto` en D-61).
+
+**`gobierno_asistencia.inmueble_id` nullable** (`20260931490000`, fix retroactivo sobre una tabla de
+GOB-2): un miembro de un órgano tipo consejo (`calidad='organo'`) no posee necesariamente una unidad
+— art. 54 exige contar miembros, no coeficientes. Se volvió la columna nullable, se añadió
+`check (calidad not in ('propietario','apoderado') or inmueble_id is not null)` para seguir
+exigiéndola donde sí corresponde, y `guard_gobierno_asistencia()` fuerza `coeficiente := 1` cuando
+`calidad='organo'` — sentinel documentado como significativo SOLO en reuniones de consejo, nunca
+sumado junto a coeficientes reales de asamblea (`gobierno_quorum()` y el cierre de
+`guard_gobierno_votacion()` ramifican explícitamente por `lista_tipos.codigo` del órgano, no por
+ningún flag nuevo).
+
+**Segregación de funciones, confirmada explícitamente antes de implementar** (marco §5.5): abrir y
+cerrar una votación exige `administrador` (mismo patrón que instalar/cerrar una reunión en GOB-2);
+emitir un voto individual solo exige `auxiliar`. Configurar `gobierno_regla_mayoria` también exige
+`administrador` — decisión propia (no una pregunta del Plan del corte), justificada porque
+configurar mal una mayoría produce decisiones absolutamente nulas (art. 45), un riesgo mayor que
+registrar asistencia o un poder.
+
+**Default-piso-legal cuando el tenant no configuró `gobierno_regla_mayoria`**: en vez de dejar la
+materia sin mayoría exigible, `guard_gobierno_votacion()` sintetiza un piso por `mayoria_tipo`
+(`ordinaria`→50, `calificada_70`→70, `unanimidad`→100) y lo congela en `regla_aplicada` igual que si
+existiera una fila real — "nunca se deja de aplicar la ley por falta de configuración".
+
+**Regresión de cobertura encontrada al preparar la suite de GOB-3, no por sus propias pruebas**:
+entre el cierre de GOB-2 y el inicio de este corte, `tests/gobierno/reuniones.test.ts` fue
+refactorizado externamente (fixtures más ricos + una prueba nueva de segregación de administrador).
+La prueba de la regresión `ASISTENCIA_REUNION_CERRADA`/`PODER_REUNION_CERRADA` (el propio hallazgo
+de D-62) ya no estaba cubierta por ninguna de las 15 pruebas del archivo refactorizado. Restaurada
+como prueba 16 con las convenciones de fixture actuales, en vez de reportar la pérdida sin
+corregirla.
+
+**Hallazgo real, encontrado en la verificación manual en el navegador, no por las 18 pruebas
+automatizadas**: el formulario de asistencia de `[id]/index.vue` (GOB-2) seguía exigiendo un
+inmueble incluso para `calidad='organo'`, pese a que este mismo corte volvió esa columna nullable
+para ese caso exacto — el flujo de registrar un miembro de consejo quedaba roto en la UI aunque el
+guard ya lo permitiera. Corregido ocultando el selector y omitiendo la validación cuando
+`calidad === 'organo'`. Mismo tipo de lección que D-62: un cambio de esquema no siempre se propaga a
+la UI de un corte anterior si nadie prueba el flujo completo en el navegador.
+
+**Código de error sin registrar, encontrado por `tests/governance/error-codes-coverage.test.ts` en
+la regresión completa, no por las pruebas propias**: `ASISTENCIA_INEXISTENTE`, usado por
+`fn_gobierno_registrar_salida` (`20260931485000`, migración de una sesión paralela renombrada por
+colisión de timestamp, ver más abajo), no estaba en `packages/shared/src/error-codes.ts` — la
+gobernanza de Doc 14 no distingue quién escribió la migración. Registrado antes de cerrar el corte.
+
+**Colisión de timestamp de migración con una sesión paralela** (riesgo operativo): otra sesión de
+Claude Code activa en el mismo repositorio creó independientemente
+`supabase/migrations/20260931470000_gob2_registrar_salida.sql`, reutilizando un timestamp que una
+migración de fix propia de GOB-2 ya ocupaba. Diagnosticado por el error de `pnpm db:push`
+(`duplicate key value ... schema_migrations_pkey`), confirmado que el archivo colisionante nunca se
+había aplicado remotamente, y corregido renombrándolo a `20260931485000` (contenido intacto) más la
+actualización de ambas copias de `MIGRACIONES_LEDGER.md`. **Lección reutilizable**: revisar
+`ls supabase/migrations` inmediatamente antes de cada `db:push` durante un corte, no solo confiar en
+la última fila del ledger — una sesión paralela puede adelantarse a esa fila.
+
+**18/18 pruebas propias verdes** (`tests/gobierno/quorum-votacion.test.ts`); las 16 de
+`tests/gobierno/reuniones.test.ts` (incluida la 16 restaurada) también verdes. Regresión completa de
+`tests/governance`/`tests/gobierno`/`tests/liquidacion/coeficiente-set-reemplazo.test.ts`: 65/65
+verdes (primera corrida 64/65 por el hallazgo de `ASISTENCIA_INEXISTENTE`, corregido y
+reconfirmado). Verificación manual en navegador contra JARDINES DE BABILONIA, sobre una reunión real
+de Consejo de Administración — confirma en vivo la rama de conteo por miembros (art. 54), el panel
+de quórum, el registro de votos en tiempo real y el resultado desglosado citando la regla aplicada.

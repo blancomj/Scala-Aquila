@@ -1,0 +1,42 @@
+-- ═══════════════════════════════════════════════════════════════════════
+--  GOB-0 · Parte A (tenedor) — PERSONA_PREDIO.usufructuario
+--  Ver Casos de uso/Tres Modulos/Gobierno/GOB_00_prerrequisitos_bloqueantes.md §3
+--
+--  Hallazgo previo a esta migración (registrado en D-60 de DECISIONES.md y en
+--  GOB_00_INFORME.md): el propio spec de este corte y GOB_MARCO_OBLIGATORIO.md
+--  §4.2 dan por existentes `propietarios`/`inmueble_propietario` y dicen "no
+--  hay entidad de tenedor" — pero esas tablas ya fueron renombradas y
+--  generalizadas en 20260820100000_personas_roles_flexibles.sql a
+--  `personas`/`inmueble_persona_rol` con rol flexible contra el catálogo
+--  PERSONA_PREDIO (que ya incluye copropietario/arrendatario/inquilino/
+--  visitante/apoderado/codeudor/locatario — ver 20260814180000 y
+--  20260830380000). El "Camino A" que el corte pedía elegir y construir
+--  (tabla `inmueble_tenedor` análoga a `inmueble_propietario`, con vigencia)
+--  YA EXISTE bajo otro nombre: `inmueble_persona_rol` ya tiene vigente_desde/
+--  vigente_hasta y ya permite varios registros simultáneos por inmueble.
+--  Construir una tabla nueva violaría el marco §1.2 ("no crees entidades que
+--  ya existen bajo otro nombre").
+--
+--  (Corrección sobre esta misma nota: `personas` fue renombrada a `terceros`
+--  al día siguiente — 20260821100000_terceros_generalizacion.sql — y
+--  `inmueble_persona_rol.persona_id` pasó a llamarse `tercero_id`. Es la
+--  MISMA tabla `terceros` que ya usan proveedores/contratistas (MANT-5,
+--  FIN-2): el tenedor es un tercero más con rol PERSONA_PREDIO. No cambia
+--  el diseño de esta migración — solo inserta un valor de catálogo — pero si
+--  lees esto buscando la tabla de personas, es `terceros`.)
+--
+--  Lo único que falta para que el modelo cubra el art. 18/59 de la Ley 675
+--  (que hablan de "tenedores" en general, no solo de arrendatario/inquilino/
+--  locatario) es la figura del usufructuario — la otra forma habitual de
+--  tenencia sin ser propietario ni arrendatario. Se añade como UN código más
+--  de PERSONA_PREDIO, mismo patrón que `locatario` en 20260830380000.
+--
+--  "Comodatario" queda deliberadamente fuera (pregunta para el abogado en el
+--  Plan del corte, GOB_00_INFORME.md): no aparece citado en el spec ni se
+--  verificó contra fuente primaria que sea una figura distinta que amerite
+--  su propio código; si el abogado confirma que hace falta, es un insert de
+--  una fila más, sin impacto en el modelo.
+-- ═══════════════════════════════════════════════════════════════════════
+
+insert into public.lista_tipos (tipo, codigo, nombre, orden) values
+  ('PERSONA_PREDIO', 'usufructuario', 'Usufructuario', 8);

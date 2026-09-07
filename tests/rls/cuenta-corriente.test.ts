@@ -222,6 +222,7 @@ d('cargos / pagos / pago_aplicaciones — ledger de cuenta corriente', () => {
       inmueble_id: inmuebleAId,
       monto: 1000,
       fecha_pago: '2027-01-15',
+      forma_pago_id: -1, // valor irrelevante — RLS bloquea antes de validar FKs
     }
     const { error: errAgent } = await clienteAgentA.from('pagos').insert(filaPago)
     expect(errAgent).not.toBeNull()

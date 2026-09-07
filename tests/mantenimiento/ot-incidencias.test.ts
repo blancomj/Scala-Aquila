@@ -413,15 +413,16 @@ d('MANT-4: incidencias y órdenes de trabajo', () => {
     const categoriaId = await idListaTipos('CATEGORIA_ACTIVO', 'seguridad')
     const activoId = await crearActivoMinimo(tenantId, `EXT-${RUN_ID}`, tipoActivoId, categoriaId)
 
-    const { data: gen, error: errGen } = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
+    const resultadoGen = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
       body: { activo_id: activoId, tenant_id: tenantId },
     })
-    if (errGen) throw errGen
+    if (resultadoGen.error) throw resultadoGen.error
 
-    const { data, error } = await cliente.functions.invoke<Record<string, unknown>>('ver-activo', {
-      body: { qr: gen!.qr_token },
+    const resultadoVer = await cliente.functions.invoke<Record<string, unknown>>('ver-activo', {
+      body: { qr: resultadoGen.data!.qr_token },
     })
-    if (error) throw error
+    if (resultadoVer.error) throw resultadoVer.error
+    const data = resultadoVer.data
     expect(data).not.toHaveProperty('costo_estimado')
     expect(data).not.toHaveProperty('asignado_tercero_id')
     expect(data).not.toHaveProperty('contrato_id')

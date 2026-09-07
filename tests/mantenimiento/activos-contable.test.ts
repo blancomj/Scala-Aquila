@@ -26,6 +26,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import 'dotenv/config'
+import type { Database } from '@aquila/shared'
 import {
   clienteAdmin,
   clienteComo,
@@ -145,7 +146,7 @@ d('MANT-0: registro de activos, ficha contable y depreciación', () => {
     const centroCostoId = await idListaTipos('CENTRO_COSTO', 'administracion')
     const cuenta1505 = await cuentaPorCodigo(tenantId, '1505')
 
-    const fila: Record<string, unknown> = {
+    const fila: Database['public']['Tables']['activos']['Insert'] = {
       tenant_id: tenantId,
       codigo: params.codigo,
       nombre: params.codigo,
@@ -575,21 +576,23 @@ d('MANT-0: registro de activos, ficha contable y depreciación', () => {
   it('17. la ficha pública del QR no expone valor de adquisición ni proveedor', async () => {
     const { tenantId, cliente } = await crearTenantCompleto('qr-publico')
     const activoId = await crearActivo(tenantId, { codigo: 'QR-ACTIVO', capitalizable: false })
-    const { data: gen, error: errGen } = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
+    const resultadoGen = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
       body: { activo_id: activoId, tenant_id: tenantId },
     })
-    if (errGen) throw errGen
+    if (resultadoGen.error) throw resultadoGen.error
+    const gen = resultadoGen.data!
 
-    const { data, error } = await cliente.functions.invoke<Record<string, unknown>>('ver-activo', {
-      body: { qr: gen!.qr_token },
+    const resultado = await cliente.functions.invoke<Record<string, unknown>>('ver-activo', {
+      body: { qr: gen.qr_token },
     })
-    if (error) throw error
+    if (resultado.error) throw resultado.error
+    const data = resultado.data!
     expect(data).toHaveProperty('nombre')
     expect(data).toHaveProperty('estado')
     expect(data).not.toHaveProperty('valor_adquisicion')
     expect(data).not.toHaveProperty('contable_cuenta_id')
     expect(data).not.toHaveProperty('proveedor')
-    expect(Object.keys(data!).sort()).toEqual(
+    expect(Object.keys(data).sort()).toEqual(
       ['categoria', 'estado', 'nombre', 'tipo', 'ubicacion', 'ubicacion_detalle'].sort(),
     )
   }, 30_000)
@@ -597,21 +600,22 @@ d('MANT-0: registro de activos, ficha contable y depreciación', () => {
   it('18. un token manipulado (firma alterada) no resuelve ningún activo', async () => {
     const { tenantId, cliente } = await crearTenantCompleto('qr-manipulado')
     const activoId = await crearActivo(tenantId, { codigo: 'QR-MANIPULADO', capitalizable: false })
-    const { data: gen, error: errGen } = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
+    const resultadoGen = await cliente.functions.invoke<{ qr_token: string }>('generar-qr-activo', {
       body: { activo_id: activoId, tenant_id: tenantId },
     })
-    if (errGen) throw errGen
+    if (resultadoGen.error) throw resultadoGen.error
+    const gen = resultadoGen.data!
 
     // Cambia el último carácter de la firma HMAC (formato v1.<exp>.<hex>) — un token con firma
     // inválida para el id que encuentre no debe resolver, aunque el resto del formato sea correcto.
-    const partes = gen!.qr_token.split('.')
+    const partes = gen.qr_token.split('.')
     const firma = partes[2]!
     const ultimoCaracter = firma.slice(-1)
     partes[2] = firma.slice(0, -1) + (ultimoCaracter === 'a' ? 'b' : 'a')
     const tokenManipulado = partes.join('.')
 
-    const { data, error } = await cliente.functions.invoke('ver-activo', { body: { qr: tokenManipulado } })
-    expect(data).toBeNull()
-    expect(error).not.toBeNull()
+    const resultado = await cliente.functions.invoke<Record<string, unknown>>('ver-activo', { body: { qr: tokenManipulado } })
+    expect(resultado.data).toBeNull()
+    expect(resultado.error).not.toBeNull()
   }, 30_000)
 })

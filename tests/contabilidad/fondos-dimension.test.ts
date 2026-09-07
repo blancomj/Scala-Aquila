@@ -117,8 +117,8 @@ d('Dominio Fondos — dimensión contable (GAP-22, BLOQUE L)', () => {
       'create-tenant',
       { body: { name: 'Fondos Contabilidad', slug: `t-${RUN_ID}-fondos-contab` } },
     )
-    if (response.status !== 200 || !data) {
-      throw new Error(`create-tenant: HTTP ${String(response.status)}`)
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`create-tenant: HTTP ${String(response?.status)}`)
     }
     tenantId = data.tenant.id
 

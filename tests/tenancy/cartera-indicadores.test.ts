@@ -215,9 +215,10 @@ async function crearCargoSaldado(
     .select('id')
     .single<{ id: string }>()
   if (errCargo) throw new Error(`fixture cargo (cargo saldado): ${errCargo.message}`)
+  const formaPagoId = await listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
   const { data: pago, error: errPago } = await admin
     .from('pagos')
-    .insert({ tenant_id: opciones.tenantId, inmueble_id: opciones.inmuebleId, monto: opciones.montoOriginal, fecha_pago: opciones.fechaPago })
+    .insert({ tenant_id: opciones.tenantId, inmueble_id: opciones.inmuebleId, monto: opciones.montoOriginal, fecha_pago: opciones.fechaPago, forma_pago_id: formaPagoId })
     .select('id')
     .single<{ id: string }>()
   if (errPago) throw new Error(`fixture pago (cargo saldado): ${errPago.message}`)
@@ -342,9 +343,10 @@ d('cartera-indicadores (Edge Function, CAR §23.3)', () => {
     if (errCargo) throw new Error(`fixture cargo: ${errCargo.message}`)
 
     // Recovery Rate: pago aplicado DENTRO del período a un cargo vencido AL INICIO del período.
+    const formaPagoIdRecovery = await listaTipoId(admin, 'FORMA_PAGO', 'efectivo')
     const { data: pago, error: errPago } = await admin
       .from('pagos')
-      .insert({ tenant_id: tenant.id, inmueble_id: inmuebleRealId, monto: 40_000, fecha_pago: '2026-02-15' })
+      .insert({ tenant_id: tenant.id, inmueble_id: inmuebleRealId, monto: 40_000, fecha_pago: '2026-02-15', forma_pago_id: formaPagoIdRecovery })
       .select('id')
       .single<{ id: string }>()
     if (errPago) throw new Error(`fixture pago: ${errPago.message}`)

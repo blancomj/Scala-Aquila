@@ -132,11 +132,11 @@ d('fn_anular_liquidacion rechaza si hay pagos imputados (hueco de test #3)', () 
     })
     if (errCon) throw new Error(`fixture concepto: ${errCon.message}`)
 
-    const { data: sim, error: errSim } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultadoSim = await cAux.functions.invoke<{ liquidacion_id: string }>('simular-liquidacion', {
       body: { periodo_id: periodo.id },
     })
-    if (errSim) throw errSim
-    const liquidacionId = (sim as { liquidacion_id: string }).liquidacion_id
+    if (resultadoSim.error) throw resultadoSim.error
+    const liquidacionId = resultadoSim.data!.liquidacion_id
 
     const { error: errSolicitar } = await cAux
       .from('liquidaciones')

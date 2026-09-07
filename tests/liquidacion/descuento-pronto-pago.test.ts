@@ -54,7 +54,7 @@ d('Descuento por pronto pago (D3)', () => {
   afterAll(async () => {
     // Arrastra en cascada inmuebles, periodos, política, liquidación, cargos, pagos.
     for (const tenant of tenants) await eliminarTenant(admin, tenant.id)
-    if (creador) await eliminarUsuario(admin, creador.id)
+    await eliminarUsuario(admin, creador.id)
   })
 
   interface Fixture {
@@ -261,7 +261,7 @@ d('Descuento por pronto pago (D3)', () => {
 
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
   })
 
   it('saldo_a_favor: pagar solo el neto NO alcanza — hay que cubrir la cuota completa', async () => {
@@ -285,7 +285,7 @@ d('Descuento por pronto pago (D3)', () => {
 
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
   })
 
   it('fuera del plazo: cubrir el neto después del tope no emite descuento', async () => {
@@ -321,7 +321,7 @@ d('Descuento por pronto pago (D3)', () => {
     await pagar(admin, fixture, 45_000, '2031-01-05')
     const descuentos = await descuentoDe(fixture)
     expect(descuentos).toHaveLength(1)
-    expect(descuentos[0].monto_original).toBe(-5_000)
+    expect(descuentos[0]!.monto_original).toBe(-5_000)
 
     // Un tercer pago (p.ej. el residual que cubre lo que falta del capital
     // completo) no debe duplicar el descuento — not exists en

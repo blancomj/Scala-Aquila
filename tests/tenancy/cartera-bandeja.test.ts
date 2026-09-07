@@ -8,6 +8,7 @@
  * deshabilitado es una cortesía; el trigger es la barrera.
  */
 import { afterAll, describe, expect, it } from 'vitest'
+import type { Database } from '@aquila/shared'
 import {
   clienteAdmin,
   clienteComo,
@@ -21,6 +22,8 @@ import {
   type TenantPrueba,
   type UsuarioPrueba,
 } from '../rls/helpers.js'
+
+type TipoAccionCobranza = Database['public']['Enums']['tipo_accion_cobranza_t']
 
 const env = leerEntorno()
 const d = env ? describe : describe.skip
@@ -76,7 +79,7 @@ d('CAR §23.5 — bandeja de acciones de cobranza', () => {
 
   async function crearAccion(
     inmuebleId: string,
-    tipoAccion: string,
+    tipoAccion: TipoAccionCobranza,
     estado: 'programada' | 'pendiente_aprobacion',
     diasMora: number,
   ): Promise<string> {

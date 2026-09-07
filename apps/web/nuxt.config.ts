@@ -57,6 +57,17 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui', '@pinia/nuxt', '@nuxtjs/supabase', '@nuxt/eslint'],
 
+  // El colección `lucide` ya vive local (`@iconify-json/lucide`), servida por
+  // la ruta interna `/api/_nuxt_icon`. Sin esto, cada ícono que UIcon no
+  // encuentra en el bundle de cliente precompilado dispara además un fetch a
+  // la API pública de Iconify (`https://api.iconify.design`) — innecesario
+  // (todo lo que se usa es `lucide:*`) y viola el espíritu de la CSP de este
+  // proyecto (connect-src 'self'), amén de la flakiness de fetch de Node en
+  // Windows ya vista con Supabase.
+  icon: {
+    fallbackToApi: false,
+  },
+
   // D-16: @nuxtjs/supabase resuelve la sincronía de sesión servidor/cliente
   // (cookies) que SSR + rutas protegidas necesitan. `redirect: false` porque
   // el middleware propio (10.1) implementa la cadena exacta del plan

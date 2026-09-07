@@ -29,6 +29,7 @@ import {
   type TenantPrueba,
   type UsuarioPrueba,
 } from '../rls/helpers.js'
+import type { Json } from '@aquila/shared'
 
 const env = leerEntorno()
 const d = env ? describe : describe.skip
@@ -39,7 +40,19 @@ if (!env) {
 
 const FOLIO_RE = /^EDC-\d{6}-\d{6}$/
 
-function datosEjemplo(inmuebleCodigo: string): Record<string, unknown> {
+interface DatosEstadoCuentaEjemplo {
+  tenant_nombre: string
+  tenant_nit: string | null
+  inmueble_codigo: string
+  movimientos: { fecha: string; descripcion: string; cargo: number | null; abono: number | null; saldo: number }[]
+  saldo_final: number
+  generado_en: string
+}
+
+// Tipado como objeto concreto (no `Json` directo): así el spread de la prueba de
+// claves extendidas ("...datosEjemplo(...)") sigue siendo un objeto para TS, y el
+// objeto sigue siendo estructuralmente un `Json` válido para el insert.
+function datosEjemplo(inmuebleCodigo: string): DatosEstadoCuentaEjemplo {
   return {
     tenant_nombre: 'Copropiedad Test',
     tenant_nit: null,
@@ -104,7 +117,7 @@ d('Estado de cuenta: folio y permisos (D-27)', () => {
   it('el INSERT del auxiliar recibe folio EDC-* asignado por la BD', async () => {
     const { data, error } = await cAux
       .from('estados_cuenta_generados')
-      .insert({ tenant_id: tenant!.id, inmueble_id: inmuebleId, datos: datosEjemplo('EDC-001') })
+      .insert({ tenant_id: tenant!.id, inmueble_id: inmuebleId, datos: datosEjemplo('EDC-001') as unknown as Json })
       .select('id, folio')
       .single<{ id: string; folio: string | null }>()
     expect(error).toBeNull()
@@ -115,7 +128,7 @@ d('Estado de cuenta: folio y permisos (D-27)', () => {
     const filas = [1, 2].map((i) => ({
       tenant_id: tenant!.id,
       inmueble_id: inmuebleId,
-      datos: datosEjemplo(`EDC-00${String(i)}`),
+      datos: datosEjemplo(`EDC-00${String(i)}`) as unknown as Json,
     }))
     const { data, error } = await cAux
       .from('estados_cuenta_generados')
@@ -145,7 +158,7 @@ d('Estado de cuenta: folio y permisos (D-27)', () => {
   it('un auditor NO puede emitir estados de cuenta (solo lectura)', async () => {
     const { error } = await cAud!
       .from('estados_cuenta_generados')
-      .insert({ tenant_id: tenant!.id, inmueble_id: inmuebleId, datos: datosEjemplo('EDC-X') })
+      .insert({ tenant_id: tenant!.id, inmueble_id: inmuebleId, datos: datosEjemplo('EDC-X') as unknown as Json })
     // RLS: la política INSERT exige rol auxiliar — el error es de violación,
     // no de red. PostgREST devuelve error aunque sea silencioso (0 filas).
     expect(error ?? 'silencioso').toBeTruthy()

@@ -749,6 +749,263 @@ export const ERROR_CODES = {
   GARANTIA_ORIGEN_INCONSISTENTE: 'GARANTIA_ORIGEN_INCONSISTENTE',
   // guard_mant_garantia_reclamacion: resultado_id no pertenece a RESULTADO_RECLAMACION_GARANTIA.
   GARANTIA_RESULTADO_INVALIDO: 'GARANTIA_RESULTADO_INVALIDO',
+
+  // ── FIN-2: factura de proveedor y retenciones aplicadas (20260931120000+) ──
+  // guard_finanzas_factura_proveedor: proveedor/contrato/cuenta presupuestal/ejecución de otro
+  // tenant. Reutiliza CUENTA_NO_ES_HOJA (ya registrado) para presupuesto_cuenta_id.
+  FACTURA_TENANT_INCONSISTENTE: 'FACTURA_TENANT_INCONSISTENTE',
+  // guard_finanzas_factura_proveedor: (tenant, proveedor, numero_documento) ya existe.
+  FACTURA_DUPLICADA: 'FACTURA_DUPLICADA',
+  // guard_finanzas_factura_proveedor: presupuesto_ejecucion_id ya enlazado a otra factura.
+  EJECUCION_YA_FACTURADA: 'EJECUCION_YA_FACTURADA',
+  // guard_finanzas_factura_proveedor / guard_finanzas_factura_retencion: total_bruto ≠ subtotal +
+  // iva_generado, total_neto_pagar ≠ total_bruto − total_retenciones, o valor ≠ base × tarifa / 100.
+  FACTURA_ARITMETICA_INCONSISTENTE: 'FACTURA_ARITMETICA_INCONSISTENTE',
+  // guard_finanzas_factura_proveedor: iva_descontable > 0 sin tenants.responsable_iva (CO-1).
+  IVA_DESCONTABLE_INCONSISTENTE: 'IVA_DESCONTABLE_INCONSISTENTE',
+  // guard_finanzas_factura_proveedor: transición de estado no permitida, o intento de UPDATE
+  // directo a 'aprobada' sin pasar por fn_finanzas_aprobar_factura.
+  FACTURA_TRANSICION_INVALIDA: 'FACTURA_TRANSICION_INVALIDA',
+  FACTURA_ANULACION_SIN_MOTIVO: 'FACTURA_ANULACION_SIN_MOTIVO',
+  FACTURA_DISPUTA_SIN_MOTIVO: 'FACTURA_DISPUTA_SIN_MOTIVO',
+  // guard_finanzas_factura_proveedor: 'pagada' es terminal para cualquier columna sustantiva.
+  FACTURA_PAGADA_INMUTABLE: 'FACTURA_PAGADA_INMUTABLE',
+  // guard_finanzas_factura_retencion: CO-8 (tributario_concepto_retencion) no existe todavía —
+  // no se pueden registrar retenciones hasta entonces (marco §1.6, no inventar catálogo).
+  RETENCION_CATALOGO_TRIBUTARIO_AUSENTE: 'RETENCION_CATALOGO_TRIBUTARIO_AUSENTE',
+  // fn_finanzas_aprobar_factura: la factura no existe.
+  FACTURA_INEXISTENTE: 'FACTURA_INEXISTENTE',
+  // fn_finanzas_aprobar_factura: aprobar exige documento_soporte_id.
+  FACTURA_APROBACION_SIN_SOPORTE: 'FACTURA_APROBACION_SIN_SOPORTE',
+  // fn_finanzas_aprobar_factura: la ejecución preexistente enlazada tiene un monto distinto de
+  // total_neto_pagar.
+  FACTURA_EJECUCION_MONTO_DISCREPA: 'FACTURA_EJECUCION_MONTO_DISCREPA',
+  // fn_finanzas_aprobar_factura: sin presupuesto_ejecucion_id ni presupuesto_cuenta_id no hay
+  // contra qué rubro crear la ejecución (columna añadida sobre el corte original, ver
+  // 20260931140000).
+  FACTURA_SIN_CUENTA_PRESUPUESTAL: 'FACTURA_SIN_CUENTA_PRESUPUESTAL',
+  // fn_finanzas_aprobar_factura: reservado para cuando GOB-1 exista — hoy, sin
+  // gobierno_organos, se registra como advertencia inspeccionable en
+  // finanzas_factura_advertencia en vez de rechazar (FIN_02_INFORME.md).
+  FACTURA_APROBACION_ORGANO_INCOMPETENTE: 'FACTURA_APROBACION_ORGANO_INCOMPETENTE',
+
+  // ── FIN-3: programación y ejecución de pagos por lote (20260931220000+) ──
+  // guard_finanzas_lote_pago: el lote no existe, o la fila referenciada no pertenece al tenant.
+  LOTE_TENANT_INCONSISTENTE: 'LOTE_TENANT_INCONSISTENTE',
+  // guard_finanzas_lote_pago: transición de estado no permitida, o intento de UPDATE directo a
+  // aprobado/ejecutado/conciliado/anulado sin pasar por su función correspondiente.
+  LOTE_TRANSICION_INVALIDA: 'LOTE_TRANSICION_INVALIDA',
+  LOTE_ANULACION_SIN_MOTIVO: 'LOTE_ANULACION_SIN_MOTIVO',
+  // guard_finanzas_lote_pago: 'conciliado'/'anulado' son terminales, cualquier columna.
+  LOTE_CONCILIADO_INMUTABLE: 'LOTE_CONCILIADO_INMUTABLE',
+  // guard_finanzas_lote_item: la factura no está 'aprobada'.
+  LOTE_ITEM_FACTURA_NO_APROBADA: 'LOTE_ITEM_FACTURA_NO_APROBADA',
+  // guard_finanzas_lote_item: la factura ya está en otro lote activo (no anulado).
+  LOTE_ITEM_FACTURA_YA_PROGRAMADA: 'LOTE_ITEM_FACTURA_YA_PROGRAMADA',
+  // guard_finanzas_lote_item: pago no parcial con monto distinto del pendiente de la factura.
+  LOTE_ITEM_MONTO_INCONSISTENTE: 'LOTE_ITEM_MONTO_INCONSISTENTE',
+  // guard_finanzas_lote_item: pago parcial con monto mayor o igual al pendiente de la factura.
+  LOTE_ITEM_PARCIAL_INVALIDO: 'LOTE_ITEM_PARCIAL_INVALIDO',
+  // guard_finanzas_lote_item: el lote ya no admite agregar/quitar ítems (no está en
+  // borrador/programado), o se intentó editar un campo inmutable del ítem.
+  LOTE_ITEM_LOTE_NO_MODIFICABLE: 'LOTE_ITEM_LOTE_NO_MODIFICABLE',
+  // fn_finanzas_aprobar_lote: al menos un proveedor del lote tiene una habilitación vencida o
+  // próxima a vencer (mant_habilitaciones_semaforo) y no se dio justificación.
+  LOTE_APROBACION_SIN_JUSTIFICACION: 'LOTE_APROBACION_SIN_JUSTIFICACION',
+  // fn_finanzas_aprobar_lote: reservado para cuando GOB-1 exista — hoy, sin gobierno_organos, se
+  // registra como advertencia inspeccionable en finanzas_lote_advertencia en vez de rechazar
+  // (mismo criterio que FACTURA_APROBACION_ORGANO_INCOMPETENTE, FIN_03_INFORME.md).
+  LOTE_APROBACION_ORGANO_INCOMPETENTE: 'LOTE_APROBACION_ORGANO_INCOMPETENTE',
+  // fn_finanzas_aprobar_lote/ejecutar_lote/anular_lote/conciliar_lote: el lote no existe.
+  LOTE_INEXISTENTE: 'LOTE_INEXISTENTE',
+
+  // ── GOB-0: prerrequisitos bloqueantes (20260931320000+) ──
+  // generar-enlace-documento / ver-documento: el documento no existe (o no es accesible).
+  DOCUMENTO_NO_ENCONTRADO: 'DOCUMENTO_NO_ENCONTRADO',
+  // ver-documento: el token no es una firma HMAC válida para este documento (link_token.ts).
+  DOCUMENTO_ENLACE_INVALIDO: 'DOCUMENTO_ENLACE_INVALIDO',
+  // ver-documento: el token es válido pero su fecha de expiración ya pasó.
+  DOCUMENTO_VENCIDO: 'DOCUMENTO_VENCIDO',
+
+  // ── GOB-1: órganos de gobierno y sus miembros (20260931350000+) ──
+  // guard_gobierno_organo: tipo_id no pertenece a la familia ORGANO_GOBIERNO.
+  ORGANO_TIPO_INVALIDO: 'ORGANO_TIPO_INVALIDO',
+  // guard_gobierno_organo: un comité ad hoc (codigo=comite) sin nombre.
+  ORGANO_COMITE_SIN_NOMBRE: 'ORGANO_COMITE_SIN_NOMBRE',
+  // guard_gobierno_organo: segundo asamblea_general/consejo_administracion/comite_convivencia/
+  // revisoria_fiscal vigente a la vez para el mismo tenant.
+  ORGANO_DUPLICADO_VIGENTE: 'ORGANO_DUPLICADO_VIGENTE',
+  // guard_gobierno_atribucion: atribucion_id no pertenece a la familia ATRIBUCION_ORGANO.
+  ATRIBUCION_TIPO_INVALIDO: 'ATRIBUCION_TIPO_INVALIDO',
+  // guard_gobierno_atribucion: organo_id no pertenece al tenant de la atribución.
+  ATRIBUCION_ORGANO_INVALIDO: 'ATRIBUCION_ORGANO_INVALIDO',
+  // guard_gobierno_atribucion: imponer_sanciones asignada al comité de convivencia — prohibido
+  // sin excepción (Ley 675 art. 58 par. 2), ni siquiera con origen=reglamento.
+  ATRIBUCION_PROHIBIDA_COMITE_CONVIVENCIA: 'ATRIBUCION_PROHIBIDA_COMITE_CONVIVENCIA',
+  // guard_gobierno_atribucion: origen=reglamento sin reglamento_referencia.
+  ATRIBUCION_SIN_REFERENCIA_REGLAMENTO: 'ATRIBUCION_SIN_REFERENCIA_REGLAMENTO',
+  // guard_gobierno_atribucion: origen=ley sin fundamento_normativo_id.
+  ATRIBUCION_SIN_FUNDAMENTO: 'ATRIBUCION_SIN_FUNDAMENTO',
+  // guard_gobierno_miembro: rol_id no pertenece a la familia ROL_CONCEJO_COPROPIEDAD.
+  MIEMBRO_ROL_INVALIDO: 'MIEMBRO_ROL_INVALIDO',
+  // guard_gobierno_miembro: organo_id no pertenece al tenant del miembro.
+  MIEMBRO_ORGANO_INVALIDO: 'MIEMBRO_ORGANO_INVALIDO',
+  // guard_gobierno_miembro: tercero_id no pertenece al tenant del miembro.
+  MIEMBRO_TERCERO_INVALIDO: 'MIEMBRO_TERCERO_INVALIDO',
+  // guard_gobierno_miembro: período del comité de convivencia distinto de un (1) año exacto, o
+  // sin fecha de término (Ley 675 art. 58 par. 1, piso y techo legal a la vez).
+  COMITE_CONVIVENCIA_PERIODO_EXCEDIDO: 'COMITE_CONVIVENCIA_PERIODO_EXCEDIDO',
+  // guard_gobierno_miembro: presidente/secretario duplicado y vigente en el mismo órgano, o
+  // la misma persona+rol+órgano con vigencias que se solapan.
+  ROL_ORGANO_DUPLICADO: 'ROL_ORGANO_DUPLICADO',
+
+  // ── GOB-2: reunión, convocatoria, asistencia y poderes (20260931410000+) ──
+  // guard_gobierno_reunion: organo_id no pertenece al tenant de la reunión.
+  REUNION_ORGANO_INVALIDO: 'REUNION_ORGANO_INVALIDO',
+  // guard_gobierno_reunion: tipo_id no pertenece a la familia TIPO_REUNION.
+  REUNION_TIPO_INVALIDO: 'REUNION_TIPO_INVALIDO',
+  // guard_gobierno_reunion: convocatoria_regimen='segunda' sin convocatoria_antecedente_id —
+  // Ley 675 art. 41.
+  SEGUNDA_CONVOCATORIA_SIN_ANTECEDENTE: 'SEGUNDA_CONVOCATORIA_SIN_ANTECEDENTE',
+  // guard_gobierno_reunion: convocatoria_antecedente_id presente pero no pertenece al tenant.
+  REUNION_ANTECEDENTE_INVALIDO: 'REUNION_ANTECEDENTE_INVALIDO',
+  // guard_gobierno_reunion: la reunión ya está cerrada — terminal e inmutable, sin excepción.
+  REUNION_CERRADA_INMUTABLE: 'REUNION_CERRADA_INMUTABLE',
+  // guard_gobierno_reunion: intento de cambiar coeficiente_set_id después de congelado al instalar.
+  REUNION_COEFICIENTE_SET_INMUTABLE: 'REUNION_COEFICIENTE_SET_INMUTABLE',
+  // guard_gobierno_reunion: transición de estado no permitida por el FSM
+  // (convocada→instalada|cancelada, instalada→cerrada; cualquier otra).
+  REUNION_TRANSICION_INVALIDA: 'REUNION_TRANSICION_INVALIDA',
+  // guard_gobierno_reunion: instalar o cerrar exige rol administrador (segregación de funciones).
+  REUNION_TRANSICION_REQUIERE_ADMINISTRADOR: 'REUNION_TRANSICION_REQUIERE_ADMINISTRADOR',
+  // guard_gobierno_reunion: instalar sin presidente_miembro_id o secretario_miembro_id — Ley 675
+  // art. 47 (el acta debe ir firmada por ambos).
+  REUNION_SIN_PRESIDENTE_O_SECRETARIO: 'REUNION_SIN_PRESIDENTE_O_SECRETARIO',
+  // guard_gobierno_reunion: convocatoria_regimen='universal_sin_convocatoria' y la asistencia no
+  // alcanza el 100% de los coeficientes al instalar — Ley 675 art. 40, piso legal fijo.
+  REUNION_UNIVERSAL_SIN_TOTALIDAD_COEFICIENTES: 'REUNION_UNIVERSAL_SIN_TOTALIDAD_COEFICIENTES',
+  // guard_gobierno_convocatoria: reunion_id no pertenece al tenant de la convocatoria.
+  CONVOCATORIA_REUNION_INVALIDA: 'CONVOCATORIA_REUNION_INVALIDA',
+  // guard_gobierno_convocatoria_envio: convocatoria_id o destinatario_ref no pertenece al tenant.
+  CONVOCATORIA_ENVIO_INVALIDO: 'CONVOCATORIA_ENVIO_INVALIDO',
+  // guard_gobierno_agenda_punto: reunion_id no pertenece al tenant del punto de agenda.
+  AGENDA_REUNION_INVALIDA: 'AGENDA_REUNION_INVALIDA',
+  // guard_gobierno_agenda_punto: la reunión ya no está en estado 'convocada' — el orden del día
+  // queda inmutable tras instalar (añadir puntos en sesión, bloqueado hasta respuesta del abogado).
+  AGENDA_INMUTABLE_TRAS_INSTALAR: 'AGENDA_INMUTABLE_TRAS_INSTALAR',
+  // guard_gobierno_poder: reunion_id/otorgante_ref/apoderado_ref/inmueble_id no pertenece al
+  // tenant del poder.
+  PODER_REFERENCIA_INVALIDA: 'PODER_REFERENCIA_INVALIDA',
+  // guard_gobierno_poder: se intenta validar (validado_at) un poder sin documento_id.
+  PODER_SIN_SOPORTE: 'PODER_SIN_SOPORTE',
+  // guard_gobierno_asistencia: reunion_id no pertenece al tenant de la asistencia.
+  ASISTENCIA_REUNION_INVALIDA: 'ASISTENCIA_REUNION_INVALIDA',
+  // guard_gobierno_asistencia: inmueble_id no pertenece al tenant de la asistencia.
+  ASISTENCIA_INMUEBLE_INVALIDO: 'ASISTENCIA_INMUEBLE_INVALIDO',
+  // guard_gobierno_asistencia: asistente_ref no pertenece al tenant de la asistencia.
+  ASISTENCIA_ASISTENTE_INVALIDO: 'ASISTENCIA_ASISTENTE_INVALIDO',
+  // guard_gobierno_asistencia: el inmueble ya está representado (vigente, sin salida_at) en esta
+  // misma reunión.
+  ASISTENCIA_INMUEBLE_DUPLICADO: 'ASISTENCIA_INMUEBLE_DUPLICADO',
+  // guard_gobierno_asistencia: un tenedor (fn_tenedores_vigentes, GOB-0) figura con calidad
+  // propietario o apoderado sin poder_id.
+  ASISTENCIA_TENEDOR_SIN_PODER: 'ASISTENCIA_TENEDOR_SIN_PODER',
+  // guard_gobierno_asistencia: no hay un coeficiente_sets vigente para el tenant a la fecha de la
+  // reunión (fn_coeficiente_set_vigente devuelve null).
+  ASISTENCIA_SIN_COEFICIENTE_SET: 'ASISTENCIA_SIN_COEFICIENTE_SET',
+  // guard_gobierno_asistencia: el inmueble no tiene fila de coeficiente en el set vigente resuelto.
+  ASISTENCIA_INMUEBLE_SIN_COEFICIENTE: 'ASISTENCIA_INMUEBLE_SIN_COEFICIENTE',
+  // guard_gobierno_asistencia: la reunión ya está cerrada o cancelada — la asistencia es inmutable
+  // (hallazgo de verificación manual, 20260931480000).
+  ASISTENCIA_REUNION_CERRADA: 'ASISTENCIA_REUNION_CERRADA',
+  // guard_gobierno_poder: la reunión ya está cerrada o cancelada — no admite poderes nuevos
+  // (mismo hallazgo, 20260931480000).
+  PODER_REUNION_CERRADA: 'PODER_REUNION_CERRADA',
+  // fn_gobierno_registrar_salida: p_asistencia_id no corresponde a ninguna fila de
+  // gobierno_asistencia (20260931485000).
+  ASISTENCIA_INEXISTENTE: 'ASISTENCIA_INEXISTENTE',
+
+  // ── GOB-3: motor de quórum y votación (20260931490000+) ──
+  // guard_gobierno_materia_decision: gobierno_materia_decision es un catálogo legal — ningún
+  // insert/update/delete en runtime, ni con service_role (Ley 675 art. 46, lista taxativa).
+  MATERIA_LEGAL_INMUTABLE: 'MATERIA_LEGAL_INMUTABLE',
+  // guard_gobierno_regla_mayoria: materia_id no existe en gobierno_materia_decision.
+  REGLA_MAYORIA_MATERIA_INVALIDA: 'REGLA_MAYORIA_MATERIA_INVALIDA',
+  // guard_gobierno_regla_mayoria: mayoria_pct por debajo del piso legal de la materia (ordinaria
+  // 50, calificada_70 70, unanimidad 100 — Ley 675 art. 45/46).
+  MAYORIA_INFERIOR_AL_PISO_LEGAL: 'MAYORIA_INFERIOR_AL_PISO_LEGAL',
+  // guard_gobierno_regla_mayoria: mayoria_pct por encima del techo del 70% (Ley 675 art. 45),
+  // salvo la materia extincion_ph, que la ley exceptúa explícitamente.
+  MAYORIA_EXCEDE_TECHO_LEGAL: 'MAYORIA_EXCEDE_TECHO_LEGAL',
+  // guard_gobierno_regla_mayoria: quorum_minimo_pct por debajo del piso legal (más de la mitad,
+  // Ley 675 art. 45).
+  QUORUM_INFERIOR_AL_PISO_LEGAL: 'QUORUM_INFERIOR_AL_PISO_LEGAL',
+  // guard_gobierno_votacion: reunion_id no pertenece al tenant de la votación.
+  VOTACION_REUNION_INVALIDA: 'VOTACION_REUNION_INVALIDA',
+  // guard_gobierno_votacion: materia_id no existe en gobierno_materia_decision.
+  VOTACION_MATERIA_INVALIDA: 'VOTACION_MATERIA_INVALIDA',
+  // guard_gobierno_votacion: la reunión no está en estado 'instalada' al abrir la votación.
+  VOTACION_REUNION_NO_INSTALADA: 'VOTACION_REUNION_NO_INSTALADA',
+  // guard_gobierno_votacion: la materia no admite reunión no_presencial (Ley 675 art. 46 par.) —
+  // prohibición absoluta, sin excepción de convocatoria.
+  VOTACION_MATERIA_NO_ADMITE_NO_PRESENCIAL: 'VOTACION_MATERIA_NO_ADMITE_NO_PRESENCIAL',
+  // guard_gobierno_votacion: la materia no admite segunda convocatoria (solo bloquea abrir para
+  // materias con admite_segunda_convocatoria=false — ninguna de las 12 sembradas hoy lo tiene;
+  // para las que sí lo admiten, el matiz del art. 46 par. se resuelve al cerrar, no al abrir).
+  VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA: 'VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA',
+  // guard_gobierno_votacion: el órgano reunido no tiene la atribución vinculada a la materia
+  // (gobierno_organo_competente, GOB-1) — solo se valida si la materia tiene atribución vinculada.
+  VOTACION_ORGANO_INCOMPETENTE: 'VOTACION_ORGANO_INCOMPETENTE',
+  // guard_gobierno_votacion: no hay quórum deliberatorio (gobierno_quorum) al momento de abrir.
+  VOTACION_SIN_QUORUM: 'VOTACION_SIN_QUORUM',
+  // guard_gobierno_votacion: transición de estado no permitida por el FSM.
+  VOTACION_TRANSICION_INVALIDA: 'VOTACION_TRANSICION_INVALIDA',
+  // guard_gobierno_votacion: anular una votación (abierta o cerrada) sin explicar el motivo.
+  VOTACION_ANULACION_SIN_MOTIVO: 'VOTACION_ANULACION_SIN_MOTIVO',
+  // guard_gobierno_votacion: la votación ya está cerrada — solo se admite anular con motivo, sin
+  // tocar el resultado congelado; o ya está anulada — terminal, sin ningún cambio permitido.
+  VOTACION_CERRADA_INMUTABLE: 'VOTACION_CERRADA_INMUTABLE',
+  // guard_gobierno_voto: votacion_id no pertenece al tenant del voto.
+  VOTO_VOTACION_INVALIDA: 'VOTO_VOTACION_INVALIDA',
+  // guard_gobierno_voto: la votación no está en estado 'abierta'.
+  VOTO_VOTACION_NO_ABIERTA: 'VOTO_VOTACION_NO_ABIERTA',
+  // guard_gobierno_voto: el emisor es un invitado, no está presente al momento de votar, o su
+  // asistencia no pertenece a la reunión de esta votación.
+  VOTO_EMISOR_NO_HABILITADO: 'VOTO_EMISOR_NO_HABILITADO',
+  // guard_gobierno_voto: el mismo inmueble (o, en consejo, el mismo miembro) ya votó en esta
+  // votación.
+  VOTO_DUPLICADO: 'VOTO_DUPLICADO',
+
+  // ── GOB-4: acta (20260931550000+) ──
+  // gobierno_sumar_dias_habiles: p_dias negativo.
+  DIAS_HABILES_NEGATIVO: 'DIAS_HABILES_NEGATIVO',
+  // gobierno_generar_acta: reunion_id no existe.
+  ACTA_REUNION_INEXISTENTE: 'ACTA_REUNION_INEXISTENTE',
+  // gobierno_generar_acta/fn_gobierno_actualizar_narrativa: se requiere rol auxiliar o superior.
+  ACTA_TRANSICION_REQUIERE_AUXILIAR: 'ACTA_TRANSICION_REQUIERE_AUXILIAR',
+  // gobierno_generar_acta: la reunión no está en estado 'cerrada'.
+  ACTA_REUNION_NO_CERRADA: 'ACTA_REUNION_NO_CERRADA',
+  // gobierno_generar_acta/fn_gobierno_actualizar_narrativa/fn_gobierno_suscribir_acta: el acta ya
+  // está suscrita (o publicada) — inmutable, salvo la propia entrega que la publica.
+  ACTA_SUSCRITA_INMUTABLE: 'ACTA_SUSCRITA_INMUTABLE',
+  // fn_gobierno_actualizar_narrativa/fn_gobierno_suscribir_acta: acta_id no existe.
+  ACTA_INEXISTENTE: 'ACTA_INEXISTENTE',
+  // fn_gobierno_suscribir_acta: suscribir un acta exige rol administrador.
+  ACTA_TRANSICION_REQUIERE_ADMINISTRADOR: 'ACTA_TRANSICION_REQUIERE_ADMINISTRADOR',
+  // fn_gobierno_suscribir_acta: los ids de presidente/secretario pasados no coinciden con los de
+  // la reunión (copiados en el acta al generarla).
+  ACTA_SUSCRIPTOR_NO_AUTORIZADO: 'ACTA_SUSCRIPTOR_NO_AUTORIZADO',
+  // fn_gobierno_suscribir_acta: falta una sección obligatoria del art. 47 (detalle en el mensaje).
+  ACTA_CONTENIDO_MINIMO_INCOMPLETO: 'ACTA_CONTENIDO_MINIMO_INCOMPLETO',
+  // guard_gobierno_acta_verificador: acta_id no pertenece al tenant del verificador.
+  VERIFICACION_ACTA_INVALIDA: 'VERIFICACION_ACTA_INVALIDA',
+  // guard_gobierno_acta_verificador: el plazo excede 20 días hábiles desde la reunión (art. 47
+  // inc. 2 — techo legal imperativo).
+  VERIFICACION_PLAZO_EXCEDE_LEGAL: 'VERIFICACION_PLAZO_EXCEDE_LEGAL',
+  // guard_gobierno_acta_entrega: acta_id no pertenece al tenant de la entrega.
+  ENTREGA_ACTA_INVALIDA: 'ENTREGA_ACTA_INVALIDA',
+  // guard_gobierno_acta_entrega: el acta todavía no está suscrita — no hay copia que entregar.
+  ENTREGA_ACTA_NO_SUSCRITA: 'ENTREGA_ACTA_NO_SUSCRITA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

@@ -134,7 +134,7 @@ d('FIN-1: posición de tesorería y disponibilidad bancaria', () => {
       .from('contable_comprobante')
       .insert({
         tenant_id: tenantId, periodo_id: periodoId, tipo_id: tipoId, anio: periodo!.anio,
-        fecha: `${anio}-01-15`, descripcion: 'FIN-1 fixture: saldo inicial de banco',
+        fecha: `${String(anio)}-01-15`, descripcion: 'FIN-1 fixture: saldo inicial de banco',
       })
       .select('id').single<{ id: string }>()
     if (errComp) throw errComp
@@ -286,7 +286,7 @@ d('FIN-1: posición de tesorería y disponibilidad bancaria', () => {
 
     const { data: posicion } = await auxiliar.rpc('finanzas_posicion_tesoreria', { p_tenant_id: tenantId })
     expect((posicion ?? []).length).toBeGreaterThan(0)
-    expect((posicion ?? []).every((p) => p.utilizable === false)).toBe(true)
+    expect((posicion ?? []).every((p) => !p.utilizable)).toBe(true)
   }, 30_000)
 
   it('9. marcar una cuenta bancaria de otro tenant en la política → POLITICA_TESORERIA_ENTIDAD_AJENA', async () => {

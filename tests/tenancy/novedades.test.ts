@@ -382,10 +382,10 @@ d('crear-novedad / aprobar-novedad / rechazar-novedad (Edge Functions)', () => {
       admin.rpc('fn_aprobar_novedad', { p_novedad_id: novedad.id, p_actor_id: agente.id }),
       admin.rpc('fn_aprobar_novedad', { p_novedad_id: novedad.id, p_actor_id: agente.id }),
     ])
-    const resultados = [r1, r2].map((r) => (r.status === 'fulfilled' ? r.value.error?.message : r.reason))
+    const resultados = [r1, r2].map((r) => (r.status === 'fulfilled' ? r.value.error?.message : String(r.reason)))
     // Una gana, la otra falla con NOVEDAD_NO_PENDIENTE — nunca las dos en silencio.
     expect(resultados.filter((m) => m === undefined)).toHaveLength(1)
-    expect(resultados.some((m) => m?.includes('NOVEDAD_NO_PENDIENTE'))).toBe(true)
+    expect(resultados.some((m) => typeof m === 'string' && m.includes('NOVEDAD_NO_PENDIENTE'))).toBe(true)
 
     const { data: cargos, error: errCargos } = await admin
       .from('cargos')

@@ -615,7 +615,7 @@ d('CO-3: materialización — de la proyección al asiento persistido', () => {
     // NOT NULL — el insert debe fallar aquí, sin llegar nunca a fn_contabilizar_periodo.
     const { error } = await admin
       .from('presupuesto_ejecucion')
-      .insert({ tenant_id: tenantId, cuenta_id: hoja, periodo_id: periodoId, monto: 10_000 })
+      .insert({ tenant_id: tenantId, cuenta_id: hoja, periodo_id: periodoId, monto: 10_000 } as never)
     expect(error).not.toBeNull()
 
     const { count } = await admin

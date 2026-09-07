@@ -37,6 +37,12 @@ if (!env) {
 
 const CUOTA = 300_000
 
+interface RespuestaSimular {
+  liquidacion_id: string
+  estado: string
+  tenant_total: string
+}
+
 async function tipoApartamentoId(admin: Cliente): Promise<number> {
   const { data, error } = await admin
     .from('lista_tipos')
@@ -158,10 +164,11 @@ d('Prorrateo temporal por inmueble (H2)', () => {
   }, 60_000)
 
   it('simula: el inmueble prorrateado paga menos, los demás absorben la diferencia, Σ=fuente exacta', async () => {
-    const { data, error } = await cAux.functions.invoke('simular-liquidacion', {
+    const resultado = await cAux.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
+    if (resultado.error) throw resultado.error
+    const data = resultado.data!
     expect(data.estado).toBe('pre_liquidada')
     expect(Number(data.tenant_total)).toBe(CUOTA)
 

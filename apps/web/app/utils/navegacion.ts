@@ -61,6 +61,16 @@ export const NAV_ICONOS = {
     'M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-2Z',
   // Billetera con signo de moneda: posición de tesorería (FIN-1).
   tesoreria: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H8a2 2 0 0 0 0 4h9.5',
+  // Documento con renglones y check: factura de proveedor (FIN-2).
+  facturas: 'M7 3h10a1 1 0 0 1 1 1v16l-3-2-2 2-2-2-2 2-2-2-2 2V4a1 1 0 0 1 1-1ZM9 8h6M9 12h6M9 16h3',
+  // Varias tarjetas apiladas con una flecha de salida: lote de pago agrupando facturas (FIN-3).
+  lotesPago: 'M4 7h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM7 4h13a1 1 0 0 1 1 1v2M15 12l4 4-4 4',
+  // Edificio institucional con columnas: órganos de gobierno de la copropiedad (GOB-1).
+  organosGobierno: 'M4 21h16M5 21V10.5L12 5l7 5.5V21M8 21v-7M12 21v-7M16 21v-7M4 10.5h16',
+  // Personas alrededor de una mesa: reunión, convocatoria y asistencia (GOB-2).
+  reunionesGobierno: 'M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM21 20v-2a3 3 0 0 0-2-2.83M16 3.13a3 3 0 0 1 0 5.74',
+  // Círculo con signo de interrogación: centro de ayuda.
+  ayuda: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.7M12 17h.01',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -74,6 +84,9 @@ export const NAV_PLATAFORMA: NavItem = {
   to: '/plataforma',
   icono: NAV_ICONOS.plataforma,
 }
+/** Sin `permiso` ni `modulo`: visible para cualquier usuario autenticado, sin
+ * importar tenant activo ni rol. */
+export const NAV_AYUDA: NavItem = { label: 'Ayuda', to: '/ayuda', icono: NAV_ICONOS.ayuda }
 
 export const NAV_GRUPOS: NavGrupo[] = [
   {
@@ -360,6 +373,20 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'financiero',
         icono: NAV_ICONOS.tesoreria,
       },
+      {
+        label: 'Facturas de proveedor',
+        to: '/finanzas/facturas',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.facturas,
+      },
+      {
+        label: 'Lotes de pago',
+        to: '/finanzas/pagos',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.lotesPago,
+      },
     ],
   },
   {
@@ -412,6 +439,23 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/mantenimiento/configuracion',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.configuracion,
+      },
+    ],
+  },
+  {
+    titulo: 'Gobierno',
+    items: [
+      {
+        label: 'Órganos de gobierno',
+        to: '/gobierno/organos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.organosGobierno,
+      },
+      {
+        label: 'Reuniones',
+        to: '/gobierno/reuniones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.reunionesGobierno,
       },
     ],
   },
@@ -504,7 +548,7 @@ export function buscarMigaPan(path: string): MigaPan | null {
     if (!mejor || item.to.length > mejor.item.to.length) mejor = { grupo, item }
   }
 
-  for (const item of [NAV_INICIO, NAV_COPROPIEDADES, NAV_PLATAFORMA]) {
+  for (const item of [NAV_INICIO, NAV_COPROPIEDADES, NAV_PLATAFORMA, NAV_AYUDA]) {
     considerar(null, item)
   }
   for (const grupo of NAV_GRUPOS) {

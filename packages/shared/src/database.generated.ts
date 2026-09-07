@@ -5609,6 +5609,676 @@ export type Database = {
           },
         ]
       }
+      finanzas_factura_advertencia: {
+        Row: {
+          codigo: string
+          created_at: string
+          factura_id: string
+          id: string
+          mensaje: string
+          tenant_id: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          factura_id: string
+          id?: string
+          mensaje: string
+          tenant_id: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          factura_id?: string
+          id?: string
+          mensaje?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_factura_advertencia_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_facturas_proveedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_factura_advertencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_factura_advertencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_factura_retencion: {
+        Row: {
+          base: number
+          concepto_id: number
+          factura_id: string
+          id: string
+          registrada_at: string
+          tarifa: number
+          tenant_id: string
+          valor: number
+        }
+        Insert: {
+          base: number
+          concepto_id: number
+          factura_id: string
+          id?: string
+          registrada_at?: string
+          tarifa: number
+          tenant_id: string
+          valor: number
+        }
+        Update: {
+          base?: number
+          concepto_id?: number
+          factura_id?: string
+          id?: string
+          registrada_at?: string
+          tarifa?: number
+          tenant_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_factura_retencion_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_facturas_proveedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_factura_retencion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_factura_retencion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_facturas_proveedor: {
+        Row: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          centro_costo_id: number | null
+          concepto_gasto: string | null
+          contrato_id: string | null
+          creado_por: string | null
+          created_at: string
+          documento_soporte_id: string | null
+          estado: Database["public"]["Enums"]["factura_estado_t"]
+          fecha_emision: string
+          fecha_vencimiento: string
+          id: string
+          iva_descontable: number
+          iva_generado: number
+          motivo_disputa: string | null
+          motivo_rechazo: string | null
+          numero_documento: string
+          observaciones: string | null
+          presupuesto_cuenta_id: string | null
+          presupuesto_ejecucion_id: string | null
+          proveedor_id: string
+          subtotal: number
+          tenant_id: string
+          total_bruto: number
+          total_neto_pagar: number
+          total_retenciones: number
+          updated_at: string | null
+        }
+        Insert: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          centro_costo_id?: number | null
+          concepto_gasto?: string | null
+          contrato_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          documento_soporte_id?: string | null
+          estado?: Database["public"]["Enums"]["factura_estado_t"]
+          fecha_emision: string
+          fecha_vencimiento: string
+          id?: string
+          iva_descontable?: number
+          iva_generado?: number
+          motivo_disputa?: string | null
+          motivo_rechazo?: string | null
+          numero_documento: string
+          observaciones?: string | null
+          presupuesto_cuenta_id?: string | null
+          presupuesto_ejecucion_id?: string | null
+          proveedor_id: string
+          subtotal: number
+          tenant_id: string
+          total_bruto: number
+          total_neto_pagar: number
+          total_retenciones?: number
+          updated_at?: string | null
+        }
+        Update: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          centro_costo_id?: number | null
+          concepto_gasto?: string | null
+          contrato_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          documento_soporte_id?: string | null
+          estado?: Database["public"]["Enums"]["factura_estado_t"]
+          fecha_emision?: string
+          fecha_vencimiento?: string
+          id?: string
+          iva_descontable?: number
+          iva_generado?: number
+          motivo_disputa?: string | null
+          motivo_rechazo?: string | null
+          numero_documento?: string
+          observaciones?: string | null
+          presupuesto_cuenta_id?: string | null
+          presupuesto_ejecucion_id?: string | null
+          proveedor_id?: string
+          subtotal?: number
+          tenant_id?: string
+          total_bruto?: number
+          total_neto_pagar?: number
+          total_retenciones?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_documento_soporte_id_fkey"
+            columns: ["documento_soporte_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_documento_soporte_id_fkey"
+            columns: ["documento_soporte_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_presupuesto_ejecucion_id_fkey"
+            columns: ["presupuesto_ejecucion_id"]
+            isOneToOne: true
+            referencedRelation: "presupuesto_ejecucion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_facturas_proveedor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_lote_advertencia: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          lote_id: string
+          mensaje: string
+          tenant_id: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          lote_id: string
+          mensaje: string
+          tenant_id: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          lote_id?: string
+          mensaje?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_lote_advertencia_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_lotes_pago"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_advertencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_advertencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_lote_items: {
+        Row: {
+          compromiso_bancario_id: string | null
+          created_at: string
+          es_pago_parcial: boolean
+          factura_id: string
+          id: string
+          lote_id: string
+          monto_a_pagar: number
+          observaciones: string | null
+          tenant_id: string
+        }
+        Insert: {
+          compromiso_bancario_id?: string | null
+          created_at?: string
+          es_pago_parcial?: boolean
+          factura_id: string
+          id?: string
+          lote_id: string
+          monto_a_pagar: number
+          observaciones?: string | null
+          tenant_id: string
+        }
+        Update: {
+          compromiso_bancario_id?: string | null
+          created_at?: string
+          es_pago_parcial?: boolean
+          factura_id?: string
+          id?: string
+          lote_id?: string
+          monto_a_pagar?: number
+          observaciones?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_lote_items_compromiso_bancario_id_fkey"
+            columns: ["compromiso_bancario_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_cuenta_bancaria_compromiso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_items_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_facturas_proveedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_items_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_lotes_pago"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lote_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_lotes_pago: {
+        Row: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          cantidad_pagos: number
+          creado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          descripcion: string | null
+          ejecutado_at: string | null
+          ejecutado_por: string | null
+          estado: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          fondo_id: string | null
+          id: string
+          justificacion: string | null
+          monto_total: number
+          numero: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          cantidad_pagos?: number
+          creado_por?: string | null
+          created_at?: string
+          cuenta_bancaria_id: string
+          descripcion?: string | null
+          ejecutado_at?: string | null
+          ejecutado_por?: string | null
+          estado?: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id?: string | null
+          fecha_ejecucion?: string | null
+          fecha_programada: string
+          fondo_id?: string | null
+          id?: string
+          justificacion?: string | null
+          monto_total?: number
+          numero: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          anulado_at?: string | null
+          anulado_motivo?: string | null
+          anulado_por?: string | null
+          aprobado_at?: string | null
+          aprobado_por?: string | null
+          cantidad_pagos?: number
+          creado_por?: string | null
+          created_at?: string
+          cuenta_bancaria_id?: string
+          descripcion?: string | null
+          ejecutado_at?: string | null
+          ejecutado_por?: string | null
+          estado?: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id?: string | null
+          fecha_ejecucion?: string | null
+          fecha_programada?: string
+          fondo_id?: string | null
+          id?: string
+          justificacion?: string | null
+          monto_total?: number
+          numero?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_lotes_pago_anulado_por_fkey"
+            columns: ["anulado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_ejecutado_por_fkey"
+            columns: ["ejecutado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_extracto_linea_id_fkey"
+            columns: ["extracto_linea_id"]
+            isOneToOne: false
+            referencedRelation: "extracto_linea"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_lotes_pago_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_lotes_pago_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_lotes_pago_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_politica_aprobacion_lote: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          monto_umbral?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          monto_umbral?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_politica_aprobacion_lote_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_politica_aprobacion_lote_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_politica_aprobacion_pago: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          monto_umbral?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          monto_umbral?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_politica_aprobacion_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_politica_aprobacion_pago_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finanzas_politica_tesoreria: {
         Row: {
           acta_referencia: string | null
@@ -6761,6 +7431,1425 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_acta_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_acta_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_acta_entregas: {
+        Row: {
+          acta_id: string
+          created_at: string
+          fecha: string
+          id: string
+          motivo_negativa: string | null
+          observaciones: string | null
+          solicitante_ref: string | null
+          tenant_id: string
+          tipo: string
+        }
+        Insert: {
+          acta_id: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          motivo_negativa?: string | null
+          observaciones?: string | null
+          solicitante_ref?: string | null
+          tenant_id: string
+          tipo: string
+        }
+        Update: {
+          acta_id?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          motivo_negativa?: string | null
+          observaciones?: string | null
+          solicitante_ref?: string | null
+          tenant_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_acta_entregas_acta_id_fkey"
+            columns: ["acta_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_actas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_entregas_solicitante_ref_fkey"
+            columns: ["solicitante_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_entregas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_entregas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_acta_verificadores: {
+        Row: {
+          acta_id: string
+          created_at: string
+          designado_en_decision_id: string | null
+          id: string
+          observaciones: string | null
+          plazo_limite: string
+          tenant_id: string
+          tercero_id: string
+          updated_at: string | null
+          verificado_at: string | null
+        }
+        Insert: {
+          acta_id: string
+          created_at?: string
+          designado_en_decision_id?: string | null
+          id?: string
+          observaciones?: string | null
+          plazo_limite: string
+          tenant_id: string
+          tercero_id: string
+          updated_at?: string | null
+          verificado_at?: string | null
+        }
+        Update: {
+          acta_id?: string
+          created_at?: string
+          designado_en_decision_id?: string | null
+          id?: string
+          observaciones?: string | null
+          plazo_limite?: string
+          tenant_id?: string
+          tercero_id?: string
+          updated_at?: string | null
+          verificado_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_acta_verificadores_acta_id_fkey"
+            columns: ["acta_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_actas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_verificadores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_verificadores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_acta_verificadores_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_actas: {
+        Row: {
+          anio: number
+          contenido_generado: Json
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido: string | null
+          id: string
+          incluye_voto_nominal: boolean
+          narrativa: string | null
+          numero: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at: string | null
+          suscrita_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          contenido_generado: Json
+          created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido?: string | null
+          id?: string
+          incluye_voto_nominal?: boolean
+          narrativa?: string | null
+          numero?: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at?: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at?: string | null
+          suscrita_por?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          contenido_generado?: Json
+          created_at?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido?: string | null
+          id?: string
+          incluye_voto_nominal?: boolean
+          narrativa?: string | null
+          numero?: number | null
+          plazo_disposicion_limite?: string
+          presidente_miembro_id?: string
+          puesta_a_disposicion_at?: string | null
+          reunion_id?: string
+          secretario_miembro_id?: string
+          suscrita_at?: string | null
+          suscrita_por?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_actas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_presidente_miembro_id_fkey"
+            columns: ["presidente_miembro_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_miembros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: true
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_secretario_miembro_id_fkey"
+            columns: ["secretario_miembro_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_miembros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_suscrita_por_fkey"
+            columns: ["suscrita_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_actas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_agenda_puntos: {
+        Row: {
+          atribucion_id: number | null
+          created_at: string
+          descripcion: string | null
+          documento_id: string | null
+          id: string
+          orden: number
+          requiere_decision: boolean
+          reunion_id: string
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          atribucion_id?: number | null
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          id?: string
+          orden: number
+          requiere_decision?: boolean
+          reunion_id: string
+          tenant_id: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          atribucion_id?: number | null
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          id?: string
+          orden?: number
+          requiere_decision?: boolean
+          reunion_id?: string
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_agenda_puntos_atribucion_id_fkey"
+            columns: ["atribucion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_agenda_puntos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_agenda_puntos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_agenda_puntos_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_agenda_puntos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_agenda_puntos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_asistencia: {
+        Row: {
+          asistente_ref: string
+          calidad: Database["public"]["Enums"]["asistencia_calidad_t"]
+          coeficiente: number
+          id: string
+          ingreso_at: string
+          inmueble_id: string | null
+          modalidad_asistencia: string | null
+          poder_id: string | null
+          reunion_id: string
+          salida_at: string | null
+          tenant_id: string
+        }
+        Insert: {
+          asistente_ref: string
+          calidad: Database["public"]["Enums"]["asistencia_calidad_t"]
+          coeficiente?: number
+          id?: string
+          ingreso_at?: string
+          inmueble_id?: string | null
+          modalidad_asistencia?: string | null
+          poder_id?: string | null
+          reunion_id: string
+          salida_at?: string | null
+          tenant_id: string
+        }
+        Update: {
+          asistente_ref?: string
+          calidad?: Database["public"]["Enums"]["asistencia_calidad_t"]
+          coeficiente?: number
+          id?: string
+          ingreso_at?: string
+          inmueble_id?: string | null
+          modalidad_asistencia?: string | null
+          poder_id?: string | null
+          reunion_id?: string
+          salida_at?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_asistencia_asistente_ref_fkey"
+            columns: ["asistente_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_poder_id_fkey"
+            columns: ["poder_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_poderes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_asistencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_atribucion: {
+        Row: {
+          atribucion_id: number
+          created_at: string
+          fundamento_normativo_id: number | null
+          id: string
+          organo_id: string
+          origen: Database["public"]["Enums"]["atribucion_origen_t"]
+          reglamento_referencia: string | null
+          tenant_id: string
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          atribucion_id: number
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          organo_id: string
+          origen: Database["public"]["Enums"]["atribucion_origen_t"]
+          reglamento_referencia?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          atribucion_id?: number
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          organo_id?: string
+          origen?: Database["public"]["Enums"]["atribucion_origen_t"]
+          reglamento_referencia?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_atribucion_atribucion_id_fkey"
+            columns: ["atribucion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_atribucion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_atribucion_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_organos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_atribucion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_atribucion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_convocatoria_envios: {
+        Row: {
+          acuse_at: string | null
+          canal: string
+          convocatoria_id: string
+          created_at: string
+          destinatario_ref: string
+          enviado_at: string | null
+          evidencia_documento_id: string | null
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          acuse_at?: string | null
+          canal: string
+          convocatoria_id: string
+          created_at?: string
+          destinatario_ref: string
+          enviado_at?: string | null
+          evidencia_documento_id?: string | null
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          acuse_at?: string | null
+          canal?: string
+          convocatoria_id?: string
+          created_at?: string
+          destinatario_ref?: string
+          enviado_at?: string | null
+          evidencia_documento_id?: string | null
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_convocatoria_id_fkey"
+            columns: ["convocatoria_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_convocatorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_destinatario_ref_fkey"
+            columns: ["destinatario_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_evidencia_documento_id_fkey"
+            columns: ["evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_evidencia_documento_id_fkey"
+            columns: ["evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatoria_envios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_convocatorias: {
+        Row: {
+          created_at: string
+          documento_id: string | null
+          emitida_at: string
+          emitida_por: string | null
+          fecha_limite_respuesta: string | null
+          id: string
+          orden_del_dia_congelado: Json | null
+          reunion_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          documento_id?: string | null
+          emitida_at?: string
+          emitida_por?: string | null
+          fecha_limite_respuesta?: string | null
+          id?: string
+          orden_del_dia_congelado?: Json | null
+          reunion_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string | null
+          emitida_at?: string
+          emitida_por?: string | null
+          fecha_limite_respuesta?: string | null
+          id?: string
+          orden_del_dia_congelado?: Json | null
+          reunion_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_convocatorias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatorias_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatorias_emitida_por_fkey"
+            columns: ["emitida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatorias_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatorias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_convocatorias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_materia_decision: {
+        Row: {
+          admite_no_presencial: boolean
+          admite_segunda_convocatoria: boolean
+          base_calculo: Database["public"]["Enums"]["base_calculo_t"]
+          codigo: string
+          created_at: string
+          descripcion: string
+          fundamento_normativo_id: number | null
+          id: number
+          mayoria_tipo: Database["public"]["Enums"]["mayoria_tipo_t"]
+          nombre: string
+          numeral_articulo: string | null
+          organo_competente_atribucion_id: number | null
+        }
+        Insert: {
+          admite_no_presencial?: boolean
+          admite_segunda_convocatoria?: boolean
+          base_calculo: Database["public"]["Enums"]["base_calculo_t"]
+          codigo: string
+          created_at?: string
+          descripcion: string
+          fundamento_normativo_id?: number | null
+          id?: never
+          mayoria_tipo: Database["public"]["Enums"]["mayoria_tipo_t"]
+          nombre: string
+          numeral_articulo?: string | null
+          organo_competente_atribucion_id?: number | null
+        }
+        Update: {
+          admite_no_presencial?: boolean
+          admite_segunda_convocatoria?: boolean
+          base_calculo?: Database["public"]["Enums"]["base_calculo_t"]
+          codigo?: string
+          created_at?: string
+          descripcion?: string
+          fundamento_normativo_id?: number | null
+          id?: never
+          mayoria_tipo?: Database["public"]["Enums"]["mayoria_tipo_t"]
+          nombre?: string
+          numeral_articulo?: string | null
+          organo_competente_atribucion_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_materia_decision_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_materia_decision_organo_competente_atribucion_id_fkey"
+            columns: ["organo_competente_atribucion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_miembros: {
+        Row: {
+          created_at: string
+          decision_id: string | null
+          desde: string
+          documento_id: string | null
+          hasta: string | null
+          id: string
+          inmueble_id: string | null
+          organo_id: string
+          rol_id: number
+          tenant_id: string
+          tercero_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision_id?: string | null
+          desde: string
+          documento_id?: string | null
+          hasta?: string | null
+          id?: string
+          inmueble_id?: string | null
+          organo_id: string
+          rol_id: number
+          tenant_id: string
+          tercero_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision_id?: string | null
+          desde?: string
+          documento_id?: string | null
+          hasta?: string | null
+          id?: string
+          inmueble_id?: string | null
+          organo_id?: string
+          rol_id?: number
+          tenant_id?: string
+          tercero_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_miembros_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_organos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_rol_id_fkey"
+            columns: ["rol_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_miembros_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_organos: {
+        Row: {
+          created_at: string
+          documento_id: string | null
+          id: string
+          nombre: string | null
+          reglamento_referencia: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          nombre?: string | null
+          reglamento_referencia?: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          nombre?: string | null
+          reglamento_referencia?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_organos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_organos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_organos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_organos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_organos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_poderes: {
+        Row: {
+          alcance: string | null
+          apoderado_ref: string
+          created_at: string
+          documento_id: string | null
+          id: string
+          inmueble_id: string
+          otorgante_ref: string
+          rechazado_motivo: string | null
+          reunion_id: string
+          tenant_id: string
+          updated_at: string | null
+          validado_at: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          alcance?: string | null
+          apoderado_ref: string
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          inmueble_id: string
+          otorgante_ref: string
+          rechazado_motivo?: string | null
+          reunion_id: string
+          tenant_id: string
+          updated_at?: string | null
+          validado_at?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          alcance?: string | null
+          apoderado_ref?: string
+          created_at?: string
+          documento_id?: string | null
+          id?: string
+          inmueble_id?: string
+          otorgante_ref?: string
+          rechazado_motivo?: string | null
+          reunion_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          validado_at?: string | null
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_poderes_apoderado_ref_fkey"
+            columns: ["apoderado_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_otorgante_ref_fkey"
+            columns: ["otorgante_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_poderes_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_regla_mayoria: {
+        Row: {
+          created_at: string
+          id: string
+          materia_id: number
+          mayoria_pct: number
+          quorum_minimo_pct: number
+          reglamento_referencia: string | null
+          tenant_id: string
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          materia_id: number
+          mayoria_pct: number
+          quorum_minimo_pct: number
+          reglamento_referencia?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          materia_id?: number
+          mayoria_pct?: number
+          quorum_minimo_pct?: number
+          reglamento_referencia?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_regla_mayoria_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_materia_decision"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_regla_mayoria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_regla_mayoria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_reuniones: {
+        Row: {
+          cancelada_motivo: string | null
+          cerrada_at: string | null
+          coeficiente_set_id: string | null
+          convocatoria_antecedente_id: string | null
+          convocatoria_regimen: Database["public"]["Enums"]["reunion_convocatoria_t"]
+          created_at: string
+          estado: Database["public"]["Enums"]["reunion_estado_t"]
+          fecha_hora: string
+          id: string
+          instalada_at: string | null
+          lugar: string | null
+          medio: string | null
+          modalidad: Database["public"]["Enums"]["reunion_modalidad_t"]
+          organo_id: string
+          presidente_miembro_id: string | null
+          secretario_miembro_id: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          cancelada_motivo?: string | null
+          cerrada_at?: string | null
+          coeficiente_set_id?: string | null
+          convocatoria_antecedente_id?: string | null
+          convocatoria_regimen: Database["public"]["Enums"]["reunion_convocatoria_t"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["reunion_estado_t"]
+          fecha_hora: string
+          id?: string
+          instalada_at?: string | null
+          lugar?: string | null
+          medio?: string | null
+          modalidad: Database["public"]["Enums"]["reunion_modalidad_t"]
+          organo_id: string
+          presidente_miembro_id?: string | null
+          secretario_miembro_id?: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          cancelada_motivo?: string | null
+          cerrada_at?: string | null
+          coeficiente_set_id?: string | null
+          convocatoria_antecedente_id?: string | null
+          convocatoria_regimen?: Database["public"]["Enums"]["reunion_convocatoria_t"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["reunion_estado_t"]
+          fecha_hora?: string
+          id?: string
+          instalada_at?: string | null
+          lugar?: string | null
+          medio?: string | null
+          modalidad?: Database["public"]["Enums"]["reunion_modalidad_t"]
+          organo_id?: string
+          presidente_miembro_id?: string | null
+          secretario_miembro_id?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_reuniones_coeficiente_set_id_fkey"
+            columns: ["coeficiente_set_id"]
+            isOneToOne: false
+            referencedRelation: "coeficiente_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_convocatoria_antecedente_id_fkey"
+            columns: ["convocatoria_antecedente_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_organos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_presidente_miembro_id_fkey"
+            columns: ["presidente_miembro_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_miembros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_secretario_miembro_id_fkey"
+            columns: ["secretario_miembro_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_miembros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_reuniones_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_votaciones: {
+        Row: {
+          abierta_at: string
+          agenda_punto_id: string | null
+          anulada_motivo: string | null
+          cerrada_at: string | null
+          coeficiente_abstencion: number | null
+          coeficiente_contra: number | null
+          coeficiente_favor: number | null
+          coeficiente_representado: number | null
+          coeficiente_total: number | null
+          created_at: string
+          estado: Database["public"]["Enums"]["votacion_estado_t"]
+          id: string
+          materia_id: number
+          metodo: Database["public"]["Enums"]["votacion_metodo_t"]
+          pregunta: string
+          regla_aplicada: Json | null
+          resultado: Database["public"]["Enums"]["votacion_resultado_t"] | null
+          reunion_id: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          abierta_at?: string
+          agenda_punto_id?: string | null
+          anulada_motivo?: string | null
+          cerrada_at?: string | null
+          coeficiente_abstencion?: number | null
+          coeficiente_contra?: number | null
+          coeficiente_favor?: number | null
+          coeficiente_representado?: number | null
+          coeficiente_total?: number | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["votacion_estado_t"]
+          id?: string
+          materia_id: number
+          metodo?: Database["public"]["Enums"]["votacion_metodo_t"]
+          pregunta: string
+          regla_aplicada?: Json | null
+          resultado?: Database["public"]["Enums"]["votacion_resultado_t"] | null
+          reunion_id: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          abierta_at?: string
+          agenda_punto_id?: string | null
+          anulada_motivo?: string | null
+          cerrada_at?: string | null
+          coeficiente_abstencion?: number | null
+          coeficiente_contra?: number | null
+          coeficiente_favor?: number | null
+          coeficiente_representado?: number | null
+          coeficiente_total?: number | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["votacion_estado_t"]
+          id?: string
+          materia_id?: number
+          metodo?: Database["public"]["Enums"]["votacion_metodo_t"]
+          pregunta?: string
+          regla_aplicada?: Json | null
+          resultado?: Database["public"]["Enums"]["votacion_resultado_t"] | null
+          reunion_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_votaciones_agenda_punto_id_fkey"
+            columns: ["agenda_punto_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_agenda_puntos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votaciones_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_materia_decision"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votaciones_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_votos: {
+        Row: {
+          asistencia_id: string
+          coeficiente: number
+          emitido_at: string
+          id: string
+          opcion_texto: string | null
+          sentido: Database["public"]["Enums"]["votacion_sentido_t"] | null
+          tenant_id: string
+          votacion_id: string
+        }
+        Insert: {
+          asistencia_id: string
+          coeficiente: number
+          emitido_at?: string
+          id?: string
+          opcion_texto?: string | null
+          sentido?: Database["public"]["Enums"]["votacion_sentido_t"] | null
+          tenant_id: string
+          votacion_id: string
+        }
+        Update: {
+          asistencia_id?: string
+          coeficiente?: number
+          emitido_at?: string
+          id?: string
+          opcion_texto?: string | null
+          sentido?: Database["public"]["Enums"]["votacion_sentido_t"] | null
+          tenant_id?: string
+          votacion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_votos_asistencia_id_fkey"
+            columns: ["asistencia_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_asistencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_votos_votacion_id_fkey"
+            columns: ["votacion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_votaciones"
             referencedColumns: ["id"]
           },
         ]
@@ -13731,6 +15820,33 @@ export type Database = {
         Returns: undefined
       }
       current_tenant_id: { Args: never; Returns: string }
+      finanzas_factura_descomposicion: {
+        Args: { p_ejecucion_id: string }
+        Returns: {
+          credito: number
+          cuenta_id: string
+          debito: number
+          descripcion: string
+        }[]
+      }
+      finanzas_facturas_pagables: {
+        Args: {
+          p_hasta: string
+          p_solo_vencidas?: boolean
+          p_tenant_id: string
+        }
+        Returns: {
+          contrato_id: string
+          dias_vencido: number
+          factura_id: string
+          fecha_emision: string
+          fecha_vencimiento: string
+          numero_documento: string
+          proveedor_nombre: string
+          total_neto_pagar: number
+          ya_en_lote: boolean
+        }[]
+      }
       finanzas_posicion_tesoreria: {
         Args: { p_fecha?: string; p_tenant_id: string }
         Returns: {
@@ -13992,6 +16108,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_coeficiente_set_vigente: {
+        Args: { p_fecha: string; p_tenant_id: string }
+        Returns: string
+      }
       fn_compilar_expediente: {
         Args: {
           p_fecha_corte: string
@@ -14114,6 +16234,226 @@ export type Database = {
           mes: string
         }[]
       }
+      fn_finanzas_anular_lote: {
+        Args: { p_lote_id: string; p_motivo: string }
+        Returns: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          cantidad_pagos: number
+          creado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          descripcion: string | null
+          ejecutado_at: string | null
+          ejecutado_por: string | null
+          estado: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          fondo_id: string | null
+          id: string
+          justificacion: string | null
+          monto_total: number
+          numero: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_lotes_pago"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_aprobar_factura: {
+        Args: { p_factura_id: string }
+        Returns: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          centro_costo_id: number | null
+          concepto_gasto: string | null
+          contrato_id: string | null
+          creado_por: string | null
+          created_at: string
+          documento_soporte_id: string | null
+          estado: Database["public"]["Enums"]["factura_estado_t"]
+          fecha_emision: string
+          fecha_vencimiento: string
+          id: string
+          iva_descontable: number
+          iva_generado: number
+          motivo_disputa: string | null
+          motivo_rechazo: string | null
+          numero_documento: string
+          observaciones: string | null
+          presupuesto_cuenta_id: string | null
+          presupuesto_ejecucion_id: string | null
+          proveedor_id: string
+          subtotal: number
+          tenant_id: string
+          total_bruto: number
+          total_neto_pagar: number
+          total_retenciones: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_facturas_proveedor"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_aprobar_lote: {
+        Args: { p_justificacion?: string; p_lote_id: string }
+        Returns: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          cantidad_pagos: number
+          creado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          descripcion: string | null
+          ejecutado_at: string | null
+          ejecutado_por: string | null
+          estado: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          fondo_id: string | null
+          id: string
+          justificacion: string | null
+          monto_total: number
+          numero: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_lotes_pago"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_conciliar_lote: {
+        Args: { p_extracto_linea_id: string; p_lote_id: string }
+        Returns: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          cantidad_pagos: number
+          creado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          descripcion: string | null
+          ejecutado_at: string | null
+          ejecutado_por: string | null
+          estado: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          fondo_id: string | null
+          id: string
+          justificacion: string | null
+          monto_total: number
+          numero: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_lotes_pago"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_ejecutar_lote: {
+        Args: { p_fecha_ejecucion?: string; p_lote_id: string }
+        Returns: {
+          anio: number
+          anulado_at: string | null
+          anulado_motivo: string | null
+          anulado_por: string | null
+          aprobado_at: string | null
+          aprobado_por: string | null
+          cantidad_pagos: number
+          creado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          descripcion: string | null
+          ejecutado_at: string | null
+          ejecutado_por: string | null
+          estado: Database["public"]["Enums"]["lote_estado_t"]
+          extracto_linea_id: string | null
+          fecha_ejecucion: string | null
+          fecha_programada: string
+          fondo_id: string | null
+          id: string
+          justificacion: string | null
+          monto_total: number
+          numero: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_lotes_pago"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_lotes_pago_siguiente_numero: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
+      fn_finanzas_politica_aprobacion_lote_vigente: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_politica_aprobacion_lote"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_finanzas_politica_aprobacion_vigente: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          monto_umbral: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finanzas_politica_aprobacion_pago"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_fondo_cerrar: {
         Args: {
           p_decision?: string
@@ -14201,6 +16541,96 @@ export type Database = {
           to: "contable_nota"
           isOneToOne: false
           isSetofReturn: true
+        }
+      }
+      fn_gobierno_actualizar_narrativa: {
+        Args: { p_acta_id: string; p_narrativa: string }
+        Returns: {
+          anio: number
+          contenido_generado: Json
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido: string | null
+          id: string
+          incluye_voto_nominal: boolean
+          narrativa: string | null
+          numero: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at: string | null
+          suscrita_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_actas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_gobierno_registrar_salida: {
+        Args: { p_asistencia_id: string }
+        Returns: {
+          asistente_ref: string
+          calidad: Database["public"]["Enums"]["asistencia_calidad_t"]
+          coeficiente: number
+          id: string
+          ingreso_at: string
+          inmueble_id: string | null
+          modalidad_asistencia: string | null
+          poder_id: string | null
+          reunion_id: string
+          salida_at: string | null
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_asistencia"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_gobierno_siguiente_numero_acta: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
+      fn_gobierno_suscribir_acta: {
+        Args: {
+          p_acta_id: string
+          p_presidente_miembro_id: string
+          p_secretario_miembro_id: string
+        }
+        Returns: {
+          anio: number
+          contenido_generado: Json
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido: string | null
+          id: string
+          incluye_voto_nominal: boolean
+          narrativa: string | null
+          numero: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at: string | null
+          suscrita_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_actas"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       fn_guardar_credencial_pasarela: {
@@ -14763,6 +17193,15 @@ export type Database = {
           saldo_credito: number
         }[]
       }
+      fn_propietario_responsable: {
+        Args: { p_fecha: string; p_inmueble_id: string }
+        Returns: {
+          nombre_completo: string
+          numero_documento: string
+          porcentaje: number
+          tercero_id: string
+        }[]
+      }
       fn_rechazar_novedad: {
         Args: { p_motivo: string; p_novedad_id: string }
         Returns: {
@@ -14891,6 +17330,18 @@ export type Database = {
           tiene_control_automatico: boolean
         }[]
       }
+      fn_tenedores_vigentes: {
+        Args: { p_fecha: string; p_inmueble_id: string }
+        Returns: {
+          nombre_completo: string
+          numero_documento: string
+          persona_rol_id: string
+          rol_codigo: string
+          tercero_id: string
+          vigente_desde: string
+          vigente_hasta: string
+        }[]
+      }
       fn_tipo_division_default: { Args: never; Returns: number }
       fn_toggle_compositor_correo: {
         Args: { p_activo: boolean; p_tenant_id: string }
@@ -14935,6 +17386,82 @@ export type Database = {
           norma: string
         }[]
       }
+      gobierno_es_dia_habil: { Args: { p_fecha: string }; Returns: boolean }
+      gobierno_festivos_colombia: {
+        Args: { p_anio: number }
+        Returns: string[]
+      }
+      gobierno_generar_acta: {
+        Args: { p_reunion_id: string }
+        Returns: {
+          anio: number
+          contenido_generado: Json
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido: string | null
+          id: string
+          incluye_voto_nominal: boolean
+          narrativa: string | null
+          numero: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at: string | null
+          suscrita_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_actas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_obligatoriedad_faltante: {
+        Args: { p_fecha?: string; p_tenant_id: string }
+        Returns: {
+          cumplida: boolean
+          motivo: string
+          obligacion: string
+        }[]
+      }
+      gobierno_organo_competente: {
+        Args: {
+          p_atribucion_codigo: string
+          p_fecha: string
+          p_tenant_id: string
+        }
+        Returns: {
+          organo_id: string
+          organo_tipo_codigo: string
+          origen: Database["public"]["Enums"]["atribucion_origen_t"]
+        }[]
+      }
+      gobierno_pascua: { Args: { p_anio: number }; Returns: string }
+      gobierno_quorum: {
+        Args: { p_momento: string; p_reunion_id: string }
+        Returns: {
+          coeficiente_presente: number
+          coeficiente_total: number
+          hay_pluralidad: boolean
+          pct_presente: number
+          propietarios_presentes: number
+          quorum_deliberatorio: boolean
+        }[]
+      }
+      gobierno_reunion_coeficiente_actual: {
+        Args: { p_reunion_id: string }
+        Returns: number
+      }
+      gobierno_sumar_dias_habiles: {
+        Args: { p_dias: number; p_fecha: string }
+        Returns: string
+      }
+      gobierno_trasladar_lunes: { Args: { p_fecha: string }; Returns: string }
       has_role: {
         Args: {
           p_roles: Database["public"]["Enums"]["tenant_role_t"][]
@@ -15296,6 +17823,7 @@ export type Database = {
       }
     }
     Enums: {
+      acta_estado_t: "borrador" | "en_verificacion" | "suscrita" | "publicada"
       activo_estado_t:
         | "planificado"
         | "adquirido"
@@ -15316,7 +17844,10 @@ export type Database = {
         | "donado"
         | "reposicion"
       alcance_accion_cobranza_t: "inmueble" | "cargo"
+      asistencia_calidad_t: "propietario" | "apoderado" | "invitado" | "organo"
+      atribucion_origen_t: "ley" | "reglamento"
       atributo_tipo_dato_t: "numero" | "texto" | "booleano" | "fecha" | "opcion"
+      base_calculo_t: "coeficientes_representados" | "coeficientes_totales"
       canal_cobranza_t:
         | "email"
         | "sms"
@@ -15429,6 +17960,16 @@ export type Database = {
         | "juridica"
         | "judicial"
       extracto_origen_t: "banco" | "pasarela" | "datafono"
+      factura_estado_t:
+        | "borrador"
+        | "registrada"
+        | "en_revision"
+        | "en_disputa"
+        | "aprobada"
+        | "programada"
+        | "pagada_parcial"
+        | "pagada"
+        | "anulada"
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_compromiso_estado_t:
         | "proyectado"
@@ -15507,6 +18048,13 @@ export type Database = {
         | "descartada"
         | "anulada"
         | "fallida"
+      lote_estado_t:
+        | "borrador"
+        | "programado"
+        | "aprobado"
+        | "ejecutado"
+        | "conciliado"
+        | "anulado"
       mant_habilitacion_condicion_t:
         | "categoria_activo"
         | "tipo_mantenimiento"
@@ -15514,6 +18062,7 @@ export type Database = {
         | "parada_servicio"
         | "monto_minimo"
       marco_contable_grupo_t: "grupo_2" | "grupo_3"
+      mayoria_tipo_t: "ordinaria" | "calificada_70" | "unanimidad"
       member_status_t: "active" | "revoked"
       nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
       novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
@@ -15571,6 +18120,12 @@ export type Database = {
         | "rechazo_deudor"
         | "datos_incorrectos"
         | "no_aplica"
+      reunion_convocatoria_t:
+        | "primera"
+        | "segunda"
+        | "universal_sin_convocatoria"
+      reunion_estado_t: "convocada" | "instalada" | "cerrada" | "cancelada"
+      reunion_modalidad_t: "presencial" | "no_presencial" | "mixta"
       tarea_estado_t: "pendiente" | "ejecutada" | "no_aplica"
       tenant_role_t: "auxiliar" | "auditor" | "administrador"
       tenant_status_t: "active" | "suspended" | "deleted"
@@ -15633,6 +18188,10 @@ export type Database = {
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
+      votacion_estado_t: "abierta" | "cerrada" | "anulada"
+      votacion_metodo_t: "si_no_abstencion" | "opciones" | "eleccion"
+      votacion_resultado_t: "aprobada" | "rechazada" | "sin_quorum"
+      votacion_sentido_t: "favor" | "contra" | "abstencion"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15763,6 +18322,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      acta_estado_t: ["borrador", "en_verificacion", "suscrita", "publicada"],
       activo_estado_t: [
         "planificado",
         "adquirido",
@@ -15786,7 +18346,10 @@ export const Constants = {
         "reposicion",
       ],
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
+      asistencia_calidad_t: ["propietario", "apoderado", "invitado", "organo"],
+      atribucion_origen_t: ["ley", "reglamento"],
       atributo_tipo_dato_t: ["numero", "texto", "booleano", "fecha", "opcion"],
+      base_calculo_t: ["coeficientes_representados", "coeficientes_totales"],
       canal_cobranza_t: [
         "email",
         "sms",
@@ -15916,6 +18479,17 @@ export const Constants = {
         "judicial",
       ],
       extracto_origen_t: ["banco", "pasarela", "datafono"],
+      factura_estado_t: [
+        "borrador",
+        "registrada",
+        "en_revision",
+        "en_disputa",
+        "aprobada",
+        "programada",
+        "pagada_parcial",
+        "pagada",
+        "anulada",
+      ],
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_compromiso_estado_t: [
         "proyectado",
@@ -16005,6 +18579,14 @@ export const Constants = {
         "anulada",
         "fallida",
       ],
+      lote_estado_t: [
+        "borrador",
+        "programado",
+        "aprobado",
+        "ejecutado",
+        "conciliado",
+        "anulado",
+      ],
       mant_habilitacion_condicion_t: [
         "categoria_activo",
         "tipo_mantenimiento",
@@ -16013,6 +18595,7 @@ export const Constants = {
         "monto_minimo",
       ],
       marco_contable_grupo_t: ["grupo_2", "grupo_3"],
+      mayoria_tipo_t: ["ordinaria", "calificada_70", "unanimidad"],
       member_status_t: ["active", "revoked"],
       nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
       novedad_estado_t: ["pendiente", "aprobada", "rechazada"],
@@ -16075,6 +18658,13 @@ export const Constants = {
         "datos_incorrectos",
         "no_aplica",
       ],
+      reunion_convocatoria_t: [
+        "primera",
+        "segunda",
+        "universal_sin_convocatoria",
+      ],
+      reunion_estado_t: ["convocada", "instalada", "cerrada", "cancelada"],
+      reunion_modalidad_t: ["presencial", "no_presencial", "mixta"],
       tarea_estado_t: ["pendiente", "ejecutada", "no_aplica"],
       tenant_role_t: ["auxiliar", "auditor", "administrador"],
       tenant_status_t: ["active", "suspended", "deleted"],
@@ -16140,6 +18730,10 @@ export const Constants = {
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
+      votacion_estado_t: ["abierta", "cerrada", "anulada"],
+      votacion_metodo_t: ["si_no_abstencion", "opciones", "eleccion"],
+      votacion_resultado_t: ["aprobada", "rechazada", "sin_quorum"],
+      votacion_sentido_t: ["favor", "contra", "abstencion"],
     },
   },
 } as const

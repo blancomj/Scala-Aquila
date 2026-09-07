@@ -18,6 +18,11 @@ const error = ref<string | null>(null)
 const guardando = ref<string | null>(null)
 const busqueda = ref('')
 const soloSinMapear = ref(false)
+const pestanaActiva = ref<'partidas' | 'eventos'>('partidas')
+const PESTANAS = [
+  { label: 'Partidas del presupuesto', value: 'partidas' as const },
+  { label: 'Cuentas predeterminadas por evento', value: 'eventos' as const },
+]
 
 async function recargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -160,38 +165,48 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
       </template>
     </UAlert>
 
+    <div class="flex items-center gap-2 flex-wrap">
+      <UInput
+        v-if="pestanaActiva === 'partidas'"
+        v-model="busqueda"
+        icon="i-lucide-search"
+        placeholder="Buscar partida…"
+        class="w-64"
+        :ui="{ trailing: 'pr-8' }"
+      >
+        <template v-if="busqueda" #trailing>
+          <button
+            type="button"
+            class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            @click="busqueda = ''"
+          >
+            <UIcon name="i-lucide-x" class="size-3.5" />
+          </button>
+        </template>
+      </UInput>
+      <UCheckbox
+        v-if="pestanaActiva === 'partidas'"
+        v-model="soloSinMapear"
+        label="Solo sin mapear"
+      />
+    </div>
+
+    <UTabs
+      :items="PESTANAS" :model-value="pestanaActiva" variant="link" :content="false" class="w-full"
+      @update:model-value="(v) => (pestanaActiva = v as typeof pestanaActiva)"
+    />
+
     <!-- ══════ Partidas presupuestales ══════ -->
-    <section class="space-y-3">
+    <section v-if="pestanaActiva === 'partidas'" class="space-y-3">
       <div class="flex items-center gap-2 flex-wrap">
-        <h2 class="text-sm font-semibold">Partidas del presupuesto</h2>
         <UBadge v-if="sinMapear > 0" color="warning" variant="subtle" size="xs">
           {{ sinMapear }} sin mapear
         </UBadge>
-        <div class="flex-1" />
-        <UInput
-          v-model="busqueda"
-          icon="i-lucide-search"
-          placeholder="Buscar partida…"
-          class="w-64"
-          :ui="{ trailing: 'pr-8' }"
-        >
-          <template v-if="busqueda" #trailing>
-            <button
-              type="button"
-              class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-              @click="busqueda = ''"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </button>
-          </template>
-        </UInput>
-        <UCheckbox v-model="soloSinMapear" label="Solo sin mapear" />
+        <p class="text-xs text-muted">
+          Varias partidas pueden apuntar a la misma cuenta contable — el detalle que las separa
+          (torre, centro de costo) viaja como dimensión del movimiento, no como cuenta distinta.
+        </p>
       </div>
-
-      <p class="text-xs text-muted">
-        Varias partidas pueden apuntar a la misma cuenta contable — el detalle que las separa
-        (torre, centro de costo) viaja como dimensión del movimiento, no como cuenta distinta.
-      </p>
 
       <UiTabla
         :columnas="[
@@ -230,16 +245,11 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
     </section>
 
     <!-- ══════ Eventos ══════ -->
-    <section class="space-y-3">
-      <UiTituloDescripcion clase-descripcion="text-xs text-muted mt-1">
-        <template #titulo>
-          <h2 class="text-sm font-semibold">Cuentas predeterminadas por evento</h2>
-        </template>
-        <template #descripcion>
-          Lo que no nace del árbol presupuestal: la cartera que se debita al causar una cuota, el
-          banco donde entra un recaudo, la cuenta por pagar de un gasto pendiente.
-        </template>
-      </UiTituloDescripcion>
+    <section v-else class="space-y-3">
+      <p class="text-xs text-muted">
+        Lo que no nace del árbol presupuestal: la cartera que se debita al causar una cuota, el
+        banco donde entra un recaudo, la cuenta por pagar de un gasto pendiente.
+      </p>
 
       <UiTabla
         :columnas="[
