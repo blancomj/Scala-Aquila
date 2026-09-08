@@ -29,6 +29,10 @@ blob-report/
 # herramientas locales de agentes
 .impeccable/
 
+# snippets del SQL Editor de Supabase Studio local (2026-09-07) — se
+# regeneran solos al usar la GUI local, ruido de máquina, no del repo.
+supabase/snippets/
+
 # editor / SO
 .DS_Store
 Thumbs.db

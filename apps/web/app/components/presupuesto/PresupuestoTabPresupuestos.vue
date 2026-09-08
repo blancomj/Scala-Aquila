@@ -7,6 +7,8 @@
 //
 // Estado como badge de color (mockup "Libro Presupuestal"): "vigente" en
 // gris plano no comunica nada por sí solo — ver utils/presupuesto-labels.ts.
+import type { Database } from '@aquila/shared'
+
 defineProps<{ presupuestoId: string | null }>()
 const emit = defineEmits<{ 'update:presupuestoId': [id: string] }>()
 
@@ -29,7 +31,16 @@ const vigenteHastaActivar = ref(hoyISO)
 const archivoActaActivar = ref<File | null>(null)
 const errorArchivoActa = ref<string | null>(null)
 
-function pedirConfirmacionActivar(fila: { id: string; anio: number; version: number }): void {
+// GOB-5 §4.5: la aprobación puede respaldarse en una decisión de gobierno (FK) o en el texto
+// libre histórico — nunca ambos (PRESUPUESTO_ORIGEN_APROBACION_DUPLICADO). Si la copropiedad no
+// tiene ninguna decisión 'vigente' todavía, se fuerza texto libre — no tiene sentido ofrecer un
+// selector vacío.
+type DecisionOpcion = { id: string; numero: number; anio: number; titulo: string }
+const decisionesVigentes = ref<DecisionOpcion[]>([])
+const origenAprobacion = ref<'decision' | 'texto_libre'>('texto_libre')
+const decisionIdActivar = ref<string | null>(null)
+
+async function pedirConfirmacionActivar(fila: { id: string; anio: number; version: number }): Promise<void> {
   presupuestoAActivar.value = fila
   fechaAprobacionActivar.value = hoyISO
   vigenteDesdeActivar.value = hoyISO
@@ -39,6 +50,17 @@ function pedirConfirmacionActivar(fila: { id: string; anio: number; version: num
   vigenteHastaActivar.value = `${fila.anio}-12-31`
   archivoActaActivar.value = null
   errorArchivoActa.value = null
+  decisionIdActivar.value = null
+
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) {
+    const cliente = useSupabaseClient<Database>()
+    const { data } = await cliente
+      .from('gobierno_decisiones').select('id, numero, anio, titulo').eq('tenant_id', tenantId).eq('estado', 'vigente')
+      .order('anio', { ascending: false }).order('numero', { ascending: false })
+    decisionesVigentes.value = data ?? []
+  }
+  origenAprobacion.value = decisionesVigentes.value.length > 0 ? 'decision' : 'texto_libre'
 }
 
 function elegirArchivoActa(evento: Event): void {
@@ -75,7 +97,11 @@ async function confirmarActivarPresupuesto(): Promise<void> {
     errorActivar.value = '"Vigente hasta" no puede ser anterior a "Vigente desde".'
     return
   }
-  if (!archivoActaActivar.value) {
+  if (origenAprobacion.value === 'decision' && !decisionIdActivar.value) {
+    errorActivar.value = 'Selecciona la decisión de gobierno que aprobó este presupuesto.'
+    return
+  }
+  if (origenAprobacion.value === 'texto_libre' && !archivoActaActivar.value) {
     errorActivar.value = 'Adjunta el acta de asamblea que respalda la aprobación.'
     return
   }
@@ -84,23 +110,27 @@ async function confirmarActivarPresupuesto(): Promise<void> {
 
   activandoId.value = fila.id
   try {
-    const tiposDocumento = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
-    const tipoActaId = tiposDocumento.find((t) => t.codigo === 'acta_presupuesto')?.id
-    if (!tipoActaId) throw new Error('No se encontró el tipo de documento "Acta de presupuesto".')
+    let descripcionActaLibre: string | null = null
+    if (origenAprobacion.value === 'texto_libre' && archivoActaActivar.value) {
+      const tiposDocumento = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
+      const tipoActaId = tiposDocumento.find((t) => t.codigo === 'acta_presupuesto')?.id
+      if (!tipoActaId) throw new Error('No se encontró el tipo de documento "Acta de presupuesto".')
 
-    const descripcion = `Acta de presupuesto ${fila.anio}`
-    await documentosStore.subirDocumento({
-      tenantId,
-      inmuebleId: null,
-      tipoDocumentoId: tipoActaId,
-      archivo: archivoActaActivar.value,
-      descripcion,
-    })
+      descripcionActaLibre = `Acta de presupuesto ${fila.anio}`
+      await documentosStore.subirDocumento({
+        tenantId,
+        inmuebleId: null,
+        tipoDocumentoId: tipoActaId,
+        archivo: archivoActaActivar.value,
+        descripcion: descripcionActaLibre,
+      })
+    }
     await presupuestoStore.activarPresupuesto(fila.id, tenantId, {
       fechaAprobacion: fechaAprobacionActivar.value,
       vigenteDesde: vigenteDesdeActivar.value,
       vigenteHasta: vigenteHastaActivar.value,
-      actaAsamblea: descripcion,
+      actaAsamblea: origenAprobacion.value === 'texto_libre' ? descripcionActaLibre : null,
+      decisionId: origenAprobacion.value === 'decision' ? decisionIdActivar.value : null,
     })
     presupuestoAActivar.value = null
     emit('update:presupuestoId', fila.id)
@@ -167,7 +197,10 @@ function onCreado(id: string): void {
         <span class="text-neutral-500">{{ fila.fecha_aprobacion ?? '—' }}</span>
       </template>
       <template #celda-acta="{ fila }">
-        <span class="text-neutral-500">{{ fila.acta_asamblea ?? '—' }}</span>
+        <NuxtLink v-if="fila.decision_id" :to="`/gobierno/decisiones/${fila.decision_id}`" class="text-primary hover:underline">
+          Decisión de gobierno →
+        </NuxtLink>
+        <span v-else class="text-neutral-500">{{ fila.acta_asamblea ?? '—' }}</span>
       </template>
       <template #celda-acciones="{ fila }">
         <UButton
@@ -221,6 +254,35 @@ function onCreado(id: string): void {
           </div>
 
           <UFormField
+            v-if="decisionesVigentes.length > 0"
+            label="Respaldo de la aprobación"
+            name="origen_aprobacion"
+            help="GOB-5: si la copropiedad usa el módulo de gobierno, respalda la aprobación con la decisión de asamblea en vez de texto libre."
+          >
+            <URadioGroup
+              v-model="origenAprobacion"
+              :items="[
+                { label: 'Decisión de gobierno', value: 'decision' },
+                { label: 'Texto libre (acta de asamblea)', value: 'texto_libre' },
+              ]"
+            />
+          </UFormField>
+
+          <UFormField
+            v-if="origenAprobacion === 'decision'"
+            label="Decisión de asamblea"
+            name="decision_id"
+            help="Ley 675/2001, art. 51 — la decisión que aprobó este presupuesto."
+          >
+            <UiSelectorBuscable
+              v-model="decisionIdActivar"
+              :opciones="decisionesVigentes.map((d) => ({ valor: d.id, etiqueta: `${d.numero}/${d.anio} · ${d.titulo}` }))"
+              placeholder="Selecciona la decisión"
+            />
+          </UFormField>
+
+          <UFormField
+            v-else
             label="Acta de asamblea"
             name="acta_asamblea"
             help="Respaldo de la aprobación (Ley 675/2001, art. 47) — queda en Documentos de la copropiedad."

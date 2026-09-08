@@ -3,6 +3,12 @@
 // muestra mayoría/base/restricciones ANTES de abrir, registro de votos con coeficiente acumulado
 // en tiempo real, y resultado desglosado citando la regla aplicada. No implementa envío de
 // convocatoria ni edición de asistencia (GOB-2, en la página hermana [id]/index.vue).
+//
+// GOB-5: una votación cerrada y aprobada puede formalizarse en una decisión — "Crear decisión"
+// consulta primero si ya existe (gobierno_decisiones.votacion_id es unique) para no ofrecer
+// crear una segunda.
+import type { Database } from '@aquila/shared'
+
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
 const route = useRoute()
@@ -11,6 +17,7 @@ const tenantStore = useTenantStore()
 const reunionesStore = useGobiernoReunionesStore()
 const votacionesStore = useGobiernoVotacionesStore()
 
+const decisionesStore = useGobiernoDecisionesStore()
 const reunion = computed(() => reunionesStore.reuniones.find((r) => r.id === reunionId))
 const error = ref<string | null>(null)
 
@@ -128,13 +135,32 @@ async function guardarVotacion(): Promise<void> {
 // ── Detalle de una votación ──────────────────────────────────────────────
 const votacionSeleccionadaId = ref<string | null>(null)
 const votacionSeleccionada = computed(() => votacionesStore.votaciones.find((v) => v.id === votacionSeleccionadaId.value) ?? null)
+const decisionDeVotacion = ref<{ id: string; numero: number; anio: number } | null>(null)
 async function seleccionarVotacion(id: string): Promise<void> {
   votacionSeleccionadaId.value = id
   error.value = null
+  decisionDeVotacion.value = null
   try {
     await votacionesStore.cargarVotos(id)
+    const cliente = useSupabaseClient<Database>()
+    const { data } = await cliente
+      .from('gobierno_decisiones').select('id, numero, anio').eq('votacion_id', id).maybeSingle()
+    decisionDeVotacion.value = data
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudieron cargar los votos.')
+  }
+}
+
+async function crearDecisionDesdeVotacion(): Promise<void> {
+  if (!votacionSeleccionada.value) return
+  error.value = null
+  try {
+    const decision = await decisionesStore.crearDecision({
+      votacionId: votacionSeleccionada.value.id, titulo: votacionSeleccionada.value.pregunta,
+    })
+    await navigateTo(`/gobierno/decisiones/${decision.id}`)
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo crear la decisión.')
   }
 }
 
@@ -362,6 +388,17 @@ function reglaAplicada(votacion: NonNullable<typeof votacionSeleccionada.value>)
                 — {{ reglaAplicada(votacionSeleccionada)!.reglamento_referencia }}
               </span>
             </p>
+            <div v-if="votacionSeleccionada.resultado === 'aprobada'" class="pt-2 border-t border-default">
+              <NuxtLink
+                v-if="decisionDeVotacion" :to="`/gobierno/decisiones/${decisionDeVotacion.id}`"
+                class="text-sm text-primary hover:underline"
+              >
+                Ver decisión {{ decisionDeVotacion.numero }}/{{ decisionDeVotacion.anio }} →
+              </NuxtLink>
+              <UButton v-else size="sm" :loading="decisionesStore.guardando" @click="crearDecisionDesdeVotacion()">
+                Crear decisión (GOB-5)
+              </UButton>
+            </div>
           </template>
 
           <p v-else class="text-sm text-muted">Anulada: {{ votacionSeleccionada.anulada_motivo }}</p>

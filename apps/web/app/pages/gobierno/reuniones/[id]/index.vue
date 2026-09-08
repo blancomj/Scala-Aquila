@@ -20,6 +20,8 @@ const reunion = computed(() => reunionesStore.reuniones.find((r) => r.id === reu
 const miembrosOrgano = ref<(MiembroRow & { rol: { codigo: string; nombre: string } | null })[]>([])
 const inmuebles = ref<InmuebleOpcion[]>([])
 const tiposAtribucion = ref<ListaTipoRow[]>([])
+const actasStore = useGobiernoActasStore()
+const actaId = ref<string | null>(null)
 
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -39,6 +41,22 @@ async function cargar(): Promise<void> {
   miembrosOrgano.value = (miembrosFilas ?? []) as (MiembroRow & { rol: { codigo: string; nombre: string } | null })[]
   inmuebles.value = inmueblesFilas ?? []
   tiposAtribucion.value = tiposAtribucionFilas
+  if (reunion.value?.estado === 'cerrada') {
+    actaId.value = await actasStore.idPorReunion(reunionId)
+  }
+}
+async function irAActa(): Promise<void> {
+  if (!actaId.value) {
+    error.value = null
+    try {
+      const acta = await actasStore.generarActa(reunionId)
+      actaId.value = acta.id
+    } catch (excepcion) {
+      error.value = mensajeError(excepcion, 'No se pudo generar el acta.')
+      return
+    }
+  }
+  await navigateTo(`/gobierno/actas/${actaId.value}`)
 }
 onMounted(cargar)
 onUnmounted(() => reunionesStore.limpiarDetalle())
@@ -272,6 +290,12 @@ async function validarPoder(id: string): Promise<void> {
             :to="`/gobierno/reuniones/${reunionId}/votaciones`"
           >
             Quórum y votación
+          </UButton>
+          <UButton
+            v-if="reunion.estado === 'cerrada'" size="sm" variant="soft" icon="i-lucide-file-text"
+            :loading="actasStore.guardando" @click="irAActa()"
+          >
+            {{ actaId ? 'Ver acta' : 'Generar acta' }}
           </UButton>
           <UBadge :color="estadoColor[reunion.estado] ?? 'neutral'" variant="soft" size="lg">{{ reunion.estado }}</UBadge>
         </div>

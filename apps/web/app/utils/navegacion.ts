@@ -71,6 +71,16 @@ export const NAV_ICONOS = {
   reunionesGobierno: 'M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM21 20v-2a3 3 0 0 0-2-2.83M16 3.13a3 3 0 0 1 0 5.74',
   // Círculo con signo de interrogación: centro de ayuda.
   ayuda: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.7M12 17h.01',
+  // Círculo con check: una decisión con efecto ya adoptado (GOB-5).
+  decisionesGobierno: 'M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  // Lista con checks: seguimiento de compromisos por responsable (GOB-5).
+  compromisosGobierno: 'M9 6h11M9 12h11M9 18h11M4 5.5l1 1 2-2M4 11.5l1 1 2-2M4 17.5l1 1 2-2',
+  // Escudo con signo de interrogación: impugnación de decisiones y sanciones (GOB-7).
+  impugnacionGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8.5v3.25M12 15.25h.01',
+  // Globo de mensaje: atención al propietario/residente y consulta sin sesión (GOB-8).
+  atencionGobierno: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10ZM8 9h8M8 12.5h5',
+  // Escudo con signo de alerta: expedientes de convivencia y régimen sancionatorio (GOB-6).
+  convivenciaGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8v5M12 16h.01',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -456,6 +466,36 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/gobierno/reuniones',
         permiso: 'data:read',
         icono: NAV_ICONOS.reunionesGobierno,
+      },
+      {
+        label: 'Decisiones',
+        to: '/gobierno/decisiones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.decisionesGobierno,
+      },
+      {
+        label: 'Compromisos',
+        to: '/gobierno/compromisos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.compromisosGobierno,
+      },
+      {
+        label: 'Convivencia y sanciones',
+        to: '/gobierno/convivencia',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.convivenciaGobierno,
+      },
+      {
+        label: 'Impugnaciones',
+        to: '/gobierno/impugnaciones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.impugnacionGobierno,
+      },
+      {
+        label: 'Atención al propietario',
+        to: '/atencion',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.atencionGobierno,
       },
     ],
   },

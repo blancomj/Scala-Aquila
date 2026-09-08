@@ -3305,3 +3305,446 @@ verdes (primera corrida 64/65 por el hallazgo de `ASISTENCIA_INEXISTENTE`, corre
 reconfirmado). Verificación manual en navegador contra JARDINES DE BABILONIA, sobre una reunión real
 de Consejo de Administración — confirma en vivo la rama de conteo por miembros (art. 54), el panel
 de quórum, el registro de votos en tiempo real y el resultado desglosado citando la regla aplicada.
+
+## D-64
+
+GOB-4 (acta) — motor de días hábiles colombianos genuinamente nuevo (Ley 51 de 1983, "Ley
+Emiliani"), el consecutivo del acta se asigna solo al suscribir (nunca al generar el borrador),
+segregación de funciones confirmada (suscribir exige administrador), y una tabla nueva
+(`gobierno_acta_entregas`) no listada explícitamente en el §4.1 del propio corte pero exigida por
+su §4.5
+
+**Motor de días hábiles**: búsqueda previa (grep en todo el repositorio) confirmó que no existía
+ninguna función de días hábiles/festivos — el propio corte lo advertía explícitamente ("implementa
+el plazo con una función de días hábiles explícita y probada, no con una resta de días
+naturales"). Se implementó la Ley 51 de 1983 completa: `gobierno_pascua()` (algoritmo de
+Meeus/Jones/Butcher — aritmética de calendario gregoriano estándar, no un hecho legal que
+requiera fuente primaria) da la base para jueves/viernes santo (nunca se trasladan) y
+Ascensión/Corpus Christi/Sagrado Corazón (+39/+60/+68 días desde Pascua, sí se trasladan al lunes
+siguiente si no caen en lunes). De los 18 festivos totales, 6 son de fecha fija y nunca se
+trasladan, 2 son de Semana Santa y tampoco se trasladan, y 10 (7 de fecha fija + los 3 basados en
+Pascua) sí se trasladan — texto de la Ley 51 verificado cruzando 3+ fuentes secundarias
+(`revistapropiedadhorizontal.com`, `actualicese.com`, `contodapropiedad.com`,
+`copropiedades.com.co`; WebFetch directo contra `funcionpublica.gov.co`/`alcaldiabogota.gov.co`
+volvió a fallar por TLS, mismo problema documentado en CO-1/MANT-0/GOB-2/GOB-3). El algoritmo se
+verificó de forma independiente ANTES de escribir ninguna prueba: `gobierno_pascua(2026)` = 5 de
+abril, y `gobierno_festivos_colombia(2026)` reproduce exactamente las 18 fechas de 2026 (incluidas
+Ascensión 18 mayo, Corpus Christi 8 junio, Sagrado Corazón 15 junio) que dan calendarios de
+referencia independientes — la prueba 10 de `tests/gobierno/acta.test.ts` usa un caso real que
+cruza San José (trasladado) y Semana Santa 2026.
+
+**El consecutivo del acta (`numero`) se asigna SOLO al suscribir** (`fn_gobierno_suscribir_acta`),
+nunca al generar el borrador (`gobierno_generar_acta`) — mismo principio ya establecido por
+`fn_contabilizar_comprobante` (CO-2, verificado por grep: el número se asigna ahí, no al crear el
+comprobante en borrador). Esto resuelve la prueba 9 ("generar 5, descartar 2, suscribir 3 →
+números 1, 2, 3") sin ninguna lógica especial: los 2 borradores descartados nunca ocuparon un
+número porque nunca se suscribieron. `gobierno_actas` no tiene policy insert/update para
+`authenticated` — toda escritura pasa por RPC `security definer`
+(`gobierno_generar_acta`/`fn_gobierno_suscribir_acta`/`fn_gobierno_actualizar_narrativa`/
+`fn_gobierno_vincular_documento_acta`), mismo criterio que `documentos` (que tampoco tiene policy
+insert para `authenticated`, su escritura pasa por la Edge Function `subir-documento`).
+
+**Segregación de funciones, confirmada explícitamente antes de implementar** (marco §5.5, Plan del
+corte vía `AskUserQuestion`): suscribir un acta exige `administrador` — mismo patrón que
+instalar/cerrar una reunión (GOB-2) y abrir/cerrar una votación (GOB-3); generar el acta y editar
+la narrativa exigen solo `auxiliar`. El detalle nominal del voto por unidad se incluye por
+defecto en el contenido generado (lectura literal del art. 47), también confirmado
+explícitamente.
+
+**`gobierno_acta_entregas` es una tabla nueva no listada en el §4.1 del propio corte**, pero su
+§4.5 exige explícitamente "registro de cada solicitud de copia y de cada entrega... campo para
+registrar una negativa y su motivo" — confirmado por grep que no existe ninguna tabla reutilizable
+para esto en todo el repositorio. La primera entrega real (`tipo='entrega'`) publica el acta
+(`estado='publicada'`) y congela `puesta_a_disposicion_at` — entregas posteriores no la vuelven a
+mover, mismo principio de "se congela una sola vez" que rige el resto de la serie GOB-2/GOB-3.
+
+**`designado_en_decision_id` de `gobierno_acta_verificadores` es `uuid` sin FK** — GOB-5
+(decisiones) todavía no existe; mismo patrón ya establecido en `gobierno_miembros.decision_id`
+(GOB-1, confirmado por grep antes de decidir el diseño, no una decisión unilateral nueva).
+
+**Hallazgo de tipos, encontrado y corregido antes de la regresión**:
+`documentosStore.subirDocumento` devuelve `DocumentoVigenteRow.id` tipado `string | null` (la
+vista `v_documento_vigente` no garantiza `id` no nulo en el esquema generado por
+`pnpm db:types`) — `fn_gobierno_vincular_documento_acta` exige un `string` no nulo; corregido con
+una validación explícita (`if (!documento.id) throw`) antes de vincular, en vez de forzar el tipo
+con `!`.
+
+**14/14 pruebas propias verdes** (`tests/gobierno/acta.test.ts`). Verificado en navegador contra
+JARDINES DE BABILONIA sobre una reunión de Consejo de Administración ya cerrada con datos reales
+dejados por la propia verificación manual de GOB-2 (1 punto de agenda, 1 asistente con coeficiente
+congelado `0.009893895`) — el acta se generó y suscribió correctamente a partir de esos datos de
+producción reales, sin ningún ajuste, confirmando el motor de generación más allá de los fixtures
+de prueba.
+
+## D-65
+
+GOB-5 (decisión y compromisos) — la decisión nace siempre `vigente` (nunca borrador, a diferencia
+del acta de GOB-4), el estado de ejecución se calcula desde los compromisos sin ninguna columna
+almacenada, y el refactor real de `presupuestos.acta_asamblea` → `decision_id` quedó completo con
+UI incluida.
+
+**La decisión nunca es borrador**: `gobierno_crear_decision()` solo puede nacer de una votación ya
+`cerrada` y `resultado='aprobada'` (`DECISION_SIN_VOTACION_APROBADA`) — a diferencia del acta
+(GOB-4), no hay una fase de borrador que descartar, así que el consecutivo
+(`fn_gobierno_siguiente_numero_decision`) se asigna en el mismo INSERT, sin la separación
+generar/suscribir. `acta_id` se resuelve automáticamente contra `gobierno_actas.reunion_id` en
+ese mismo instante (null si el acta todavía no existe); si esa acta llega a suscribirse después,
+la decisión pasa a ser inmutable en sus campos sustantivos (`DECISION_INMUTABLE_TRAS_ACTA`) —
+**salvo** la transición de `estado`/`revoca_decision_id` que usa `gobierno_revocar_decision`, el
+propio mecanismo de corrección que el spec exige ("corregir exige acta aclaratoria o decisión
+revocatoria").
+
+**Segregación de funciones, confirmada explícitamente antes de implementar** (marco §5.5, Plan
+del corte vía `AskUserQuestion`): crear una decisión exige `auxiliar` (formalización
+administrativa de una votación ya aprobada, mismo criterio que generar el acta en GOB-4);
+revocarla exige `administrador` (acto de efecto jurídico, mismo criterio que suscribir el acta o
+cerrar una votación). Las transiciones de un compromiso (avances, cumplido, bloqueado, cancelado)
+exigen solo `auxiliar` — es ejecución operativa de una decisión que ya pasó el filtro de
+administrador al crearse, sin un segundo nivel de aprobación.
+
+**`responsable_ref` del compromiso** (spec: "miembro de órgano, tercero, o la administración") se
+modeló como dos columnas nulables con exclusión mutua (`responsable_miembro_id`/
+`responsable_tercero_id`) en vez de una referencia polimórfica de un solo campo — confirmado por
+grep que ningún `_ref` existente en el repositorio (`destinatario_ref`, `otorgante_ref`,
+`asistente_ref`) es polimórfico, todos apuntan a un solo tipo. Ambas columnas null = "la
+administración" (art. 51), sin entidad propia que rastrear.
+
+**Estado de ejecución genuinamente calculado, no almacenado** (marco §6.3):
+`gobierno_decision_ejecucion()` agrega desde `gobierno_compromisos` en cada llamada — total,
+cumplidos, en_progreso, bloqueados, vencidos (derivado de `fecha_limite < hoy` con estado no
+terminal, nunca una columna), cancelados, porcentaje de avance (excluye cancelados del
+denominador — decisión de diseño documentada como pregunta abierta, el spec no fija el
+tratamiento exacto), semáforo y `estado_ejecucion`. El único parámetro numérico del corte —
+cuántos días antes es "próximo a vencer" — no lo fija ninguna norma → REMISIÓN AL REGLAMENTO
+(marco §3): `gobierno_politica_semaforo`, mismo patrón versionado (`vigencia_estado_t` + guard de
+inmutabilidad dedicado + `fn_..._vigente()`) que `mant_politica_aprobacion_ot`/
+`finanzas_politica_aprobacion_pago`, con default de 5 días hard-coded cuando no hay fila vigente.
+
+**Enlaces salientes — solo lo que existe hoy**: `presupuestos.decision_id` (refactor real de
+`acta_asamblea`, spec §4.5, con guard `PRESUPUESTO_ORIGEN_APROBACION_DUPLICADO` si se pueblan las
+dos fuentes a la vez — UI de "Activar presupuesto" actualizada con un toggle) y
+`fondo_autorizaciones.decision_id` (sin guard de exclusión: esa tabla es append-only, cada fila
+nace una sola vez). `contable_rendicion_cuentas.decision_id` y
+`contable_castigo_cartera.decision_id` quedaron fuera — `CO_09_PARCHE_FRONTERA_GOBIERNO.md` los
+asigna explícitamente a CO-9 (título literal de su §3: "Cambios concretos a aplicar en CO-9") y
+`contable_rendicion_cuentas` ni siquiera existe todavía (confirmado por grep). Se documenta como
+inconsistencia, no bloqueante, que ese mismo parche nombra las tablas de este corte como
+`public.decisiones`/`public.reuniones` (sin prefijo) — redactado antes de fijarse la convención
+`gobierno_*` en GOB-1..4; CO-9 deberá referenciar los nombres reales.
+
+**Retro-FK conectadas**: `gobierno_miembros.decision_id` (GOB-1) y
+`gobierno_acta_verificadores.designado_en_decision_id` (GOB-4) — ambas documentadas
+explícitamente en su corte original como "sin FK hasta que GOB-5 exista, se conecta cuando
+exista" (verificado por grep antes de escribir la migración, no una decisión unilateral nueva).
+
+**Dos fixes encontrados durante las pruebas propias, antes de la regresión**:
+`gobierno_crear_decision`/`gobierno_revocar_decision` comprobaban `has_role()`
+incondicionalmente, lo que bloqueaba las propias llamadas de `service_role` (tests, scripts) —
+corregido replicando el patrón ya usado en `gobierno_generar_acta`/`fn_gobierno_suscribir_acta`
+(GOB-4): `if (select auth.uid()) is not null and not has_role(...)`.
+`gobierno_compromiso_avances.registrado_por` se creó `not null`, pero el guard que lo estampa
+desde `auth.uid()` deja esa columna en null bajo `service_role` — corregido con el mismo criterio
+ya establecido en `20260822360000` (`caso_juridico_actuaciones.registrada_por`): nullable, la
+garantía vive en el trigger.
+
+**13/13 pruebas propias verdes** (`tests/gobierno/decisiones.test.ts`). Verificado en navegador
+contra JARDINES DE BABILONIA de punta a punta contra datos reales: una votación aprobada real
+(dejada por la propia verificación manual de GOB-3) → "Crear decisión" → decisión real `1/2026` →
+compromiso real → guard `COMPROMISO_CUMPLIDO_SIN_EVIDENCIA` disparado en pantalla → avance con
+evidencia → `cumplido` → ejecución recalculada a `cumplida`/100% sin ningún job → activación de un
+presupuesto real en borrador respaldada con esa misma decisión (toggle nuevo en la UI) →
+`gobierno_decision_efectos()` mostrando ese presupuesto en el detalle de la decisión —
+trazabilidad bidireccional confirmada, no solo en los fixtures de prueba.
+
+## D-66
+
+GOB-6 (convivencia y régimen sancionatorio, Ley 675 art. 58-60) — marco §2: "el único corte de
+toda la serie donde un error del software produce una violación de derechos fundamentales". Los 5
+guards de `gobierno_imponer_sancion()` son el corte; todo lo demás reutiliza mecanismos ya
+cerrados en otros cortes, sin inventar ninguno nuevo.
+
+**Catálogo de clases de sanción, global y taxativo por construcción**: `gobierno_clase_sancion`
+(sin `tenant_id`, mismo criterio que `gobierno_materia_decision` de GOB-3) sembrado con
+exactamente las tres del art. 59 (`publicacion_infractores`/59.1, `multa`/59.2, `restriccion_uso`/
+59.3), copiadas textualmente con `numeral_articulo` y `fundamento_normativo_id`. El trigger
+`guard_gobierno_clase_sancion()` que bloquea cualquier insert/update/delete se crea **después**
+del `do $seed$` que siembra las tres filas — mismo orden que `MATERIA_LEGAL_INMUTABLE` (GOB-3):
+crearlo antes bloquearía el propio seed. `SANCION_CLASE_NO_EXTENSIBLE` rechaza incluso a
+`service_role` — "el sistema no debe ofrecer siquiera la posibilidad" de una cuarta clase (marco,
+guard adicional no numerado de la tutela) se implementa aquí, no como validación de aplicación.
+
+**Infracciones tipificadas, cero precargadas**: `gobierno_infracciones` es por-tenant, sin ninguna
+fila sembrada — cada copropiedad tipifica desde su propio reglamento. `reglamento_referencia not
+null` con guard que rechaza vacío (`INFRACCION_SIN_TIPIFICACION`): sin cita del reglamento, el
+sistema no permite ni crear la infracción, porque la sanción resultante sería ilegal.
+`clases_sancion_permitidas text[]` (no una tabla puente) se valida contra el catálogo global fila
+por fila en el guard (`INFRACCION_CLASE_SANCION_INVALIDA`) — Postgres no soporta FK sobre
+elementos de un array.
+
+**El expediente nace numerado, nunca borrador** (a diferencia del acta de GOB-4, igual que la
+decisión de GOB-5): `gobierno_reportar_expediente()` asigna `numero`/`anio` en el mismo INSERT vía
+`fn_gobierno_siguiente_numero_expediente`, mismo patrón `on conflict ... do update ... returning`
+que el resto de consecutivos de la serie GOB. `propietario_responsable_ref` se resuelve una sola
+vez, a `fecha_hechos`, vía `fn_propietario_responsable()` (GOB-0) cuando el infractor no es él
+mismo el propietario — congelado igual que `gobierno_asistencia.coeficiente` (GOB-2):
+reproducible aunque la propiedad cambie después. `gobierno_expediente_actuaciones` es append-only
+(`forbid_mutation()` genérico) y **es el mecanismo de avance**: `gobierno_registrar_actuacion()`
+inserta la fila Y actualiza `gobierno_expedientes_convivencia.etapa` al mismo valor en el mismo
+acto — no hay un UPDATE de etapa separado. Las etapas `reportado`/`sancion_impuesta`/`archivado`
+están **reservadas** (`ACTUACION_ETAPA_RESERVADA`): solo las crean `gobierno_reportar_expediente`/
+`gobierno_imponer_sancion`/`gobierno_archivar_expediente` respectivamente, nunca la función
+genérica de registro.
+
+**Los 5 guards de la tutela, todos en `gobierno_imponer_sancion()`, auditables en un solo lugar**:
+(1) `SANCION_SIN_REQUERIMIENTO_PREVIO` — exige una actuación `requerimiento_escrito` ya
+registrada; (2) `SANCION_SIN_DEBIDO_PROCESO` — exige una actuación `descargos` ya registrada,
+**aunque el infractor no haya respondido** (se exige la oportunidad, no la respuesta — prueba 2
+del corte lo verifica explícitamente); (3) `SANCION_ORGANO_INCOMPETENTE` — reconsulta
+`gobierno_organo_competente(tenant, 'imponer_sanciones', fecha_de_la_reunión_de_la_decisión)` de
+GOB-1; el comité de convivencia **nunca** puede tenerla, bloqueado desde GOB-1
+(`ATRIBUCION_PROHIBIDA_COMITE_CONVIVENCIA`) — este corte no necesitó ni una línea de código extra
+para esa regla, cae gratis de reutilizar la función; (4) `SANCION_CLASE_NO_PERMITIDA` — la clase
+debe estar en el catálogo del art. 59 Y entre las que la infracción tipificada permite; (5)
+`MULTA_EXCEDE_TOPE_INDIVIDUAL`/`MULTA_EXCEDE_TOPE_ACUMULADO` — cada multa ≤ 2× las expensas
+necesarias mensuales del infractor a la fecha de imposición (comparación estricta `>`, así que
+exactamente 2× sí pasa), la suma histórica de ese mismo infractor en el tenant ≤ 10×. Guard
+adicional no numerado pero igual de vinculante: `SANCION_BIEN_COMUN_ESENCIAL` — la clase
+`restriccion_uso` exige que la zona común no esté marcada `es_esencial` (columna ya agregada a
+`zonas_comunes` por una migración de otra sesión, `20260830300000`, reutilizada sin cambios).
+
+**Base del tope, configuración explícita nunca inferida** (spec §4.5, pregunta abierta para
+abogado/contador): `gobierno_config_expensa_necesaria` (tenant_id + concepto_id) es la única
+fuente de qué conceptos cuentan como "expensas necesarias mensuales" — sin al menos una fila,
+`fn_gobierno_expensa_necesaria_mensual()` falla explícito con `SANCION_BASE_EXPENSA_NO_CONFIGURADA`
+en vez de asumir cero o adivinar por nombre de concepto.
+
+**La multa se materializa vía `novedades`, cero mecanismo de cobro paralelo** (spec §4.6, AD-33):
+`TIPO_NOVEDAD.sancion` ya estaba sembrado desde el inicio del proyecto
+(`20260814180000_seed_catalogo_referencia.sql`), y una migración de otra serie
+(`20260830240000_novedad_tipo_cuenta.sql`) usa textualmente "una Sanción siempre se explica bajo
+Sanción por inasistencia" como su propio ejemplo — anticipación arquitectónica real de este caso
+de uso, confirmada por grep antes de escribir una sola línea. `gobierno_imponer_sancion()` inserta
+la novedad y llama `fn_aprobar_novedad()` (mismo camino que cualquier otra novedad aprobada) —
+`fn_aprobar_novedad` recibe `p_actor_id` explícito (no confía en `auth.uid()`, porque se invoca
+también desde `service_role`), mismo criterio replicado aquí: `v_actor := coalesce((select
+auth.uid()), p_actor_id)`.
+
+**Segregación de funciones, confirmada explícitamente antes de implementar** (`AskUserQuestion`):
+imponer una sanción exige `administrador` — el acto de mayor peso de toda la serie GOB (marco §2),
+no una formalización administrativa como crear una decisión en GOB-5. Registrar actuaciones del
+expediente (requerimiento, descargos, conciliación) exige solo `auxiliar` — el usuario respondió
+"ambos" (no una de las dos opciones ofrecidas) a quién puede registrarlas, interpretado
+correctamente como "los dos roles deben poder": exigir `auxiliar` ya lo garantiza, porque
+`administrador ⊇ auxiliar` vía `has_role()`.
+
+**Cero migraciones de corrección**: las 7 migraciones (`20260931710000`-`20260931770000`)
+aplicaron limpias a la primera — las dos lecciones de GOB-5 (`if (select auth.uid()) is not null
+and not has_role(...)` para que `service_role` bypasse el check de rol; columnas
+`registrado_por`/`reportado_por` nullable desde el `create table` inicial, nunca `not null`) se
+aplicaron proactivamente desde el principio en vez de corregirse después.
+
+**14/14 pruebas propias verdes** (`tests/gobierno/convivencia-sanciones.test.ts`). Tres hallazgos
+de esquema real durante la construcción de los fixtures, encontrados por `db push`/pruebas antes
+de cualquier verificación manual: `conceptos.tipo_base` fue eliminada en una migración posterior
+(`20260829100000_conceptos_drop_tipo_base.sql`) — la tabla real exige `modo_calculo`/`modo_valor`/
+`alcance` (con sus propios constraints de coherencia), no el esquema original de PC-3;
+`zonas_comunes.tipo` (enum) fue reemplazada por `tipo_id` (FK a `lista_tipos`, familia
+`TIPO_ZONA_COMUN`) en `20260814160000`; `gobierno_quorum()` (GOB-3) ramifica por tipo de órgano —
+`consejo_administracion` cuenta miembros vigentes vía asistencia `calidad='organo'`, sin
+coeficientes, mientras el resto (incluida `comite_convivencia`) sigue el camino de coeficientes de
+asistencia `propietario`/`apoderado`; los fixtures de escenario con consejo tuvieron que
+diferenciar ambas ramas. **Lección reutilizable**: `fn_gobierno_expensa_necesaria_mensual()` (y
+por tanto el guard 5 de la multa) resuelve el periodo con `current_date` real del servidor, no con
+una fecha fija del test — cualquier fixture de expensa/periodo debe usar la fecha real de hoy
+(`new Date()`), no un mes hardcodeado, o falla con `SANCION_PERIODO_INEXISTENTE`.
+
+UI en `apps/web/app/pages/gobierno/convivencia/index.vue` (listado de expedientes + panel de
+catálogo de infracciones + configuración de expensa necesaria, en pestañas) y
+`apps/web/app/pages/gobierno/convivencia/[id].vue` (línea de tiempo con el artículo que exige cada
+bloqueo, propuesta de sanción con vista previa de tope/acumulado/órgano competente/tipificación
+antes de imponer — spec §4.7). Verificado en navegador contra JARDINES DE BABILONIA con datos
+reales: infracción real creada con clase permitida "multa", expediente real `1/2026` reportado
+sobre INM-1001/Ana Gómez, actuaciones reales de requerimiento escrito y descargos registradas con
+la etapa avanzando en pantalla y el bloqueo mostrando el artículo correcto en cada paso hasta
+"el debido proceso está completo". El intento real de imponer sanción (llamado directamente contra
+Supabase con la sesión autenticada real del usuario, no `service_role`, porque el selector de
+clase de sanción de Reka UI resultó imposible de accionar de forma fiable con las herramientas de
+automatización de navegador disponibles en esta sesión — limitación de la herramienta, no del
+código) confirmó `SANCION_ORGANO_INCOMPETENTE` exactamente como se espera: el único órgano/decisión
+vigente de ese tenant no tiene la atribución `imponer_sanciones`. No se modificaron los datos
+reales del tenant para forzar el camino de éxito (habría exigido otorgar una atribución falsa a un
+órgano real). El camino de éxito completo (multa exitosa con cargo enlazado, ambos topes,
+competencia del órgano) queda cubierto exhaustivamente por las pruebas 4, 5, 11 y 12 contra un
+tenant de prueba desechable.
+
+**Preguntas para el abogado** (`GOB_06_INFORME.md`): plazo de impugnación del art. 62 (la etapa
+`impugnacion` existe en el enum pero su mecánica es GOB-7); qué conceptos cuentan exactamente como
+"expensas necesarias mensuales" (mientras tanto, configuración explícita por tenant, nunca
+inferida); cómo detectar automáticamente que una infracción es pecuniaria (`es_no_pecuniaria` es
+hoy una declaración manual de quien tipifica); si el comité de convivencia puede intervenir en
+todas las etapas del expediente o solo antes del requerimiento escrito.
+
+**Addendum — Supabase local montado durante el cierre, D-08 finalmente resuelto de punta a
+punta**: a pedido del usuario se instaló Docker Desktop + WSL2 + Supabase CLI (máquina de 16 GB,
+perfil recortado a db/auth/api/storage/edge_runtime — realtime/studio/analytics/smtp local
+apagados). Las 233 migraciones existentes aplicaron limpias en un Postgres recién creado —
+primera vez que se valida "`create database` → aplicar migraciones → llegar al esquema esperado"
+de punta a punta (24 §17). La regresión completa bajó de ~3600s a ~485s. Al correr `pnpm test`
+completo contra esa base fresca (algo que ninguna sesión anterior había hecho, por el costo previo
+de tiempo) salieron 27 fallas en 10 archivos ajenos a GOB-6, con 5 causas reales investigadas una
+por una (nunca descartadas como "ruido del entorno"): (1) `create_tenant()` había perdido
+`tenant_predeterminado_id` desde una migración de MANT-2 que reprodujo su cuerpo desde una copia
+desactualizada — bug real preexistente, confirmado también en el proyecto remoto con
+`pg_get_functiondef` antes de escribir el fix, corregido en ambos con `20260931780000`; (2)
+`configurar-pasarela/deno.json` no mapeaba `@aquila/financial-kernel`/`decimal.js`, tumbando el
+worker del edge-runtime local; (3) secretos de Edge Functions (`BREVO_WEBHOOK_TOKEN`,
+`CARTERA_CRON_TOKEN`, etc.) no llegaban al contenedor local sin su propio `supabase/functions/.env`
+(gitignored); (4) `error-codes-coverage.test.ts` no toleraba un archivo suelto en
+`supabase/functions/` (el `.env` del punto 3); (5) `cartera-envio-evidencia.test.ts` tenía una
+`p_fecha_corte` fija en el pasado (mismo patrón de bug que FIN-1/D-54) y una aserción de
+`plantilla_version` desactualizada desde que PRQ-CAR-021 se implementó. Regresión final:
+1711/1713 verdes — los 2 fallos restantes (`gc-001`) son estructurales, dependen de datos reales
+del proyecto remoto nunca capturados como seed, y nunca podrán pasar contra una base migrada desde
+cero. Detalle completo en `GOB_06_INFORME.md` §7.
+
+## D-67
+
+GOB-7 (impugnación, Ley 675 art. 2 num. 5, 45, 49, 60, 62) — el corte pequeño que el prompt
+original omitió por completo: sin impugnación, una sanción impuesta por el sistema es atacable por
+esa sola razón (marco/spec §2). AQUILA registra la impugnación, calcula su plazo y aplica el efecto
+mecánico de una resolución YA TOMADA por el juez/órgano competente — nunca resuelve (spec §2, §5).
+
+**Entidad única para los dos objetos impugnables**: `gobierno_impugnaciones` con
+`objeto_tipo` (`decision`/`sancion`) gatillando exactamente una de `decision_id`/`expediente_id`
+(check `gobierno_impugnaciones_objeto_check`, sin excepción ni para `service_role`). Para
+`objeto_tipo='sancion'` la FK resuelve sobre el **expediente** de convivencia (GOB-6), no sobre
+`gobierno_sanciones` directamente — así lo pide el spec §4.1 literalmente y así lo modeló el corte:
+el expediente es el objeto que efectivamente transiciona de etapa.
+
+**Los dos plazos legales (art. 49 y art. 62) quedaron parametrizados, nunca hardcodeados**:
+`gobierno_parametro_impugnacion`, cero filas precargadas por tenant (mismo criterio que
+`gobierno_config_expensa_necesaria` de GOB-6), con `fundamento_normativo_id` **nullable a
+propósito** — su ausencia solo advierte (`IMPUGNACION_PLAZO_SIN_FUNDAMENTO`, visible en UI), nunca
+bloquea; sin ninguna fila configurada para el `objeto_tipo`, en cambio, sí falla explícito
+(`IMPUGNACION_PLAZO_NO_CONFIGURADO`) porque ahí falta el dato completo, no solo su respaldo legal.
+`plazo_limite` se calcula con `gobierno_sumar_dias_habiles()` de GOB-4, reutilizada tal cual —
+prueba 7 lo confirma sobre el mismo caso con festivos (San José + Semana Santa 2026) ya verificado
+independientemente para el acta de GOB-4. Esta clasificación no encajó limpio en las 4 categorías
+del marco §3 (piso/techo/lista cerrada/remisión al reglamento) — señalado como posible vacío del
+marco en el Plan del corte, resuelto siguiendo la instrucción más específica del propio spec §3.
+
+**Hallazgo real de investigación durante el cierre** (no una implementación, una verificación
+parcial): `suin-juriscol.gov.co` resultó inalcanzable en esta sesión por un error de certificado
+SSL. Investigando contra `alcaldiabogota.gov.co` (fuente gubernamental secundaria, espeja el Diario
+Oficial, no está en la lista literal de fuentes primarias del marco §2) salió un hallazgo
+sustantivo: el art. 62 fija **un (1) mes** desde la comunicación de la sanción (resolviendo la
+discrepancia 1-2 meses que el spec señalaba abierta), y el art. 49 **no fija ningún plazo propio**
+en su texto vigente — el inciso que remitía al art. 194 del Código de Comercio fue **derogado desde
+2014** por la Ley 1564 de 2012 (CGP), que hoy gobierna ese trámite judicial (fuera de alcance,
+spec §5). Ninguno de los dos hallazgos se marcó como validado en `fundamento_normativo.fecha_
+vigencia` — no se alcanzó la fuente primaria exacta que el marco exige, así que el sistema sigue
+sin bloquear por vencimiento. Detalle completo, con la cita textual de ambos artículos, en
+`GOB_07_INFORME.md` (primera sección, obligatoria por el propio spec §7).
+
+**La reversión de la multa reutiliza el mecanismo de ajuste de GOB-6, no inventa uno nuevo**:
+`resultado='revocada'` sobre una sanción de multa marca `gobierno_sanciones.vigente_hasta = hoy`
+(columna que ya existía) y genera una `novedad` nueva `tipo='CREDIT'` (monto negativo, AD-30) +
+`fn_aprobar_novedad()` — exactamente el mismo camino que GOB-6 usó para materializar la multa
+original, nunca se borra ni se toca el cargo original (append-only). Coordina con CO-3 sin ningún
+enganche adicional porque pasa por el mismo punto único de materialización financiera (AD-33).
+
+Segregación de funciones confirmada (Plan del corte, mismo criterio que GOB-5/GOB-6): presentar la
+impugnación y registrar actuaciones (`en_tramite`/`desistida`) exige `auxiliar` (formalización
+administrativa); resolver (`gobierno_resolver_impugnacion`, el acto con efecto jurídico real —
+revierte cargo, cambia estado de decisión/expediente) exige `administrador`.
+
+12/12 pruebas propias verdes (`tests/gobierno/impugnacion.test.ts`), corridas contra **local y
+contra el proyecto remoto real** tras `pnpm db:push` (D-08). Regresión completa: 1723/1725 —
+exactamente 12 más que la línea base de GOB-6, mismos 2 fallos estructurales de `gc-001`, cero
+fallas atribuibles a este corte. **Limitación de entorno, documentada con transparencia y no
+silenciada**: la verificación en navegador con sesión autenticada real no pudo completarse — tanto
+`dev-login` como el login por contraseña fallaron con "Invalid login credentials"/JWT no
+reconocido, pese a que la MISMA combinación de credenciales autenticó correctamente vía `curl`
+directo contra el mismo GoTrue local (confirmando que no es un problema de GOB-7 ni de
+credenciales, sino un efecto colateral probable de los múltiples `supabase stop`/`start`/
+`db reset` de este cierre sobre el contenedor de auth). La UI se verificó por typecheck + lint +
+revisión de código contra el patrón ya probado de GOB-5/GOB-6, no por interacción real en el
+navegador — detalle completo en `GOB_07_INFORME.md` §5.
+
+## D-68
+
+GOB-8 (atención al propietario/residente y consulta sin sesión) — construido estrictamente sobre
+**AD-26 Opción 1** (GOB-0): sin portal, sin cuenta para propietarios/residentes. Toda solicitud la
+registra la administración (rol auxiliar); el propietario/residente solo **consulta** por un enlace
+de token generalizado por inmueble (§4.4), nunca escribe, con **una única excepción angosta y
+explícita**: la encuesta de satisfacción (§4.5).
+
+**`solicitudes` sin prefijo `gobierno_`, a propósito**: es transversal (mismo criterio que
+`documentos`/`novedades`), escala hacia convivencia (GOB-6), decisión (GOB-5) y agenda (GOB-2) —
+no es un concepto exclusivo del dominio de gobierno. Nace numerada (nunca borrador) y avanza
+exclusivamente por `gobierno_registrar_actuacion_solicitud()` — a diferencia de GOB-6/GOB-7, aquí
+una actuación puede registrarse **sin** cambiar de estado (`p_estado_nuevo` puede repetir el actual):
+es la forma de dejar una respuesta o nota sin mover la FSM, algo que ninguno de esos dos cortes
+necesitaba.
+
+**Prefijo de error `ATENCION_`, no `SOLICITUD_`, deviación deliberada del spec §4.1**: el módulo
+Fondos (`fondo_solicitudes_uso`, GAP-22/D-36) ya registró 9 códigos `SOLICITUD_*` para un concepto
+de dominio completamente distinto — incluyendo, literalmente, `SOLICITUD_ESTADO_TERMINAL`. Reutilizar
+el mismo prefijo habría colisionado en el nombre exacto y quedado ambiguo para el resto del sistema.
+Se prefirió el prefijo nuevo aunque el spec sugiriera textualmente `SOLICITUD_CIERRE_SIN_RESPUESTA`
+(renombrado a `ATENCION_CIERRE_SIN_RESPUESTA`) — documentado en `GOB_08_INFORME.md`.
+
+**SLA parametrizable, calculado en caliente, nunca persistido como booleano**: `solicitud_sla`
+(cero filas precargadas — cada copropiedad define sus tiempos) + `gobierno_sumar_horas_habiles()`
+(grano-hora, nueva de este corte, reutiliza `gobierno_es_dia_habil()` de GOB-4 tal cual — NO
+reutiliza `gobierno_sumar_dias_habiles`, que es grano-día). `sla_vence_at` es un timestamp que SÍ se
+almacena y se recalcula en momentos concretos (creación, entrada/salida de `en_espera`) — lo que el
+marco §6.3 prohíbe es persistir un booleano "vencida" que un cron tendría que mantener sincronizado,
+no el timestamp en sí. **Pausa/reanudación del reloj** (patrón genuinamente nuevo en el repo — ni
+siquiera los acuerdos de pago de cartera lo tienen): `en_espera_desde` registra el momento de
+entrada; al salir, `sla_vence_at` se desplaza exactamente el tiempo real transcurrido
+(`sla_vence_at + (now() - en_espera_desde)`), calculado dentro de
+`gobierno_registrar_actuacion_solicitud()` antes del UPDATE. La etiqueta "buena práctica, sin base
+legal" (spec §2) no encajó en ninguna de las 4 categorías del marco §3 (piso/techo/lista cerrada/
+remisión al reglamento) — mismo vacío que GOB-7/D-67 ya había señalado para su propio caso, resuelto
+igual: una sola fila de `fundamento_normativo` (`tipo='otra'`,
+`referencia='gob8_buena_practica_sin_base_legal'`), señalado en el Plan del corte.
+
+**La encuesta de satisfacción (§4.5) es la única excepción de escritura a la regla "consultar no es
+interactuar" (§4.4)**, y se implementó como una excepción angosta y controlada, no como un
+relajamiento general: `solicitud_encuesta` (una fila por solicitud, `unique(solicitud_id)`,
+append-only, calificación 1-5 + comentario opcional) no tiene política de insert/update para
+NINGÚN rol — ni siquiera `authenticated` — su única puerta es la Edge Function
+`responder-encuesta-solicitud` (service_role), que exige la solicitud `resuelta`/`cerrada` y valida
+el mismo token de consulta por inmueble que `ver-inmueble`. La prueba 10 (que exige que un insert
+directo a `solicitudes` falle para el consultante anónimo) sigue intacta — no se relajó ninguna
+política existente para permitir esto.
+
+**`atencion_tokens_consulta` es la generalización con estado del mecanismo stateless de GOB-0/D-27**:
+el HMAC de `link_token.ts` sigue sin persistir el secreto, pero este corte necesitaba poder
+**revocar con motivo** un enlace vigente — algo que un HMAC puro no puede expresar (no hay fila que
+marcar). `ver-inmueble` ensambla el paquete por inmueble (estado de cuenta, paz y salvo, actas
+publicadas, solicitudes) reutilizando `firmarTokenEnlace()` para mintar sub-tokens de 1 día hacia
+los visores YA EXISTENTES y probados (`ver-estado-cuenta` vía `/comprobante-cuenta`, `ver-documento`)
+— cero lógica de Storage duplicada. "Documentos publicados" genéricos quedaron fuera del paquete
+(confirmado con el usuario vía `AskUserQuestion`): `documentos` no tiene hoy ninguna marca de
+visibilidad pública, y agregarla tocaría una tabla compartida por todo el repo sin que ninguna
+prueba lo exigiera. El formulario público de auto-registro de solicitudes (§4.4) también quedó
+fuera de este corte (confirmado con el usuario): toda solicitud la registra la administración,
+independientemente del canal real de origen (mostrador/teléfono/correo, capturado en `origen_id`).
+
+14/14 pruebas propias verdes (`tests/gobierno/atencion.test.ts` — 12 exigidas por el spec §6 + 2
+adicionales de cobertura de §4.5, no exigidas por §6 pero sí por la Definición de Hecho del marco
+maestro), corridas contra **local y contra el proyecto remoto real** tras `pnpm db:push` (D-08).
+**Hallazgo de entorno, no de GOB-8, documentado con transparencia**: durante el cierre, la regresión
+completa de `pnpm test` local mostró primero 535 y luego 32 fallos ajenos a este corte —
+diagnosticado como privilegios de `service_role` (tablas y, en una segunda ronda, funciones)
+perdidos tras varios `supabase stop`/`start`/`db reset` seguidos en la misma sesión (uno con una
+imagen de Studio nueva), no un bug de código; corregido con el `GRANT`/`ALTER DEFAULT PRIVILEGES`
+estándar de Supabase (aprobado explícitamente por el usuario), confirmado con una regresión limpia
+posterior. Ver `feedback_grants_service_role_incompletos_tras_bootstrap` (memoria). Verificación en
+navegador completada de punta a punta (a diferencia de GOB-7): el bloqueo de login resultó ser
+`apps/web/.env` apuntando al proyecto remoto mientras la raíz apuntaba a local — no una inestabilidad
+de GoTrue como se había registrado antes — corregido temporalmente para verificar y restaurado al
+cerrar; detalle en `GOB_08_INFORME.md` §5.
+

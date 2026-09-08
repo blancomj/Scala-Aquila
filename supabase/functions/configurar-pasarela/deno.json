@@ -2,6 +2,8 @@
   "imports": {
     "@supabase/server": "npm:@supabase/server@^1",
     "zod": "npm:zod@^3",
+    "decimal.js": "npm:decimal.js@^10.6.0",
+    "@aquila/financial-kernel": "../../../packages/financial-kernel/dist/index.js",
     "@aquila/payment-gateways": "../../../packages/payment-gateways/dist/index.js"
   }
 }

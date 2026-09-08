@@ -1006,6 +1006,85 @@ export type Database = {
           },
         ]
       }
+      atencion_tokens_consulta: {
+        Row: {
+          created_at: string
+          expira_at: string
+          generado_por: string | null
+          id: string
+          inmueble_id: string
+          motivo_revocacion: string | null
+          revocado_at: string | null
+          revocado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          expira_at: string
+          generado_por?: string | null
+          id?: string
+          inmueble_id: string
+          motivo_revocacion?: string | null
+          revocado_at?: string | null
+          revocado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          expira_at?: string
+          generado_por?: string | null
+          id?: string
+          inmueble_id?: string
+          motivo_revocacion?: string | null
+          revocado_at?: string | null
+          revocado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atencion_tokens_consulta_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atencion_tokens_consulta_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atencion_tokens_consulta_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atencion_tokens_consulta_revocado_por_fkey"
+            columns: ["revocado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atencion_tokens_consulta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atencion_tokens_consulta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -4000,6 +4079,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          naturaleza_tributaria_id: number | null
           nivel: number
           nombre: string
           parent_id: string | null
@@ -4019,6 +4099,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          naturaleza_tributaria_id?: number | null
           nivel?: number
           nombre: string
           parent_id?: string | null
@@ -4038,6 +4119,7 @@ export type Database = {
           created_at?: string
           id?: string
           naturaleza?: Database["public"]["Enums"]["contable_naturaleza_t"]
+          naturaleza_tributaria_id?: number | null
           nivel?: number
           nombre?: string
           parent_id?: string | null
@@ -4051,6 +4133,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contable_cuenta_naturaleza_tributaria_id_fkey"
+            columns: ["naturaleza_tributaria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contable_cuenta_parent_id_fkey"
             columns: ["parent_id"]
@@ -5691,6 +5780,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "finanzas_factura_retencion_concepto_fk"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "tributario_concepto_retencion"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "finanzas_factura_retencion_factura_id_fkey"
             columns: ["factura_id"]
             isOneToOne: false
@@ -6357,6 +6453,7 @@ export type Database = {
           alcance: string | null
           created_at: string
           decision: string
+          decision_id: string | null
           documento_id: string | null
           fecha_acta: string | null
           fondo_id: string
@@ -6373,6 +6470,7 @@ export type Database = {
           alcance?: string | null
           created_at?: string
           decision: string
+          decision_id?: string | null
           documento_id?: string | null
           fecha_acta?: string | null
           fondo_id: string
@@ -6389,6 +6487,7 @@ export type Database = {
           alcance?: string | null
           created_at?: string
           decision?: string
+          decision_id?: string | null
           documento_id?: string | null
           fecha_acta?: string | null
           fondo_id?: string
@@ -6402,6 +6501,13 @@ export type Database = {
           vigencia_hasta?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fondo_autorizaciones_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fondo_autorizaciones_documento_id_fkey"
             columns: ["documento_id"]
@@ -7582,6 +7688,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "gobierno_acta_verificadores_designado_en_decision_id_fkey"
+            columns: ["designado_en_decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "gobierno_acta_verificadores_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -7982,6 +8095,298 @@ export type Database = {
           },
         ]
       }
+      gobierno_clase_sancion: {
+        Row: {
+          codigo: string
+          created_at: string
+          descripcion: string
+          fundamento_normativo_id: number | null
+          id: number
+          nombre: string
+          numeral_articulo: string
+          requiere_monto: boolean
+          tope_acumulado_multiplo: number | null
+          tope_multiplo_expensas: number | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          descripcion: string
+          fundamento_normativo_id?: number | null
+          id?: never
+          nombre: string
+          numeral_articulo: string
+          requiere_monto?: boolean
+          tope_acumulado_multiplo?: number | null
+          tope_multiplo_expensas?: number | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descripcion?: string
+          fundamento_normativo_id?: number | null
+          id?: never
+          nombre?: string
+          numeral_articulo?: string
+          requiere_monto?: boolean
+          tope_acumulado_multiplo?: number | null
+          tope_multiplo_expensas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_clase_sancion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_compromiso_avances: {
+        Row: {
+          compromiso_id: string
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          fecha: string
+          id: string
+          porcentaje: number | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          compromiso_id: string
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          fecha: string
+          id?: string
+          porcentaje?: number | null
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          compromiso_id?: string
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          fecha?: string
+          id?: string
+          porcentaje?: number | null
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_compromiso_avances_compromiso_id_fkey"
+            columns: ["compromiso_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_compromisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromiso_avances_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromiso_avances_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromiso_avances_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromiso_avances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromiso_avances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_compromisos: {
+        Row: {
+          bloqueado_motivo: string | null
+          cancelado_motivo: string | null
+          created_at: string
+          cumplido_at: string | null
+          decision_id: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["gobierno_compromiso_estado_t"]
+          fecha_limite: string | null
+          fondo_id: string | null
+          id: string
+          monto_estimado: number | null
+          orden: number
+          presupuesto_cuenta_id: string | null
+          responsable_miembro_id: string | null
+          responsable_tercero_id: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          verificado_at: string | null
+          verificado_por: string | null
+        }
+        Insert: {
+          bloqueado_motivo?: string | null
+          cancelado_motivo?: string | null
+          created_at?: string
+          cumplido_at?: string | null
+          decision_id: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["gobierno_compromiso_estado_t"]
+          fecha_limite?: string | null
+          fondo_id?: string | null
+          id?: string
+          monto_estimado?: number | null
+          orden: number
+          presupuesto_cuenta_id?: string | null
+          responsable_miembro_id?: string | null
+          responsable_tercero_id?: string | null
+          tenant_id: string
+          titulo: string
+          updated_at?: string | null
+          verificado_at?: string | null
+          verificado_por?: string | null
+        }
+        Update: {
+          bloqueado_motivo?: string | null
+          cancelado_motivo?: string | null
+          created_at?: string
+          cumplido_at?: string | null
+          decision_id?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["gobierno_compromiso_estado_t"]
+          fecha_limite?: string | null
+          fondo_id?: string | null
+          id?: string
+          monto_estimado?: number | null
+          orden?: number
+          presupuesto_cuenta_id?: string | null
+          responsable_miembro_id?: string | null
+          responsable_tercero_id?: string | null
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string | null
+          verificado_at?: string | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_compromisos_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_fondo_id_fkey"
+            columns: ["fondo_id"]
+            isOneToOne: false
+            referencedRelation: "fondos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_presupuesto_cuenta_id_fkey"
+            columns: ["presupuesto_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_responsable_miembro_id_fkey"
+            columns: ["responsable_miembro_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_miembros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_responsable_tercero_id_fkey"
+            columns: ["responsable_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_compromisos_verificado_por_fkey"
+            columns: ["verificado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_config_expensa_necesaria: {
+        Row: {
+          concepto_id: string
+          created_at: string
+          tenant_id: string
+        }
+        Insert: {
+          concepto_id: string
+          created_at?: string
+          tenant_id: string
+        }
+        Update: {
+          concepto_id?: string
+          created_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_config_expensa_necesaria_concepto_id_fkey"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_config_expensa_necesaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_config_expensa_necesaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gobierno_convocatoria_envios: {
         Row: {
           acuse_at: string | null
@@ -8140,6 +8545,781 @@ export type Database = {
           },
         ]
       }
+      gobierno_decision_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_decision_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decision_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_decisiones: {
+        Row: {
+          acta_id: string | null
+          agenda_punto_id: string | null
+          anio: number
+          anulada_at: string | null
+          anulada_motivo: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite: string | null
+          fundamento: string | null
+          id: string
+          materia_id: number
+          numero: number
+          organo_id: string
+          prioridad: string | null
+          reunion_id: string
+          revoca_decision_id: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          votacion_id: string
+        }
+        Insert: {
+          acta_id?: string | null
+          agenda_punto_id?: string | null
+          anio: number
+          anulada_at?: string | null
+          anulada_motivo?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite?: string | null
+          fundamento?: string | null
+          id?: string
+          materia_id: number
+          numero: number
+          organo_id: string
+          prioridad?: string | null
+          reunion_id: string
+          revoca_decision_id?: string | null
+          tenant_id: string
+          titulo: string
+          updated_at?: string | null
+          votacion_id: string
+        }
+        Update: {
+          acta_id?: string | null
+          agenda_punto_id?: string | null
+          anio?: number
+          anulada_at?: string | null
+          anulada_motivo?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite?: string | null
+          fundamento?: string | null
+          id?: string
+          materia_id?: number
+          numero?: number
+          organo_id?: string
+          prioridad?: string | null
+          reunion_id?: string
+          revoca_decision_id?: string | null
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string | null
+          votacion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_decisiones_acta_id_fkey"
+            columns: ["acta_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_actas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_agenda_punto_id_fkey"
+            columns: ["agenda_punto_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_agenda_puntos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_materia_decision"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_organo_id_fkey"
+            columns: ["organo_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_organos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_revoca_decision_id_fkey"
+            columns: ["revoca_decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_decisiones_votacion_id_fkey"
+            columns: ["votacion_id"]
+            isOneToOne: true
+            referencedRelation: "gobierno_votaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_expediente_actuaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          expediente_id: string
+          fecha: string
+          fecha_limite: string | null
+          id: string
+          plazo_dias: number | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          expediente_id: string
+          fecha: string
+          fecha_limite?: string | null
+          id?: string
+          plazo_dias?: number | null
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          etapa?: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          expediente_id?: string
+          fecha?: string
+          fecha_limite?: string | null
+          id?: string
+          plazo_dias?: number | null
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_expediente_id_fkey"
+            columns: ["expediente_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_expedientes_convivencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_expediente_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_expediente_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expediente_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_expedientes_convivencia: {
+        Row: {
+          anio: number
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          cerrado_at: string | null
+          created_at: string
+          descripcion_hechos: string
+          estado_final: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          fecha_hechos: string
+          id: string
+          infraccion_id: string
+          inmueble_id: string
+          numero: number
+          presunto_infractor_ref: string
+          propietario_responsable_ref: string | null
+          reportado_at: string
+          reportado_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          cerrado_at?: string | null
+          created_at?: string
+          descripcion_hechos: string
+          estado_final?: string | null
+          etapa?: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          fecha_hechos: string
+          id?: string
+          infraccion_id: string
+          inmueble_id: string
+          numero: number
+          presunto_infractor_ref: string
+          propietario_responsable_ref?: string | null
+          reportado_at?: string
+          reportado_por?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          calidad?: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          cerrado_at?: string | null
+          created_at?: string
+          descripcion_hechos?: string
+          estado_final?: string | null
+          etapa?: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          fecha_hechos?: string
+          id?: string
+          infraccion_id?: string
+          inmueble_id?: string
+          numero?: number
+          presunto_infractor_ref?: string
+          propietario_responsable_ref?: string | null
+          reportado_at?: string
+          reportado_por?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_expedientes_convivenc_propietario_responsable_ref_fkey"
+            columns: ["propietario_responsable_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_infraccion_id_fkey"
+            columns: ["infraccion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_infracciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_presunto_infractor_ref_fkey"
+            columns: ["presunto_infractor_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_reportado_por_fkey"
+            columns: ["reportado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_expedientes_convivencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_impugnacion_actuaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          fecha: string
+          id: string
+          impugnacion_id: string
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          fecha: string
+          id?: string
+          impugnacion_id: string
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["impugnacion_estado_t"]
+          fecha?: string
+          id?: string
+          impugnacion_id?: string
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_impugnacion_id_fkey"
+            columns: ["impugnacion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_impugnaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_impugnacion_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_impugnacion_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnacion_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_impugnaciones: {
+        Row: {
+          anio: number
+          calidad: string | null
+          causal: string
+          created_at: string
+          decision_id: string | null
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          expediente_id: string | null
+          fecha_notificacion_objeto: string
+          fecha_presentacion: string
+          fundamento: string | null
+          id: string
+          impugnante_ref: string
+          instancia: string | null
+          numero: number
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_fundamento_valido: boolean
+          plazo_limite: string
+          presentada_en_plazo: boolean
+          presentada_por: string | null
+          resolucion_documento_id: string | null
+          resuelta_at: string | null
+          resultado:
+            | Database["public"]["Enums"]["impugnacion_resultado_t"]
+            | null
+          resultado_detalle: string | null
+          suspende_efectos: boolean
+          suspension_fundamento: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          calidad?: string | null
+          causal: string
+          created_at?: string
+          decision_id?: string | null
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["impugnacion_estado_t"]
+          expediente_id?: string | null
+          fecha_notificacion_objeto: string
+          fecha_presentacion: string
+          fundamento?: string | null
+          id?: string
+          impugnante_ref: string
+          instancia?: string | null
+          numero: number
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_fundamento_valido?: boolean
+          plazo_limite: string
+          presentada_en_plazo: boolean
+          presentada_por?: string | null
+          resolucion_documento_id?: string | null
+          resuelta_at?: string | null
+          resultado?:
+            | Database["public"]["Enums"]["impugnacion_resultado_t"]
+            | null
+          resultado_detalle?: string | null
+          suspende_efectos?: boolean
+          suspension_fundamento?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          calidad?: string | null
+          causal?: string
+          created_at?: string
+          decision_id?: string | null
+          documento_id?: string | null
+          estado?: Database["public"]["Enums"]["impugnacion_estado_t"]
+          expediente_id?: string | null
+          fecha_notificacion_objeto?: string
+          fecha_presentacion?: string
+          fundamento?: string | null
+          id?: string
+          impugnante_ref?: string
+          instancia?: string | null
+          numero?: number
+          objeto_tipo?: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_fundamento_valido?: boolean
+          plazo_limite?: string
+          presentada_en_plazo?: boolean
+          presentada_por?: string | null
+          resolucion_documento_id?: string | null
+          resuelta_at?: string | null
+          resultado?:
+            | Database["public"]["Enums"]["impugnacion_resultado_t"]
+            | null
+          resultado_detalle?: string | null
+          suspende_efectos?: boolean
+          suspension_fundamento?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_impugnaciones_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_expediente_id_fkey"
+            columns: ["expediente_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_expedientes_convivencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_impugnante_ref_fkey"
+            columns: ["impugnante_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_presentada_por_fkey"
+            columns: ["presentada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_resolucion_documento_id_fkey"
+            columns: ["resolucion_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_resolucion_documento_id_fkey"
+            columns: ["resolucion_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_impugnaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_infracciones: {
+        Row: {
+          clases_sancion_permitidas: string[]
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          documento_id: string | null
+          es_no_pecuniaria: boolean
+          id: string
+          nombre: string
+          reglamento_referencia: string
+          tenant_id: string
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          clases_sancion_permitidas?: string[]
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          es_no_pecuniaria?: boolean
+          id?: string
+          nombre: string
+          reglamento_referencia: string
+          tenant_id: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          clases_sancion_permitidas?: string[]
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          documento_id?: string | null
+          es_no_pecuniaria?: boolean
+          id?: string
+          nombre?: string
+          reglamento_referencia?: string
+          tenant_id?: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_infracciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_infracciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_infracciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_infracciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gobierno_materia_decision: {
         Row: {
           admite_no_presencial: boolean
@@ -8244,6 +9424,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gobierno_miembros_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gobierno_miembros_documento_id_fkey"
             columns: ["documento_id"]
@@ -8384,6 +9571,55 @@ export type Database = {
           },
         ]
       }
+      gobierno_parametro_impugnacion: {
+        Row: {
+          created_at: string
+          fundamento_normativo_id: number | null
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_dias: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_dias: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          objeto_tipo?: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_dias?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_parametro_impugnacion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_parametro_impugnacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_parametro_impugnacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gobierno_poderes: {
         Row: {
           alcance: string | null
@@ -8499,6 +9735,54 @@ export type Database = {
             columns: ["validado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_politica_semaforo: {
+        Row: {
+          created_at: string
+          dias_proximo_vencer: number
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        Insert: {
+          created_at?: string
+          dias_proximo_vencer?: number
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+        }
+        Update: {
+          created_at?: string
+          dias_proximo_vencer?: number
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_politica_semaforo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_politica_semaforo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -8683,6 +9967,118 @@ export type Database = {
             columns: ["tipo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_sanciones: {
+        Row: {
+          clase_sancion_id: number
+          created_at: string
+          decision_id: string
+          expediente_id: string
+          id: string
+          impuesta_at: string
+          monto: number | null
+          novedad_id: string | null
+          publicacion_evidencia_documento_id: string | null
+          tenant_id: string
+          vigente_desde: string | null
+          vigente_hasta: string | null
+          zona_comun_id: string | null
+        }
+        Insert: {
+          clase_sancion_id: number
+          created_at?: string
+          decision_id: string
+          expediente_id: string
+          id?: string
+          impuesta_at?: string
+          monto?: number | null
+          novedad_id?: string | null
+          publicacion_evidencia_documento_id?: string | null
+          tenant_id: string
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+          zona_comun_id?: string | null
+        }
+        Update: {
+          clase_sancion_id?: number
+          created_at?: string
+          decision_id?: string
+          expediente_id?: string
+          id?: string
+          impuesta_at?: string
+          monto?: number | null
+          novedad_id?: string | null
+          publicacion_evidencia_documento_id?: string | null
+          tenant_id?: string
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+          zona_comun_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_sanciones_clase_sancion_id_fkey"
+            columns: ["clase_sancion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_clase_sancion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_expediente_id_fkey"
+            columns: ["expediente_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_expedientes_convivencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_novedad_id_fkey"
+            columns: ["novedad_id"]
+            isOneToOne: false
+            referencedRelation: "novedades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_publicacion_evidencia_documento_id_fkey"
+            columns: ["publicacion_evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_publicacion_evidencia_documento_id_fkey"
+            columns: ["publicacion_evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_sanciones_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
             referencedColumns: ["id"]
           },
         ]
@@ -14215,6 +15611,7 @@ export type Database = {
           acta_asamblea: string | null
           anio: number
           created_at: string
+          decision_id: string | null
           estado: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion: string | null
           id: string
@@ -14229,6 +15626,7 @@ export type Database = {
           acta_asamblea?: string | null
           anio: number
           created_at?: string
+          decision_id?: string | null
           estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion?: string | null
           id?: string
@@ -14243,6 +15641,7 @@ export type Database = {
           acta_asamblea?: string | null
           anio?: number
           created_at?: string
+          decision_id?: string | null
           estado?: Database["public"]["Enums"]["presupuesto_estado_t"]
           fecha_aprobacion?: string | null
           id?: string
@@ -14254,6 +15653,13 @@ export type Database = {
           vigente_hasta?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuestos_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "presupuestos_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -14562,6 +15968,459 @@ export type Database = {
           },
         ]
       }
+      solicitud_actuaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          es_respuesta: boolean
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          fecha: string
+          id: string
+          registrado_por: string | null
+          solicitud_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          documento_id?: string | null
+          es_respuesta?: boolean
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          fecha: string
+          id?: string
+          registrado_por?: string | null
+          solicitud_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          documento_id?: string | null
+          es_respuesta?: boolean
+          estado?: Database["public"]["Enums"]["solicitud_estado_t"]
+          fecha?: string
+          id?: string
+          registrado_por?: string | null
+          solicitud_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_actuaciones_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_actuaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_actuaciones_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitud_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitud_encuesta: {
+        Row: {
+          calificacion: number
+          comentario: string | null
+          created_at: string
+          id: string
+          respondida_at: string
+          solicitud_id: string
+          tenant_id: string
+        }
+        Insert: {
+          calificacion: number
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          respondida_at?: string
+          solicitud_id: string
+          tenant_id: string
+        }
+        Update: {
+          calificacion?: number
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          respondida_at?: string
+          solicitud_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_encuesta_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: true
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_encuesta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_encuesta_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitud_sla: {
+        Row: {
+          categoria_id: number
+          created_at: string
+          horario_habil: boolean
+          horas_primera_respuesta: number
+          horas_resolucion: number
+          id: string
+          prioridad_id: number
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          categoria_id: number
+          created_at?: string
+          horario_habil?: boolean
+          horas_primera_respuesta: number
+          horas_resolucion: number
+          id?: string
+          prioridad_id: number
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          categoria_id?: number
+          created_at?: string
+          horario_habil?: boolean
+          horas_primera_respuesta?: number
+          horas_resolucion?: number
+          id?: string
+          prioridad_id?: number
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_sla_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_sla_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_sla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_sla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_sla_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes: {
+        Row: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_id: number
+          prioridad_id: number
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          agenda_punto_id?: string | null
+          anio: number
+          anulada_motivo?: string | null
+          asignado_a?: string | null
+          asignado_at?: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at?: string | null
+          creada_por?: string | null
+          created_at?: string
+          decision_id?: string | null
+          descripcion?: string | null
+          en_espera_desde?: string | null
+          estado?: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id?: string | null
+          id?: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia?: string | null
+          origen_id: number
+          prioridad_id: number
+          resuelta_at?: string | null
+          sla_id?: string | null
+          sla_vence_at?: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          agenda_punto_id?: string | null
+          anio?: number
+          anulada_motivo?: string | null
+          asignado_a?: string | null
+          asignado_at?: string | null
+          asunto?: string
+          calidad?: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id?: number
+          cerrada_at?: string | null
+          creada_por?: string | null
+          created_at?: string
+          decision_id?: string | null
+          descripcion?: string | null
+          en_espera_desde?: string | null
+          estado?: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id?: string | null
+          id?: string
+          inmueble_id?: string
+          numero?: number
+          orden_trabajo_referencia?: string | null
+          origen_id?: number
+          prioridad_id?: number
+          resuelta_at?: string | null
+          sla_id?: string | null
+          sla_vence_at?: string | null
+          solicitante_ref?: string
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_agenda_punto_id_fkey"
+            columns: ["agenda_punto_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_agenda_puntos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_asignado_a_fkey"
+            columns: ["asignado_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_creada_por_fkey"
+            columns: ["creada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_expediente_convivencia_id_fkey"
+            columns: ["expediente_convivencia_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_expedientes_convivencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_origen_id_fkey"
+            columns: ["origen_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_sla_id_fkey"
+            columns: ["sla_id"]
+            isOneToOne: false
+            referencedRelation: "solicitud_sla"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_solicitante_ref_fkey"
+            columns: ["solicitante_ref"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasas_referencia: {
         Row: {
           created_at: string
@@ -14699,6 +16558,7 @@ export type Database = {
           email: string | null
           explota_bienes_comunes: boolean
           id: string
+          iva_periodicidad_id: number | null
           logo_path: string | null
           logo_storage_path: string | null
           marco_clasificado_at: string | null
@@ -14737,6 +16597,7 @@ export type Database = {
           email?: string | null
           explota_bienes_comunes?: boolean
           id?: string
+          iva_periodicidad_id?: number | null
           logo_path?: string | null
           logo_storage_path?: string | null
           marco_clasificado_at?: string | null
@@ -14777,6 +16638,7 @@ export type Database = {
           email?: string | null
           explota_bienes_comunes?: boolean
           id?: string
+          iva_periodicidad_id?: number | null
           logo_path?: string | null
           logo_storage_path?: string | null
           marco_clasificado_at?: string | null
@@ -14808,6 +16670,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_iva_periodicidad_id_fkey"
+            columns: ["iva_periodicidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
           {
@@ -15072,6 +16941,155 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      tributario_concepto_retencion: {
+        Row: {
+          base_minima_uvt: number | null
+          codigo: string
+          created_at: string
+          cuenta_contable_id: string
+          id: number
+          nombre: string
+          tarifa: number
+          tenant_id: string
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          base_minima_uvt?: number | null
+          codigo: string
+          created_at?: string
+          cuenta_contable_id: string
+          id?: never
+          nombre: string
+          tarifa: number
+          tenant_id: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          base_minima_uvt?: number | null
+          codigo?: string
+          created_at?: string
+          cuenta_contable_id?: string
+          id?: never
+          nombre?: string
+          tarifa?: number
+          tenant_id?: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tributario_concepto_retencion_cuenta_contable_id_fkey"
+            columns: ["cuenta_contable_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_concepto_retencion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_concepto_retencion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tributario_iva_generado: {
+        Row: {
+          base: number
+          created_at: string
+          fecha: string
+          id: string
+          periodo_id: string
+          presupuesto_ejecucion_id: string | null
+          registrado_por: string | null
+          tarifa: number
+          tenant_id: string
+          tercero_id: string | null
+          valor: number
+        }
+        Insert: {
+          base: number
+          created_at?: string
+          fecha: string
+          id?: string
+          periodo_id: string
+          presupuesto_ejecucion_id?: string | null
+          registrado_por?: string | null
+          tarifa: number
+          tenant_id: string
+          tercero_id?: string | null
+          valor: number
+        }
+        Update: {
+          base?: number
+          created_at?: string
+          fecha?: string
+          id?: string
+          periodo_id?: string
+          presupuesto_ejecucion_id?: string | null
+          registrado_por?: string | null
+          tarifa?: number
+          tenant_id?: string
+          tercero_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tributario_iva_generado_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_iva_generado_presupuesto_ejecucion_id_fkey"
+            columns: ["presupuesto_ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_ejecucion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_iva_generado_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_iva_generado_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_iva_generado_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_iva_generado_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zonas_comunes: {
         Row: {
@@ -15674,6 +17692,13 @@ export type Database = {
           tercero_id: string
         }[]
       }
+      contable_ingresos_por_naturaleza_tributaria: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          naturaleza_tributaria: string
+          total: number
+        }[]
+      }
       contable_libro_diario: {
         Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
         Returns: {
@@ -15784,6 +17809,7 @@ export type Database = {
           email: string | null
           explota_bienes_comunes: boolean
           id: string
+          iva_periodicidad_id: number | null
           logo_path: string | null
           logo_storage_path: string | null
           marco_clasificado_at: string | null
@@ -16573,6 +18599,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_gobierno_expensa_necesaria_mensual: {
+        Args: { p_fecha: string; p_inmueble_id: string }
+        Returns: number
+      }
+      fn_gobierno_politica_semaforo_vigente: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          created_at: string
+          dias_proximo_vencer: number
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_politica_semaforo"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_gobierno_registrar_salida: {
         Args: { p_asistencia_id: string }
         Returns: {
@@ -16599,12 +18648,54 @@ export type Database = {
         Args: { p_anio: number; p_tenant_id: string }
         Returns: number
       }
+      fn_gobierno_siguiente_numero_decision: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
+      fn_gobierno_siguiente_numero_expediente: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
+      fn_gobierno_siguiente_numero_impugnacion: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
       fn_gobierno_suscribir_acta: {
         Args: {
           p_acta_id: string
           p_presidente_miembro_id: string
           p_secretario_miembro_id: string
         }
+        Returns: {
+          anio: number
+          contenido_generado: Json
+          created_at: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["acta_estado_t"]
+          hash_contenido: string | null
+          id: string
+          incluye_voto_nominal: boolean
+          narrativa: string | null
+          numero: number | null
+          plazo_disposicion_limite: string
+          presidente_miembro_id: string
+          puesta_a_disposicion_at: string | null
+          reunion_id: string
+          secretario_miembro_id: string
+          suscrita_at: string | null
+          suscrita_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_actas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_gobierno_vincular_documento_acta: {
+        Args: { p_acta_id: string; p_documento_id: string }
         Returns: {
           anio: number
           contenido_generado: Json
@@ -17307,6 +19398,10 @@ export type Database = {
         Args: { p_tenant_id: string; p_tipo_documento: string }
         Returns: string
       }
+      fn_siguiente_numero_solicitud: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
+      }
       fn_similitud_pagadores: {
         Args: { p_tenant_id: string; p_texto: string }
         Returns: {
@@ -17386,7 +19481,229 @@ export type Database = {
           norma: string
         }[]
       }
+      gobierno_archivar_expediente: {
+        Args: { p_expediente_id: string; p_motivo: string }
+        Returns: {
+          anio: number
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          cerrado_at: string | null
+          created_at: string
+          descripcion_hechos: string
+          estado_final: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          fecha_hechos: string
+          id: string
+          infraccion_id: string
+          inmueble_id: string
+          numero: number
+          presunto_infractor_ref: string
+          propietario_responsable_ref: string | null
+          reportado_at: string
+          reportado_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_expedientes_convivencia"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_crear_decision: {
+        Args: {
+          p_descripcion?: string
+          p_fecha_limite?: string
+          p_fundamento?: string
+          p_prioridad?: string
+          p_titulo: string
+          p_votacion_id: string
+        }
+        Returns: {
+          acta_id: string | null
+          agenda_punto_id: string | null
+          anio: number
+          anulada_at: string | null
+          anulada_motivo: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite: string | null
+          fundamento: string | null
+          id: string
+          materia_id: number
+          numero: number
+          organo_id: string
+          prioridad: string | null
+          reunion_id: string
+          revoca_decision_id: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          votacion_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_decisiones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_crear_solicitud: {
+        Args: {
+          p_actor_id?: string
+          p_asunto: string
+          p_calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          p_categoria_id: number
+          p_descripcion?: string
+          p_inmueble_id: string
+          p_origen_id: number
+          p_prioridad_id: number
+          p_solicitante_ref: string
+          p_tipo_id: number
+        }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_id: number
+          prioridad_id: number
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_decision_efectos: {
+        Args: { p_decision_id: string }
+        Returns: {
+          descripcion: string
+          entidad: string
+          entidad_id: string
+        }[]
+      }
+      gobierno_decision_ejecucion: {
+        Args: { p_decision_id: string }
+        Returns: {
+          bloqueados: number
+          cancelados: number
+          cumplidos: number
+          en_progreso: number
+          estado_ejecucion: string
+          porcentaje_avance: number
+          semaforo: string
+          total_compromisos: number
+          vencidos: number
+        }[]
+      }
+      gobierno_decision_origen: {
+        Args: { p_entidad: string; p_entidad_id: string }
+        Returns: {
+          acta_id: string | null
+          agenda_punto_id: string | null
+          anio: number
+          anulada_at: string | null
+          anulada_motivo: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite: string | null
+          fundamento: string | null
+          id: string
+          materia_id: number
+          numero: number
+          organo_id: string
+          prioridad: string | null
+          reunion_id: string
+          revoca_decision_id: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          votacion_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_decisiones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_dias_habiles_entre: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: number
+      }
       gobierno_es_dia_habil: { Args: { p_fecha: string }; Returns: boolean }
+      gobierno_escalar_solicitud: {
+        Args: {
+          p_actor_id?: string
+          p_destino_id: string
+          p_destino_tipo: string
+          p_solicitud_id: string
+        }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_id: number
+          prioridad_id: number
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gobierno_festivos_colombia: {
         Args: { p_anio: number }
         Returns: string[]
@@ -17421,6 +19738,40 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gobierno_imponer_sancion: {
+        Args: {
+          p_actor_id?: string
+          p_clase_sancion_codigo: string
+          p_decision_id: string
+          p_expediente_id: string
+          p_monto?: number
+          p_publicacion_documento_id?: string
+          p_vigente_desde?: string
+          p_vigente_hasta?: string
+          p_zona_comun_id?: string
+        }
+        Returns: {
+          clase_sancion_id: number
+          created_at: string
+          decision_id: string
+          expediente_id: string
+          id: string
+          impuesta_at: string
+          monto: number | null
+          novedad_id: string | null
+          publicacion_evidencia_documento_id: string | null
+          tenant_id: string
+          vigente_desde: string | null
+          vigente_hasta: string | null
+          zona_comun_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_sanciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gobierno_obligatoriedad_faltante: {
         Args: { p_fecha?: string; p_tenant_id: string }
         Returns: {
@@ -17442,6 +19793,61 @@ export type Database = {
         }[]
       }
       gobierno_pascua: { Args: { p_anio: number }; Returns: string }
+      gobierno_presentar_impugnacion: {
+        Args: {
+          p_actor_id?: string
+          p_calidad?: string
+          p_causal: string
+          p_decision_id?: string
+          p_documento_id?: string
+          p_expediente_id?: string
+          p_fecha_notificacion_objeto: string
+          p_fecha_presentacion: string
+          p_fundamento?: string
+          p_impugnante_ref: string
+          p_objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          p_suspende_efectos?: boolean
+          p_suspension_fundamento?: string
+        }
+        Returns: {
+          anio: number
+          calidad: string | null
+          causal: string
+          created_at: string
+          decision_id: string | null
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          expediente_id: string | null
+          fecha_notificacion_objeto: string
+          fecha_presentacion: string
+          fundamento: string | null
+          id: string
+          impugnante_ref: string
+          instancia: string | null
+          numero: number
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_fundamento_valido: boolean
+          plazo_limite: string
+          presentada_en_plazo: boolean
+          presentada_por: string | null
+          resolucion_documento_id: string | null
+          resuelta_at: string | null
+          resultado:
+            | Database["public"]["Enums"]["impugnacion_resultado_t"]
+            | null
+          resultado_detalle: string | null
+          suspende_efectos: boolean
+          suspension_fundamento: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_impugnaciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gobierno_quorum: {
         Args: { p_momento: string; p_reunion_id: string }
         Returns: {
@@ -17453,12 +19859,245 @@ export type Database = {
           quorum_deliberatorio: boolean
         }[]
       }
+      gobierno_registrar_actuacion: {
+        Args: {
+          p_descripcion: string
+          p_documento_id?: string
+          p_etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          p_expediente_id: string
+          p_fecha: string
+          p_plazo_dias?: number
+        }
+        Returns: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          expediente_id: string
+          fecha: string
+          fecha_limite: string | null
+          id: string
+          plazo_dias: number | null
+          registrado_por: string | null
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_expediente_actuaciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_registrar_actuacion_impugnacion: {
+        Args: {
+          p_descripcion: string
+          p_documento_id?: string
+          p_estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          p_fecha: string
+          p_impugnacion_id: string
+          p_instancia?: string
+        }
+        Returns: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          fecha: string
+          id: string
+          impugnacion_id: string
+          registrado_por: string | null
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_impugnacion_actuaciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_registrar_actuacion_solicitud: {
+        Args: {
+          p_actor_id?: string
+          p_descripcion: string
+          p_documento_id?: string
+          p_es_respuesta?: boolean
+          p_estado_nuevo: Database["public"]["Enums"]["solicitud_estado_t"]
+          p_fecha: string
+          p_motivo?: string
+          p_solicitud_id: string
+        }
+        Returns: {
+          created_at: string
+          descripcion: string
+          documento_id: string | null
+          es_respuesta: boolean
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          fecha: string
+          id: string
+          registrado_por: string | null
+          solicitud_id: string
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitud_actuaciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_reportar_expediente: {
+        Args: {
+          p_calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          p_descripcion_hechos: string
+          p_fecha_hechos: string
+          p_infraccion_id: string
+          p_inmueble_id: string
+          p_presunto_infractor_ref: string
+        }
+        Returns: {
+          anio: number
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          cerrado_at: string | null
+          created_at: string
+          descripcion_hechos: string
+          estado_final: string | null
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          fecha_hechos: string
+          id: string
+          infraccion_id: string
+          inmueble_id: string
+          numero: number
+          presunto_infractor_ref: string
+          propietario_responsable_ref: string | null
+          reportado_at: string
+          reportado_por: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_expedientes_convivencia"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_resolver_impugnacion: {
+        Args: {
+          p_actor_id?: string
+          p_descripcion: string
+          p_detalle?: string
+          p_impugnacion_id: string
+          p_instancia?: string
+          p_resolucion_documento_id?: string
+          p_resultado: Database["public"]["Enums"]["impugnacion_resultado_t"]
+        }
+        Returns: {
+          anio: number
+          calidad: string | null
+          causal: string
+          created_at: string
+          decision_id: string | null
+          documento_id: string | null
+          estado: Database["public"]["Enums"]["impugnacion_estado_t"]
+          expediente_id: string | null
+          fecha_notificacion_objeto: string
+          fecha_presentacion: string
+          fundamento: string | null
+          id: string
+          impugnante_ref: string
+          instancia: string | null
+          numero: number
+          objeto_tipo: Database["public"]["Enums"]["impugnacion_objeto_t"]
+          plazo_fundamento_valido: boolean
+          plazo_limite: string
+          presentada_en_plazo: boolean
+          presentada_por: string | null
+          resolucion_documento_id: string | null
+          resuelta_at: string | null
+          resultado:
+            | Database["public"]["Enums"]["impugnacion_resultado_t"]
+            | null
+          resultado_detalle: string | null
+          suspende_efectos: boolean
+          suspension_fundamento: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_impugnaciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gobierno_reunion_coeficiente_actual: {
         Args: { p_reunion_id: string }
         Returns: number
       }
+      gobierno_revocar_decision: {
+        Args: {
+          p_decision_id: string
+          p_descripcion?: string
+          p_fundamento?: string
+          p_titulo: string
+          p_votacion_revocatoria_id: string
+        }
+        Returns: {
+          acta_id: string | null
+          agenda_punto_id: string | null
+          anio: number
+          anulada_at: string | null
+          anulada_motivo: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
+          fecha_limite: string | null
+          fundamento: string | null
+          id: string
+          materia_id: number
+          numero: number
+          organo_id: string
+          prioridad: string | null
+          reunion_id: string
+          revoca_decision_id: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          votacion_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_decisiones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gobierno_revocar_token_consulta_inmueble: {
+        Args: { p_actor_id?: string; p_motivo: string; p_token_id: string }
+        Returns: {
+          created_at: string
+          expira_at: string
+          generado_por: string | null
+          id: string
+          inmueble_id: string
+          motivo_revocacion: string | null
+          revocado_at: string | null
+          revocado_por: string | null
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "atencion_tokens_consulta"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       gobierno_sumar_dias_habiles: {
         Args: { p_dias: number; p_fecha: string }
+        Returns: string
+      }
+      gobierno_sumar_horas_habiles: {
+        Args: { p_desde: string; p_horas: number }
         Returns: string
       }
       gobierno_trasladar_lunes: { Args: { p_fecha: string }; Returns: string }
@@ -17789,6 +20428,43 @@ export type Database = {
         Args: { p_modulo: string; p_tenant: string }
         Returns: boolean
       }
+      tributario_base_exogena: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: Json
+      }
+      tributario_certificado_retencion: {
+        Args: {
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+          p_tercero_id: string
+        }
+        Returns: {
+          concepto_codigo: string
+          concepto_nombre: string
+          tarifa: number
+          total_base: number
+          total_valor: number
+        }[]
+      }
+      tributario_resumen_iva: {
+        Args: { p_anio: number; p_periodo_numero: number; p_tenant_id: string }
+        Returns: {
+          mes_desde: number
+          mes_hasta: number
+          total_base: number
+          total_valor: number
+        }[]
+      }
+      tributario_resumen_retenciones_mensual: {
+        Args: { p_anio: number; p_mes: number; p_tenant_id: string }
+        Returns: {
+          concepto_codigo: string
+          concepto_nombre: string
+          total_base: number
+          total_valor: number
+        }[]
+      }
       validar_cuenta_contable_destino: {
         Args: {
           p_cuenta_id: string
@@ -17802,6 +20478,7 @@ export type Database = {
           created_at: string
           id: string
           naturaleza: Database["public"]["Enums"]["contable_naturaleza_t"]
+          naturaleza_tributaria_id: number | null
           nivel: number
           nombre: string
           parent_id: string | null
@@ -18018,6 +20695,39 @@ export type Database = {
         | "fabricante"
         | "proveedor"
         | "contrato"
+      gobierno_compromiso_estado_t:
+        | "pendiente"
+        | "en_progreso"
+        | "bloqueado"
+        | "cumplido"
+        | "cancelado"
+      gobierno_decision_estado_t:
+        | "vigente"
+        | "anulada"
+        | "revocada"
+        | "impugnada"
+      gobierno_expediente_calidad_t: "propietario" | "tenedor" | "tercero"
+      gobierno_expediente_etapa_t:
+        | "reportado"
+        | "conciliacion_comite"
+        | "requerimiento_escrito"
+        | "descargos"
+        | "decision_organo"
+        | "sancion_impuesta"
+        | "archivado"
+        | "impugnacion"
+        | "firme"
+      impugnacion_estado_t:
+        | "presentada"
+        | "en_tramite"
+        | "resuelta"
+        | "desistida"
+      impugnacion_objeto_t: "decision" | "sancion"
+      impugnacion_resultado_t:
+        | "confirmada"
+        | "revocada"
+        | "modificada"
+        | "inadmitida"
       incidencia_estado_t:
         | "reportada"
         | "en_evaluacion"
@@ -18126,6 +20836,14 @@ export type Database = {
         | "universal_sin_convocatoria"
       reunion_estado_t: "convocada" | "instalada" | "cerrada" | "cancelada"
       reunion_modalidad_t: "presencial" | "no_presencial" | "mixta"
+      solicitud_estado_t:
+        | "nueva"
+        | "asignada"
+        | "en_atencion"
+        | "en_espera"
+        | "resuelta"
+        | "cerrada"
+        | "anulada"
       tarea_estado_t: "pendiente" | "ejecutada" | "no_aplica"
       tenant_role_t: "auxiliar" | "auditor" | "administrador"
       tenant_status_t: "active" | "suspended" | "deleted"
@@ -18544,6 +21262,44 @@ export const Constants = {
         "proveedor",
         "contrato",
       ],
+      gobierno_compromiso_estado_t: [
+        "pendiente",
+        "en_progreso",
+        "bloqueado",
+        "cumplido",
+        "cancelado",
+      ],
+      gobierno_decision_estado_t: [
+        "vigente",
+        "anulada",
+        "revocada",
+        "impugnada",
+      ],
+      gobierno_expediente_calidad_t: ["propietario", "tenedor", "tercero"],
+      gobierno_expediente_etapa_t: [
+        "reportado",
+        "conciliacion_comite",
+        "requerimiento_escrito",
+        "descargos",
+        "decision_organo",
+        "sancion_impuesta",
+        "archivado",
+        "impugnacion",
+        "firme",
+      ],
+      impugnacion_estado_t: [
+        "presentada",
+        "en_tramite",
+        "resuelta",
+        "desistida",
+      ],
+      impugnacion_objeto_t: ["decision", "sancion"],
+      impugnacion_resultado_t: [
+        "confirmada",
+        "revocada",
+        "modificada",
+        "inadmitida",
+      ],
       incidencia_estado_t: [
         "reportada",
         "en_evaluacion",
@@ -18665,6 +21421,15 @@ export const Constants = {
       ],
       reunion_estado_t: ["convocada", "instalada", "cerrada", "cancelada"],
       reunion_modalidad_t: ["presencial", "no_presencial", "mixta"],
+      solicitud_estado_t: [
+        "nueva",
+        "asignada",
+        "en_atencion",
+        "en_espera",
+        "resuelta",
+        "cerrada",
+        "anulada",
+      ],
       tarea_estado_t: ["pendiente", "ejecutada", "no_aplica"],
       tenant_role_t: ["auxiliar", "auditor", "administrador"],
       tenant_status_t: ["active", "suspended", "deleted"],

@@ -40,7 +40,9 @@ function archivosTsFuente(dir: string): string[] {
 function codigosEnEdgeFunctions(): Map<string, string[]> {
   const dir = join(RAIZ, 'supabase', 'functions')
   const encontrados = new Map<string, string[]>()
-  for (const carpeta of readdirSync(dir)) {
+  // supabase/functions/ también puede tener archivos sueltos (p.ej. .env de
+  // secretos locales, gitignored) junto a las carpetas de cada función.
+  for (const carpeta of readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)) {
     const rutaCarpeta = join(dir, carpeta)
     for (const archivo of archivosTsFuente(rutaCarpeta)) {
       const contenido = readFileSync(join(rutaCarpeta, archivo), 'utf-8')

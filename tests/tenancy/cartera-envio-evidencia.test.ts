@@ -316,8 +316,9 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     expect(envio!.canal).toBe('sms')
     expect(envio!.destinatario_contacto).toBe(SMS_DESTINO_PRUEBA)
     expect(envio!.plantilla_codigo).toBe(EVENT_TYPE)
-    // 0 = plantilla sin versionado (PRQ-CAR-021 pendiente), no un 1 fingido.
-    expect(envio!.plantilla_version).toBe(0)
+    // PRQ-CAR-021 (20260907130000) ya versiona plantillas_sms — la plantilla propia
+    // del tenant, insertada arriba sin version explícita, nace en 1 (default de columna).
+    expect(envio!.plantilla_version).toBe(1)
     // El texto real que recibió el deudor, con las variables resueltas.
     expect(envio!.contenido_renderizado).toContain('45 dias de mora')
     expect(envio!.contenido_hash).toMatch(/^[0-9a-f]{64}$/)
@@ -479,7 +480,11 @@ d('CAR §34.2 — circuito probatorio: despacho real, evidencia y acuse', () => 
     const { data, error } = await admin.rpc('fn_compilar_expediente', {
       p_tenant_id: tenant.id,
       p_inmueble_id: inmuebleId,
-      p_fecha_corte: '2026-08-31',
+      // fn_compilar_expediente() filtra envíos/acuses por
+      // "ocurrido_at/enviado_at < fecha_corte + 1" — un corte fijo en el pasado
+      // deja fuera el envío real que este test acaba de despachar "ahora"
+      // (mismo bug de fecha lejana ya documentado en FIN-1: usar la fecha real).
+      p_fecha_corte: new Date().toISOString().slice(0, 10),
     })
     expect(error).toBeNull()
     const expediente = data as unknown as { cronologia_gestion: Array<Record<string, unknown>> }

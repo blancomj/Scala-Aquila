@@ -12,6 +12,60 @@ project_id = "hwjmlyzzvpmhadldavbq"
 
 [db]
 major_version = 15
+port = 54322
+shadow_port = 54320
+
+# ── Stack local (`supabase start`) — agregado 2026-09-07 para acelerar
+#    `pnpm test` (D-08 seguía usando solo el proyecto remoto; local resuelve
+#    exactamente lo que esa decisión dejó pendiente: reproducibilidad +
+#    aislamiento, sin depender de la red). Perfil recortado a lo que las
+#    pruebas realmente usan (grep sobre tests/): api/db/auth (todas las
+#    pruebas), storage (5 archivos), edge_runtime (35 archivos invocan
+#    Edge Functions). Apagado explícito lo que ninguna prueba usa —
+#    realtime, studio, smtp local, analytics — para minimizar contenedores
+#    y RAM en una máquina de 16 GB compartidos con Windows.
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db.seed]
+enabled = false
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.s3_protocol]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_confirmations = false
+
+[edge_runtime]
+enabled = true
+
+[analytics]
+enabled = false
 
 # D-19: verify_jwt = true (default) — la función usa auth: 'user'
 # (@supabase/server), que requiere un JWT de usuario real. El scaffold de

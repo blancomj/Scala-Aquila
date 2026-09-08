@@ -165,11 +165,19 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
    * que no hay forma de corregirlo después sin retirarlo, mejor pedirlo bien desde el inicio. El
    * archivo del acta se sube aparte, a la librería de documentos de la copropiedad (ver
    * PresupuestoTabPresupuestos.vue) — acá solo se guarda la referencia de texto para mostrarla
-   * sin tener que unir tablas. */
+   * sin tener que unir tablas.
+   *
+   * GOB-5 (20260931670000): decisionId reemplaza a actaAsamblea para copropiedades que usan el
+   * módulo de gobierno — exactamente uno de los dos, nunca ambos (PRESUPUESTO_ORIGEN_
+   * APROBACION_DUPLICADO, guard en la base). actaAsamblea sigue siendo el respaldo de texto
+   * libre para las que no lo usan. */
   async function activarPresupuesto(
     id: string,
     tenantId: string,
-    datos: { fechaAprobacion: string; vigenteDesde: string; vigenteHasta: string; actaAsamblea: string },
+    datos: {
+      fechaAprobacion: string; vigenteDesde: string; vigenteHasta: string
+      actaAsamblea?: string | null; decisionId?: string | null
+    },
   ): Promise<void> {
     const cliente = useSupabaseClient<Database>()
     const nuevo = presupuestos.value.find((p) => p.id === id)
@@ -192,7 +200,8 @@ export const usePresupuestoStore = defineStore('presupuesto', () => {
         fecha_aprobacion: datos.fechaAprobacion,
         vigente_desde: datos.vigenteDesde,
         vigente_hasta: datos.vigenteHasta,
-        acta_asamblea: datos.actaAsamblea,
+        acta_asamblea: datos.actaAsamblea ?? null,
+        decision_id: datos.decisionId ?? null,
       })
       .eq('id', id)
     if (errorUpdate) throw errorUpdate

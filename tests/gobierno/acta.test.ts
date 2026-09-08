@@ -166,6 +166,25 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
     return data.id
   }
 
+  async function crearDocumentoActa(tenantId: string): Promise<string> {
+    const tipoDocId = await idListaTipos('TIPO_DOCUMENTO', 'acta_asamblea')
+    const storagePath = `${tenantId}/_copropiedad/${crypto.randomUUID()}/1_acta-fixture.pdf`
+    const { error: errorUpload } = await admin.storage
+      .from('documentos-inmueble')
+      .upload(storagePath, PDF_MINIMO, { contentType: 'application/pdf', upsert: false })
+    if (errorUpload) throw new Error(`fixture storage documento acta: ${errorUpload.message}`)
+    storagePaths.push(storagePath)
+    const { data, error } = await admin
+      .from('documentos')
+      .insert({
+        tenant_id: tenantId, tipo_documento_id: tipoDocId,
+        nombre_archivo: 'acta-fixture.pdf', storage_path: storagePath, tamano_bytes: PDF_MINIMO.length,
+      })
+      .select('id').single<{ id: string }>()
+    if (error) throw new Error(`fixture documento acta: ${error.message}`)
+    return data.id
+  }
+
   async function crearAgendaPunto(tenantId: string, reunionId: string, orden: number, titulo: string): Promise<void> {
     const { error } = await admin.from('gobierno_agenda_puntos').insert({ tenant_id: tenantId, reunion_id: reunionId, orden, titulo })
     if (error) throw new Error(`fixture agenda: ${error.message}`)
@@ -236,12 +255,12 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
       .insert({ tenant_id: tenantId, reunion_id: reunionId, materia_id: materiaId, pregunta: '¿Aprobar el presupuesto?' })
       .select('id').single<{ id: string }>()
     if (errVot) throw new Error(`fixture votacion: ${errVot.message}`)
-    await admin.from('gobierno_votos').insert({ tenant_id: tenantId, votacion_id: votacion!.id, asistencia_id: asistA, sentido: 'favor', coeficiente: 0 })
-    await admin.from('gobierno_votos').insert({ tenant_id: tenantId, votacion_id: votacion!.id, asistencia_id: asistB, sentido: 'contra', coeficiente: 0 })
-    await admin.from('gobierno_votaciones').update({ estado: 'cerrada' }).eq('id', votacion!.id)
+    await admin.from('gobierno_votos').insert({ tenant_id: tenantId, votacion_id: votacion.id, asistencia_id: asistA, sentido: 'favor', coeficiente: 0 })
+    await admin.from('gobierno_votos').insert({ tenant_id: tenantId, votacion_id: votacion.id, asistencia_id: asistB, sentido: 'contra', coeficiente: 0 })
+    await admin.from('gobierno_votaciones').update({ estado: 'cerrada' }).eq('id', votacion.id)
 
     await cerrarReunion(cliente, reunionId)
-    return { tenantId, cliente, organoId, reunionId, presidenteMiembroId, secretarioMiembroId, inmA, inmB, propA, propB, votacionId: votacion!.id }
+    return { tenantId, cliente, organoId, reunionId, presidenteMiembroId, secretarioMiembroId, inmA, inmB, propA, propB, votacionId: votacion.id }
   }
 
   it('1. generar el acta de una reunión no cerrada falla con ACTA_REUNION_NO_CERRADA', async () => {
@@ -281,7 +300,7 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
     const asistentes = acta!.contenido_generado.asistentes as {
       nombre: string; calidad: string; inmueble_codigo: string; coeficiente: number
     }[]
-    const asistA = asistentes.find((a) => a.inmueble_codigo?.includes('-A-'))
+    const asistA = asistentes.find((a) => a.inmueble_codigo.includes('-A-'))
     expect(asistA).toMatchObject({ calidad: 'propietario', coeficiente: 0.6 })
     expect(asistA!.nombre).toContain('PropA')
 
@@ -291,7 +310,7 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
 
     const { data: actaRegenerada } = await generarActa(e.reunionId)
     const asistARegen = (actaRegenerada!.contenido_generado.asistentes as typeof asistentes)
-      .find((a) => a.inmueble_codigo?.includes('-A-'))
+      .find((a) => a.inmueble_codigo.includes('-A-'))
     expect(asistARegen!.coeficiente).toBe(0.6) // sigue siendo el congelado en gobierno_asistencia
   }, 30_000)
 
@@ -389,8 +408,8 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
 
     const actaIds: string[] = []
     for (let n = 0; n < 5; n++) {
-      const reunionId = await crearReunion(tenantId, organoId, `2026-06-0${n + 1}T15:00:00Z`)
-      await crearAgendaPunto(tenantId, reunionId, 1, `Punto ${n}`)
+      const reunionId = await crearReunion(tenantId, organoId, `2026-06-0${String(n + 1)}T15:00:00Z`)
+      await crearAgendaPunto(tenantId, reunionId, 1, `Punto ${String(n)}`)
       await crearAsistencia(tenantId, reunionId, inmA, prop)
       await instalar(cliente, reunionId, presidenteMiembroId, secretarioMiembroId)
       await cerrarReunion(cliente, reunionId)
@@ -457,7 +476,23 @@ d('GOB-4: el acta se genera, no se adjunta', () => {
   it('13. el enlace de consulta del acta caduca y registra la entrega', async () => {
     const e = await prepararReunionCerradaCompleta('t13')
     const { data: acta } = await generarActa(e.reunionId)
+    const documentoId = await crearDocumentoActa(e.tenantId)
+    await admin.from('gobierno_actas').update({ documento_id: documentoId }).eq('id', acta!.id)
     await suscribirActa(acta!.id, e.presidenteMiembroId, e.secretarioMiembroId)
+
+    // Enlace de consulta con token real (GOB-0, reutilizado tal cual — genérico para cualquier
+    // documento_id) con vigencia_dias:0 → ya vencido para cuando ver-documento lo consume.
+    const { data: enlace, response: respEnlace } = await e.cliente.functions.invoke<RespuestaEnlace>(
+      'generar-enlace-documento',
+      { body: { documento_id: documentoId, vigencia_dias: 0 } },
+    )
+    expect(respEnlace?.status).toBe(200)
+    const { data: verResult, response: respVer } = await admin.functions.invoke<RespuestaVerDocumento>(
+      'ver-documento',
+      { body: { id: documentoId, t: enlace!.token } },
+    )
+    expect(verResult).toBeNull()
+    expect(respVer?.status).toBe(410)
 
     const { error: errEntregaAntesSuscrita } = await admin.from('gobierno_acta_entregas').insert({
       tenant_id: e.tenantId, acta_id: acta!.id, tipo: 'solicitud',

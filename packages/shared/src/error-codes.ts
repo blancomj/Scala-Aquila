@@ -1006,6 +1006,169 @@ export const ERROR_CODES = {
   ENTREGA_ACTA_INVALIDA: 'ENTREGA_ACTA_INVALIDA',
   // guard_gobierno_acta_entrega: el acta todavía no está suscrita — no hay copia que entregar.
   ENTREGA_ACTA_NO_SUSCRITA: 'ENTREGA_ACTA_NO_SUSCRITA',
+  // fn_gobierno_vincular_documento_acta: documento_id no pertenece al tenant del acta.
+  ACTA_DOCUMENTO_INVALIDO: 'ACTA_DOCUMENTO_INVALIDO',
+
+  // ── GOB-5: decisión y compromisos (20260931620000+) ──
+  // gobierno_crear_decision: la votación no existe, o no está cerrada y aprobada.
+  DECISION_SIN_VOTACION_APROBADA: 'DECISION_SIN_VOTACION_APROBADA',
+  // gobierno_crear_decision: crear una decisión exige rol auxiliar.
+  DECISION_TRANSICION_REQUIERE_AUXILIAR: 'DECISION_TRANSICION_REQUIERE_AUXILIAR',
+  // gobierno_revocar_decision: revocar una decisión exige rol administrador.
+  DECISION_TRANSICION_REQUIERE_ADMINISTRADOR: 'DECISION_TRANSICION_REQUIERE_ADMINISTRADOR',
+  // guard_gobierno_decision_inmutable: la decisión está enlazada a un acta ya suscrita/publicada
+  // — inmutable en sus campos sustantivos (salvo la propia transición de revocación).
+  DECISION_INMUTABLE_TRAS_ACTA: 'DECISION_INMUTABLE_TRAS_ACTA',
+  // gobierno_revocar_decision: la decisión no existe, o no está vigente (ya revocada/anulada/
+  // impugnada) y por tanto no se puede revocar de nuevo.
+  DECISION_REVOCACION_INVALIDA: 'DECISION_REVOCACION_INVALIDA',
+  // gobierno_decision_origen: la entidad pasada no es 'presupuesto' ni 'fondo_autorizacion'.
+  DECISION_ORIGEN_ENTIDAD_DESCONOCIDA: 'DECISION_ORIGEN_ENTIDAD_DESCONOCIDA',
+  // guard_gobierno_compromiso: decision_id no pertenece al tenant del compromiso.
+  COMPROMISO_DECISION_INVALIDA: 'COMPROMISO_DECISION_INVALIDA',
+  // guard_gobierno_compromiso: no se puede pasar a 'cumplido' sin al menos un avance con
+  // evidencia (documento_id no nulo en gobierno_compromiso_avances).
+  COMPROMISO_CUMPLIDO_SIN_EVIDENCIA: 'COMPROMISO_CUMPLIDO_SIN_EVIDENCIA',
+  // presupuestos: no se puede poblar acta_asamblea (texto) y decision_id (FK) a la vez.
+  PRESUPUESTO_ORIGEN_APROBACION_DUPLICADO: 'PRESUPUESTO_ORIGEN_APROBACION_DUPLICADO',
+
+  // ── GOB-6: convivencia y régimen sancionatorio (20260931710000+) ──
+  // guard_gobierno_clase_sancion: el catálogo del art. 59 es taxativo, sin excepciones.
+  SANCION_CLASE_NO_EXTENSIBLE: 'SANCION_CLASE_NO_EXTENSIBLE',
+  // guard_gobierno_infraccion: reglamento_referencia vacía o nula.
+  INFRACCION_SIN_TIPIFICACION: 'INFRACCION_SIN_TIPIFICACION',
+  // guard_gobierno_infraccion: un código de clases_sancion_permitidas no está en el catálogo global.
+  INFRACCION_CLASE_SANCION_INVALIDA: 'INFRACCION_CLASE_SANCION_INVALIDA',
+  // gobierno_reportar_expediente: infraccion_id no existe.
+  EXPEDIENTE_INFRACCION_INEXISTENTE: 'EXPEDIENTE_INFRACCION_INEXISTENTE',
+  // gobierno_reportar_expediente/gobierno_registrar_actuacion/gobierno_archivar_expediente:
+  // exige rol auxiliar o superior.
+  EXPEDIENTE_TRANSICION_REQUIERE_AUXILIAR: 'EXPEDIENTE_TRANSICION_REQUIERE_AUXILIAR',
+  // gobierno_imponer_sancion: exige rol administrador.
+  EXPEDIENTE_TRANSICION_REQUIERE_ADMINISTRADOR: 'EXPEDIENTE_TRANSICION_REQUIERE_ADMINISTRADOR',
+  // gobierno_registrar_actuacion/gobierno_archivar_expediente/gobierno_imponer_sancion: el
+  // expediente ya está en una etapa terminal (archivado/firme/sancion_impuesta).
+  EXPEDIENTE_ETAPA_TERMINAL: 'EXPEDIENTE_ETAPA_TERMINAL',
+  // gobierno_registrar_actuacion/gobierno_archivar_expediente/gobierno_imponer_sancion:
+  // expediente_id no existe.
+  EXPEDIENTE_INEXISTENTE: 'EXPEDIENTE_INEXISTENTE',
+  // gobierno_registrar_actuacion: la etapa pasada se registra con otra función
+  // (reportado/sancion_impuesta/archivado).
+  ACTUACION_ETAPA_RESERVADA: 'ACTUACION_ETAPA_RESERVADA',
+  // gobierno_imponer_sancion: el expediente no tiene un requerimiento escrito previo registrado.
+  SANCION_SIN_REQUERIMIENTO_PREVIO: 'SANCION_SIN_REQUERIMIENTO_PREVIO',
+  // gobierno_imponer_sancion: el expediente no tiene una etapa de descargos registrada.
+  SANCION_SIN_DEBIDO_PROCESO: 'SANCION_SIN_DEBIDO_PROCESO',
+  // gobierno_imponer_sancion: decision_id no existe o no pertenece al tenant del expediente.
+  SANCION_DECISION_INVALIDA: 'SANCION_DECISION_INVALIDA',
+  // gobierno_imponer_sancion: el órgano de la decisión no tiene la atribución imponer_sanciones
+  // vigente a la fecha de la decisión (el comité de convivencia nunca la tiene, GOB-1).
+  SANCION_ORGANO_INCOMPETENTE: 'SANCION_ORGANO_INCOMPETENTE',
+  // gobierno_imponer_sancion: la clase no existe en el catálogo, o no está entre las permitidas
+  // por la infracción tipificada.
+  SANCION_CLASE_NO_PERMITIDA: 'SANCION_CLASE_NO_PERMITIDA',
+  // gobierno_imponer_sancion: la clase 'multa' exige un monto positivo.
+  SANCION_MONTO_REQUERIDO: 'SANCION_MONTO_REQUERIDO',
+  // gobierno_imponer_sancion: cada multa individual no puede superar el tope legal (2x expensas).
+  MULTA_EXCEDE_TOPE_INDIVIDUAL: 'MULTA_EXCEDE_TOPE_INDIVIDUAL',
+  // gobierno_imponer_sancion: la sumatoria de multas del infractor no puede superar el tope
+  // acumulado legal (10x expensas).
+  MULTA_EXCEDE_TOPE_ACUMULADO: 'MULTA_EXCEDE_TOPE_ACUMULADO',
+  // gobierno_imponer_sancion: la clase 'restriccion_uso' exige una zona común.
+  SANCION_ZONA_COMUN_REQUERIDA: 'SANCION_ZONA_COMUN_REQUERIDA',
+  // gobierno_imponer_sancion: zona_comun_id no existe o no pertenece al tenant.
+  SANCION_ZONA_COMUN_INVALIDA: 'SANCION_ZONA_COMUN_INVALIDA',
+  // gobierno_imponer_sancion: la zona común restringida está marcada como esencial (nunca
+  // restringible, art. 59 num. 3).
+  SANCION_BIEN_COMUN_ESENCIAL: 'SANCION_BIEN_COMUN_ESENCIAL',
+  // fn_gobierno_expensa_necesaria_mensual: inmueble_id no existe.
+  SANCION_INMUEBLE_INEXISTENTE: 'SANCION_INMUEBLE_INEXISTENTE',
+  // fn_gobierno_expensa_necesaria_mensual: el tenant no configuró qué conceptos cuentan como
+  // expensa necesaria mensual — nunca se infiere.
+  SANCION_BASE_EXPENSA_NO_CONFIGURADA: 'SANCION_BASE_EXPENSA_NO_CONFIGURADA',
+  // fn_gobierno_expensa_necesaria_mensual: no existe periodo para la fecha dada.
+  SANCION_PERIODO_INEXISTENTE: 'SANCION_PERIODO_INEXISTENTE',
+
+  // ── GOB-7: impugnación (20260931790000+) ──
+  // gobierno_presentar_impugnacion: decision_id/expediente_id no existe.
+  IMPUGNACION_OBJETO_INEXISTENTE: 'IMPUGNACION_OBJETO_INEXISTENTE',
+  // gobierno_presentar_impugnacion: la decisión no está vigente, o el expediente no tiene una
+  // sanción impuesta vigente — no hay nada que impugnar.
+  IMPUGNACION_OBJETO_NO_IMPUGNABLE: 'IMPUGNACION_OBJETO_NO_IMPUGNABLE',
+  // gobierno_presentar_impugnacion/gobierno_registrar_actuacion_impugnacion: exige rol auxiliar.
+  IMPUGNACION_TRANSICION_REQUIERE_AUXILIAR: 'IMPUGNACION_TRANSICION_REQUIERE_AUXILIAR',
+  // gobierno_resolver_impugnacion: exige rol administrador.
+  IMPUGNACION_TRANSICION_REQUIERE_ADMINISTRADOR: 'IMPUGNACION_TRANSICION_REQUIERE_ADMINISTRADOR',
+  // gobierno_presentar_impugnacion: suspende_efectos=true exige justificarlo — la impugnación no
+  // suspende automáticamente los efectos del objeto (spec §4.2).
+  IMPUGNACION_SUSPENSION_SIN_FUNDAMENTO: 'IMPUGNACION_SUSPENSION_SIN_FUNDAMENTO',
+  // gobierno_presentar_impugnacion: el tenant no configuró el plazo (gobierno_parametro_
+  // impugnacion) para este objeto_tipo — nunca se infiere.
+  IMPUGNACION_PLAZO_NO_CONFIGURADO: 'IMPUGNACION_PLAZO_NO_CONFIGURADO',
+  // gobierno_registrar_actuacion_impugnacion/gobierno_resolver_impugnacion: impugnacion_id no
+  // existe.
+  IMPUGNACION_INEXISTENTE: 'IMPUGNACION_INEXISTENTE',
+  // gobierno_registrar_actuacion_impugnacion/gobierno_resolver_impugnacion: la impugnación ya
+  // está resuelta o desistida (terminal).
+  IMPUGNACION_ESTADO_TERMINAL: 'IMPUGNACION_ESTADO_TERMINAL',
+  // gobierno_registrar_actuacion_impugnacion: el estado pasado se registra con otra función
+  // (presentada/resuelta).
+  IMPUGNACION_ESTADO_RESERVADO: 'IMPUGNACION_ESTADO_RESERVADO',
+  // gobierno_resolver_impugnacion: resultado='modificada' exige registrar en qué (p_detalle).
+  IMPUGNACION_MODIFICADA_SIN_DETALLE: 'IMPUGNACION_MODIFICADA_SIN_DETALLE',
+  // gobierno_resolver_impugnacion: resultado='revocada' sobre una multa, pero no existe periodo
+  // para la fecha de la reversión — no se puede registrar el cargo de reversión.
+  IMPUGNACION_PERIODO_INEXISTENTE: 'IMPUGNACION_PERIODO_INEXISTENTE',
+
+  // ── GOB-8: atención al propietario/residente y consulta sin sesión (20260931850000+) ──
+  // Prefijo ATENCION_, no SOLICITUD_: el módulo Fondos (fondo_solicitudes_uso) ya registró 9
+  // códigos SOLICITUD_* para un concepto de dominio distinto (SOLICITUD_ESTADO_TERMINAL entre
+  // ellos) — se evita la colisión/ambigüedad con nombres nuevos, ver GOB_08_INFORME.md.
+  // gobierno_crear_solicitud: inmueble_id no existe.
+  ATENCION_SOLICITUD_INMUEBLE_INEXISTENTE: 'ATENCION_SOLICITUD_INMUEBLE_INEXISTENTE',
+  // gobierno_crear_solicitud/gobierno_registrar_actuacion_solicitud/gobierno_escalar_solicitud/
+  // gobierno_revocar_token_consulta_inmueble: exige rol auxiliar.
+  ATENCION_TRANSICION_REQUIERE_AUXILIAR: 'ATENCION_TRANSICION_REQUIERE_AUXILIAR',
+  // gobierno_registrar_actuacion_solicitud/gobierno_escalar_solicitud: solicitud_id no existe.
+  ATENCION_SOLICITUD_INEXISTENTE: 'ATENCION_SOLICITUD_INEXISTENTE',
+  // gobierno_registrar_actuacion_solicitud: la solicitud ya está resuelta/cerrada/anulada.
+  ATENCION_SOLICITUD_ESTADO_TERMINAL: 'ATENCION_SOLICITUD_ESTADO_TERMINAL',
+  // gobierno_registrar_actuacion_solicitud: pasar a en_espera exige un motivo (pausa el SLA).
+  ATENCION_EN_ESPERA_SIN_MOTIVO: 'ATENCION_EN_ESPERA_SIN_MOTIVO',
+  // gobierno_registrar_actuacion_solicitud: anular una solicitud exige un motivo.
+  ATENCION_ANULACION_SIN_MOTIVO: 'ATENCION_ANULACION_SIN_MOTIVO',
+  // gobierno_registrar_actuacion_solicitud: resolver sin ninguna actuación es_respuesta=true.
+  ATENCION_CIERRE_SIN_RESPUESTA: 'ATENCION_CIERRE_SIN_RESPUESTA',
+  // gobierno_escalar_solicitud: destino_tipo inválido, o destino_id no pertenece al tenant.
+  ATENCION_ESCALAMIENTO_DESTINO_INVALIDO: 'ATENCION_ESCALAMIENTO_DESTINO_INVALIDO',
+  // gobierno_sumar_horas_habiles: p_horas negativo.
+  HORAS_HABILES_NEGATIVO: 'HORAS_HABILES_NEGATIVO',
+  // guard_atencion_token_consulta_inmutable: cualquier columna salvo revocado_at/
+  // motivo_revocacion cambió tras crear el token.
+  ATENCION_TOKEN_CONSULTA_INMUTABLE: 'ATENCION_TOKEN_CONSULTA_INMUTABLE',
+  // guard_atencion_token_consulta_inmutable/gobierno_revocar_token_consulta_inmueble: el token
+  // ya estaba revocado.
+  ATENCION_TOKEN_CONSULTA_YA_REVOCADO: 'ATENCION_TOKEN_CONSULTA_YA_REVOCADO',
+  // gobierno_revocar_token_consulta_inmueble: token_id no existe.
+  ATENCION_TOKEN_CONSULTA_INEXISTENTE: 'ATENCION_TOKEN_CONSULTA_INEXISTENTE',
+  // gobierno_revocar_token_consulta_inmueble: revocar exige un motivo.
+  ATENCION_TOKEN_REVOCACION_SIN_MOTIVO: 'ATENCION_TOKEN_REVOCACION_SIN_MOTIVO',
+  // ver-inmueble (Edge Function): token_id no existe.
+  ATENCION_TOKEN_NO_ENCONTRADO: 'ATENCION_TOKEN_NO_ENCONTRADO',
+  // ver-inmueble: la fila de control está revocada.
+  ATENCION_TOKEN_REVOCADO: 'ATENCION_TOKEN_REVOCADO',
+  // ver-inmueble: expira_at ya pasó, o el HMAC venció.
+  ATENCION_TOKEN_VENCIDO: 'ATENCION_TOKEN_VENCIDO',
+  // ver-inmueble: el HMAC no verifica contra este id.
+  ATENCION_TOKEN_INVALIDO: 'ATENCION_TOKEN_INVALIDO',
+  // responder-encuesta-solicitud (Edge Function, §4.5): solicitud_id no pertenece al inmueble/
+  // tenant del token.
+  ATENCION_ENCUESTA_SOLICITUD_NO_ENCONTRADA: 'ATENCION_ENCUESTA_SOLICITUD_NO_ENCONTRADA',
+  // responder-encuesta-solicitud: la solicitud todavía no está resuelta/cerrada.
+  ATENCION_ENCUESTA_ESTADO_INVALIDO: 'ATENCION_ENCUESTA_ESTADO_INVALIDO',
+  // responder-encuesta-solicitud: ya existe una encuesta respondida para esta solicitud
+  // (solicitud_encuesta.solicitud_id es unique).
+  ATENCION_ENCUESTA_YA_RESPONDIDA: 'ATENCION_ENCUESTA_YA_RESPONDIDA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
