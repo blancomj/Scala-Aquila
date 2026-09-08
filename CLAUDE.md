@@ -150,6 +150,21 @@ Boundaries above are **enforced by `eslint.config.js`**, not just convention:
   todo catálogo está acotado al tamaño real de un edificio. No convertir
   selectores de enumeraciones fijas a `UiSelectorBuscable` solo por
   uniformidad — evaluar caso por caso si el catálogo realmente es largo.
+- **Ancho de `USelect`.** El tema de Nuxt UI v4 no trae `w-full` en el slot
+  `base` de `USelect` (a diferencia de `UInput`, que sí lo trae de fábrica),
+  así que un `USelect` nuevo se ve angosto (ajustado al placeholder/valor) si
+  no se le da ancho explícito. **No arreglar esto con un override global en
+  `app.config.ts`** — un `select.slots.base` con `w-full` ya se probó y se
+  revirtió (08-09-2026): infla selects dentro de celdas de tabla u otros
+  contenedores que no están pensados para ancho completo, perdiendo la
+  estructura de esa pantalla. El ancho se decide por sitio, según el
+  contenedor real: dentro de un `<UFormField>`/grid de formulario o de un
+  `UiDrawer` (que ya acota el ancho disponible), usar `class="w-full"` para
+  que se comporte como el `UInput` vecino; dentro de una barra de filtros
+  horizontal (`flex items-center gap-X`) junto a otros controles angostos,
+  usar un ancho fijo (`w-40`/`w-48`/`w-56`) igual que sus hermanos; dentro de
+  una celda de tabla (`<td>`), usar un ancho fijo acorde al contenido de esa
+  columna (nunca `w-full`, estiraría la columna entera).
 
 ## Absolute prohibitions (PLAN §9.2 — no exceptions)
 

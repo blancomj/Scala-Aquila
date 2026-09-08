@@ -256,19 +256,19 @@ async function revocar(tokenId: string): Promise<void> {
         <div class="grid gap-2 sm:grid-cols-3">
           <UFormField label="Tipo">
             <USelect
-              :model-value="formSla.tipoId ?? undefined" :items="tiposSolicitud.map((t) => ({ label: t.nombre, value: t.id }))"
+              :model-value="formSla.tipoId ?? undefined" class="w-full" :items="tiposSolicitud.map((t) => ({ label: t.nombre, value: t.id }))"
               @update:model-value="(v) => (formSla.tipoId = v as number)"
             />
           </UFormField>
           <UFormField label="Categoría">
             <USelect
-              :model-value="formSla.categoriaId ?? undefined" :items="categorias.map((c) => ({ label: c.nombre, value: c.id }))"
+              :model-value="formSla.categoriaId ?? undefined" class="w-full" :items="categorias.map((c) => ({ label: c.nombre, value: c.id }))"
               @update:model-value="(v) => (formSla.categoriaId = v as number)"
             />
           </UFormField>
           <UFormField label="Prioridad">
             <USelect
-              :model-value="formSla.prioridadId ?? undefined" :items="prioridades.map((p) => ({ label: p.nombre, value: p.id }))"
+              :model-value="formSla.prioridadId ?? undefined" class="w-full" :items="prioridades.map((p) => ({ label: p.nombre, value: p.id }))"
               @update:model-value="(v) => (formSla.prioridadId = v as number)"
             />
           </UFormField>
@@ -327,25 +327,25 @@ async function revocar(tokenId: string): Promise<void> {
       <div class="space-y-3">
         <UFormField label="Tipo">
           <USelect
-            :model-value="form.tipoId ?? undefined" :items="tiposSolicitud.map((t) => ({ label: t.nombre, value: t.id }))"
+            :model-value="form.tipoId ?? undefined" class="w-56" :items="tiposSolicitud.map((t) => ({ label: t.nombre, value: t.id }))"
             @update:model-value="(v) => (form.tipoId = v as number)"
           />
         </UFormField>
         <UFormField label="Categoría">
           <USelect
-            :model-value="form.categoriaId ?? undefined" :items="categorias.map((c) => ({ label: c.nombre, value: c.id }))"
+            :model-value="form.categoriaId ?? undefined" class="w-56" :items="categorias.map((c) => ({ label: c.nombre, value: c.id }))"
             @update:model-value="(v) => (form.categoriaId = v as number)"
           />
         </UFormField>
         <UFormField label="Origen">
           <USelect
-            :model-value="form.origenId ?? undefined" :items="origenes.map((o) => ({ label: o.nombre, value: o.id }))"
+            :model-value="form.origenId ?? undefined" class="w-48" :items="origenes.map((o) => ({ label: o.nombre, value: o.id }))"
             @update:model-value="(v) => (form.origenId = v as number)"
           />
         </UFormField>
         <UFormField label="Prioridad">
           <USelect
-            :model-value="form.prioridadId ?? undefined" :items="prioridades.map((p) => ({ label: p.nombre, value: p.id }))"
+            :model-value="form.prioridadId ?? undefined" class="w-40" :items="prioridades.map((p) => ({ label: p.nombre, value: p.id }))"
             @update:model-value="(v) => (form.prioridadId = v as number)"
           />
         </UFormField>
@@ -358,6 +358,7 @@ async function revocar(tokenId: string): Promise<void> {
         <UFormField label="Calidad">
           <USelect
             v-model="form.calidad"
+            class="w-64"
             :items="[
               { label: 'Propietario', value: 'propietario' }, { label: 'Tenedor (arrendatario, etc.)', value: 'tenedor' },
               { label: 'Tercero', value: 'tercero' },

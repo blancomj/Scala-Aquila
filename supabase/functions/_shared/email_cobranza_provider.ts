@@ -40,6 +40,13 @@ export async function enviarEmailCobranza(params: {
   html: string
   /** id de la acción — viaja como tag para poder rastrearlo en Brevo. */
   reference: string
+  /**
+   * GOB-9 §3.1: tags de Brevo, aditivo — sin este parámetro el
+   * comportamiento es idéntico al de siempre (['cobranza', reference]).
+   * Un envío generalizado (enviar-comunicacion) pasa su propio origen en
+   * vez de la etiqueta 'cobranza', que no le corresponde.
+   */
+  tags?: string[]
 }): Promise<EnvioEmailResult> {
   const apiKey = Deno.env.get('BREVO_API_KEY')
   const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL')
@@ -63,7 +70,7 @@ export async function enviarEmailCobranza(params: {
       to: [params.destinatarioNombre ? { email: params.to, name: params.destinatarioNombre } : { email: params.to }],
       subject: params.subject,
       htmlContent: params.html,
-      tags: ['cobranza', params.reference],
+      tags: params.tags ?? ['cobranza', params.reference],
     }),
   })
 

@@ -3748,3 +3748,134 @@ navegador completada de punta a punta (a diferencia de GOB-7): el bloqueo de log
 de GoTrue como se había registrado antes — corregido temporalmente para verificar y restaurado al
 cerrar; detalle en `GOB_08_INFORME.md` §5.
 
+## D-69
+
+CO-8 (obligaciones tributarias) — el corte con más riesgo de sobreingeniería y error normativo de
+los 33 según su propio spec (§2). Nada se activa por defecto: todo depende de
+`responsable_iva`/`agente_retencion`/`uso_economico`/`explota_bienes_comunes` (CO-1), sin valor
+por defecto.
+
+**Sin tabla `tributario_retencion` nueva**: `finanzas_factura_retencion` (FIN-2, `20260931150000`)
+ya era la retención practicada — quedó deliberadamente sin FK "hasta que CO-8 exista", su propio
+comentario lo documentaba. Como todo gasto de este sistema entra a `presupuesto_ejecucion`
+únicamente vía facturas de proveedor (verificado por grep: solo FIN-2/FIN-3 insertan ahí), no
+existe otro punto de práctica de retención que cubrir — crear una segunda tabla habría sido la
+entidad duplicada que `MARCO_MAESTRO.md` §1.2 prohíbe. Este corte solo agregó el catálogo
+(`tributario_concepto_retencion`, cero filas precargadas), la FK real, y extendió con diff mínimo
+tres funciones ya existentes de FIN-2: `guard_finanzas_factura_retencion()` (+
+`TRIBUTARIO_SIN_AGENTE_RETENCION`), `finanzas_factura_descomposicion()` (+ una línea de crédito
+por cada retención) y `fn_finanzas_aprobar_factura()` (+ `TRIBUTARIO_RETENCIONES_INCONSISTENTES`).
+
+**Cuenta nueva `2506 IVA descontable`** (débito dentro de la clase 25 crédito, mismo patrón que
+las correctoras 1390/1595/1695) corrige un mapeo temporal de FIN-2: `IVA_DESCONTABLE` estaba
+mapeado a la MISMA cuenta `2505` de IVA generado por no existir cuenta propia (documentado así
+explícitamente en `20260931200000` — "el tenant puede remapear... si su contador la crea"). Se
+remapea para todo tenant, existente y futuro.
+
+**`tributario_iva_generado` es un registro INFORMATIVO, decisión confirmada explícitamente con el
+usuario en el Plan del corte**: el IVA cobrado sobre un ingreso gravado (explotación de bienes
+comunes) no genera ningún asiento contable automático. Dado que la única vía real de contabilizar
+egresos en este sistema ya la construyó FIN-2 (`finanzas_factura_descomposicion`, enganchada a
+`contable_hechos()`) y no existe un mecanismo equivalente del lado de ingresos con impuesto,
+extender `contable_hechos()`/CO-3 para reconocer esta tabla habría sido invasivo sobre el núcleo
+de materialización — excede "AQUILA genera la información base, no presenta declaraciones" (spec
+§2 regla 1). El asiento (crédito a 2505) lo sigue registrando la copropiedad por el mecanismo
+manual ya existente.
+
+**`tributario_base_exogena(tenant, anio)`** produce 4 conjuntos de datos (pagos a terceros,
+retenciones practicadas, ingresos, saldos de CxC/CxP al cierre) en `jsonb`; los saldos de CxC/CxP
+se leen de `contable_libro_mayor` (CO-4) — la MISMA función, no una reimplementación — así "cuadra
+contra el libro mayor" es una garantía por construcción, no una coincidencia verificada aparte. No
+se implementa el formato XML de la resolución DIAN vigente (spec §5, vinculante).
+
+9/9 pruebas propias verdes (`tests/contabilidad/tributario.test.ts`), corridas contra local y
+contra el proyecto remoto real tras `pnpm db:push` (D-08), más 18/18 de regresión de FIN-2
+confirmada sin romperse. **Dos hallazgos reales durante la construcción, ninguno en producción**:
+(1) un primer intento de migración reprodujo por error la versión ORIGINAL (no la última) de
+`fn_finanzas_aprobar_factura()`, regresando silenciosamente el fix de GOB-1 sobre la advertencia
+`FACTURA_APROBACION_ORGANO_INCOMPETENTE` — detectado por la regresión de FIN-2, no por las
+pruebas propias; corregido reproduciendo la última versión real antes de agregar el diff propio
+(mismo tipo de error que MANT-2/GOB-1 ya habían advertido: listar TODAS las migraciones que
+redefinen una función antes de reproducir su cuerpo, no solo la primera encontrada); (2) 8 códigos
+de error de este corte quedaron sin registrar en `error-codes.ts` — detectado por
+`tests/governance/error-codes-coverage.test.ts`, corregido antes de cerrar. Detalle completo,
+incluyendo el hallazgo de entorno de una corrida de regresión interrumpida ~7 horas por una
+posible suspensión de la máquina (no de la base de datos, confirmado re-corriendo en aislamiento
+los archivos afectados: 23/23 verdes), en `CO_08_INFORME.md` §5.
+
+## D-70
+
+GOB-9 (comunicaciones y workflow transversal) — **último corte de los 33** (fila 33/33,
+`HOJA_DE_RUTA.md` §2). Refactor con radio de explosión sobre cartera en producción, no un módulo
+nuevo: generaliza `acciones_cobranza_envios`/`acuses` y agrega un motor de vencimientos sobre las
+5 máquinas de estado que GOB-4/5/6/7/8 ya construyeron — sin inventar un motor de workflow
+genérico ni un segundo scheduler (ambos vinculantes fuera de alcance, spec §4).
+
+**Generalización puramente aditiva.** `acciones_cobranza_envios.accion_id` pasa a nullable +
+4 columnas `origen_modulo/origen_entidad/origen_id/origen_evento` (mismo patrón que
+`contable_comprobante`, CO-2) + un check `envio_origen_exclusivo` (exactamente uno de los dos
+caminos) + un índice único parcial de idempotencia. Ninguna columna, constraint ni política
+existente se tocó — la prueba 1 (cero regresión) lo confirma ejecutando sin modificar ni una
+línea `tests/plantillas-email`, `tests/plantillas-sms` y los 6 archivos de
+`tests/tenancy/cartera-*.test.ts` relevantes: 67/67 verdes, local y remoto.
+
+**`plantillas_email`/`plantillas_sms` ya eran genéricos en esquema** (tenant_id + event_type, sin
+ninguna columna que los acoplara a cobranza) — "generalizarlos" no exigió ninguna migración: basta
+con que otros módulos usen sus propios `event_type` (`gob2_convocatoria`, `gob6_requerimiento_escrito`,
+etc.) a través de las mismas `fn_guardar_plantilla_email/sms`, que ya validan con
+`fn_validar_contenido_plantilla` sin importar el evento — extenderlo a GOB-6 (aprobado
+explícitamente por el usuario) fue gratis por construcción, no una migración nueva.
+
+**Envío generalizado, no automatizado desde el motor.** El envío real de una comunicación
+(Brevo) sigue siendo un paso HTTP aparte del RPC que registra el hecho de negocio — nuevo Edge
+Function `enviar-comunicacion` + `_shared/comunicacion_generalizada.ts`, hermano generalizado de
+`despacho_cobranza.ts` (nunca modificado). El motor de vencimientos (`gobierno_detectar_vencimientos`,
+SECURITY DEFINER) es SOLO SELECT sobre las 5 máquinas de estado + INSERT en
+`gobierno_vencimiento_notificaciones` — nunca un UPDATE sobre gobierno_compromisos/
+gobierno_expedientes_convivencia/gobierno_impugnaciones/solicitudes/gobierno_actas (prueba 7,
+verificado leyendo la función: no hay ningún UPDATE de dominio en su cuerpo). El scheduler reutiliza
+el patrón exacto de `cartera_corridas_diarias` (un job pg_cron, una función, una bitácora) aplicado
+a un dominio distinto — no una segunda abstracción, la misma forma que MANT-3 y auditoría ya
+replican cada uno con su propio job.
+
+**Funciones agregadas "en nombre de" GOB-1/4/5/6/7/8** (`gobierno_organo_alertas`,
+`gobierno_expedientes_detenidos`, `gobierno_solicitudes_sla_estado`, `gobierno_actas_pendientes`,
+`gobierno_impugnaciones_en_tramite`, `gobierno_compromisos_pendientes`, `gobierno_decisiones_estado`):
+cada corte anterior expuso el dato crudo (fecha_limite, sla_vence_at, plazo_disposicion_limite) pero
+ninguno expuso el AGREGADO que el tablero necesita ("cuántas vencidas", "cuáles detenidos"). Se
+agregan aquí, con la firma que tendrían si hubieran nacido en su propio corte — el tablero
+(`gobierno_tablero_resumen`, un único RPC que consume `gobiernoTablero.ts`) nunca hace
+`.from(...)` sobre una tabla de otro corte (prueba estructural 10).
+
+**Tres preguntas resueltas explícitamente con el usuario antes de implementar**: (1) el validador
+de frases prohibidas SÍ se extiende a los envíos de sanción/requerimiento de GOB-6 (mismo o mayor
+riesgo de lenguaje indebido que cobranza); (2) sin generador PDF previo en el repo pese a que
+`pdfmake` ya era una dependencia usada en `gobierno/actas/[id].vue`/`contabilidad/libros.vue` —
+se reutilizó ese mismo patrón para los dos informes (`gobierno_informe_gestion`, un solo cálculo
+servidor, dos rangos de fecha distintos); (3) el informe de asamblea se entrega ya usable, sin
+esperar a CO-9 (que todavía no existe) para anexarlo a su paquete de rendición de cuentas.
+
+**Bugs reales encontrados y corregidos antes de cerrar** (todos durante la construcción de
+`tests/gobierno/comunicaciones-workflow.test.ts`, ninguno en producción): (1) `terceros.nombre` no
+existe — la columna real es `nombre_completo` (post-generalización de GOB-0/D-60); (2)
+`inmueble_persona_rol.desde/hasta` no existen — son `vigente_desde/vigente_hasta`, y su vocabulario
+de rol es `PERSONA_PREDIO.copropietario`, no `.propietario`; (3) `terceros.email` es `citext`, no
+`text` — `gobierno_segmento_destinatarios` necesitó cast explícito `::text` en su `RETURNS TABLE`
+(error de Postgres 42804, no de RLS); (4) el quórum por coeficientes de GOB-3/GOB-5 aplica al
+órgano `asamblea_general`, no a `consejo_administracion` — un intento inicial de fixture con
+`consejo_administracion` fallaba con `VOTACION_SIN_QUORUM` porque nunca se le atribuyó ese
+mecanismo. Ninguno afectó código de producción — los 4 eran errores de fixture o de la migración
+nueva de este mismo corte, no regresiones sobre cortes anteriores.
+
+**Simplificación documentada**: `gobierno_actas_pendientes` devuelve solo conteos
+(sin_suscribir/sin_disposicion), no "días restantes" por acta individual como pide el spec
+literal del tablero (§3.4) — el dato ya existe en `gobierno_actas.plazo_disposicion_limite` y
+puede agregarse sin migración nueva si se necesita; se dejó como conteo agregado por ser
+suficiente para la vista de alerta y no bloquear el cierre del corte.
+
+11/11 pruebas obligatorias verdes más 1 prueba de control adicional (12/12 en total,
+`tests/gobierno/comunicaciones-workflow.test.ts`), local y remoto — más el paso separado de cero
+regresión (67/67 en `tests/plantillas-email`, `tests/plantillas-sms` y `tests/tenancy/cartera-*`,
+sin modificar ni una línea, no reproducido como `it()` porque no tiene sentido correr la suite de
+otro archivo desde dentro de un test). Detalle completo en `GOB_09_INFORME.md`.
+

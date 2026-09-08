@@ -350,6 +350,7 @@ async function terminarAtribucion(id: string): Promise<void> {
         <UFormField label="Origen" name="origen">
           <USelect
             v-model="formAtribucion.origen"
+            class="w-40"
             :items="[{ label: 'Reglamento', value: 'reglamento' }, { label: 'Ley', value: 'ley' }]"
           />
         </UFormField>

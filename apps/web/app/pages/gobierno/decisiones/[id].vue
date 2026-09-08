@@ -368,6 +368,7 @@ async function guardarRevocatoria(): Promise<void> {
         <UFormField label="Responsable" name="responsableTipo">
           <USelect
             v-model="formCompromiso.responsableTipo"
+            class="w-64"
             :items="[
               { label: 'La administración', value: 'administracion' },
               { label: 'Miembro de un órgano', value: 'miembro' },

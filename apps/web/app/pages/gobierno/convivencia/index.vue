@@ -272,6 +272,7 @@ async function quitarConceptoExpensa(conceptoId: string): Promise<void> {
         <UFormField label="Calidad" name="calidad">
           <USelect
             v-model="formExpediente.calidad"
+            class="w-64"
             :items="[
               { label: 'Propietario', value: 'propietario' }, { label: 'Tenedor (arrendatario, etc.)', value: 'tenedor' },
               { label: 'Tercero', value: 'tercero' },

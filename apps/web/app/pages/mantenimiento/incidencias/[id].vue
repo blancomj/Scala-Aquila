@@ -272,7 +272,7 @@ async function convertir(): Promise<void> {
     <UiDrawer :abierto="drawerConvertir" titulo="Convertir a orden de trabajo" @cerrar="drawerConvertir = false">
       <div class="space-y-3">
         <UFormField label="Tipo de mantenimiento" name="tipo">
-          <USelect v-model="formConvertir.tipoMantenimientoId" :items="tiposMantenimiento.map((t) => ({ label: t.nombre, value: t.id }))" />
+          <USelect v-model="formConvertir.tipoMantenimientoId" class="w-48" :items="tiposMantenimiento.map((t) => ({ label: t.nombre, value: t.id }))" />
         </UFormField>
         <UFormField label="Título de la OT" name="titulo">
           <UInput v-model="formConvertir.titulo" class="w-full" />
@@ -280,12 +280,14 @@ async function convertir(): Promise<void> {
         <UFormField label="Asignar a tercero (opcional)" name="tercero">
           <USelect
             v-model="formConvertir.asignadoTerceroId"
+            class="w-64"
             :items="[{ label: 'Sin asignar', value: undefined }, ...terceros.map((t) => ({ label: t.nombre_completo ?? t.razon_social ?? '—', value: t.id }))]"
           />
         </UFormField>
         <UFormField label="Asignar a personal interno (opcional)" name="usuario">
           <USelect
             v-model="formConvertir.asignadoUsuarioId"
+            class="w-64"
             :items="[
               { label: 'Sin asignar', value: undefined },
               ...membersStore.miembros.map((m) => ({ label: m.profile?.full_name ?? m.user_id, value: m.user_id })),

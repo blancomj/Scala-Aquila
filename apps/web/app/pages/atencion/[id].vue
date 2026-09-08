@@ -154,7 +154,7 @@ async function escalar(): Promise<void> {
         <div v-if="!esTerminal" class="pt-2 border-t border-default space-y-2">
           <div class="grid gap-2 sm:grid-cols-3">
             <UFormField label="Nuevo estado">
-              <USelect v-model="formActuacion.estadoNuevo" :items="ESTADOS_REGISTRABLES.map((e) => ({ label: ESTADO_ETIQUETA[e], value: e }))" />
+              <USelect v-model="formActuacion.estadoNuevo" class="w-full" :items="ESTADOS_REGISTRABLES.map((e) => ({ label: ESTADO_ETIQUETA[e], value: e }))" />
             </UFormField>
             <UFormField label="Fecha"><UInput v-model="formActuacion.fecha" type="date" class="w-full" /></UFormField>
             <UFormField label="Es respuesta"><UCheckbox v-model="formActuacion.esRespuesta" /></UFormField>
@@ -184,6 +184,7 @@ async function escalar(): Promise<void> {
           <UFormField label="Destino">
             <USelect
               v-model="formEscalar.destinoTipo"
+              class="w-full"
               :items="[
                 { label: 'Decisión de gobierno', value: 'decision' },
                 { label: 'Expediente de convivencia', value: 'expediente_convivencia' },

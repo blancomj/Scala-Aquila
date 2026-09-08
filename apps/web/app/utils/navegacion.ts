@@ -81,6 +81,8 @@ export const NAV_ICONOS = {
   atencionGobierno: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10ZM8 9h8M8 12.5h5',
   // Escudo con signo de alerta: expedientes de convivencia y régimen sancionatorio (GOB-6).
   convivenciaGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8v5M12 16h.01',
+  // Cuadrícula de paneles: tablero que agrega lo de todos los cortes de gobierno (GOB-9).
+  tableroGobierno: 'M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 14h7v6H4z',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -371,6 +373,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'financiero',
         icono: NAV_ICONOS.contabilidad,
       },
+      {
+        label: 'Obligaciones tributarias',
+        to: '/contabilidad/tributario',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.contabilidad,
+      },
     ],
   },
   {
@@ -455,6 +464,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
   {
     titulo: 'Gobierno',
     items: [
+      {
+        label: 'Tablero',
+        to: '/gobierno/tablero',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.tableroGobierno,
+      },
       {
         label: 'Órganos de gobierno',
         to: '/gobierno/organos',

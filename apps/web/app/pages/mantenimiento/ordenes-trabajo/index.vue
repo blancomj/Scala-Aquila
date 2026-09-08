@@ -134,7 +134,7 @@ async function guardar(): Promise<void> {
         <UFormField label="Título" name="titulo"><UInput v-model="form.titulo" class="w-full" /></UFormField>
         <UFormField label="Descripción" name="descripcion"><UTextarea v-model="form.descripcion" class="w-full" /></UFormField>
         <UFormField label="Tipo de mantenimiento" name="tipo">
-          <USelect v-model="form.tipoMantenimientoId" :items="tiposMantenimiento.map((t) => ({ label: t.nombre, value: t.id }))" />
+          <USelect v-model="form.tipoMantenimientoId" class="w-48" :items="tiposMantenimiento.map((t) => ({ label: t.nombre, value: t.id }))" />
         </UFormField>
         <UFormField label="Activo (opcional)" name="activo">
           <UiSelectorBuscable v-model="form.activoId" :opciones="opcionesActivo" placeholder="Selecciona el activo" />

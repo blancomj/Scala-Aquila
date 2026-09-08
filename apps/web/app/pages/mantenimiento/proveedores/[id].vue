@@ -178,7 +178,7 @@ function desglose(criterios: unknown): Array<{ nombre: string; peso: unknown; pu
             </p>
           </div>
           <div class="grid grid-cols-2 gap-2 pt-2 border-t border-default">
-            <USelect v-model="formHabilitacion.tipoId" :items="tiposHabilitacion.map((t) => ({ label: t.nombre, value: t.id }))" placeholder="Tipo de habilitación" />
+            <USelect v-model="formHabilitacion.tipoId" class="w-full" :items="tiposHabilitacion.map((t) => ({ label: t.nombre, value: t.id }))" placeholder="Tipo de habilitación" />
             <UInput v-model="formHabilitacion.numeroReferencia" placeholder="Número de referencia" />
             <UInput v-model="formHabilitacion.entidadEmisora" placeholder="Entidad emisora" />
             <div class="flex gap-2">
@@ -259,7 +259,7 @@ function desglose(criterios: unknown): Array<{ nombre: string; peso: unknown; pu
             <UInput v-model="formPerfil.especialidades" class="w-full" />
           </UFormField>
           <UFormField label="Estado comercial" name="estadoComercial">
-            <USelect v-model="formPerfil.estadoComercialId" :items="estadosComerciales.map((e) => ({ label: e.nombre, value: e.id }))" />
+            <USelect v-model="formPerfil.estadoComercialId" class="w-40" :items="estadosComerciales.map((e) => ({ label: e.nombre, value: e.id }))" />
           </UFormField>
           <UButton block :loading="proveedoresStore.guardando" @click="guardarPerfil()">Guardar perfil</UButton>
         </section>

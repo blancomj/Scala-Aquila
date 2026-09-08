@@ -424,6 +424,7 @@ async function guardarBorrador(): Promise<void> {
           <UFormField label="Periodo">
             <USelect
               :model-value="nuevoPeriodoId ?? undefined"
+              class="w-full"
               :items="comprobantesStore.periodos.map((p) => ({ label: `${p.anio}-${String(p.mes).padStart(2, '0')}`, value: p.id }))"
               @update:model-value="(v) => (nuevoPeriodoId = (v as string) ?? null)"
             />
@@ -431,6 +432,7 @@ async function guardarBorrador(): Promise<void> {
           <UFormField label="Tipo">
             <USelect
               :model-value="nuevoTipoId ?? undefined"
+              class="w-full"
               :items="comprobantesStore.tiposCaptura.map((t) => ({ label: t.nombre, value: t.id }))"
               @update:model-value="(v) => (nuevoTipoId = (v as number) ?? null)"
             />

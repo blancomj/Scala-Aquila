@@ -121,7 +121,7 @@ function tercero(p: PersonaTenant) { return p.tercero }
           <UiSelectorBuscable v-model="form.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero existente" />
         </UFormField>
         <UFormField label="Rol" name="rol">
-          <USelect v-model="form.rolId" :items="rolesProveedor.map((r) => ({ label: r.nombre, value: r.id }))" />
+          <USelect v-model="form.rolId" class="w-48" :items="rolesProveedor.map((r) => ({ label: r.nombre, value: r.id }))" />
         </UFormField>
         <UFormField label="Vigente desde" name="vigenteDesde">
           <UInput v-model="form.vigenteDesde" type="date" class="w-full" />

@@ -350,9 +350,10 @@ async function agregarEvidencia(): Promise<void> {
           <div v-if="definicionesAtributo.length > 0 && ot.estado !== 'cerrada'" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-default">
             <USelect
               v-model="formMedicion.tareaId"
+              class="w-full"
               :items="[{ label: 'General', value: undefined }, ...tareasQueMidenOEvidencian.filter((t) => t.requiere_medicion).map((t) => ({ label: t.descripcion, value: t.id }))]"
             />
-            <USelect v-model="formMedicion.atributoDefinicionId" :items="definicionesAtributo.map((d) => ({ label: d.nombre, value: d.id }))" />
+            <USelect v-model="formMedicion.atributoDefinicionId" class="w-full" :items="definicionesAtributo.map((d) => ({ label: d.nombre, value: d.id }))" />
             <UInput v-model.number="formMedicion.valor" type="number" placeholder="Valor" />
             <div class="flex gap-1">
               <UInput v-model.number="formMedicion.rangoMin" type="number" placeholder="Mín" />
@@ -406,12 +407,14 @@ async function agregarEvidencia(): Promise<void> {
           <UFormField label="Tercero (opcional)" name="tercero">
             <USelect
               v-model="asignacion.asignadoTerceroId"
+              class="w-64"
               :items="[{ label: 'Sin asignar', value: undefined }, ...terceros.map((t) => ({ label: t.nombre_completo ?? t.razon_social ?? '—', value: t.id }))]"
             />
           </UFormField>
           <UFormField label="Personal interno (opcional)" name="usuario">
             <USelect
               v-model="asignacion.asignadoUsuarioId"
+              class="w-64"
               :items="[{ label: 'Sin asignar', value: undefined }, ...membersStore.miembros.map((m) => ({ label: m.profile?.full_name ?? m.user_id, value: m.user_id }))]"
             />
           </UFormField>
@@ -451,6 +454,7 @@ async function agregarEvidencia(): Promise<void> {
         <UFormField v-if="ot.estado === 'pendiente_aprobacion'" label="Aprobada por" name="aprobadaPor">
           <USelect
             v-model="cierre.aprobadaPor"
+            class="w-64"
             :items="membersStore.miembros.map((m) => ({ label: m.profile?.full_name ?? m.user_id, value: m.user_id }))"
           />
         </UFormField>

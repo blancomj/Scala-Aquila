@@ -88,7 +88,7 @@ const semaforoColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'>
         :opciones="organos.map((o) => ({ valor: o.id, etiqueta: o.nombre || o.tipo?.nombre || o.id }))"
       />
       <USelect
-        v-model="filtroEstado" placeholder="Estado (todos)"
+        v-model="filtroEstado" placeholder="Estado (todos)" class="w-full"
         :items="[
           { label: 'Vigente', value: 'vigente' }, { label: 'Anulada', value: 'anulada' },
           { label: 'Revocada', value: 'revocada' }, { label: 'Impugnada', value: 'impugnada' },
@@ -99,7 +99,7 @@ const semaforoColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'>
         :opciones="materias.map((m) => ({ valor: m.id, etiqueta: m.nombre }))"
       />
       <USelect
-        v-model="filtroSemaforo" placeholder="Semáforo (todos)"
+        v-model="filtroSemaforo" placeholder="Semáforo (todos)" class="w-full"
         :items="[
           { label: 'En plazo', value: 'en_plazo' }, { label: 'Próximo a vencer', value: 'proximo_vencer' },
           { label: 'Vencido', value: 'vencido' }, { label: 'Bloqueado', value: 'bloqueado' },

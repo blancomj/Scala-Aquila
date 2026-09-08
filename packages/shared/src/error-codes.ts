@@ -1169,6 +1169,31 @@ export const ERROR_CODES = {
   // responder-encuesta-solicitud: ya existe una encuesta respondida para esta solicitud
   // (solicitud_encuesta.solicitud_id es unique).
   ATENCION_ENCUESTA_YA_RESPONDIDA: 'ATENCION_ENCUESTA_YA_RESPONDIDA',
+
+  // ── CO-8: obligaciones tributarias (20260931900000+) ─────────────────────
+  // guard_contable_cuenta_naturaleza_tributaria: naturaleza_tributaria_id fuera de clase 1/4/5,
+  // o el id no pertenece a la familia NATURALEZA_TRIBUTARIA_CUENTA.
+  TRIBUTARIO_CLASE_INVALIDA: 'TRIBUTARIO_CLASE_INVALIDA',
+  // guard_contable_cuenta_naturaleza_tributaria: uso_economico=residencial sin
+  // explota_bienes_comunes no puede marcar gravado_renta/gravado_renta_iva (ET art. 19-5).
+  TRIBUTARIO_MARCA_INCOHERENTE_CON_USO: 'TRIBUTARIO_MARCA_INCOHERENTE_CON_USO',
+  // guard_finanzas_factura_retencion: el tenant no tiene agente_retencion=true (CO-1).
+  TRIBUTARIO_SIN_AGENTE_RETENCION: 'TRIBUTARIO_SIN_AGENTE_RETENCION',
+  // fn_finanzas_aprobar_factura: total_retenciones de la factura no coincide con la suma real de
+  // finanzas_factura_retencion.
+  TRIBUTARIO_RETENCIONES_INCONSISTENTES: 'TRIBUTARIO_RETENCIONES_INCONSISTENTES',
+  // guard_tributario_iva_generado: el tenant no tiene responsable_iva=true (CO-1).
+  TRIBUTARIO_SIN_RESPONSABLE_IVA: 'TRIBUTARIO_SIN_RESPONSABLE_IVA',
+  // guard_tributario_iva_generado: periodo_id no pertenece al tenant.
+  TENANT_INCONSISTENTE: 'TENANT_INCONSISTENTE',
+  // tributario_resumen_iva: el tenant no tiene iva_periodicidad_id configurado.
+  TRIBUTARIO_PERIODICIDAD_IVA_SIN_CONFIGURAR: 'TRIBUTARIO_PERIODICIDAD_IVA_SIN_CONFIGURAR',
+  // tributario_resumen_iva: p_periodo_numero fuera de rango para la periodicidad configurada.
+  TRIBUTARIO_PERIODO_IVA_INVALIDO: 'TRIBUTARIO_PERIODO_IVA_INVALIDO',
+
+  // ── GOB-9: comunicaciones y workflow transversal (20260931950000+) ──
+  // gobierno_segmento_destinatarios: p_criterio no es uno de los 5 soportados.
+  SEGMENTO_CRITERIO_INVALIDO: 'SEGMENTO_CRITERIO_INVALIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

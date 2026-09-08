@@ -134,20 +134,22 @@ async function guardar(): Promise<void> {
         <UFormField label="Descripción" name="descripcion"><UTextarea v-model="form.descripcion" class="w-full" /></UFormField>
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Tipo" name="tipo">
-            <USelect v-model="form.tipoId" :items="tiposIncidencia.map((t) => ({ label: t.nombre, value: t.id }))" />
+            <USelect v-model="form.tipoId" class="w-full" :items="tiposIncidencia.map((t) => ({ label: t.nombre, value: t.id }))" />
           </UFormField>
           <UFormField label="Origen del reporte" name="origen">
-            <USelect v-model="form.origenId" :items="origenes.map((o) => ({ label: o.nombre, value: o.id }))" />
+            <USelect v-model="form.origenId" class="w-full" :items="origenes.map((o) => ({ label: o.nombre, value: o.id }))" />
           </UFormField>
           <UFormField label="Severidad (opcional)" name="severidad">
             <USelect
               v-model="form.severidadId"
+              class="w-full"
               :items="[{ label: 'Sin evaluar', value: undefined }, ...severidades.map((s) => ({ label: s.nombre, value: s.id }))]"
             />
           </UFormField>
           <UFormField label="Dónde ocurrió" name="ubicacion">
             <USelect
               v-model="form.ubicacion"
+              class="w-full"
               :items="[
                 { label: 'Sin especificar', value: 'ninguna' },
                 { label: 'Un activo', value: 'activo' },

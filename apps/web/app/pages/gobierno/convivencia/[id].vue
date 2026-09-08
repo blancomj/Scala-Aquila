@@ -257,6 +257,7 @@ async function imponerSancion(): Promise<void> {
             <UFormField label="Etapa">
               <USelect
                 v-model="formActuacion.etapa"
+                class="w-full"
                 :items="ETAPAS_REGISTRABLES.map((e) => ({ label: ETAPA_ETIQUETA[e], value: e }))"
               />
             </UFormField>
@@ -302,6 +303,7 @@ async function imponerSancion(): Promise<void> {
           <UFormField label="Clase de sanción">
             <USelect
               :model-value="formSancion.claseSancionCodigo ?? undefined"
+              class="w-full"
               :items="clasesPermitidas.map((c) => ({ label: `${c.nombre} (${c.numeral_articulo})`, value: c.codigo }))"
               placeholder="Selecciona…"
               @update:model-value="(v) => (formSancion.claseSancionCodigo = v as string)"

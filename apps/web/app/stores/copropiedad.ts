@@ -56,6 +56,8 @@ export interface ActualizarTenantParams {
   explota_bienes_comunes?: boolean
   responsable_iva?: boolean
   agente_retencion?: boolean
+  // CO-8 §4.3: periodicidad de declaración de IVA — solo tiene sentido con responsable_iva=true.
+  iva_periodicidad_id?: number | null
   marco_fundamento?: string | null
 }
 

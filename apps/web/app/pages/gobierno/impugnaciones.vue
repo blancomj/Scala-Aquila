@@ -50,6 +50,7 @@ function etiquetaObjeto(i: (typeof store.impugnaciones)[number]): string {
       <div class="flex items-center gap-2">
         <USelect
           :model-value="filtroEstado ?? undefined"
+          class="w-48"
           :items="[
             { label: 'Todos los estados', value: undefined },
             { label: 'Presentada', value: 'presentada' },

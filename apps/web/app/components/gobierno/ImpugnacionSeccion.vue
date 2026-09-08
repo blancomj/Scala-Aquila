@@ -245,6 +245,7 @@ async function guardarResolver(): Promise<void> {
         <UFormField label="Resultado" name="resultado">
           <USelect
             v-model="formResolver.resultado"
+            class="w-48"
             :items="[
               { label: 'Confirmada', value: 'confirmada' },
               { label: 'Revocada', value: 'revocada' },

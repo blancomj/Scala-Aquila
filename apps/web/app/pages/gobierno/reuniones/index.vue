@@ -134,6 +134,7 @@ async function guardar(): Promise<void> {
         <UFormField label="Modalidad" name="modalidad">
           <USelect
             v-model="form.modalidad"
+            class="w-48"
             :items="[
               { label: 'Presencial', value: 'presencial' },
               { label: 'No presencial', value: 'no_presencial' },
@@ -144,6 +145,7 @@ async function guardar(): Promise<void> {
         <UFormField label="Régimen de convocatoria" name="convocatoriaRegimen">
           <USelect
             v-model="form.convocatoriaRegimen"
+            class="w-full"
             :items="[
               { label: 'Primera convocatoria', value: 'primera' },
               { label: 'Segunda convocatoria', value: 'segunda' },

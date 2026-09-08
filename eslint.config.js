@@ -13,6 +13,9 @@ export default tseslint.config(
       '**/.nuxt/**',
       '**/.output/**',
       '**/coverage/**',
+      // Generado en caliente por `supabase start` (secretos/config del edge-runtime local) —
+      // no es código del repo, cambia en cada arranque y no existe fuera de esta máquina.
+      'supabase/.temp/**',
       // Worktrees de agentes en segundo plano (EnterWorktree/isolation:
       // "worktree") — snapshots git independientes con su propio historial,
       // nunca el árbol de trabajo que se está lintenado.

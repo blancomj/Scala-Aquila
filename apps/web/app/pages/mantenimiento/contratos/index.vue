@@ -133,7 +133,7 @@ async function guardar(): Promise<void> {
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Código" name="codigo"><UInput v-model="form.codigo" class="w-full" /></UFormField>
           <UFormField label="Tipo de contrato" name="tipo">
-            <USelect v-model="form.tipoId" :items="tiposContrato.map((t) => ({ label: t.nombre, value: t.id }))" />
+            <USelect v-model="form.tipoId" class="w-full" :items="tiposContrato.map((t) => ({ label: t.nombre, value: t.id }))" />
           </UFormField>
         </div>
         <UFormField label="Tercero (proveedor/contratista)" name="tercero">
@@ -154,7 +154,7 @@ async function guardar(): Promise<void> {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Periodicidad (si aplica)" name="periodicidad">
-            <USelect v-model="form.periodicidadId" :items="periodicidades.map((p) => ({ label: p.nombre, value: p.id }))" />
+            <USelect v-model="form.periodicidadId" class="w-full" :items="periodicidades.map((p) => ({ label: p.nombre, value: p.id }))" />
           </UFormField>
           <UFormField label="Forma de pago (términos)" name="formaPago">
             <UInput v-model="form.formaPago" placeholder="ej. 45 días fecha factura" class="w-full" />

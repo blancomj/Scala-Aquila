@@ -332,7 +332,7 @@ export type Database = {
       }
       acciones_cobranza_envios: {
         Row: {
-          accion_id: string
+          accion_id: string | null
           asunto: string | null
           canal: Database["public"]["Enums"]["canal_cobranza_t"]
           contenido_hash: string
@@ -344,6 +344,10 @@ export type Database = {
           enviado_por: string | null
           id: string
           intento_numero: number
+          origen_entidad: string | null
+          origen_evento: string | null
+          origen_id: string | null
+          origen_modulo: string | null
           plantilla_codigo: string
           plantilla_version: number
           proveedor: string
@@ -351,7 +355,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
-          accion_id: string
+          accion_id?: string | null
           asunto?: string | null
           canal: Database["public"]["Enums"]["canal_cobranza_t"]
           contenido_hash: string
@@ -363,6 +367,10 @@ export type Database = {
           enviado_por?: string | null
           id?: string
           intento_numero: number
+          origen_entidad?: string | null
+          origen_evento?: string | null
+          origen_id?: string | null
+          origen_modulo?: string | null
           plantilla_codigo: string
           plantilla_version: number
           proveedor: string
@@ -370,7 +378,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
-          accion_id?: string
+          accion_id?: string | null
           asunto?: string | null
           canal?: Database["public"]["Enums"]["canal_cobranza_t"]
           contenido_hash?: string
@@ -382,6 +390,10 @@ export type Database = {
           enviado_por?: string | null
           id?: string
           intento_numero?: number
+          origen_entidad?: string | null
+          origen_evento?: string | null
+          origen_id?: string | null
+          origen_modulo?: string | null
           plantilla_codigo?: string
           plantilla_version?: number
           proveedor?: string
@@ -10083,6 +10095,161 @@ export type Database = {
           },
         ]
       }
+      gobierno_vencimiento_config: {
+        Row: {
+          activo: boolean
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          created_at: string
+          destinatario_regla: string
+          dias_anticipacion: number
+          id: string
+          tenant_id: string
+          tipo_vencimiento: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean
+          canal: Database["public"]["Enums"]["canal_cobranza_t"]
+          created_at?: string
+          destinatario_regla?: string
+          dias_anticipacion: number
+          id?: string
+          tenant_id: string
+          tipo_vencimiento: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean
+          canal?: Database["public"]["Enums"]["canal_cobranza_t"]
+          created_at?: string
+          destinatario_regla?: string
+          dias_anticipacion?: number
+          id?: string
+          tenant_id?: string
+          tipo_vencimiento?: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_vencimiento_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_vencimiento_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_vencimiento_corridas: {
+        Row: {
+          disparado_at: string
+          fecha_corte: string
+          id: string
+          notificados: number
+          origen: string
+          tenant_id: string
+        }
+        Insert: {
+          disparado_at?: string
+          fecha_corte: string
+          id?: string
+          notificados?: number
+          origen?: string
+          tenant_id: string
+        }
+        Update: {
+          disparado_at?: string
+          fecha_corte?: string
+          id?: string
+          notificados?: number
+          origen?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_vencimiento_corridas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_vencimiento_corridas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gobierno_vencimiento_notificaciones: {
+        Row: {
+          config_id: string
+          created_at: string
+          entidad_id: string
+          envio_id: string | null
+          fecha_deteccion: string
+          id: string
+          tenant_id: string
+          tipo_vencimiento: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          entidad_id: string
+          envio_id?: string | null
+          fecha_deteccion?: string
+          id?: string
+          tenant_id: string
+          tipo_vencimiento: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          entidad_id?: string
+          envio_id?: string | null
+          fecha_deteccion?: string
+          id?: string
+          tenant_id?: string
+          tipo_vencimiento?: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gobierno_vencimiento_notificaciones_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_vencimiento_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_vencimiento_notificaciones_envio_id_fkey"
+            columns: ["envio_id"]
+            isOneToOne: false
+            referencedRelation: "acciones_cobranza_envios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_vencimiento_notificaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gobierno_vencimiento_notificaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gobierno_votaciones: {
         Row: {
           abierta_at: string
@@ -17841,6 +18008,7 @@ export type Database = {
         }
       }
       cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
+      cron_gobierno_vencimientos_diario: { Args: never; Returns: undefined }
       cron_mant_generar_programaciones_diario: {
         Args: never
         Returns: undefined
@@ -19481,6 +19649,13 @@ export type Database = {
           norma: string
         }[]
       }
+      gobierno_actas_pendientes: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          cantidad: number
+          concepto: string
+        }[]
+      }
       gobierno_archivar_expediente: {
         Args: { p_expediente_id: string; p_motivo: string }
         Returns: {
@@ -19509,6 +19684,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      gobierno_compromisos_pendientes: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          compromiso_id: string
+          decision_id: string
+          estado: Database["public"]["Enums"]["gobierno_compromiso_estado_t"]
+          fecha_limite: string
+          responsable: string
+          titulo: string
+          vencido: boolean
+        }[]
       }
       gobierno_crear_decision: {
         Args: {
@@ -19654,6 +19841,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gobierno_decisiones_estado: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          decision_id: string
+          semaforo: string
+          sin_compromisos: boolean
+          titulo: string
+        }[]
+      }
+      gobierno_detectar_vencimientos: {
+        Args: { p_fecha?: string; p_tenant_id: string }
+        Returns: {
+          config_id: string
+          created_at: string
+          entidad_id: string
+          envio_id: string | null
+          fecha_deteccion: string
+          id: string
+          tenant_id: string
+          tipo_vencimiento: Database["public"]["Enums"]["gobierno_tipo_vencimiento_t"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "gobierno_vencimiento_notificaciones"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       gobierno_dias_habiles_entre: {
         Args: { p_desde: string; p_hasta: string }
         Returns: number
@@ -19703,6 +19918,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      gobierno_expedientes_detenidos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          dias_detenido: number
+          etapa: Database["public"]["Enums"]["gobierno_expediente_etapa_t"]
+          expediente_id: string
+        }[]
       }
       gobierno_festivos_colombia: {
         Args: { p_anio: number }
@@ -19772,12 +19995,32 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gobierno_impugnaciones_en_tramite: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          dias_restantes: number
+          impugnacion_id: string
+          plazo_limite: string
+        }[]
+      }
+      gobierno_informe_gestion: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: Json
+      }
       gobierno_obligatoriedad_faltante: {
         Args: { p_fecha?: string; p_tenant_id: string }
         Returns: {
           cumplida: boolean
           motivo: string
           obligacion: string
+        }[]
+      }
+      gobierno_organo_alertas: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          alerta: string
+          detalle: string
+          organo_id: string
         }[]
       }
       gobierno_organo_competente: {
@@ -20092,6 +20335,23 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gobierno_segmento_destinatarios: {
+        Args: { p_criterio: string; p_tenant_id: string; p_valor: string }
+        Returns: {
+          email: string
+          inmueble_id: string
+          nombre: string
+          telefono: string
+          tercero_id: string
+        }[]
+      }
+      gobierno_solicitudes_sla_estado: {
+        Args: { p_dias_proximo?: number; p_tenant_id: string }
+        Returns: {
+          cantidad: number
+          estado: string
+        }[]
+      }
       gobierno_sumar_dias_habiles: {
         Args: { p_dias: number; p_fecha: string }
         Returns: string
@@ -20100,6 +20360,7 @@ export type Database = {
         Args: { p_desde: string; p_horas: number }
         Returns: string
       }
+      gobierno_tablero_resumen: { Args: { p_tenant_id: string }; Returns: Json }
       gobierno_trasladar_lunes: { Args: { p_fecha: string }; Returns: string }
       has_role: {
         Args: {
@@ -20717,6 +20978,12 @@ export type Database = {
         | "archivado"
         | "impugnacion"
         | "firme"
+      gobierno_tipo_vencimiento_t:
+        | "compromiso"
+        | "expediente_convivencia"
+        | "impugnacion"
+        | "solicitud"
+        | "acta_disposicion"
       impugnacion_estado_t:
         | "presentada"
         | "en_tramite"
@@ -21286,6 +21553,13 @@ export const Constants = {
         "archivado",
         "impugnacion",
         "firme",
+      ],
+      gobierno_tipo_vencimiento_t: [
+        "compromiso",
+        "expediente_convivencia",
+        "impugnacion",
+        "solicitud",
+        "acta_disposicion",
       ],
       impugnacion_estado_t: [
         "presentada",

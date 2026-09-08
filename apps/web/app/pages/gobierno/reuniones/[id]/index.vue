@@ -398,6 +398,7 @@ async function validarPoder(id: string): Promise<void> {
           <UFormField label="Calidad">
             <USelect
               v-model="formAsistencia.calidad"
+              class="w-full"
               :items="[
                 { label: 'Propietario', value: 'propietario' },
                 { label: 'Apoderado', value: 'apoderado' },
@@ -513,7 +514,7 @@ async function validarPoder(id: string): Promise<void> {
           <UiSelectorBuscable v-model="formEnvio.destinatarioRef" :opciones="opcionesTercero" placeholder="Tercero" />
         </UFormField>
         <UFormField label="Canal" name="canal">
-          <USelect v-model="formEnvio.canal" :items="[{ label: 'Email', value: 'email' }, { label: 'SMS', value: 'sms' }]" />
+          <USelect v-model="formEnvio.canal" class="w-40" :items="[{ label: 'Email', value: 'email' }, { label: 'SMS', value: 'sms' }]" />
         </UFormField>
       </div>
       <template #foot>

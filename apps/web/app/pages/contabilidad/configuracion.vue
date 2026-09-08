@@ -41,8 +41,11 @@ const form = reactive({
   explotaBienesComunes: false,
   responsableIva: false,
   agenteRetencion: false,
+  ivaPeriodicidadId: null as number | null,
   marcoFundamento: '',
 })
+
+const opcionesPeriodicidadIva = ref<{ label: string; value: number }[]>([])
 
 function sincronizarFormConTenant(): void {
   const t = copropiedadStore.tenant
@@ -52,16 +55,19 @@ function sincronizarFormConTenant(): void {
   form.explotaBienesComunes = t.explota_bienes_comunes
   form.responsableIva = t.responsable_iva
   form.agenteRetencion = t.agente_retencion
+  form.ivaPeriodicidadId = t.iva_periodicidad_id
   form.marcoFundamento = t.marco_fundamento ?? ''
 }
 
 await useAsyncData('contable-configuracion', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
-  await Promise.all([
+  const [, , periodicidades] = await Promise.all([
     copropiedadStore.cargarTenant(tenantId),
     contabilidadStore.cargarMarcoContable(tenantId),
+    cargarListaTipos(tenantId, 'PERIODICIDAD_IVA'),
   ])
+  opcionesPeriodicidadIva.value = periodicidades.map((p) => ({ label: p.nombre, value: p.id }))
   sincronizarFormConTenant()
   return true
 })
@@ -96,6 +102,7 @@ async function guardar(): Promise<void> {
       explota_bienes_comunes: form.explotaBienesComunes,
       responsable_iva: form.responsableIva,
       agente_retencion: form.agenteRetencion,
+      iva_periodicidad_id: form.responsableIva ? form.ivaPeriodicidadId : null,
       marco_fundamento: form.marcoFundamento.trim() || null,
     })
     await contabilidadStore.cargarMarcoContable(tenantId)
@@ -154,6 +161,18 @@ async function guardar(): Promise<void> {
         <UCheckbox v-model="form.responsableIva" label="Responsable de IVA" />
         <UCheckbox v-model="form.agenteRetencion" label="Agente de retención en la fuente" />
       </div>
+
+      <UFormField
+        v-if="form.responsableIva"
+        label="Periodicidad de declaración de IVA"
+        description="La fija la DIAN según el tamaño del responsable — parametrizable, no un valor por defecto (CO-8 §4.3)."
+      >
+        <USelect
+          :model-value="form.ivaPeriodicidadId ?? undefined" :items="opcionesPeriodicidadIva"
+          placeholder="Sin configurar" class="w-full"
+          @update:model-value="(v) => (form.ivaPeriodicidadId = (v as number) ?? null)"
+        />
+      </UFormField>
 
       <UFormField
         label="Fundamento de la clasificación"
