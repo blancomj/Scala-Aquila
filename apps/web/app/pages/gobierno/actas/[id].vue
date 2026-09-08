@@ -423,7 +423,7 @@ async function registrarNegativa(): Promise<void> {
         <p class="font-medium">Derecho a copia</p>
         <div class="flex items-end gap-2 flex-wrap">
           <UFormField label="Solicitante (opcional)">
-            <UiSelectorBuscable v-model="solicitanteEntrega" :opciones="opcionesTercero" placeholder="Tercero" />
+            <TercerosSelectorTercero v-model="solicitanteEntrega" :opciones="opcionesTercero" placeholder="Tercero" permite-crear />
           </UFormField>
           <UButton size="xs" variant="ghost" @click="registrarEntrega('solicitud')">Registrar solicitud</UButton>
           <UButton size="xs" @click="generarEnlace()">Generar enlace de consulta</UButton>
@@ -453,7 +453,7 @@ async function registrarNegativa(): Promise<void> {
     <UiDrawer :abierto="drawerVerificadorAbierto" titulo="Designar verificador" @cerrar="drawerVerificadorAbierto = false">
       <div class="space-y-3">
         <UFormField label="Tercero" name="tercero">
-          <UiSelectorBuscable v-model="formVerificador.terceroId" :opciones="opcionesTercero" placeholder="Verificador" />
+          <TercerosSelectorTercero v-model="formVerificador.terceroId" :opciones="opcionesTercero" placeholder="Verificador" permite-crear />
         </UFormField>
         <UFormField label="Plazo límite" name="plazoLimite">
           <UInput v-model="formVerificador.plazoLimite" type="date" class="w-full" />

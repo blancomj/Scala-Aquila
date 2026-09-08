@@ -67,14 +67,6 @@ const ARCHIVOS_LEGADO_GRAY = new Set<string>([
   'components/nav/NavUsuarioMenu.vue',
   'layouts/auth.vue',
   'layouts/default.vue',
-  'pages/configuracion/motivos-novedad.vue',
-  'pages/configuracion/plantillas-email.vue',
-  'pages/configuracion/plantillas-sms.vue',
-  'pages/forgot-password.vue',
-  'pages/invite.vue',
-  'pages/login.vue',
-  'pages/plataforma/index.vue',
-  'pages/register.vue',
 ])
 
 const PATRON_HEX = /#[0-9a-fA-F]{3,8}\b/

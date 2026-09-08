@@ -41,12 +41,12 @@ const opcionesInmueble = computed(() =>
 const { pending: cargandoBase } = await useAsyncData('cuenta-corriente-base', async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
-    await Promise.all([
-      cuentaStore.cargarInmuebles(tenantId),
-      cuentaStore.cargarPropietarios(tenantId),
-      conceptoStore.cargarConceptos(tenantId),
-      liquidacionStore.cargarPeriodos(tenantId),
-    ])
+  await Promise.all([
+    cuentaStore.cargarInmuebles(tenantId),
+    cuentaStore.cargarPropietarios(tenantId),
+    conceptoStore.cargarConceptos(tenantId),
+    liquidacionStore.cargarPeriodos(tenantId),
+  ])
   return null
 })
 
@@ -74,7 +74,10 @@ watch(
         cuentaStore.cargarComprobantesEmitidos(tenantId, id),
       ])
     } catch (excepcion) {
-      error.value = mensajeError(excepcion, 'No se pudieron cargar los datos del inmueble. Verifica tu conexión y vuelve a intentar.')
+      error.value = mensajeError(
+        excepcion,
+        'No se pudieron cargar los datos del inmueble. Verifica tu conexión y vuelve a intentar.',
+      )
     } finally {
       cargandoContenido.value = false
     }
@@ -88,7 +91,6 @@ function etiquetaPeriodoComprobante(periodoId: string | null): string {
   if (!periodoId) return 'A hoy'
   return periodoPorId.value.get(periodoId) ?? '—'
 }
-
 
 function origenLegible(cargo: { concepto_id: string | null; categoria: string | null }): string {
   if (cargo.concepto_id) return conceptoPorId.value.get(cargo.concepto_id) ?? cargo.concepto_id
@@ -107,8 +109,8 @@ const cargandoContenido = ref(false)
 // P0: confirmación antes de enviar correo
 const modalCorreoAbierto = ref(false)
 const comprobanteParaCorreo = ref<{ id: string; reenviar: boolean } | null>(null)
-const inmuebleActual = computed(() =>
-  cuentaStore.inmuebles.find((i) => i.id === inmuebleSeleccionadoId.value) ?? null,
+const inmuebleActual = computed(
+  () => cuentaStore.inmuebles.find((i) => i.id === inmuebleSeleccionadoId.value) ?? null,
 )
 
 function pedirConfirmacionCorreo(id: string, reenviar: boolean): void {
@@ -165,16 +167,17 @@ async function generarEstadoCuenta(): Promise<void> {
           numero_cuenta: c.numero_cuenta,
         })),
       propietarioNombre,
-      etiquetasConcepto: Object.fromEntries(
-        conceptoStore.conceptos.map((c) => [c.id, c.codigo]),
-      ),
+      etiquetasConcepto: Object.fromEntries(conceptoStore.conceptos.map((c) => [c.id, c.codigo])),
     })
     ultimoComprobanteId.value = id
     await cuentaStore.cargarComprobantesEmitidos(tenantId, inmueble.id)
     toast.add({ title: 'Comprobante generado — se abrió en una nueva pestaña.', color: 'success' })
     window.open(`/comprobante-cuenta/${id}`, '_blank')
   } catch (excepcion) {
-    errorPdf.value = mensajeError(excepcion, 'No se pudo generar el comprobante. Intenta de nuevo; si persiste, contacta al administrador.')
+    errorPdf.value = mensajeError(
+      excepcion,
+      'No se pudo generar el comprobante. Intenta de nuevo; si persiste, contacta al administrador.',
+    )
   } finally {
     generandoPdf.value = false
   }
@@ -211,9 +214,15 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         : null,
     ].filter(Boolean)
     resultadoCorreo.value = partes.join(' ')
-    toast.add({ title: `Correo enviado a ${data.enviados.length} destinatario(s).`, color: 'success' })
+    toast.add({
+      title: `Correo enviado a ${data.enviados.length} destinatario(s).`,
+      color: 'success',
+    })
   } catch (excepcion) {
-    resultadoCorreo.value = mensajeError(excepcion, 'No se pudo enviar el correo. Verifica que el propietario tenga email registrado e intenta de nuevo.')
+    resultadoCorreo.value = mensajeError(
+      excepcion,
+      'No se pudo enviar el correo. Verifica que el propietario tenga email registrado e intenta de nuevo.',
+    )
   } finally {
     enviandoId.value = null
   }
@@ -224,9 +233,7 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
   <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold mb-2">Estado de cuenta</h1>
-      <p class="text-sm text-neutral-500">
-        Cargos pendientes e historial de pagos por inmueble.
-      </p>
+      <p class="text-sm text-neutral-500">Cargos pendientes e historial de pagos por inmueble.</p>
     </div>
 
     <p v-if="cuentaStore.inmuebles.length === 0 && !cargandoBase" class="text-neutral-500 text-sm">
@@ -248,7 +255,11 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
     <template v-else>
       <!-- selector de inmueble -->
       <UFormField label="Inmueble" name="inmueble">
-        <UiSelectorBuscable v-model="inmuebleSeleccionadoId" :opciones="opcionesInmueble" class="w-64" />
+        <UiSelectorBuscable
+          v-model="inmuebleSeleccionadoId"
+          :opciones="opcionesInmueble"
+          class="w-64"
+        />
       </UFormField>
 
       <!-- P2: botones de acción en fila separada -->
@@ -289,7 +300,8 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
             <h2 class="text-lg font-semibold">Comprobantes emitidos</h2>
           </template>
           <template #descripcion>
-            Documentos emitidos — cada uno tiene folio y hash propios. Usa "Reenviar" para reenviar el mismo documento sin regenerarlo.
+            Documentos emitidos — cada uno tiene folio y hash propios. Usa "Reenviar" para reenviar
+            el mismo documento sin regenerarlo.
           </template>
         </UiTituloDescripcion>
         <template v-if="cargandoContenido">
@@ -316,7 +328,9 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
             <span class="text-neutral-500">{{ etiquetaPeriodoComprobante(fila.periodo_id) }}</span>
           </template>
           <template #celda-generado="{ fila }">
-            <span class="text-neutral-500">{{ new Date(fila.created_at).toLocaleString('es-CO') }}</span>
+            <span class="text-neutral-500">{{
+              new Date(fila.created_at).toLocaleString('es-CO')
+            }}</span>
           </template>
           <template #celda-acciones="{ fila }">
             <div class="flex justify-end gap-2">
@@ -368,13 +382,21 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
           <template #celda-categoria="{ fila }">
             {{ fila.categoria ? (etiquetaCategoria[fila.categoria] ?? fila.categoria) : '—' }}
           </template>
-          <template #celda-origen="{ fila }"><span class="text-neutral-500">{{ origenLegible(fila) }}</span></template>
+          <template #celda-origen="{ fila }"
+            ><span class="text-neutral-500">{{ origenLegible(fila) }}</span></template
+          >
           <template #celda-periodo="{ fila }">
-            <span class="text-neutral-500">{{ fila.periodo_id ? (periodoPorId.get(fila.periodo_id) ?? '—') : '—' }}</span>
+            <span class="text-neutral-500">{{
+              fila.periodo_id ? (periodoPorId.get(fila.periodo_id) ?? '—') : '—'
+            }}</span>
           </template>
-          <template #celda-pendiente="{ fila }">{{ formatoMoneda(fila.monto_pendiente ?? 0) }}</template>
+          <template #celda-pendiente="{ fila }">{{
+            formatoMoneda(fila.monto_pendiente ?? 0)
+          }}</template>
           <template #celda-creado="{ fila }">
-            <span class="text-neutral-500">{{ fila.created_at ? new Date(fila.created_at).toLocaleDateString('es-CO') : '—' }}</span>
+            <span class="text-neutral-500">{{
+              fila.created_at ? new Date(fila.created_at).toLocaleDateString('es-CO') : '—'
+            }}</span>
           </template>
         </UiTabla>
       </div>
@@ -399,7 +421,9 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
         >
           <template #celda-fecha="{ fila }">{{ fila.fecha_pago }}</template>
           <template #celda-monto="{ fila }">{{ formatoMoneda(fila.monto) }}</template>
-          <template #celda-referencia="{ fila }"><span class="text-neutral-500">{{ fila.referencia ?? '—' }}</span></template>
+          <template #celda-referencia="{ fila }"
+            ><span class="text-neutral-500">{{ fila.referencia ?? '—' }}</span></template
+          >
         </UiTabla>
       </div>
     </template>
@@ -409,7 +433,8 @@ async function enviarPorCorreo(id: string | null, reenviar = false): Promise<voi
       <template #body>
         <p class="text-sm">
           Se enviará el comprobante de cuenta a los propietarios de
-          <strong>{{ inmuebleActual?.codigo ?? '—' }}</strong>.
+          <strong>{{ inmuebleActual?.codigo ?? '—' }}</strong
+          >.
         </p>
         <p v-if="comprobanteParaCorreo?.reenviar" class="text-xs text-neutral-500 mt-2">
           Es un reenvío — se abrirá el mismo documento sellado con un nuevo enlace.

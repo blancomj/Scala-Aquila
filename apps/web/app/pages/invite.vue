@@ -70,7 +70,7 @@ onMounted(async () => {
       <UAlert color="error" variant="soft" title="Falta el token de invitación en el enlace." />
     </div>
 
-    <div v-else-if="procesando" class="text-gray-500">Procesando invitación…</div>
+    <div v-else-if="procesando" class="text-muted">Procesando invitación…</div>
 
     <div v-else-if="error" class="space-y-4">
       <UAlert color="error" variant="soft" :title="error" />
@@ -85,7 +85,7 @@ onMounted(async () => {
         title="Cerramos la sesión que tenías abierta"
         description="No era la del correo al que enviaron esta invitación. Inicia sesión o crea una cuenta con ese correo para continuar."
       />
-      <p v-else class="text-gray-500">
+      <p v-else class="text-muted">
         Para aceptar la invitación, inicia sesión o crea una cuenta con el correo al que te
         invitaron.
       </p>

@@ -6,7 +6,6 @@
 // is_platform_admin/status quedan fuera por diseño.
 import { ROL_LABEL } from '~/utils/rol-labels'
 import { useShortcuts } from '~/composables/useShortcuts'
-import { SHORTCUT_ICONOS } from '~/utils/shortcut-icons'
 
 definePageMeta({ layout: 'default' })
 
@@ -323,7 +322,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
     </div>
 
     <h2 class="flex items-center gap-3 text-lg font-semibold">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-blue-500 shrink-0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-muted shrink-0">
         <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
       </svg>
@@ -377,7 +376,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
     <div class="border-t border-default pt-6 space-y-6">
       <h2 class="flex items-center gap-3 text-lg font-semibold">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-emerald-500 shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-muted shrink-0">
           <path d="M20 13c0 5-3.5 7.5-7.35 8.95a1 1 0 0 1-.6.01C8.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
         </svg>
         Seguridad
@@ -385,7 +384,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
       <div>
         <h3 class="flex items-center gap-2.5 text-sm font-medium mb-2">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-amber-500 shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-muted shrink-0">
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
@@ -420,7 +419,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
       <div class="border-t border-default pt-6">
         <h3 class="flex items-center gap-2.5 text-sm font-medium mb-1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-violet-500 shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-muted shrink-0">
             <path d="M20 13c0 5-3.5 7.5-7.35 8.95a1 1 0 0 1-.6.01C8.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
             <path d="m9 12 2 2 4-4" />
           </svg>
@@ -477,7 +476,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
       <div class="border-t border-default pt-6">
         <h3 class="flex items-center gap-2.5 text-sm font-medium mb-1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-rose-500 shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-muted shrink-0">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
@@ -496,7 +495,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
     <div v-if="membresias.length > 0" class="border-t border-default pt-6">
       <h2 class="flex items-center gap-3 text-lg font-semibold mb-2">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-teal-500 shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-muted shrink-0">
           <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
           <path d="M9 22v-4h6v4" />
           <path d="M8 6h.01" />
@@ -553,7 +552,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
 
     <div class="border-t border-default pt-6">
       <h2 class="flex items-center gap-3 text-lg font-semibold mb-2">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-cyan-500 shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-muted shrink-0">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
         </svg>
         Accesos directos
@@ -569,7 +568,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
           class="px-3 py-2.5 flex items-center justify-between gap-3 text-sm"
         >
           <div class="flex items-center gap-2.5 min-w-0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4 shrink-0 text-cyan-500">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4 shrink-0 text-muted">
               <path :d="shortcutIconoPath(shortcut.icono)" />
             </svg>
             <span class="truncate">{{ shortcut.label }}</span>
@@ -581,6 +580,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
               color="neutral"
               variant="ghost"
               icon="i-heroicons-arrow-up"
+              aria-label="Mover arriba"
               :disabled="shortcutsUsuario.indexOf(shortcut) === 0 || guardandoShortcut"
               @click="moverShortcut(shortcut.to, 'arriba')"
             />
@@ -589,6 +589,7 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
               color="neutral"
               variant="ghost"
               icon="i-heroicons-arrow-down"
+              aria-label="Mover abajo"
               :disabled="shortcutsUsuario.indexOf(shortcut) === shortcutsUsuario.length - 1 || guardandoShortcut"
               @click="moverShortcut(shortcut.to, 'abajo')"
             />
@@ -597,11 +598,11 @@ async function eliminarShortcutPerfil(to: string): Promise<void> {
               color="error"
               variant="ghost"
               icon="i-heroicons-trash"
+              aria-label="Eliminar acceso directo"
               :disabled="guardandoShortcut"
               @click="eliminarShortcutPerfil(shortcut.to)"
             />
           </div>
-          <span class="truncate text-muted text-xs">{{ shortcut.to }}</span>
         </li>
       </ul>
       <p v-else class="text-xs text-muted mb-3">No tienes accesos directos configurados.</p>

@@ -102,7 +102,7 @@ async function iniciarSesion(): Promise<void> {
 
       <UButton type="submit" block :loading="cargando">Entrar</UButton>
 
-      <p class="text-sm text-gray-500 text-center">
+      <p class="text-sm text-muted text-center">
         <NuxtLink to="/forgot-password" class="text-primary-500 font-medium">
           ¿Olvidaste tu contraseña?
         </NuxtLink>
@@ -110,7 +110,7 @@ async function iniciarSesion(): Promise<void> {
     </form>
 
     <template #footer>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-muted">
         ¿No tienes cuenta?
         <NuxtLink to="/register" class="text-primary-500 font-medium">Regístrate</NuxtLink>
       </p>

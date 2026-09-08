@@ -289,7 +289,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
 
 <template>
   <div class="space-y-4">
-    <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1">
+    <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1">
       <template #titulo>
         <h1 class="text-xl font-semibold">Plantillas de correo</h1>
       </template>
@@ -305,7 +305,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
         type="button"
         class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="pestanaActiva === 'brevo'
-          ? 'border-brand text-brand'
+          ? 'border-primary text-primary'
           : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
         @click="pestanaActiva = 'brevo'"
       >
@@ -315,7 +315,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
         type="button"
         class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="pestanaActiva === 'compositor'
-          ? 'border-brand text-brand'
+          ? 'border-primary text-primary'
           : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
         @click="pestanaActiva = 'compositor'"
       >
@@ -327,7 +327,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
     <template v-if="pestanaActiva === 'brevo'">
     <div class="flex gap-6 items-start">
       <!-- ── columna izquierda: lista ── -->
-      <div class="w-64 shrink-0 border border-gray-200 dark:border-gray-800 rounded-md divide-y divide-gray-200 dark:divide-gray-800">
+      <div class="w-64 shrink-0 border border-neutral-200 dark:border-neutral-800 rounded-md divide-y divide-neutral-200 dark:divide-neutral-800">
         <button
           v-for="item in plantillasStore.plantillas"
           :key="item.eventType"
@@ -335,8 +335,8 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
           class="w-full text-left px-3 py-2.5 text-sm flex items-center justify-between gap-2"
           :class="
             item.eventType === eventoSeleccionado
-              ? 'bg-gray-100 dark:bg-gray-800 font-medium'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-900'
+              ? 'bg-neutral-100 dark:bg-neutral-800 font-medium'
+              : 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
           "
           @click="eventoSeleccionado = item.eventType"
         >
@@ -351,7 +351,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
             class="text-warning shrink-0"
             title="Sin sincronizar con Brevo"
           >⚠</span>
-          <span v-else class="text-gray-400 shrink-0" title="Sin guardar todavía">—</span>
+          <span v-else class="text-muted shrink-0" title="Sin guardar todavía">—</span>
         </button>
       </div>
 
@@ -370,7 +370,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
             >⚠ Sin sincronizar</span>
             <span
               v-else
-              class="inline-flex items-center gap-1 rounded-full border border-gray-300 dark:border-gray-700 px-2 py-0.5 text-xs text-gray-500"
+              class="inline-flex items-center gap-1 rounded-full border border-neutral-300 dark:border-neutral-700 px-2 py-0.5 text-xs text-muted"
             >Sin guardar</span>
           </div>
           <div class="flex items-center gap-2">
@@ -402,7 +402,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
         </UFormField>
 
         <div>
-          <p class="text-xs text-gray-500 mb-1.5">Campos disponibles — clic para insertar</p>
+          <p class="text-xs text-muted mb-1.5">Campos disponibles — clic para insertar</p>
           <div class="flex flex-wrap gap-1.5">
             <UButton
               v-for="campo in camposEvento"
@@ -419,12 +419,12 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
         </div>
 
         <div>
-          <p class="text-xs text-gray-500 mb-1">HTML del correo</p>
+          <p class="text-xs text-muted mb-1">HTML del correo</p>
           <textarea
             ref="textareaEl"
             v-model="cuerpoEditado"
             rows="16"
-            class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-xs font-mono"
+            class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-xs font-mono"
             placeholder="<!DOCTYPE html>…"
           />
           <UAlert v-if="errorValidacion" color="error" variant="soft" :title="errorValidacion" class="mt-2" />
@@ -454,7 +454,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
       <template #body>
         <div class="space-y-3">
           <div>
-            <p class="text-xs text-gray-500 mb-1.5">Datos de ejemplo — edita y regenera</p>
+            <p class="text-xs text-muted mb-1.5">Datos de ejemplo — edita y regenera</p>
             <div class="grid grid-cols-2 gap-2">
               <UFormField v-for="campo in camposEvento" :key="campo.field" :label="campo.description" size="xs">
                 <UInput v-model="overridesPrevia[campo.field]" size="xs" class="w-full" />
@@ -467,17 +467,17 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
           <UAlert v-if="errorPrevia" color="error" variant="soft" :title="errorPrevia" />
           <template v-else-if="previa">
             <div>
-              <p class="text-xs text-gray-500 mb-1">Asunto</p>
-              <p class="text-sm font-medium border border-gray-200 dark:border-gray-800 rounded-md px-3 py-2">
+              <p class="text-xs text-muted mb-1">Asunto</p>
+              <p class="text-sm font-medium border border-neutral-200 dark:border-neutral-800 rounded-md px-3 py-2">
                 {{ previa.subject }}
               </p>
             </div>
             <div>
-              <p class="text-xs text-gray-500 mb-1">Cuerpo</p>
+              <p class="text-xs text-muted mb-1">Cuerpo</p>
               <iframe
                 :srcdoc="previaSrcdoc"
                 sandbox="allow-same-origin"
-                class="w-full h-96 border border-gray-200 dark:border-gray-800 rounded-md bg-white"
+                class="w-full h-96 border border-neutral-200 dark:border-neutral-800 rounded-md bg-white"
               />
             </div>
           </template>
@@ -491,7 +491,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
     <UModal v-model:open="historialAbierto" title="Historial de versiones" :ui="{ content: 'max-w-2xl' }">
       <template #body>
         <div class="space-y-3">
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-muted">
             Cada guardado que cambió el asunto o el HTML queda aquí, para siempre (PRQ-CAR-021).
             "Usar esta versión" la carga en el editor — no guarda nada hasta que hagas clic en "Guardar".
           </p>
@@ -500,14 +500,14 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
             <USkeleton class="h-20 w-full" />
             <USkeleton class="h-20 w-full" />
           </div>
-          <p v-else-if="plantillasStore.historial.length === 0" class="text-sm text-gray-400">
+          <p v-else-if="plantillasStore.historial.length === 0" class="text-sm text-muted">
             Sin versiones registradas todavía.
           </p>
           <ul v-else class="space-y-2 max-h-96 overflow-y-auto">
             <li
               v-for="v in plantillasStore.historial"
               :key="v.version"
-              class="rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2"
+              class="rounded-md border border-neutral-200 dark:border-neutral-800 px-3 py-2"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-medium">v{{ v.version }} · {{ formatoFecha(v.createdAt) }}</span>
@@ -516,7 +516,7 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
                 </UButton>
               </div>
               <p class="mt-1 text-sm font-medium">{{ v.subject }}</p>
-              <p class="mt-1 text-xs text-gray-500 font-mono line-clamp-3">{{ v.htmlContent }}</p>
+              <p class="mt-1 text-xs text-muted font-mono line-clamp-3">{{ v.htmlContent }}</p>
             </li>
           </ul>
         </div>
@@ -555,11 +555,11 @@ async function eliminarPlantillaCompositor(plantilla: PlantillaCompositorItem): 
                 <span class="text-sm font-medium">{{ plantilla.nombre }}</span>
                 <span
                   v-if="plantilla.activa"
-                  class="inline-flex items-center rounded-full bg-success-100 dark:bg-success-900/30 px-2 py-0.5 text-[11px] text-success-700 dark:text-success-400"
+                  class="inline-flex items-center rounded-full bg-success-100 dark:bg-success-900/30 px-2 py-0.5 text-xs text-success-700 dark:text-success-400"
                 >Activa</span>
                 <span
                   v-else
-                  class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[11px] text-neutral-500"
+                  class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs text-neutral-500"
                 >Inactiva</span>
               </div>
               <p class="text-xs text-neutral-500 mt-0.5 truncate">{{ plantilla.asunto }}</p>

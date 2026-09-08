@@ -95,6 +95,11 @@ const { data, pending, refresh } = await useAsyncData(
     const tenantId = tenantStore.activeTenant?.id
     if (!tenantId) return null
 
+    if (desde.value > hasta.value) {
+      error.value = 'La fecha "Desde" no puede ser posterior a "Hasta".'
+      return null
+    }
+
     error.value = null
     try {
       const cliente = useSupabaseClient<Database>()
@@ -307,17 +312,17 @@ async function exportar(): Promise<void> {
           <span class="font-semibold">{{ resumenPorCategoria.sin_contrapartida.length }}</span>
         </p>
         <p>
-          <span :class="resumenPorCategoria.fallido.length > 0 ? 'text-red-600 dark:text-red-400' : ''">
+          <span :class="resumenPorCategoria.fallido.length > 0 ? 'text-error-600 dark:text-error-400' : ''">
             Fallidos: <span class="font-semibold">{{ resumenPorCategoria.fallido.length }}</span>
           </span>
         </p>
       </div>
-      <ul v-if="resumenPorCategoria.fallido.length > 0" class="list-disc pl-5 space-y-1 text-xs text-red-600 dark:text-red-400">
+      <ul v-if="resumenPorCategoria.fallido.length > 0" class="list-disc pl-5 space-y-1 text-xs text-error-600 dark:text-error-400">
         <li v-for="f in resumenPorCategoria.fallido" :key="`${f.hecho_entidad}-${f.hecho_id}`">
           {{ f.hecho_entidad }} ({{ f.hecho_id }}) — {{ f.detalle }}
         </li>
       </ul>
-      <ul v-if="resumenPorCategoria.sin_contrapartida.length > 0" class="list-disc pl-5 space-y-1 text-xs text-amber-600 dark:text-amber-400">
+      <ul v-if="resumenPorCategoria.sin_contrapartida.length > 0" class="list-disc pl-5 space-y-1 text-xs text-warning-600 dark:text-warning-400">
         <li v-for="f in resumenPorCategoria.sin_contrapartida" :key="`${f.hecho_entidad}-${f.hecho_id}`">
           {{ f.hecho_entidad }} ({{ f.hecho_id }}) — {{ f.detalle }}
         </li>
@@ -328,8 +333,8 @@ async function exportar(): Promise<void> {
     <div
       class="rounded-lg border p-4"
       :class="conciliacion.length > 0
-        ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30'
-        : 'border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/30'"
+        ? 'border-error-300 dark:border-error-800 bg-error-50 dark:bg-error-950/30'
+        : 'border-success-300 dark:border-success-800 bg-success-50 dark:bg-success-950/30'"
     >
       <p class="text-sm font-medium mb-2">
         {{ conciliacion.length > 0

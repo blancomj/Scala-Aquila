@@ -60,6 +60,10 @@ const ingresosHasta = ref(`${String(anioActual)}-12-31`)
 async function consultarIngresos(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
+  if (ingresosDesde.value > ingresosHasta.value) {
+    error.value = 'La fecha "Desde" no puede ser posterior a "Hasta".'
+    return
+  }
   error.value = null
   try {
     await tributarioStore.cargarIngresosPorNaturaleza(tenantId, ingresosDesde.value, ingresosHasta.value)
@@ -92,6 +96,10 @@ const certificadoHasta = ref(`${String(anioActual)}-12-31`)
 async function consultarCertificado(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || !certificadoTerceroId.value) return
+  if (certificadoDesde.value > certificadoHasta.value) {
+    error.value = 'La fecha "Desde" no puede ser posterior a "Hasta".'
+    return
+  }
   error.value = null
   try {
     await tributarioStore.cargarCertificado(tenantId, certificadoTerceroId.value, certificadoDesde.value, certificadoHasta.value)

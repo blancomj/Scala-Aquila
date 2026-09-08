@@ -118,7 +118,10 @@ function tercero(p: PersonaTenant) { return p.tercero }
       <div class="space-y-3">
         <UAlert v-if="errorGuardar" color="error" variant="soft" :title="errorGuardar" />
         <UFormField label="Tercero" name="tercero">
-          <UiSelectorBuscable v-model="form.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero existente" />
+          <TercerosSelectorTercero
+            v-model="form.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero existente"
+            permite-crear
+          />
         </UFormField>
         <UFormField label="Rol" name="rol">
           <USelect v-model="form.rolId" class="w-48" :items="rolesProveedor.map((r) => ({ label: r.nombre, value: r.id }))" />
@@ -126,10 +129,6 @@ function tercero(p: PersonaTenant) { return p.tercero }
         <UFormField label="Vigente desde" name="vigenteDesde">
           <UInput v-model="form.vigenteDesde" type="date" class="w-full" />
         </UFormField>
-        <p class="text-xs text-muted">
-          ¿El tercero no existe todavía? Créalo primero en
-          <NuxtLink to="/terceros" class="text-primary underline">Terceros</NuxtLink>.
-        </p>
       </div>
       <template #foot>
         <div class="flex justify-end gap-2 w-full">

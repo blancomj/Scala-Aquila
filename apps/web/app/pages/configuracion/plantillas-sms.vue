@@ -186,7 +186,7 @@ async function probarEnvio(): Promise<void> {
 
 <template>
   <div class="space-y-6 max-w-2xl">
-    <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1">
+    <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1">
       <template #titulo>
         <h1 class="text-xl font-semibold">Plantillas SMS</h1>
       </template>
@@ -201,7 +201,7 @@ async function probarEnvio(): Promise<void> {
         <USelect v-model="eventoSeleccionado" :items="opcionesEvento" value-key="value" class="w-full" />
       </UFormField>
       <div class="flex items-center gap-2 pb-1.5">
-        <span class="text-sm text-gray-500">Evento activo</span>
+        <span class="text-sm text-muted">Evento activo</span>
         <USwitch
           :model-value="itemActual?.activo === true"
           :disabled="!itemActual?.isActive || !itemActual?.cuerpo || cambiandoInterruptor"
@@ -219,14 +219,14 @@ async function probarEnvio(): Promise<void> {
         Historial{{ itemActual?.version ? ` (v${itemActual.version})` : '' }}
       </UButton>
     </div>
-    <p class="text-xs text-gray-500 -mt-4">Destinatario: {{ destinatario }}</p>
-    <p v-if="itemActual && !itemActual.cuerpo" class="text-xs text-gray-500 -mt-4">
+    <p class="text-xs text-muted -mt-4">Destinatario: {{ destinatario }}</p>
+    <p v-if="itemActual && !itemActual.cuerpo" class="text-xs text-muted -mt-4">
       Guarda el texto antes de poder activar el envío de este evento.
     </p>
     <UAlert v-if="errorInterruptor" color="error" variant="soft" :title="errorInterruptor" />
 
     <div>
-      <p class="text-xs text-gray-500 mb-1.5">Campos disponibles — clic para insertar</p>
+      <p class="text-xs text-muted mb-1.5">Campos disponibles — clic para insertar</p>
       <div class="flex flex-wrap gap-1.5">
         <UButton
           v-for="campo in camposEvento"
@@ -246,12 +246,12 @@ async function probarEnvio(): Promise<void> {
         ref="textareaEl"
         v-model="cuerpoEditado"
         rows="4"
-        class="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm"
+        class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm"
         placeholder="Escribe el texto del SMS…"
       />
       <div class="flex items-center gap-2 mt-1 text-xs">
         <span
-          :class="segmentos.segments > 1 ? 'text-error font-medium' : 'text-gray-500'"
+          :class="segmentos.segments > 1 ? 'text-error font-medium' : 'text-muted'"
         >
           {{ vistaPrevia.length }} caracteres · {{ segmentos.segments }}
           {{ segmentos.segments === 1 ? 'segmento' : 'segmentos' }} · {{ segmentos.encoding }}
@@ -261,14 +261,14 @@ async function probarEnvio(): Promise<void> {
     </div>
 
     <div>
-      <p class="text-xs text-gray-500 mb-1">Vista previa con datos de ejemplo</p>
-      <p class="text-sm rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 bg-gray-50 dark:bg-gray-900">
+      <p class="text-xs text-muted mb-1">Vista previa con datos de ejemplo</p>
+      <p class="text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-3 py-2 bg-neutral-50 dark:bg-neutral-900">
         {{ vistaPrevia }}
       </p>
     </div>
 
-    <div class="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2">
-      <p class="text-xs text-gray-500">Envía el texto actual (sin guardar) a este número.</p>
+    <div class="border-t border-neutral-200 dark:border-neutral-800 pt-4 space-y-2">
+      <p class="text-xs text-muted">Envía el texto actual (sin guardar) a este número.</p>
       <div class="flex items-center gap-2">
         <UInput v-model="telefonoPrueba" placeholder="+573001234567" class="w-48" />
         <UButton
@@ -305,7 +305,7 @@ async function probarEnvio(): Promise<void> {
     <UModal v-model:open="historialAbierto" title="Historial de versiones" :ui="{ content: 'max-w-xl' }">
       <template #body>
         <div class="space-y-3">
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-muted">
             Cada guardado que cambió el texto queda aquí, para siempre (PRQ-CAR-021). "Usar este
             texto" lo carga en el editor — no guarda nada hasta que hagas clic en "Guardar plantilla".
           </p>
@@ -314,20 +314,20 @@ async function probarEnvio(): Promise<void> {
             <USkeleton class="h-16 w-full" />
             <USkeleton class="h-16 w-full" />
           </div>
-          <p v-else-if="plantillasStore.historial.length === 0" class="text-sm text-gray-400">
+          <p v-else-if="plantillasStore.historial.length === 0" class="text-sm text-neutral-400">
             Sin versiones registradas todavía.
           </p>
           <ul v-else class="space-y-2 max-h-96 overflow-y-auto">
             <li
               v-for="v in plantillasStore.historial"
               :key="v.version"
-              class="rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2"
+              class="rounded-md border border-neutral-200 dark:border-neutral-800 px-3 py-2"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-medium">v{{ v.version }} · {{ formatoFecha(v.createdAt) }}</span>
                 <UButton size="xs" variant="soft" @click="usarVersion(v.cuerpo)">Usar este texto</UButton>
               </div>
-              <p class="mt-1 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{{ v.cuerpo }}</p>
+              <p class="mt-1 text-sm text-neutral-600 dark:text-neutral-300 whitespace-pre-wrap">{{ v.cuerpo }}</p>
             </li>
           </ul>
         </div>

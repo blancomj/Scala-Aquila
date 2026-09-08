@@ -47,6 +47,10 @@ function moneda(valor: number | string | null): string {
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
+  if (pestanaActiva.value !== 'inventarios' && desde.value > hasta.value) {
+    error.value = 'La fecha "Desde" no puede ser posterior a "Hasta".'
+    return
+  }
   error.value = null
   try {
     await contabilidadStore.cargarMarcoContable(tenantId)

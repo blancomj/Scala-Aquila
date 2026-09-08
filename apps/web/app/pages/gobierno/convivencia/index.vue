@@ -267,7 +267,11 @@ async function quitarConceptoExpensa(conceptoId: string): Promise<void> {
           <UiSelectorBuscable v-model="formExpediente.inmuebleId" :opciones="inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo }))" />
         </UFormField>
         <UFormField label="Presunto infractor" name="presuntoInfractorRef">
-          <UiSelectorBuscable v-model="formExpediente.presuntoInfractorRef" :opciones="terceros.map((t) => ({ valor: t.id, etiqueta: `${t.primer_nombre} ${t.primer_apellido}` }))" />
+          <TercerosSelectorTercero
+            v-model="formExpediente.presuntoInfractorRef"
+            :opciones="terceros.map((t) => ({ valor: t.id, etiqueta: `${t.primer_nombre} ${t.primer_apellido}` }))"
+            permite-crear
+          />
         </UFormField>
         <UFormField label="Calidad" name="calidad">
           <USelect

@@ -71,6 +71,10 @@ function guardar(): void {
     errorValidacion.value = 'Nombre completo y número de documento son obligatorios.'
     return
   }
+  if (vigenteHasta.value && vigenteDesde.value > vigenteHasta.value) {
+    errorValidacion.value = 'La fecha "Vigente desde" no puede ser posterior a "Vigente hasta".'
+    return
+  }
   errorValidacion.value = null
   emit('guardar', {
     rolId: rolId.value,

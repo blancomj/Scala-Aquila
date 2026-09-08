@@ -316,7 +316,7 @@ async function terminarAtribucion(id: string): Promise<void> {
       <div class="space-y-3">
         <UAlert v-if="errorMiembro" color="error" variant="soft" :title="errorMiembro" />
         <UFormField label="Tercero" name="tercero">
-          <UiSelectorBuscable v-model="formMiembro.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero" />
+          <TercerosSelectorTercero v-model="formMiembro.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero" permite-crear />
         </UFormField>
         <UFormField label="Rol" name="rol">
           <UiSelectorBuscable v-model="formMiembro.rolId" :opciones="opcionesRol" placeholder="Selecciona un rol" />

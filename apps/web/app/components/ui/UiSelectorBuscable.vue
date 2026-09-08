@@ -25,6 +25,11 @@ const props = withDefaults(
     deshabilitado?: boolean
     variante?: 'ficha' | 'tailwind'
     compacta?: boolean
+    /** Agrega una fila "Crear nuevo" al final del panel — el componente no sabe crear nada, solo
+     * emite `crear` con el texto buscado para que el padre decida qué hacer (ej. abrir el drawer
+     * de creación del catálogo correspondiente). Pensado para uso en formularios, no en filtros. */
+    permiteCrear?: boolean
+    etiquetaCrear?: string
   }>(),
   {
     id: undefined,
@@ -32,10 +37,12 @@ const props = withDefaults(
     deshabilitado: false,
     variante: 'tailwind',
     compacta: false,
+    permiteCrear: false,
+    etiquetaCrear: 'Crear nuevo',
   },
 )
 
-const emit = defineEmits<{ 'update:modelValue': [string | number | null] }>()
+const emit = defineEmits<{ 'update:modelValue': [string | number | null]; crear: [busqueda: string] }>()
 
 const abierto = ref(false)
 const busqueda = ref('')
@@ -100,6 +107,11 @@ function onEnter(): void {
 function onEscape(): void {
   cerrar()
   triggerRef.value?.focus()
+}
+
+function crear(): void {
+  emit('crear', busqueda.value.trim())
+  cerrar()
 }
 
 function alPerderFoco(evento: FocusEvent): void {
@@ -202,6 +214,14 @@ watch(indiceActivo, (i) => {
         >
           Sin resultados
         </li>
+        <li
+          v-if="permiteCrear"
+          class="selector-buscable-crear"
+          :class="variante === 'ficha' ? 'is-ficha' : 'px-2.5 py-1.5 text-sm text-primary border-t border-neutral-200 dark:border-neutral-800'"
+          @mousedown.prevent="crear"
+        >
+          + {{ busqueda.trim() ? `Crear "${busqueda.trim()}"` : etiquetaCrear }}
+        </li>
       </ul>
     </div>
   </div>
@@ -263,5 +283,9 @@ watch(indiceActivo, (i) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.selector-buscable-crear {
+  cursor: pointer;
+  font-weight: 500;
 }
 </style>

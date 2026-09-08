@@ -5,8 +5,15 @@
 // bloquea en edición por decisión de UI (§7.4, §8.1 — la base no lo
 // impide todavía). calcularDVNit copiado tal cual del mockup (§7.3,
 // algoritmo DIAN) — no reinventado.
-const props = defineProps<{ terceroId?: string }>()
-const emit = defineEmits<{ cerrar: []; guardado: [] }>()
+const props = defineProps<{
+  terceroId?: string
+  /** Texto ya escrito por el usuario en el selector que disparó la creación (SelectorTercero.vue)
+   * — se precarga en el campo de nombre que corresponda para no hacerlo escribirlo dos veces.
+   * Solo aplica en creación; se precarga en ambos campos (natural/jurídica) porque el toggle
+   * arranca en 'natural' pero el usuario puede cambiarlo antes de guardar. */
+  nombreInicial?: string
+}>()
+const emit = defineEmits<{ cerrar: []; guardado: [id: string] }>()
 
 const tenantStore = useTenantStore()
 const tercerosStore = useTercerosStore()
@@ -22,11 +29,11 @@ const tipoPersona = ref<'natural' | 'juridica'>('natural')
 const tipoIdentificacionId = ref<number | null>(null)
 const numeroDocumento = ref('')
 const digitoVerificacion = ref('')
-const primerNombre = ref('')
+const primerNombre = ref(props.nombreInicial ?? '')
 const segundoNombre = ref('')
 const primerApellido = ref('')
 const segundoApellido = ref('')
-const razonSocial = ref('')
+const razonSocial = ref(props.nombreInicial ?? '')
 const representanteLegalId = ref('')
 const pagadorId = ref('')
 const email = ref('')
@@ -205,6 +212,7 @@ async function guardar(): Promise<void> {
   }
   error.value = null
   guardando.value = true
+  let idGuardado = props.terceroId ?? ''
   try {
     if (esCreacion.value) {
       const creado =
@@ -238,6 +246,7 @@ async function guardar(): Promise<void> {
               direccion: direccion.value.trim() || undefined,
               estadoId: estadoId.value as number,
             })
+      idGuardado = creado.id
       await registrarProcedenciaSiAplica(tenantId, creado.id)
     } else if (props.terceroId) {
       await tercerosStore.actualizarTercero(props.terceroId, tenantId, {
@@ -259,7 +268,7 @@ async function guardar(): Promise<void> {
       })
       await registrarProcedenciaSiAplica(tenantId, props.terceroId)
     }
-    emit('guardado')
+    emit('guardado', idGuardado)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo guardar el tercero.')
   } finally {

@@ -133,7 +133,7 @@ async function registrar(): Promise<void> {
     </form>
 
     <template #footer>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-muted">
         ¿Ya tienes cuenta?
         <NuxtLink to="/login" class="text-primary-500 font-medium">Inicia sesión</NuxtLink>
       </p>

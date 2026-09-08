@@ -609,7 +609,8 @@ async function agregarTramo(): Promise<void> {
     />
 
     <!-- ── copropiedad sin configurar ───────────────────────────────── -->
-    <div v-if="sinConfigurar && !configStore.loading"
+    <div
+v-if="sinConfigurar && !configStore.loading"
          class="flex flex-col items-center justify-center py-12 px-6 text-center max-w-3xl mx-auto space-y-6">
       <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 text-primary rounded-full flex items-center justify-center mb-2">
         <UIcon name="i-lucide-sparkles" class="w-8 h-8" />
@@ -628,8 +629,8 @@ async function agregarTramo(): Promise<void> {
           size="lg"
           icon="i-lucide-wand-2"
           :loading="sembrando"
-          @click="sembrar"
           class="px-8"
+          @click="sembrar"
         >
           Crear configuración sugerida
         </UButton>
@@ -644,7 +645,8 @@ async function agregarTramo(): Promise<void> {
       <div class="bg-neutral-50 dark:bg-neutral-900/50 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <div class="p-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
-            <UIcon :name="esBorrador ? 'i-lucide-file-edit' : 'i-lucide-shield-check'"
+            <UIcon
+:name="esBorrador ? 'i-lucide-file-edit' : 'i-lucide-shield-check'"
                    :class="esBorrador ? 'text-warning' : 'text-success'"
                    class="w-5 h-5" />
           </div>
@@ -670,8 +672,8 @@ async function agregarTramo(): Promise<void> {
             icon="i-lucide-check"
             size="sm"
             :loading="activando === politica.id"
-            @click="activar(politica.id)"
             class="shadow-sm"
+            @click="activar(politica.id)"
           >
             Activar política
           </UButton>
@@ -681,8 +683,8 @@ async function agregarTramo(): Promise<void> {
             size="sm"
             variant="outline"
             :loading="creandoVersion"
-            @click="crearVersion"
             class="shadow-sm"
+            @click="crearVersion"
           >
             Crear versión nueva
           </UButton>
@@ -706,7 +708,7 @@ async function agregarTramo(): Promise<void> {
               </p>
             </div>
           </div>
-          <UButton icon="i-lucide-check" size="sm" :loading="activando === enEdicion.id" @click="activar(enEdicion.id)" class="bg-primary-600 hover:bg-primary-700 text-white">
+          <UButton icon="i-lucide-check" size="sm" :loading="activando === enEdicion.id" class="bg-primary-600 hover:bg-primary-700 text-white" @click="activar(enEdicion.id)">
             Activar versión
           </UButton>
         </div>
@@ -798,8 +800,8 @@ async function agregarTramo(): Promise<void> {
                       size="xs"
                       icon="i-lucide-save"
                       :loading="guardandoTramoId === tramo.id"
-                      @click="guardarTramo(tramo.id)"
                       class="font-medium"
+                      @click="guardarTramo(tramo.id)"
                     >
                       Guardar cambios
                     </UButton>
@@ -838,7 +840,7 @@ async function agregarTramo(): Promise<void> {
                 <USelect v-model="nuevoTramo.nivelRiesgo" :items="OPCIONES_RIESGO" size="xs" class="flex-1" />
                 <USelect v-model="nuevoTramo.etapaCobranza" :items="OPCIONES_ETAPA" size="xs" class="flex-1" />
               </div>
-              <UButton size="xs" icon="i-lucide-plus" :loading="creandoTramo" @click="agregarTramo" class="w-full justify-center">
+              <UButton size="xs" icon="i-lucide-plus" :loading="creandoTramo" class="w-full justify-center" @click="agregarTramo">
                 Añadir a la política
               </UButton>
             </div>
@@ -1011,8 +1013,8 @@ async function agregarTramo(): Promise<void> {
                   size="xs"
                   icon="i-lucide-plus"
                   :loading="creandoEstrategia"
-                  @click="agregarEstrategia"
                   class="font-medium bg-primary-600 hover:bg-primary-700 text-white"
+                  @click="agregarEstrategia"
                 >
                   Añadir estrategia
                 </UButton>
@@ -1024,7 +1026,7 @@ async function agregarTramo(): Promise<void> {
         <div class="space-y-8">
           <div v-for="grupo in porTramo" :key="grupo.tramo.id" class="space-y-3">
             <div class="flex items-center gap-2 py-2 border-b border-neutral-200 dark:border-neutral-800">
-              <div class="w-1 h-4 bg-primary-500 rounded-full"></div>
+              <div class="w-1 h-4 bg-primary-500 rounded-full"/>
               <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                 {{ grupo.tramo.nombre }}
               </h3>
@@ -1094,12 +1096,12 @@ async function agregarTramo(): Promise<void> {
                       :variant="estrategia.activa ? 'outline' : 'solid'"
                       :color="estrategia.activa ? 'neutral' : 'primary'"
                       :loading="cambiando === estrategia.id"
-                      @click="alternar(estrategia)"
                       class="min-w-[80px]"
+                      @click="alternar(estrategia)"
                     >
                       {{ estrategia.activa ? 'Desactivar' : 'Activar' }}
                     </UButton>
-                    <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="editarEstrategia(estrategia)" class="p-1.5">
+                    <UButton size="xs" variant="ghost" icon="i-lucide-pencil" aria-label="Editar" class="p-1.5" @click="editarEstrategia(estrategia)">
                       <span class="hidden md:inline ml-1">Editar</span>
                     </UButton>
                     <template v-if="confirmandoEliminarEstrategiaId === estrategia.id">
@@ -1114,10 +1116,10 @@ async function agregarTramo(): Promise<void> {
                       variant="ghost"
                       color="error"
                       icon="i-lucide-trash-2"
-                      @click="confirmandoEliminarEstrategiaId = estrategia.id"
+                      aria-label="Eliminar estrategia"
                       class="p-1.5"
-                    >
-                    </UButton>
+                      @click="confirmandoEliminarEstrategiaId = estrategia.id"
+                    />
                   </div>
                 </div>
 
@@ -1171,8 +1173,8 @@ async function agregarTramo(): Promise<void> {
                         size="xs"
                         icon="i-lucide-save"
                         :loading="guardandoEstrategiaId === estrategia.id"
-                        @click="guardarEstrategia(estrategia.id)"
                         class="font-medium"
+                        @click="guardarEstrategia(estrategia.id)"
                       >
                         Guardar cambios
                       </UButton>

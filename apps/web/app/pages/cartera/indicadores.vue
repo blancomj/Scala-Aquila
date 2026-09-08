@@ -42,6 +42,10 @@ async function cargar(): Promise<void> {
   if (!tenantId) return
   errorCarga.value = null
   codigoError.value = null
+  if (fechaDesde.value >= fechaHasta.value) {
+    errorCarga.value = 'La fecha "Desde" debe ser anterior a "Hasta".'
+    return
+  }
   cargando.value = true
   try {
     await carteraStore.cargarIndicadores(tenantId, fechaDesde.value, fechaHasta.value)

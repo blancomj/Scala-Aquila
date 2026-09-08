@@ -33,6 +33,10 @@ async function guardar(): Promise<void> {
     error.value = 'Completa el órgano decisorio, el tipo de decisión y la decisión.'
     return
   }
+  if (vigenciaDesde.value && vigenciaHasta.value && vigenciaDesde.value > vigenciaHasta.value) {
+    error.value = 'La fecha "Vigente desde" no puede ser posterior a "Vigente hasta".'
+    return
+  }
 
   guardando.value = true
   try {

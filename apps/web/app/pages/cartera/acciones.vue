@@ -133,7 +133,8 @@ async function cargar(): Promise<void> {
   try {
     await cobranzaStore.cargarBandeja(tenantId)
   } catch (excepcion) {
-    errorCarga.value = excepcion instanceof Error ? excepcion.message : 'No se pudo cargar la bandeja.'
+    errorCarga.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo cargar la bandeja.'
   }
 }
 
@@ -154,7 +155,8 @@ const resumen = computed(() => {
   const filas = acciones.value
   return {
     esperanAprobacion: filas.filter((a) => a.estado === 'pendiente_aprobacion').length,
-    listasParaEnviar: filas.filter((a) => a.estado === 'aprobada' || a.estado === 'programada').length,
+    listasParaEnviar: filas.filter((a) => a.estado === 'aprobada' || a.estado === 'programada')
+      .length,
     despachadasSinAcuse: filas.filter((a) => a.estado === 'ejecutada' && !a.acreditada).length,
     acreditadas: filas.filter((a) => a.acreditada).length,
     fallidas: filas.filter((a) => a.estado === 'fallida').length,
@@ -181,7 +183,8 @@ const esAdministrador = computed(() => tenantStore.role === 'administrador')
  */
 function motivoNoPuedeDecidir(accion: AccionBandeja): string | null {
   if (accion.estado !== 'pendiente_aprobacion') return 'Esta acción no está esperando aprobación.'
-  if (!esAdministrador.value) return 'Aprobar o rechazar una acción de cobranza requiere rol administrador (art. 48).'
+  if (!esAdministrador.value)
+    return 'Aprobar o rechazar una acción de cobranza requiere rol administrador (art. 48).'
   if (accion.propuestaPor && accion.propuestaPor === authStore.profile?.id) {
     return 'No puedes aprobar una acción que tú mismo propusiste.'
   }
@@ -257,7 +260,8 @@ async function despachar(accion: AccionBandeja): Promise<void> {
     if (!resultado.evidenciaRegistrada) {
       toast.add({
         title: 'Atención: envío sin evidencia',
-        description: 'El mensaje salió pero no se pudo registrar su prueba. Revísalo antes de escalar el caso.',
+        description:
+          'El mensaje salió pero no se pudo registrar su prueba. Revísalo antes de escalar el caso.',
         color: 'warning',
       })
     }
@@ -288,11 +292,19 @@ async function verDetalle(accion: AccionBandeja): Promise<void> {
     if (tenantId && enviosDetalle.value.length > 0) {
       if (opcionesTipoDocumentoEvidencia.value.length === 0) {
         const tipos = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
-        opcionesTipoDocumentoEvidencia.value = tipos.map((t) => ({ valor: t.id, etiqueta: t.nombre }))
+        opcionesTipoDocumentoEvidencia.value = tipos.map((t) => ({
+          valor: t.id,
+          etiqueta: t.nombre,
+        }))
       }
       const pares = await Promise.all(
         enviosDetalle.value.map(async (envio) => {
-          const documentos = await documentosStore.cargarDocumentos(tenantId, null, undefined, envio.envioId)
+          const documentos = await documentosStore.cargarDocumentos(
+            tenantId,
+            null,
+            undefined,
+            envio.envioId,
+          )
           return [envio.envioId, documentos] as const
         }),
       )
@@ -315,8 +327,15 @@ const TAMANO_EVIDENCIA_MAXIMO = 15 * 1024 * 1024
 function elegirArchivoEvidencia(envioId: string, evento: Event): void {
   const input = evento.target as HTMLInputElement
   const archivo = input.files?.[0] ?? null
-  if (archivo && (!MIME_EVIDENCIA_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_EVIDENCIA_MAXIMO)) {
-    toast.add({ title: 'Archivo inválido', description: 'Solo PDF, JPG o PNG, hasta 15 MB.', color: 'warning' })
+  if (
+    archivo &&
+    (!MIME_EVIDENCIA_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_EVIDENCIA_MAXIMO)
+  ) {
+    toast.add({
+      title: 'Archivo inválido',
+      description: 'Solo PDF, JPG o PNG, hasta 15 MB.',
+      color: 'warning',
+    })
     input.value = ''
     return
   }
@@ -331,8 +350,19 @@ async function subirEvidencia(envioId: string): Promise<void> {
 
   subiendoEvidenciaEnvioId.value = envioId
   try {
-    await documentosStore.subirDocumento({ tenantId, inmuebleId: null, envioId, tipoDocumentoId, archivo })
-    documentosPorEnvio.value[envioId] = await documentosStore.cargarDocumentos(tenantId, null, undefined, envioId)
+    await documentosStore.subirDocumento({
+      tenantId,
+      inmuebleId: null,
+      envioId,
+      tipoDocumentoId,
+      archivo,
+    })
+    documentosPorEnvio.value[envioId] = await documentosStore.cargarDocumentos(
+      tenantId,
+      null,
+      undefined,
+      envioId,
+    )
     archivoEvidenciaPorEnvio.value[envioId] = null
     toast.add({ title: 'Constancia adjuntada', color: 'success' })
   } catch (excepcion) {
@@ -379,8 +409,8 @@ function fechaHora(iso: string | null): string {
             <h1 class="text-2xl font-semibold tracking-tight">Acciones de cobranza</h1>
           </template>
           <template #descripcion>
-            Cola de gestión: supervisión de envíos, autorizaciones de alto impacto
-            y acreditación de pruebas para procesos judiciales.
+            Cola de gestión: supervisión de envíos, autorizaciones de alto impacto y acreditación de
+            pruebas para procesos judiciales.
           </template>
         </UiTituloDescripcion>
         <button
@@ -388,7 +418,10 @@ function fechaHora(iso: string | null): string {
           class="mt-1 flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-700 dark:text-neutral-300"
           @click="resumenExpandido = !resumenExpandido"
         >
-          <UIcon :name="resumenExpandido ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'" class="size-4" />
+          <UIcon
+            :name="resumenExpandido ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+            class="size-4"
+          />
           {{ resumenExpandido ? 'Cerrar resumen' : 'Ver resumen' }}
         </button>
       </div>
@@ -408,33 +441,69 @@ function fechaHora(iso: string | null): string {
       <button
         type="button"
         class="text-left rounded-xl border p-4 transition-all group"
-        :class="filtroEstado === 'pendiente_aprobacion'
-          ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/20 ring-1 ring-warning-500'
-          : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 bg-white dark:bg-neutral-900'"
-        @click="filtroEstado = filtroEstado === 'pendiente_aprobacion' ? 'todas' : 'pendiente_aprobacion'"
+        :class="
+          filtroEstado === 'pendiente_aprobacion'
+            ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/20 ring-1 ring-warning-500'
+            : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 bg-white dark:bg-neutral-900'
+        "
+        @click="
+          filtroEstado = filtroEstado === 'pendiente_aprobacion' ? 'todas' : 'pendiente_aprobacion'
+        "
       >
-        <p class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-300">Esperan aprobación</p>
+        <p
+          class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-300"
+        >
+          Esperan aprobación
+        </p>
         <p class="text-3xl font-bold tabular-nums mt-1">{{ resumen.esperanAprobacion }}</p>
       </button>
 
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
-        <p class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Listas para enviar</p>
+      <div
+        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900"
+      >
+        <p
+          class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Listas para enviar
+        </p>
         <p class="text-3xl font-bold tabular-nums mt-1">{{ resumen.listasParaEnviar }}</p>
       </div>
 
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
-        <p class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Despachadas sin acuse</p>
+      <div
+        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900"
+      >
+        <p
+          class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Despachadas sin acuse
+        </p>
         <p class="text-3xl font-bold tabular-nums mt-1">{{ resumen.despachadasSinAcuse }}</p>
       </div>
 
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
-        <p class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Acreditadas</p>
-        <p class="text-3xl font-bold tabular-nums mt-1 text-success-600 dark:text-success-400">{{ resumen.acreditadas }}</p>
+      <div
+        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900"
+      >
+        <p
+          class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Acreditadas
+        </p>
+        <p class="text-3xl font-bold tabular-nums mt-1 text-success-600 dark:text-success-400">
+          {{ resumen.acreditadas }}
+        </p>
       </div>
 
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900">
-        <p class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Fallidas</p>
-        <p class="text-3xl font-bold tabular-nums mt-1 text-error-600 dark:text-error-400">{{ resumen.fallidas }}</p>
+      <div
+        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900"
+      >
+        <p
+          class="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Fallidas
+        </p>
+        <p class="text-3xl font-bold tabular-nums mt-1 text-error-600 dark:text-error-400">
+          {{ resumen.fallidas }}
+        </p>
       </div>
     </div>
 
@@ -476,16 +545,20 @@ function fechaHora(iso: string | null): string {
            texto ("Despachadas" → "De…") en vez de dejarlas leerse con un
            scroll horizontal, que es el patrón esperado para una fila de
            chips en mobile. -->
-      <div class="flex gap-0.5 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg overflow-x-auto max-w-full">
+      <div
+        class="flex gap-0.5 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg overflow-x-auto max-w-full"
+      >
         <UButton
           v-for="opcion in ESTADOS_FILTRO"
           :key="opcion.valor"
           size="xs"
           variant="ghost"
           class="shrink-0 whitespace-nowrap"
-          :class="filtroEstado === opcion.valor
-            ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-medium'
-            : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+          :class="
+            filtroEstado === opcion.valor
+              ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-medium'
+              : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+          "
           @click="filtroEstado = opcion.valor"
         >
           {{ opcion.etiqueta }}
@@ -519,8 +592,10 @@ function fechaHora(iso: string | null): string {
           // no caben en 375px): la unidad que se está mirando y el botón que
           // dispara la acción son los dos datos que no se pueden perder de
           // vista mientras se scrollea el resto (mora/deuda/estado/prueba).
-          claseCelda: 'sticky left-0 z-10 bg-default border-r border-neutral-100 dark:border-neutral-900',
-          claseEncabezado: 'sticky left-0 z-10 bg-default border-r border-neutral-100 dark:border-neutral-900',
+          claseCelda:
+            'sticky left-0 z-10 bg-default border-r border-neutral-100 dark:border-neutral-900',
+          claseEncabezado:
+            'sticky left-0 z-10 bg-default border-r border-neutral-100 dark:border-neutral-900',
         },
         { clave: 'accion', etiqueta: 'Acción' },
         { clave: 'destinatario', etiqueta: 'Destinatario' },
@@ -531,8 +606,10 @@ function fechaHora(iso: string | null): string {
         {
           clave: 'operaciones',
           etiqueta: '',
-          claseCelda: 'sticky right-0 z-10 bg-default border-l border-neutral-100 dark:border-neutral-900',
-          claseEncabezado: 'sticky right-0 z-10 bg-default border-l border-neutral-100 dark:border-neutral-900',
+          claseCelda:
+            'sticky right-0 z-10 bg-default border-l border-neutral-100 dark:border-neutral-900',
+          claseEncabezado:
+            'sticky right-0 z-10 bg-default border-l border-neutral-100 dark:border-neutral-900',
         },
       ]"
       :filas="filas"
@@ -549,7 +626,8 @@ function fechaHora(iso: string | null): string {
         <div class="flex flex-col">
           <span>{{ ETIQUETA_ACCION[fila.tipoAccion] ?? fila.tipoAccion }}</span>
           <span class="text-xs text-neutral-400">
-            {{ ETIQUETA_CANAL[fila.canal] ?? fila.canal }} · programada {{ fechaCorta(fila.fechaProgramada) }}
+            {{ ETIQUETA_CANAL[fila.canal] ?? fila.canal }} · programada
+            {{ fechaCorta(fila.fechaProgramada) }}
           </span>
         </div>
       </template>
@@ -557,7 +635,9 @@ function fechaHora(iso: string | null): string {
       <template #celda-destinatario="{ fila }">
         <div class="flex flex-col">
           <span>{{ fila.destinatarioNombre ?? '—' }}</span>
-          <span class="text-xs text-neutral-400">{{ fila.destinatarioContacto ?? 'sin contacto' }}</span>
+          <span class="text-xs text-neutral-400">{{
+            fila.destinatarioContacto ?? 'sin contacto'
+          }}</span>
         </div>
       </template>
 
@@ -571,12 +651,18 @@ function fechaHora(iso: string | null): string {
 
       <template #celda-estado="{ fila }">
         <div class="flex items-center gap-1.5">
-          <div :class="[
-            'size-1.5 rounded-full',
-            COLOR_ESTADO[fila.estado] === 'success' ? 'bg-success-500' :
-            COLOR_ESTADO[fila.estado] === 'warning' ? 'bg-warning-500' :
-            COLOR_ESTADO[fila.estado] === 'error' ? 'bg-error-500' : 'bg-neutral-400'
-          ]"></div>
+          <div
+            :class="[
+              'size-1.5 rounded-full',
+              COLOR_ESTADO[fila.estado] === 'success'
+                ? 'bg-success-500'
+                : COLOR_ESTADO[fila.estado] === 'warning'
+                  ? 'bg-warning-500'
+                  : COLOR_ESTADO[fila.estado] === 'error'
+                    ? 'bg-error-500'
+                    : 'bg-neutral-400',
+            ]"
+          />
           <span class="text-xs font-medium capitalize text-neutral-600 dark:text-neutral-400">
             {{ ETIQUETA_ESTADO[fila.estado] ?? fila.estado }}
           </span>
@@ -588,16 +674,38 @@ function fechaHora(iso: string | null): string {
       <template #celda-prueba="{ fila }">
         <div class="flex items-center gap-1.5">
           <UIcon
-            :name="fila.acreditada ? 'i-lucide-shield-check' : (fila.enviosTotal > 0 ? 'i-lucide-file-text' : 'i-lucide-file-x')"
+            :name="
+              fila.acreditada
+                ? 'i-lucide-shield-check'
+                : fila.enviosTotal > 0
+                  ? 'i-lucide-file-text'
+                  : 'i-lucide-file-x'
+            "
             :class="[
               'size-3.5',
-              fila.acreditada ? 'text-success-500' : (fila.enviosTotal > 0 ? 'text-warning-500' : 'text-neutral-300')
+              fila.acreditada
+                ? 'text-success-500'
+                : fila.enviosTotal > 0
+                  ? 'text-warning-500'
+                  : 'text-neutral-300',
             ]"
           />
-          <UBadge v-if="fila.acreditada" color="success" variant="subtle" size="xs" class="font-medium">
+          <UBadge
+            v-if="fila.acreditada"
+            color="success"
+            variant="subtle"
+            size="xs"
+            class="font-medium"
+          >
             Acreditada
           </UBadge>
-          <UBadge v-else-if="fila.enviosTotal > 0" color="warning" variant="subtle" size="xs" class="font-medium">
+          <UBadge
+            v-else-if="fila.enviosTotal > 0"
+            color="warning"
+            variant="subtle"
+            size="xs"
+            class="font-medium"
+          >
             {{ fila.ultimoEstadoAcuse ? ETIQUETA_ACUSE[fila.ultimoEstadoAcuse] : 'Sin acuse' }}
           </UBadge>
           <span v-else class="text-xs text-neutral-400 italic">Sin enviar</span>
@@ -654,7 +762,11 @@ function fechaHora(iso: string | null): string {
                  aquí puede ser otro: ese canal no se despacha solo. Decirlo
                  en texto evita que alguien espere un envío que nunca va a
                  ocurrir. -->
-            <span v-else class="text-xs text-neutral-400" :title="motivoNoPuedeDespachar(fila) ?? ''">
+            <span
+              v-else
+              class="text-xs text-neutral-400"
+              :title="motivoNoPuedeDespachar(fila) ?? ''"
+            >
               {{ CANALES_AUTOMATICOS.has(fila.canal) ? 'No despachable' : 'Gestión manual' }}
             </span>
           </template>
@@ -664,7 +776,9 @@ function fechaHora(iso: string | null): string {
             variant="ghost"
             color="neutral"
             icon="i-lucide-file-text"
-            :title="fila.enviosTotal > 0 ? 'Ver la evidencia del envío' : 'Ver el detalle de la acción'"
+            :title="
+              fila.enviosTotal > 0 ? 'Ver la evidencia del envío' : 'Ver el detalle de la acción'
+            "
             @click="verDetalle(fila)"
           />
         </div>
@@ -672,52 +786,84 @@ function fechaHora(iso: string | null): string {
     </UiTabla>
 
     <!-- ── detalle probatorio ───────────────────────────────────────── -->
-    <UModal v-model:open="detalleAbierto" :title="`Acción de cobranza · unidad ${accionDetalle?.inmuebleCodigo ?? ''}`">
+    <UModal
+      v-model:open="detalleAbierto"
+      :title="`Acción de cobranza · unidad ${accionDetalle?.inmuebleCodigo ?? ''}`"
+    >
       <template #body>
         <div v-if="accionDetalle" class="space-y-5">
           <!-- contexto congelado (§10.3): con qué datos se decidió, no los de hoy -->
-          <div class="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800">
-            <h3 class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3 flex items-center gap-2">
+          <div
+            class="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800"
+          >
+            <h3
+              class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3 flex items-center gap-2"
+            >
               <UIcon name="i-lucide-info" class="size-3" />
               Contexto de la decisión
             </h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6">
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Tipo de Acción</p>
-                <p class="text-sm font-medium">{{ ETIQUETA_ACCION[accionDetalle.tipoAccion] ?? accionDetalle.tipoAccion }}</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Tipo de Acción
+                </p>
+                <p class="text-sm font-medium">
+                  {{ ETIQUETA_ACCION[accionDetalle.tipoAccion] ?? accionDetalle.tipoAccion }}
+                </p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Clasificación</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Clasificación
+                </p>
                 <p class="text-sm font-medium">{{ accionDetalle.clasificacionCodigo }}</p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Días de mora</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Días de mora
+                </p>
                 <p class="text-sm font-medium tabular-nums">{{ accionDetalle.diasMora }}</p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Deuda Total</p>
-                <p class="text-sm font-medium tabular-nums">{{ formatoMoneda(accionDetalle.deudaTotal) }}</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Deuda Total
+                </p>
+                <p class="text-sm font-medium tabular-nums">
+                  {{ formatoMoneda(accionDetalle.deudaTotal) }}
+                </p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Destinatario</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Destinatario
+                </p>
                 <p class="text-sm font-medium">{{ accionDetalle.destinatarioNombre ?? '—' }}</p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Rol</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Rol
+                </p>
                 <p class="text-sm font-medium">{{ accionDetalle.destinatarioRol }}</p>
               </div>
               <div class="space-y-1">
-                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Origen</p>
-                <p class="text-sm font-medium">{{ accionDetalle.creadaPor === 'job' ? 'Corrida automática' : 'Creada a mano' }}</p>
+                <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                  Origen
+                </p>
+                <p class="text-sm font-medium">
+                  {{ accionDetalle.creadaPor === 'job' ? 'Corrida automática' : 'Creada a mano' }}
+                </p>
               </div>
               <template v-if="accionDetalle.aprobadaAt">
                 <div class="space-y-1">
-                  <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Fecha Decisión</p>
+                  <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+                    Fecha Decisión
+                  </p>
                   <p class="text-sm font-medium">{{ fechaHora(accionDetalle.aprobadaAt) }}</p>
                 </div>
               </template>
             </div>
-            <p v-if="accionDetalle.grupoEnvioId" class="text-xs text-neutral-400 mt-4 pt-3 border-t border-neutral-200 dark:border-neutral-700 italic">
+            <p
+              v-if="accionDetalle.grupoEnvioId"
+              class="text-xs text-neutral-400 mt-4 pt-3 border-t border-neutral-200 dark:border-neutral-700 italic"
+            >
               Esta unidad tiene varios copropietarios: se notificó a cada uno por separado, y cada
               notificación conserva su propia prueba.
             </p>
@@ -725,7 +871,9 @@ function fechaHora(iso: string | null): string {
 
           <!-- evidencia (§34.3) -->
           <div class="space-y-4">
-            <h3 class="text-xs font-bold uppercase tracking-widest text-neutral-400 flex items-center gap-2">
+            <h3
+              class="text-xs font-bold uppercase tracking-widest text-neutral-400 flex items-center gap-2"
+            >
               <UIcon name="i-lucide-shield-check" class="size-3" />
               Evidencia del envío
             </h3>
@@ -745,7 +893,10 @@ function fechaHora(iso: string | null): string {
                 class="rounded-md border border-neutral-200 dark:border-neutral-800 p-3 space-y-2"
               >
                 <div class="flex items-center justify-between gap-2 text-xs text-neutral-500">
-                  <span>Intento {{ envio.intentoNumero }} · {{ envio.canal }} · {{ envio.proveedor }}</span>
+                  <span
+                    >Intento {{ envio.intentoNumero }} · {{ envio.canal }} ·
+                    {{ envio.proveedor }}</span
+                  >
                   <span>{{ fechaHora(envio.enviadoAt) }}</span>
                 </div>
 
@@ -756,7 +907,9 @@ function fechaHora(iso: string | null): string {
                 <!-- El texto ÍNTEGRO, no su hash: es lo que se aporta al
                      proceso (§34.1). En correo, el texto del HTML que se
                      envió — el HTML íntegro sigue guardado como prueba. -->
-                <p class="text-sm whitespace-pre-wrap rounded bg-neutral-50 dark:bg-neutral-900 p-2">
+                <p
+                  class="text-sm whitespace-pre-wrap rounded bg-neutral-50 dark:bg-neutral-900 p-2"
+                >
                   {{ textoLegible(envio.canal, envio.contenidoRenderizado) }}
                 </p>
 
@@ -766,10 +919,15 @@ function fechaHora(iso: string | null): string {
                     :key="indice"
                     size="sm"
                     variant="subtle"
-                    :color="acuse.estado === 'entregado' || acuse.estado === 'leido' ? 'success' : 'neutral'"
+                    :color="
+                      acuse.estado === 'entregado' || acuse.estado === 'leido'
+                        ? 'success'
+                        : 'neutral'
+                    "
                     :title="acuse.motivo ?? ''"
                   >
-                    {{ ETIQUETA_ACUSE[acuse.estado] ?? acuse.estado }} · {{ fechaHora(acuse.ocurridoAt) }}
+                    {{ ETIQUETA_ACUSE[acuse.estado] ?? acuse.estado }} ·
+                    {{ fechaHora(acuse.ocurridoAt) }}
                   </UBadge>
                 </div>
                 <p v-else class="text-xs text-neutral-400">Sin acuses del proveedor todavía.</p>
@@ -778,7 +936,10 @@ function fechaHora(iso: string | null): string {
                      canal físico, sin webhook de proveedor que aporte
                      acuse por sí solo. -->
                 <div class="pt-2 border-t border-neutral-100 dark:border-neutral-900 space-y-2">
-                  <div v-if="(documentosPorEnvio[envio.envioId]?.length ?? 0) > 0" class="flex flex-wrap gap-1.5">
+                  <div
+                    v-if="(documentosPorEnvio[envio.envioId]?.length ?? 0) > 0"
+                    class="flex flex-wrap gap-1.5"
+                  >
                     <UButton
                       v-for="doc in documentosPorEnvio[envio.envioId]"
                       :key="doc.id ?? undefined"
@@ -798,7 +959,9 @@ function fechaHora(iso: string | null): string {
                       :opciones="opcionesTipoDocumentoEvidencia"
                       placeholder="Tipo de constancia"
                       class="w-44"
-                      @update:model-value="(v) => (tipoEvidenciaPorEnvio[envio.envioId] = v as number | null)"
+                      @update:model-value="
+                        (v) => (tipoEvidenciaPorEnvio[envio.envioId] = v as number | null)
+                      "
                     />
                     <UInput
                       type="file"
@@ -811,7 +974,10 @@ function fechaHora(iso: string | null): string {
                       size="xs"
                       variant="soft"
                       :loading="subiendoEvidenciaEnvioId === envio.envioId"
-                      :disabled="!archivoEvidenciaPorEnvio[envio.envioId] || !tipoEvidenciaPorEnvio[envio.envioId]"
+                      :disabled="
+                        !archivoEvidenciaPorEnvio[envio.envioId] ||
+                        !tipoEvidenciaPorEnvio[envio.envioId]
+                      "
                       @click="subirEvidencia(envio.envioId)"
                     >
                       Adjuntar constancia
@@ -844,17 +1010,23 @@ function fechaHora(iso: string | null): string {
     <UModal
       :open="modalDespacharAbierto"
       title="Despachar acción de cobranza"
-      @update:open="(abierto) => { if (!abierto) modalDespacharAbierto = false }"
+      @update:open="
+        (abierto) => {
+          if (!abierto) modalDespacharAbierto = false
+        }
+      "
     >
       <template #body>
         <p v-if="accionDespachando" class="text-sm text-neutral-600 dark:text-neutral-400">
           Vas a despachar
-          <strong>{{ ETIQUETA_ACCION[accionDespachando.tipoAccion] ?? accionDespachando.tipoAccion }}</strong>
+          <strong>{{
+            ETIQUETA_ACCION[accionDespachando.tipoAccion] ?? accionDespachando.tipoAccion
+          }}</strong>
           por {{ ETIQUETA_CANAL[accionDespachando.canal] ?? accionDespachando.canal }} a
           <strong>{{ accionDespachando.destinatarioNombre ?? 'sin nombre registrado' }}</strong>
           ({{ accionDespachando.destinatarioContacto ?? 'sin contacto' }}), unidad
-          <strong>{{ accionDespachando.inmuebleCodigo }}</strong>. El mensaje sale al proveedor de
-          inmediato y no se puede retirar.
+          <strong>{{ accionDespachando.inmuebleCodigo }}</strong
+          >. El mensaje sale al proveedor de inmediato y no se puede retirar.
         </p>
       </template>
       <template #footer>

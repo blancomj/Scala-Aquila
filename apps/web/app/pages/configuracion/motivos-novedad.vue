@@ -32,8 +32,16 @@ await useAsyncData('motivos-novedad-base', async () => {
 })
 
 const opcionesCuenta = computed(() =>
-  presupuestoStore.cuentas.filter((c) => c.es_hoja && c.naturaleza === 'ingreso'),
+  presupuestoStore.cuentas
+    .filter((c) => c.es_hoja && c.naturaleza === 'ingreso')
+    .map((c) => ({ valor: c.id, etiqueta: `${c.codigo} · ${c.nombre}` })),
 )
+// Con la opción "Sin asignar" al frente — separado de opcionesCuenta porque ese otro computed
+// también decide si mostrar el aviso de "todavía no hay cuentas de ingreso" (length === 0).
+const opcionesCuentaSelector = computed(() => [
+  { valor: null, etiqueta: '— Sin asignar —' },
+  ...opcionesCuenta.value,
+])
 
 const cuentaPorTipo = computed(
   () => new Map(cuentaStore.novedadTipoCuenta.map((m) => [m.tipo_novedad_id, m.presupuesto_cuenta_id])),
@@ -65,7 +73,7 @@ async function asignar(tipoNovedadId: number, valor: string): Promise<void> {
 
 <template>
   <div class="space-y-6">
-    <UiTituloDescripcion clase-descripcion="text-sm text-gray-500 mt-1 max-w-2xl">
+    <UiTituloDescripcion clase-descripcion="text-sm text-muted mt-1 max-w-2xl">
       <template #titulo>
         <h1 class="text-xl font-semibold">Motivos de novedad</h1>
       </template>
@@ -87,12 +95,12 @@ async function asignar(tipoNovedadId: number, valor: string): Promise<void> {
     />
 
     <template v-else>
-      <p v-if="sinAsignar > 0" class="text-sm text-gray-500">
+      <p v-if="sinAsignar > 0" class="text-sm text-muted">
         {{ sinAsignar }} de {{ cuentaStore.tiposNovedad.length }} motivos todavía sin cuenta. Las
         novedades con un motivo sin asignar se registran igual, pero no se reflejan en la ejecución
         del presupuesto.
       </p>
-      <p v-else class="text-sm text-gray-500">Todos los motivos tienen cuenta asignada.</p>
+      <p v-else class="text-sm text-muted">Todos los motivos tienen cuenta asignada.</p>
 
       <UiTabla
         :columnas="[
@@ -107,18 +115,15 @@ async function asignar(tipoNovedadId: number, valor: string): Promise<void> {
         </template>
         <template #celda-cuenta="{ fila }">
           <div class="flex items-center gap-2">
-            <select
-              :value="cuentaPorTipo.get(fila.id) ?? ''"
-              class="w-full max-w-md rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
-              :disabled="guardandoTipoId === fila.id"
-              @change="asignar(fila.id, ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">— Sin asignar —</option>
-              <option v-for="cuenta in opcionesCuenta" :key="cuenta.id" :value="cuenta.id">
-                {{ cuenta.nombre }}
-              </option>
-            </select>
-            <span v-if="guardandoTipoId === fila.id" class="text-xs text-gray-400">Guardando…</span>
+            <UiSelectorBuscable
+              :model-value="cuentaPorTipo.get(fila.id) ?? null"
+              :opciones="opcionesCuentaSelector"
+              placeholder="— Sin asignar —"
+              :deshabilitado="guardandoTipoId === fila.id"
+              class="w-full max-w-md"
+              @update:model-value="(v) => asignar(fila.id, (v as string) ?? '')"
+            />
+            <span v-if="guardandoTipoId === fila.id" class="text-xs text-muted">Guardando…</span>
           </div>
         </template>
       </UiTabla>

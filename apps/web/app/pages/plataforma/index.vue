@@ -12,7 +12,7 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
 <template>
   <div>
     <h1 class="text-xl font-semibold mb-4">Consola de plataforma</h1>
-    <p class="text-sm text-gray-500 mb-4">
+    <p class="text-sm text-muted mb-4">
       Solo metadatos — ningún dato operativo de las copropiedades.
     </p>
 
@@ -23,7 +23,7 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
       Tasas de referencia certificadas →
     </NuxtLink>
 
-    <p v-if="platformStore.tenants.length === 0" class="text-gray-500 text-sm">
+    <p v-if="platformStore.tenants.length === 0" class="text-muted text-sm">
       Sin copropiedades.
     </p>
     <UiTabla
@@ -39,7 +39,7 @@ await useAsyncData('plataforma-tenants', () => platformStore.cargarTenants())
       :clave-fila="(tenant) => tenant.id ?? tenant.slug ?? ''"
     >
       <template #celda-nombre="{ fila }">{{ fila.name }}</template>
-      <template #celda-slug="{ fila }"><span class="text-gray-500">{{ fila.slug }}</span></template>
+      <template #celda-slug="{ fila }"><span class="text-muted">{{ fila.slug }}</span></template>
       <template #celda-estado="{ fila }">{{ fila.status }}</template>
       <template #celda-miembros="{ fila }">{{ fila.member_count }}</template>
       <template #celda-ultimaActividad="{ fila }">

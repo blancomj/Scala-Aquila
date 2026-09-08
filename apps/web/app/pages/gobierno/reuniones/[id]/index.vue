@@ -393,7 +393,7 @@ async function validarPoder(id: string): Promise<void> {
             <UiSelectorBuscable v-model="formAsistencia.inmuebleId" :opciones="opcionesInmueble" placeholder="Inmueble" />
           </UFormField>
           <UFormField label="Asistente">
-            <UiSelectorBuscable v-model="formAsistencia.asistenteRef" :opciones="opcionesTercero" placeholder="Tercero" />
+            <TercerosSelectorTercero v-model="formAsistencia.asistenteRef" :opciones="opcionesTercero" placeholder="Tercero" permite-crear />
           </UFormField>
           <UFormField label="Calidad">
             <USelect
@@ -511,7 +511,7 @@ async function validarPoder(id: string): Promise<void> {
     <UiDrawer :abierto="drawerEnvioAbierto" titulo="Registrar envío" @cerrar="drawerEnvioAbierto = false">
       <div class="space-y-3">
         <UFormField label="Destinatario" name="destinatario">
-          <UiSelectorBuscable v-model="formEnvio.destinatarioRef" :opciones="opcionesTercero" placeholder="Tercero" />
+          <TercerosSelectorTercero v-model="formEnvio.destinatarioRef" :opciones="opcionesTercero" placeholder="Tercero" permite-crear />
         </UFormField>
         <UFormField label="Canal" name="canal">
           <USelect v-model="formEnvio.canal" class="w-40" :items="[{ label: 'Email', value: 'email' }, { label: 'SMS', value: 'sms' }]" />
@@ -533,10 +533,10 @@ async function validarPoder(id: string): Promise<void> {
           <UiSelectorBuscable v-model="formPoder.inmuebleId" :opciones="opcionesInmueble" placeholder="Inmueble" />
         </UFormField>
         <UFormField label="Otorgante (propietario)" name="otorgante">
-          <UiSelectorBuscable v-model="formPoder.otorganteRef" :opciones="opcionesTercero" placeholder="Otorgante" />
+          <TercerosSelectorTercero v-model="formPoder.otorganteRef" :opciones="opcionesTercero" placeholder="Otorgante" permite-crear />
         </UFormField>
         <UFormField label="Apoderado" name="apoderado">
-          <UiSelectorBuscable v-model="formPoder.apoderadoRef" :opciones="opcionesTercero" placeholder="Apoderado" />
+          <TercerosSelectorTercero v-model="formPoder.apoderadoRef" :opciones="opcionesTercero" placeholder="Apoderado" permite-crear />
         </UFormField>
         <UFormField label="Alcance (opcional)" name="alcance">
           <UTextarea v-model="formPoder.alcance" class="w-full" />

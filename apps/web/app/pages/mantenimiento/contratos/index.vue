@@ -137,7 +137,7 @@ async function guardar(): Promise<void> {
           </UFormField>
         </div>
         <UFormField label="Tercero (proveedor/contratista)" name="tercero">
-          <UiSelectorBuscable v-model="form.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero" />
+          <TercerosSelectorTercero v-model="form.terceroId" :opciones="opcionesTercero" placeholder="Selecciona un tercero" permite-crear />
         </UFormField>
         <UFormField label="Objeto" name="objeto"><UTextarea v-model="form.objeto" class="w-full" /></UFormField>
         <div class="grid grid-cols-2 gap-3">

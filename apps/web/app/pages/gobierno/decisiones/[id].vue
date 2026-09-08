@@ -383,9 +383,10 @@ async function guardarRevocatoria(): Promise<void> {
           />
         </UFormField>
         <UFormField v-if="formCompromiso.responsableTipo === 'tercero'" label="Tercero" name="responsableId">
-          <UiSelectorBuscable
+          <TercerosSelectorTercero
             v-model="formCompromiso.responsableId"
             :opciones="terceros.map((t) => ({ valor: t.id, etiqueta: `${t.primer_nombre} ${t.primer_apellido}` }))"
+            permite-crear
           />
         </UFormField>
         <UFormField label="Fecha límite" name="fechaLimite"><UInput v-model="formCompromiso.fechaLimite" type="date" class="w-full" /></UFormField>

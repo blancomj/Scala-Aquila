@@ -49,6 +49,26 @@
   line-height: 1.5;
 }
 
+/* Modo oscuro: --paper/--sheet/--ink/--line/--gris-* arriba son valores fijos
+   (pensados para el mockup original, siempre claro) — sin este override, todo
+   drawer/ficha que usa la clase .ficha-inmueble (27 archivos: fondos,
+   presupuesto, contabilidad, coeficientes, terceros, etc., no solo la ficha
+   de inmueble) se queda blanco con texto negro aunque el resto de la app esté
+   en oscuro. Se remapea a los tokens de Nuxt UI (--ui-bg-, --ui-text-, --ui-border-
+   y variantes), que ya invierten solos con .dark — los mismos que usa el
+   .drawer genérico (no escopado a .ficha-inmueble) más abajo en este archivo. */
+.dark .ficha-inmueble {
+  --paper: var(--ui-bg);
+  --sheet: var(--ui-bg-elevated);
+  --ink: var(--ui-text);
+  --ink-soft: var(--ui-text-muted);
+  --ink-faint: var(--ui-text-dimmed);
+  --line: var(--ui-border);
+  --line-strong: var(--ui-border-accented);
+  --gris-soft: var(--ui-bg-accented);
+  --gris-text: var(--ui-text-toned);
+}
+
 .ficha-inmueble .sheet {
   background: var(--sheet);
   border: 1px solid var(--line);

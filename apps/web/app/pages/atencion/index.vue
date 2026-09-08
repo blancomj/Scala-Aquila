@@ -353,7 +353,11 @@ async function revocar(tokenId: string): Promise<void> {
           <UiSelectorBuscable v-model="form.inmuebleId" :opciones="inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo }))" />
         </UFormField>
         <UFormField label="Solicitante">
-          <UiSelectorBuscable v-model="form.solicitanteRef" :opciones="terceros.map((t) => ({ valor: t.id, etiqueta: `${t.primer_nombre} ${t.primer_apellido}` }))" />
+          <TercerosSelectorTercero
+            v-model="form.solicitanteRef"
+            :opciones="terceros.map((t) => ({ valor: t.id, etiqueta: `${t.primer_nombre} ${t.primer_apellido}` }))"
+            permite-crear
+          />
         </UFormField>
         <UFormField label="Calidad">
           <USelect
