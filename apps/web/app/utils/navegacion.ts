@@ -32,13 +32,15 @@ export const NAV_ICONOS = {
   novedades:
     'M12 9v4m0 4h.01M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z',
   presupuesto: 'M12 3v18M17 7.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 3 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3',
-  periodosVigencia: 'M8 2v4M16 2v4M4 6h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM3 10h18',
+  periodosVigencia:
+    'M8 2v4M16 2v4M4 6h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM3 10h18',
   controlValidaciones: 'M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z M9 12.5l2 2 4-4.5',
   conceptos:
     'M20.6 13.4 13 21a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8L10.8 3.6A2 2 0 0 1 12.2 3H19a2 2 0 0 1 2 2v6.8a2 2 0 0 1-.6 1.4ZM7.5 8a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Z',
   dependencias:
     'M9 12a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1M15 12a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1',
-  fundamentos: 'M12 4v16M4 6h5.5L7 12a2.7 2.7 0 0 0 5 0L9.5 6M14.5 6H20l-2.5 6a2.7 2.7 0 0 0 5 0L20 6M4 21h16',
+  fundamentos:
+    'M12 4v16M4 6h5.5L7 12a2.7 2.7 0 0 0 5 0L9.5 6M14.5 6H20l-2.5 6a2.7 2.7 0 0 0 5 0L20 6M4 21h16',
   liquidacion: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
   // Balanza: la partida doble, dos platos que deben quedar al mismo nivel.
   contabilidad: 'M12 3v18M7 21h10M3 8h18M6 8l-3 6a3 3 0 0 0 6 0L6 8Zm12 0-3 6a3 3 0 0 0 6 0l-3-6Z',
@@ -57,20 +59,24 @@ export const NAV_ICONOS = {
   // Cofre/bóveda: efectivo restringido, no de libre disposición (PC_01 §3.2).
   fondos: 'M12 2v3M5 8a7 7 0 0 1 14 0v6c0 4-3 7-7 8-4-1-7-4-7-8V8ZM9 12h6M12 9v6',
   // Llave inglesa: mantenimiento de activos.
-  mantenimiento:
-    'M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-2Z',
+  mantenimiento: 'M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-2Z',
   // Billetera con signo de moneda: posición de tesorería (FIN-1).
-  tesoreria: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H8a2 2 0 0 0 0 4h9.5',
+  tesoreria:
+    'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H8a2 2 0 0 0 0 4h9.5',
   // Documento con renglones y check: factura de proveedor (FIN-2).
-  facturas: 'M7 3h10a1 1 0 0 1 1 1v16l-3-2-2 2-2-2-2 2-2-2-2 2V4a1 1 0 0 1 1-1ZM9 8h6M9 12h6M9 16h3',
+  facturas:
+    'M7 3h10a1 1 0 0 1 1 1v16l-3-2-2 2-2-2-2 2-2-2-2 2V4a1 1 0 0 1 1-1ZM9 8h6M9 12h6M9 16h3',
   // Varias tarjetas apiladas con una flecha de salida: lote de pago agrupando facturas (FIN-3).
-  lotesPago: 'M4 7h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM7 4h13a1 1 0 0 1 1 1v2M15 12l4 4-4 4',
+  lotesPago:
+    'M4 7h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM7 4h13a1 1 0 0 1 1 1v2M15 12l4 4-4 4',
   // Edificio institucional con columnas: órganos de gobierno de la copropiedad (GOB-1).
   organosGobierno: 'M4 21h16M5 21V10.5L12 5l7 5.5V21M8 21v-7M12 21v-7M16 21v-7M4 10.5h16',
   // Personas alrededor de una mesa: reunión, convocatoria y asistencia (GOB-2).
-  reunionesGobierno: 'M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM21 20v-2a3 3 0 0 0-2-2.83M16 3.13a3 3 0 0 1 0 5.74',
+  reunionesGobierno:
+    'M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM21 20v-2a3 3 0 0 0-2-2.83M16 3.13a3 3 0 0 1 0 5.74',
   // Círculo con signo de interrogación: centro de ayuda.
-  ayuda: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.7M12 17h.01',
+  ayuda:
+    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.7M12 17h.01',
   // Círculo con check: una decisión con efecto ya adoptado (GOB-5).
   decisionesGobierno: 'M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   // Lista con checks: seguimiento de compromisos por responsable (GOB-5).
@@ -78,7 +84,8 @@ export const NAV_ICONOS = {
   // Escudo con signo de interrogación: impugnación de decisiones y sanciones (GOB-7).
   impugnacionGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8.5v3.25M12 15.25h.01',
   // Globo de mensaje: atención al propietario/residente y consulta sin sesión (GOB-8).
-  atencionGobierno: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10ZM8 9h8M8 12.5h5',
+  atencionGobierno:
+    'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10ZM8 9h8M8 12.5h5',
   // Escudo con signo de alerta: expedientes de convivencia y régimen sancionatorio (GOB-6).
   convivenciaGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8v5M12 16h.01',
   // Cuadrícula de paneles: tablero que agrega lo de todos los cortes de gobierno (GOB-9).
@@ -442,6 +449,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.mantenimiento,
       },
       {
+        label: 'Inspecciones',
+        to: '/mantenimiento/inspecciones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
         label: 'Proveedores y contratistas',
         to: '/mantenimiento/proveedores',
         permiso: 'data:read',
@@ -450,6 +463,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
       {
         label: 'Contratos',
         to: '/mantenimiento/contratos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Inventario',
+        to: '/mantenimiento/inventario',
         permiso: 'data:read',
         icono: NAV_ICONOS.mantenimiento,
       },

@@ -11292,6 +11292,61 @@ export type Database = {
           },
         ]
       }
+      mant_almacenes: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          tenant_id: string
+          updated_at: string | null
+          zona_comun_id: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tenant_id: string
+          updated_at?: string | null
+          zona_comun_id?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          updated_at?: string | null
+          zona_comun_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_almacenes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_almacenes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_almacenes_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_atributo_definicion: {
         Row: {
           codigo: string
@@ -12257,6 +12312,195 @@ export type Database = {
           },
         ]
       }
+      mant_hallazgo_actuaciones: {
+        Row: {
+          created_at: string
+          descripcion: string
+          estado_desde: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          estado_hasta: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          fecha: string
+          hallazgo_id: string
+          id: string
+          registrada_por: string
+          tenant_id: string
+          tipo_actuacion_id: number
+        }
+        Insert: {
+          created_at?: string
+          descripcion: string
+          estado_desde?: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          estado_hasta?: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          fecha?: string
+          hallazgo_id: string
+          id?: string
+          registrada_por: string
+          tenant_id: string
+          tipo_actuacion_id: number
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string
+          estado_desde?: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          estado_hasta?: Database["public"]["Enums"]["hallazgo_estado_t"] | null
+          fecha?: string
+          hallazgo_id?: string
+          id?: string
+          registrada_por?: string
+          tenant_id?: string
+          tipo_actuacion_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_hallazgo_actuaciones_hallazgo_id_fkey"
+            columns: ["hallazgo_id"]
+            isOneToOne: false
+            referencedRelation: "mant_hallazgos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgo_actuaciones_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgo_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgo_actuaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgo_actuaciones_tipo_actuacion_id_fkey"
+            columns: ["tipo_actuacion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_hallazgos: {
+        Row: {
+          aceptado_at: string | null
+          aceptado_motivo: string | null
+          aceptado_por: string | null
+          cerrado_at: string | null
+          cerrado_evidencia_documento_id: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string | null
+          id: string
+          inspeccion_id: string
+          organo_aprobador_id: string | null
+          ot_id: string | null
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          aceptado_at?: string | null
+          aceptado_motivo?: string | null
+          aceptado_por?: string | null
+          cerrado_at?: string | null
+          cerrado_evidencia_documento_id?: string | null
+          created_at?: string
+          descripcion: string
+          estado?: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite?: string | null
+          id?: string
+          inspeccion_id: string
+          organo_aprobador_id?: string | null
+          ot_id?: string | null
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          aceptado_at?: string | null
+          aceptado_motivo?: string | null
+          aceptado_por?: string | null
+          cerrado_at?: string | null
+          cerrado_evidencia_documento_id?: string | null
+          created_at?: string
+          descripcion?: string
+          estado?: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite?: string | null
+          id?: string
+          inspeccion_id?: string
+          organo_aprobador_id?: string | null
+          ot_id?: string | null
+          severidad?: Database["public"]["Enums"]["severidad_t"]
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_hallazgos_aceptado_por_fkey"
+            columns: ["aceptado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_cerrado_evidencia_documento_id_fkey"
+            columns: ["cerrado_evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_cerrado_evidencia_documento_id_fkey"
+            columns: ["cerrado_evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_inspeccion_id_fkey"
+            columns: ["inspeccion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspecciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_organo_aprobador_id_fkey"
+            columns: ["organo_aprobador_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_organos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_hallazgos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_incidencia_actuaciones: {
         Row: {
           created_at: string
@@ -12509,6 +12753,509 @@ export type Database = {
           },
         ]
       }
+      mant_inspeccion_formato_items: {
+        Row: {
+          created_at: string
+          formato_id: string
+          id: string
+          orden: number
+          requiere_evidencia: boolean
+          severidad_si_no_conforme: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          texto: string
+        }
+        Insert: {
+          created_at?: string
+          formato_id: string
+          id?: string
+          orden?: number
+          requiere_evidencia?: boolean
+          severidad_si_no_conforme: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          texto: string
+        }
+        Update: {
+          created_at?: string
+          formato_id?: string
+          id?: string
+          orden?: number
+          requiere_evidencia?: boolean
+          severidad_si_no_conforme?: Database["public"]["Enums"]["severidad_t"]
+          tenant_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inspeccion_formato_items_formato_id_fkey"
+            columns: ["formato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspeccion_formatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_formato_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_formato_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_inspeccion_formatos: {
+        Row: {
+          codigo: string
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          nombre: string
+          requisito_id: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          nombre: string
+          requisito_id?: string | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          nombre?: string
+          requisito_id?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inspeccion_formatos_requisito_id_fkey"
+            columns: ["requisito_id"]
+            isOneToOne: false
+            referencedRelation: "mant_requisito"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_formatos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_formatos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_formatos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_inspeccion_respuestas: {
+        Row: {
+          created_at: string
+          evidencia_documento_id: string | null
+          id: string
+          inspeccion_id: string
+          item_id: string
+          observacion: string | null
+          tenant_id: string
+          valor: Database["public"]["Enums"]["respuesta_valor_t"]
+        }
+        Insert: {
+          created_at?: string
+          evidencia_documento_id?: string | null
+          id?: string
+          inspeccion_id: string
+          item_id: string
+          observacion?: string | null
+          tenant_id: string
+          valor: Database["public"]["Enums"]["respuesta_valor_t"]
+        }
+        Update: {
+          created_at?: string
+          evidencia_documento_id?: string | null
+          id?: string
+          inspeccion_id?: string
+          item_id?: string
+          observacion?: string | null
+          tenant_id?: string
+          valor?: Database["public"]["Enums"]["respuesta_valor_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_evidencia_documento_id_fkey"
+            columns: ["evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_evidencia_documento_id_fkey"
+            columns: ["evidencia_documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_inspeccion_id_fkey"
+            columns: ["inspeccion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspecciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspeccion_formato_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspeccion_respuestas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_inspecciones: {
+        Row: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          created_at: string
+          cumplimiento_id: string | null
+          fecha: string
+          formato_id: string
+          formato_version: number
+          id: string
+          registrada_por: string | null
+          resultado: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          resultado_motivo: string | null
+          resultado_sugerido: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          tenant_id: string
+          tercero_id: string | null
+        }
+        Insert: {
+          acreditacion_referencia?: string | null
+          activo_id?: string | null
+          created_at?: string
+          cumplimiento_id?: string | null
+          fecha: string
+          formato_id: string
+          formato_version: number
+          id?: string
+          registrada_por?: string | null
+          resultado: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          resultado_motivo?: string | null
+          resultado_sugerido: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          tenant_id: string
+          tercero_id?: string | null
+        }
+        Update: {
+          acreditacion_referencia?: string | null
+          activo_id?: string | null
+          created_at?: string
+          cumplimiento_id?: string | null
+          fecha?: string
+          formato_id?: string
+          formato_version?: number
+          id?: string
+          registrada_por?: string | null
+          resultado?: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          resultado_motivo?: string | null
+          resultado_sugerido?: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          tenant_id?: string
+          tercero_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inspecciones_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_cumplimiento_id_fkey"
+            columns: ["cumplimiento_id"]
+            isOneToOne: false
+            referencedRelation: "mant_cumplimiento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_formato_id_fkey"
+            columns: ["formato_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspeccion_formatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_registrada_por_fkey"
+            columns: ["registrada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inspecciones_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_inventario_alertas: {
+        Row: {
+          almacen_id: string
+          generada_at: string
+          id: string
+          repuesto_id: string
+          resuelta_at: string | null
+          stock_actual: number
+          tenant_id: string
+          tipo_alerta: Database["public"]["Enums"]["inventario_alerta_tipo_t"]
+        }
+        Insert: {
+          almacen_id: string
+          generada_at?: string
+          id?: string
+          repuesto_id: string
+          resuelta_at?: string | null
+          stock_actual: number
+          tenant_id: string
+          tipo_alerta: Database["public"]["Enums"]["inventario_alerta_tipo_t"]
+        }
+        Update: {
+          almacen_id?: string
+          generada_at?: string
+          id?: string
+          repuesto_id?: string
+          resuelta_at?: string | null
+          stock_actual?: number
+          tenant_id?: string
+          tipo_alerta?: Database["public"]["Enums"]["inventario_alerta_tipo_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inventario_alertas_almacen_id_fkey"
+            columns: ["almacen_id"]
+            isOneToOne: false
+            referencedRelation: "mant_almacenes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_alertas_repuesto_id_fkey"
+            columns: ["repuesto_id"]
+            isOneToOne: false
+            referencedRelation: "mant_repuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_alertas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_alertas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_inventario_movimientos: {
+        Row: {
+          almacen_id: string
+          cantidad: number
+          costo_unitario: number | null
+          direccion: number
+          documento_id: string | null
+          id: string
+          motivo: string | null
+          orden_trabajo_id: string | null
+          presupuesto_ejecucion_id: string | null
+          registrado_at: string
+          registrado_por: string | null
+          repuesto_id: string
+          tenant_id: string
+          tercero_id: string | null
+          tipo: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id: string | null
+        }
+        Insert: {
+          almacen_id: string
+          cantidad: number
+          costo_unitario?: number | null
+          direccion?: number
+          documento_id?: string | null
+          id?: string
+          motivo?: string | null
+          orden_trabajo_id?: string | null
+          presupuesto_ejecucion_id?: string | null
+          registrado_at?: string
+          registrado_por?: string | null
+          repuesto_id: string
+          tenant_id: string
+          tercero_id?: string | null
+          tipo: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id?: string | null
+        }
+        Update: {
+          almacen_id?: string
+          cantidad?: number
+          costo_unitario?: number | null
+          direccion?: number
+          documento_id?: string | null
+          id?: string
+          motivo?: string | null
+          orden_trabajo_id?: string | null
+          presupuesto_ejecucion_id?: string | null
+          registrado_at?: string
+          registrado_por?: string | null
+          repuesto_id?: string
+          tenant_id?: string
+          tercero_id?: string | null
+          tipo?: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_inventario_movimientos_almacen_id_fkey"
+            columns: ["almacen_id"]
+            isOneToOne: false
+            referencedRelation: "mant_almacenes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_orden_trabajo_id_fkey"
+            columns: ["orden_trabajo_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_presupuesto_ejecucion_id_fkey"
+            columns: ["presupuesto_ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_ejecucion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_repuesto_id_fkey"
+            columns: ["repuesto_id"]
+            isOneToOne: false
+            referencedRelation: "mant_repuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_inventario_movimientos_transferencia_par_id_fkey"
+            columns: ["transferencia_par_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inventario_movimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_matriz_prioridad: {
         Row: {
           banda_criticidad: string
@@ -12718,6 +13465,13 @@ export type Database = {
             columns: ["incidencia_id"]
             isOneToOne: false
             referencedRelation: "mant_incidencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_ordenes_trabajo_inspeccion_id_fkey"
+            columns: ["inspeccion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_inspecciones"
             referencedColumns: ["id"]
           },
           {
@@ -13719,6 +14473,106 @@ export type Database = {
             columns: ["tercero_id"]
             isOneToOne: false
             referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_repuestos: {
+        Row: {
+          activo: boolean
+          categoria_id: number
+          codigo_barras: string | null
+          contable_cuenta_id: string | null
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          punto_reorden: number | null
+          sku: string
+          stock_maximo: number | null
+          stock_minimo: number | null
+          tenant_id: string
+          tercero_preferido_id: string | null
+          unidad_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean
+          categoria_id: number
+          codigo_barras?: string | null
+          contable_cuenta_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          punto_reorden?: number | null
+          sku: string
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          tenant_id: string
+          tercero_preferido_id?: string | null
+          unidad_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean
+          categoria_id?: number
+          codigo_barras?: string | null
+          contable_cuenta_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          punto_reorden?: number | null
+          sku?: string
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          tenant_id?: string
+          tercero_preferido_id?: string | null
+          unidad_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_repuestos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_repuestos_contable_cuenta_id_fkey"
+            columns: ["contable_cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "contable_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_repuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_repuestos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_repuestos_tercero_preferido_id_fkey"
+            columns: ["tercero_preferido_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_repuestos_unidad_id_fkey"
+            columns: ["unidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -15545,6 +16399,7 @@ export type Database = {
           id: string
           liquidacion: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto: number
+          orden_trabajo_id: string | null
           periodo_id: string
           referencia: string | null
           registrado_por: string | null
@@ -15565,6 +16420,7 @@ export type Database = {
           id?: string
           liquidacion: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto: number
+          orden_trabajo_id?: string | null
           periodo_id: string
           referencia?: string | null
           registrado_por?: string | null
@@ -15585,6 +16441,7 @@ export type Database = {
           id?: string
           liquidacion?: Database["public"]["Enums"]["ejecucion_liquidacion_t"]
           monto?: number
+          orden_trabajo_id?: string | null
           periodo_id?: string
           referencia?: string | null
           registrado_por?: string | null
@@ -15639,6 +16496,13 @@ export type Database = {
             columns: ["cuenta_id"]
             isOneToOne: false
             referencedRelation: "presupuesto_cuenta"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_ejecucion_orden_trabajo_id_fkey"
+            columns: ["orden_trabajo_id"]
+            isOneToOne: false
+            referencedRelation: "mant_ordenes_trabajo"
             referencedColumns: ["id"]
           },
           {
@@ -18013,6 +18877,7 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      cron_mant_inventario_alertas_diario: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
       finanzas_factura_descomposicion: {
         Args: { p_ejecucion_id: string }
@@ -19141,6 +20006,33 @@ export type Database = {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: string
       }
+      fn_mant_aceptar_hallazgo: {
+        Args: { p_hallazgo_id: string; p_motivo: string; p_organo_id?: string }
+        Returns: {
+          aceptado_at: string | null
+          aceptado_motivo: string | null
+          aceptado_por: string | null
+          cerrado_at: string | null
+          cerrado_evidencia_documento_id: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string | null
+          id: string
+          inspeccion_id: string
+          organo_aprobador_id: string | null
+          ot_id: string | null
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_hallazgos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_mant_activar_plan: {
         Args: { p_plan_id: string }
         Returns: {
@@ -19178,9 +20070,63 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_mant_asignar_ot_hallazgo: {
+        Args: { p_hallazgo_id: string; p_ot_id: string }
+        Returns: {
+          aceptado_at: string | null
+          aceptado_motivo: string | null
+          aceptado_por: string | null
+          cerrado_at: string | null
+          cerrado_evidencia_documento_id: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string | null
+          id: string
+          inspeccion_id: string
+          organo_aprobador_id: string | null
+          ot_id: string | null
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_hallazgos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_mant_capitalizar_activo: {
         Args: { p_activo_id: string; p_periodo_id: string; p_tenant_id: string }
         Returns: string
+      }
+      fn_mant_cerrar_hallazgo: {
+        Args: { p_evidencia_documento_id?: string; p_hallazgo_id: string }
+        Returns: {
+          aceptado_at: string | null
+          aceptado_motivo: string | null
+          aceptado_por: string | null
+          cerrado_at: string | null
+          cerrado_evidencia_documento_id: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string | null
+          id: string
+          inspeccion_id: string
+          organo_aprobador_id: string | null
+          ot_id: string | null
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          tenant_id: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_hallazgos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_mant_cerrar_ot: {
         Args: {
@@ -19373,6 +20319,106 @@ export type Database = {
           detalle: string
         }[]
       }
+      fn_mant_registrar_consumo: {
+        Args: {
+          p_almacen_id: string
+          p_cantidad: number
+          p_costo_unitario?: number
+          p_ot_id: string
+          p_repuesto_id: string
+        }
+        Returns: {
+          almacen_id: string
+          cantidad: number
+          costo_unitario: number | null
+          direccion: number
+          documento_id: string | null
+          id: string
+          motivo: string | null
+          orden_trabajo_id: string | null
+          presupuesto_ejecucion_id: string | null
+          registrado_at: string
+          registrado_por: string | null
+          repuesto_id: string
+          tenant_id: string
+          tercero_id: string | null
+          tipo: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_inventario_movimientos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_mant_registrar_devolucion: {
+        Args: {
+          p_almacen_id: string
+          p_cantidad: number
+          p_ot_id: string
+          p_repuesto_id: string
+        }
+        Returns: {
+          almacen_id: string
+          cantidad: number
+          costo_unitario: number | null
+          direccion: number
+          documento_id: string | null
+          id: string
+          motivo: string | null
+          orden_trabajo_id: string | null
+          presupuesto_ejecucion_id: string | null
+          registrado_at: string
+          registrado_por: string | null
+          repuesto_id: string
+          tenant_id: string
+          tercero_id: string | null
+          tipo: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_inventario_movimientos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_mant_registrar_inspeccion: {
+        Args: {
+          p_acreditacion_referencia?: string
+          p_activo_id?: string
+          p_fecha: string
+          p_formato_id: string
+          p_respuestas: Json
+          p_resultado_motivo?: string
+          p_resultado_override?: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          p_tenant_id: string
+          p_tercero_id?: string
+        }
+        Returns: {
+          acreditacion_referencia: string | null
+          activo_id: string | null
+          created_at: string
+          cumplimiento_id: string | null
+          fecha: string
+          formato_id: string
+          formato_version: number
+          id: string
+          registrada_por: string | null
+          resultado: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          resultado_motivo: string | null
+          resultado_sugerido: Database["public"]["Enums"]["cumplimiento_resultado_t"]
+          tenant_id: string
+          tercero_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_inspecciones"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_mant_resolver_alcance_plan: {
         Args: { p_plan_id: string }
         Returns: number
@@ -19380,6 +20426,39 @@ export type Database = {
       fn_mant_siguiente_numero: {
         Args: { p_anio: number; p_serie_id: number; p_tenant_id: string }
         Returns: number
+      }
+      fn_mant_transferir_repuesto: {
+        Args: {
+          p_almacen_destino_id: string
+          p_almacen_origen_id: string
+          p_cantidad: number
+          p_repuesto_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          almacen_id: string
+          cantidad: number
+          costo_unitario: number | null
+          direccion: number
+          documento_id: string | null
+          id: string
+          motivo: string | null
+          orden_trabajo_id: string | null
+          presupuesto_ejecucion_id: string | null
+          registrado_at: string
+          registrado_por: string | null
+          repuesto_id: string
+          tenant_id: string
+          tercero_id: string | null
+          tipo: Database["public"]["Enums"]["movimiento_tipo_t"]
+          transferencia_par_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mant_inventario_movimientos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       fn_marcar_cuenta_recaudo: {
         Args: { p_cuenta_id: string; p_tenant_id: string }
@@ -20467,6 +21546,17 @@ export type Database = {
         }
         Returns: string
       }
+      mant_costos: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          agrupacion_id: string
+          categoria_activo_id: number
+          monto: number
+          tercero_id: string
+          tipo_mantenimiento_id: number
+        }[]
+      }
       mant_criticidad: {
         Args: { p_activo_id: string }
         Returns: {
@@ -20500,6 +21590,31 @@ export type Database = {
           tipo_nombre: string
           vigente_desde: string
           vigente_hasta: string
+        }[]
+      }
+      mant_hallazgos_abiertos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          descripcion: string
+          dias_abierto: number
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string
+          hallazgo_id: string
+          inspeccion_id: string
+          ot_id: string
+          severidad: Database["public"]["Enums"]["severidad_t"]
+          vencido: boolean
+        }[]
+      }
+      mant_inventario_pendientes_contabilizar: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          cantidad: number
+          motivo_bloqueo: string
+          movimiento_id: string
+          orden_trabajo_id: string
+          registrado_at: string
+          repuesto_id: string
         }[]
       }
       mant_ppe_movimiento_ejercicio: {
@@ -20597,6 +21712,15 @@ export type Database = {
           prioridad_nombre: string
           severidad_nombre: string
         }[]
+      }
+      mant_stock: {
+        Args: {
+          p_almacen_id: string
+          p_fecha?: string
+          p_repuesto_id: string
+          p_tenant_id: string
+        }
+        Returns: number
       }
       mant_verificar_habilitacion_tercero: {
         Args: {
@@ -20984,6 +22108,7 @@ export type Database = {
         | "impugnacion"
         | "solicitud"
         | "acta_disposicion"
+      hallazgo_estado_t: "abierto" | "en_tratamiento" | "aceptado" | "cerrado"
       impugnacion_estado_t:
         | "presentada"
         | "en_tramite"
@@ -21016,6 +22141,7 @@ export type Database = {
       interes_descuento_orden_t:
         | "interes_sobre_capital_completo"
         | "descuento_antes_interes"
+      inventario_alerta_tipo_t: "stock_bajo" | "sin_stock" | "punto_reorden"
       invite_status_t: "pending" | "accepted" | "revoked" | "expired"
       liquidacion_estado_t:
         | "pre_liquidada"
@@ -21041,6 +22167,7 @@ export type Database = {
       marco_contable_grupo_t: "grupo_2" | "grupo_3"
       mayoria_tipo_t: "ordinaria" | "calificada_70" | "unanimidad"
       member_status_t: "active" | "revoked"
+      movimiento_tipo_t: "entrada" | "salida" | "ajuste" | "transferencia"
       nivel_riesgo_t: "ninguno" | "bajo" | "medio" | "alto" | "critico"
       novedad_estado_t: "pendiente" | "aprobada" | "rechazada"
       novedad_tipo_t:
@@ -21087,6 +22214,7 @@ export type Database = {
         | "contractual"
         | "interno"
       residual_metodo_t: "mayor_resto"
+      respuesta_valor_t: "conforme" | "no_conforme" | "no_aplica"
       resultado_accion_cobranza_t:
         | "sin_respuesta"
         | "contacto_efectivo"
@@ -21103,6 +22231,7 @@ export type Database = {
         | "universal_sin_convocatoria"
       reunion_estado_t: "convocada" | "instalada" | "cerrada" | "cancelada"
       reunion_modalidad_t: "presencial" | "no_presencial" | "mixta"
+      severidad_t: "critico" | "mayor" | "menor" | "observacion"
       solicitud_estado_t:
         | "nueva"
         | "asignada"
@@ -21561,6 +22690,7 @@ export const Constants = {
         "solicitud",
         "acta_disposicion",
       ],
+      hallazgo_estado_t: ["abierto", "en_tratamiento", "aceptado", "cerrado"],
       impugnacion_estado_t: [
         "presentada",
         "en_tramite",
@@ -21599,6 +22729,7 @@ export const Constants = {
         "interes_sobre_capital_completo",
         "descuento_antes_interes",
       ],
+      inventario_alerta_tipo_t: ["stock_bajo", "sin_stock", "punto_reorden"],
       invite_status_t: ["pending", "accepted", "revoked", "expired"],
       liquidacion_estado_t: [
         "pre_liquidada",
@@ -21627,6 +22758,7 @@ export const Constants = {
       marco_contable_grupo_t: ["grupo_2", "grupo_3"],
       mayoria_tipo_t: ["ordinaria", "calificada_70", "unanimidad"],
       member_status_t: ["active", "revoked"],
+      movimiento_tipo_t: ["entrada", "salida", "ajuste", "transferencia"],
       nivel_riesgo_t: ["ninguno", "bajo", "medio", "alto", "critico"],
       novedad_estado_t: ["pendiente", "aprobada", "rechazada"],
       novedad_tipo_t: [
@@ -21677,6 +22809,7 @@ export const Constants = {
         "interno",
       ],
       residual_metodo_t: ["mayor_resto"],
+      respuesta_valor_t: ["conforme", "no_conforme", "no_aplica"],
       resultado_accion_cobranza_t: [
         "sin_respuesta",
         "contacto_efectivo",
@@ -21695,6 +22828,7 @@ export const Constants = {
       ],
       reunion_estado_t: ["convocada", "instalada", "cerrada", "cancelada"],
       reunion_modalidad_t: ["presencial", "no_presencial", "mixta"],
+      severidad_t: ["critico", "mayor", "menor", "observacion"],
       solicitud_estado_t: [
         "nueva",
         "asignada",

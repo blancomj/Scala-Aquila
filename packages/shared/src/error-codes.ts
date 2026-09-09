@@ -750,6 +750,73 @@ export const ERROR_CODES = {
   // guard_mant_garantia_reclamacion: resultado_id no pertenece a RESULTADO_RECLAMACION_GARANTIA.
   GARANTIA_RESULTADO_INVALIDO: 'GARANTIA_RESULTADO_INVALIDO',
 
+  // ── MANT-6: inventario de repuestos y costos (20260932100000+) ──────────
+  // guard_mant_repuesto: categoria_id/unidad_id no pertenecen a CATEGORIA_REPUESTO/UNIDAD_MEDIDA.
+  REPUESTO_CATEGORIA_INVALIDA: 'REPUESTO_CATEGORIA_INVALIDA',
+  REPUESTO_UNIDAD_INVALIDA: 'REPUESTO_UNIDAD_INVALIDA',
+  // guard_mant_repuesto: tercero/cuenta contable de otro tenant.
+  REPUESTO_TENANT_INCONSISTENTE: 'REPUESTO_TENANT_INCONSISTENTE',
+  // guard_mant_almacen: zona_comun_id de otro tenant.
+  ALMACEN_TENANT_INCONSISTENTE: 'ALMACEN_TENANT_INCONSISTENTE',
+  // guard_mant_inventario_movimiento: cantidad <= 0.
+  MOVIMIENTO_CANTIDAD_INVALIDA: 'MOVIMIENTO_CANTIDAD_INVALIDA',
+  // guard_mant_inventario_movimiento reutiliza MOVIMIENTO_TENANT_INCONSISTENTE (ya registrado
+  // arriba, PC-4) para repuesto/almacén/tercero/documento/OT de otro tenant.
+  // guard_mant_inventario_movimiento: una salida (o el lado -1 de una transferencia) dejaría
+  // mant_stock() por debajo de cero.
+  STOCK_INSUFICIENTE: 'STOCK_INSUFICIENTE',
+  // guard_mant_inventario_movimiento: tipo = 'ajuste' sin motivo.
+  AJUSTE_SIN_MOTIVO: 'AJUSTE_SIN_MOTIVO',
+  // guard_mant_inventario_movimiento: tipo = 'transferencia' sin pasar por
+  // fn_mant_transferir_repuesto (bandera de sesión ausente), o transferencia_par_id inválido.
+  TRANSFERENCIA_DESTINO_INVALIDO: 'TRANSFERENCIA_DESTINO_INVALIDO',
+
+  // ── MANT-7: inspecciones, hallazgos y acciones correctivas (20260932200000+) ──
+  // guard_mant_inspeccion_formato: tipo_id no pertenece a TIPO_INSPECCION.
+  INSPECCION_FORMATO_TIPO_INVALIDO: 'INSPECCION_FORMATO_TIPO_INVALIDO',
+  // guard_mant_inspeccion_formato/guard_mant_inspeccion_formato_item_inmutable: requisito_id o el
+  // propio formato de un ítem no pertenecen al tenant.
+  INSPECCION_FORMATO_TENANT_INCONSISTENTE: 'INSPECCION_FORMATO_TENANT_INCONSISTENTE',
+  // guard_mant_inspeccion_formato_inmutable: el formato ya está vigente/historica y el cambio no
+  // es la única transición permitida (vigente→historica).
+  INSPECCION_FORMATO_INMUTABLE: 'INSPECCION_FORMATO_INMUTABLE',
+  // guard_mant_inspeccion_formato_item_inmutable: INSERT/UPDATE/DELETE de un ítem cuando su
+  // formato ya no está borrador.
+  INSPECCION_FORMATO_ITEM_INMUTABLE: 'INSPECCION_FORMATO_ITEM_INMUTABLE',
+  // fn_mant_registrar_inspeccion: el formato no está vigente.
+  INSPECCION_FORMATO_NO_VIGENTE: 'INSPECCION_FORMATO_NO_VIGENTE',
+  // fn_mant_registrar_inspeccion: formato/activo/tercero/ítem de otro tenant o inexistente.
+  INSPECCION_TENANT_INCONSISTENTE: 'INSPECCION_TENANT_INCONSISTENTE',
+  // guard_mant_inspeccion_flag: INSERT directo en mant_inspecciones/mant_inspeccion_respuestas/
+  // mant_hallazgos fuera de fn_mant_registrar_inspeccion (bandera de sesión ausente).
+  INSPECCION_REGISTRO_DIRECTO_PROHIBIDO: 'INSPECCION_REGISTRO_DIRECTO_PROHIBIDO',
+  // fn_mant_registrar_inspeccion: resultado enviado difiere del resultado_sugerido calculado
+  // desde las respuestas, sin resultado_motivo.
+  INSPECCION_RESULTADO_SOBRESCRITO_SIN_MOTIVO: 'INSPECCION_RESULTADO_SOBRESCRITO_SIN_MOTIVO',
+  // fn_mant_registrar_inspeccion: el formato exige tercero acreditado (vía mant_requisito) y
+  // falta tercero_id/acreditacion_referencia.
+  INSPECCION_CUMPLIMIENTO_SIN_ACREDITACION: 'INSPECCION_CUMPLIMIENTO_SIN_ACREDITACION',
+  // guard_mant_hallazgo_insert/guard_mant_hallazgo_transicion: inspección/OT/órgano de otro
+  // tenant.
+  HALLAZGO_TENANT_INCONSISTENTE: 'HALLAZGO_TENANT_INCONSISTENTE',
+  // guard_mant_hallazgo_insert: severidad critico/mayor sin fecha_limite.
+  HALLAZGO_SIN_FECHA_LIMITE: 'HALLAZGO_SIN_FECHA_LIMITE',
+  // guard_mant_hallazgo_transicion: la inspección de origen demuestra un requisito
+  // legal_nacional/legal_territorial — nunca se puede aceptar.
+  HALLAZGO_LEGAL_NO_ACEPTABLE: 'HALLAZGO_LEGAL_NO_ACEPTABLE',
+  // guard_mant_hallazgo_transicion: aceptar sin motivo, o crítico sin organo_aprobador_id cuando
+  // el tenant tiene al menos un gobierno_organos vigente.
+  HALLAZGO_ACEPTACION_SIN_JUSTIFICACION: 'HALLAZGO_ACEPTACION_SIN_JUSTIFICACION',
+  // guard_mant_hallazgo_transicion: cerrar un hallazgo critico/mayor sin
+  // cerrado_evidencia_documento_id.
+  HALLAZGO_CIERRE_SIN_EVIDENCIA: 'HALLAZGO_CIERRE_SIN_EVIDENCIA',
+  // fn_mant_asignar_ot_hallazgo/fn_mant_aceptar_hallazgo/fn_mant_cerrar_hallazgo: p_hallazgo_id
+  // no existe.
+  HALLAZGO_INEXISTENTE: 'HALLAZGO_INEXISTENTE',
+  // fn_mant_asignar_ot_hallazgo/fn_mant_aceptar_hallazgo/fn_mant_cerrar_hallazgo: el hallazgo ya
+  // está cerrado.
+  HALLAZGO_TRANSICION_INVALIDA: 'HALLAZGO_TRANSICION_INVALIDA',
+
   // ── FIN-2: factura de proveedor y retenciones aplicadas (20260931120000+) ──
   // guard_finanzas_factura_proveedor: proveedor/contrato/cuenta presupuestal/ejecución de otro
   // tenant. Reutiliza CUENTA_NO_ES_HOJA (ya registrado) para presupuesto_cuenta_id.
@@ -952,7 +1019,8 @@ export const ERROR_CODES = {
   // guard_gobierno_votacion: la materia no admite segunda convocatoria (solo bloquea abrir para
   // materias con admite_segunda_convocatoria=false — ninguna de las 12 sembradas hoy lo tiene;
   // para las que sí lo admiten, el matiz del art. 46 par. se resuelve al cerrar, no al abrir).
-  VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA: 'VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA',
+  VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA:
+    'VOTACION_MATERIA_NO_ADMITE_SEGUNDA_CONVOCATORIA',
   // guard_gobierno_votacion: el órgano reunido no tiene la atribución vinculada a la materia
   // (gobierno_organo_competente, GOB-1) — solo se valida si la materia tiene atribución vinculada.
   VOTACION_ORGANO_INCOMPETENTE: 'VOTACION_ORGANO_INCOMPETENTE',
