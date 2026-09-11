@@ -41,6 +41,7 @@ import {
   ReconciliacionLiquidacionFallidaError,
 } from '../../../packages/liquidation-engine/dist/index.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
+import { agruparAvisosAlcance } from '../_shared/avisos_alcance.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
@@ -54,12 +55,19 @@ const payloadSchema = z.object({
   periodo_id: z.string().uuid(),
 })
 
-// Espejo local de LineaResultado (packages/liquidation-engine/src/result.ts):
-// dist/index.js pierde los exports type-only al compilar a JS.
+// Espejo local de LineaResultado/AvisoAlcanceSinDato (packages/liquidation-
+// engine/src/result.ts): dist/index.js pierde los exports type-only al
+// compilar a JS.
 interface LineaResultadoLocal {
   readonly inmuebleId: string
   readonly conceptoCodigo: string
   readonly monto: { readonly amount: { toString(): string } }
+}
+
+interface AvisoAlcanceLocal {
+  readonly conceptoCodigo: string
+  readonly inmuebleId: string
+  readonly campos: readonly string[]
 }
 
 export default {
@@ -280,6 +288,9 @@ export default {
         // La pantalla los pinta como checklist; los bloqueos deshabilitan
         // "Solicitar aplicación".
         prevuelo: hallazgos ?? [],
+        // ADC-01: solo en vivo — se congela en avisos_aceptados recién al
+        // aplicar (aplicar-liquidacion/index.ts), no aquí.
+        avisos_alcance: agruparAvisosAlcance(calculado.resultado.avisosAlcance as AvisoAlcanceLocal[]),
       },
       200,
       correlationId,

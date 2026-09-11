@@ -20796,7 +20796,11 @@ export type Database = {
         Returns: number
       }
       fn_aplicar_liquidacion: {
-        Args: { p_liquidacion_id: string; p_snapshot_hash?: string }
+        Args: {
+          p_avisos_alcance?: Json
+          p_liquidacion_id: string
+          p_snapshot_hash?: string
+        }
         Returns: Json
       }
       fn_aprobar_novedad: {

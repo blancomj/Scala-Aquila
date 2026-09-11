@@ -8,7 +8,7 @@
  */
 import type { CampoCondicion, OperadorCondicion } from '@aquila/liquidation-engine/alcance'
 
-export type TipoCampoAlcance = 'catalogo' | 'fijo' | 'numero' | 'mes'
+export type TipoCampoAlcance = 'catalogo' | 'fijo' | 'numero' | 'mes' | 'agrupacion'
 
 export interface CampoAlcanceMeta {
   readonly campo: CampoCondicion
@@ -44,6 +44,23 @@ export const CAMPOS_ALCANCE: readonly CampoAlcanceMeta[] = [
     tipo: 'catalogo',
     familiaListaTipos: 'USO_PREDIO',
   },
+  {
+    // ADC-01 — qué ES la unidad (apartamento/local/oficina/bodega...),
+    // distinto de uso_predio ("a qué se dedica": local + restaurante).
+    campo: 'tipo_inmueble',
+    etiqueta: 'Tipo de inmueble',
+    tipo: 'catalogo',
+    familiaListaTipos: 'TIPO_INMUEBLE',
+  },
+  {
+    // ADC-01 — su valor es el id de una fila de `agrupaciones`, no de
+    // `lista_tipos`: no encaja en 'catalogo'. La comparación en tiempo de
+    // liquidación es contra el SUBÁRBOL (evaluarAgrupacion en alcance.ts),
+    // no contra la agrupación directa del inmueble.
+    campo: 'agrupacion',
+    etiqueta: 'Agrupación (y todo lo que cuelga de ella)',
+    tipo: 'agrupacion',
+  },
   { campo: 'area_privada', etiqueta: 'Área privada (m²)', tipo: 'numero' },
   { campo: 'coeficiente', etiqueta: 'Coeficiente de copropiedad', tipo: 'numero' },
   { campo: 'saldo_actual', etiqueta: 'Saldo actual (cuenta corriente)', tipo: 'numero' },
@@ -59,10 +76,18 @@ const CAMPOS_CATEGORICOS: ReadonlySet<CampoCondicion> = new Set([
   'tipo_propietario',
   'tipo_inquilino',
   'uso_predio',
+  'tipo_inmueble',
 ])
 
+// ADC-01 — `agrupacion` tampoco tiene orden (gt/gte/lt/lte no significan nada
+// sobre un árbol), pero se lista aparte de CAMPOS_CATEGORICOS porque su
+// semántica de eq/neq es "pertenece/no pertenece al subárbol", no igualdad
+// de valor — alcance.ts la trata distinto (evaluarAgrupacion), aunque aquí
+// el conjunto de operadores válidos resulte ser el mismo.
 export function operadoresPara(campo: CampoCondicion): readonly OperadorCondicion[] {
-  return CAMPOS_CATEGORICOS.has(campo) ? ['eq', 'neq'] : ['eq', 'neq', 'gt', 'gte', 'lt', 'lte']
+  return CAMPOS_CATEGORICOS.has(campo) || campo === 'agrupacion'
+    ? ['eq', 'neq']
+    : ['eq', 'neq', 'gt', 'gte', 'lt', 'lte']
 }
 
 export const ETIQUETA_OPERADOR: Record<OperadorCondicion, string> = {

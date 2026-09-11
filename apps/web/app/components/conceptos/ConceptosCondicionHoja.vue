@@ -12,12 +12,28 @@ const props = defineProps<{ modelValue: CondicionHoja; readonly?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [CondicionHoja]; eliminar: [] }>()
 
 const tenantStore = useTenantStore()
+const agrupacionesStore = useAgrupacionesStore()
 
 type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 const catalogos = useState<Record<string, ListaTipoRow[]>>('alcance-catalogos-lista-tipos', () => ({}))
 
 const meta = computed(() => metaDeCampo(props.modelValue.campo))
 const operadoresDisponibles = computed(() => operadoresPara(props.modelValue.campo))
+
+// ADC-01 — igual que los catálogos de arriba: el árbol se carga una sola vez
+// por página y se comparte entre todas las hojas (mismo criterio, useState
+// en vez de duplicar la carga por cada condición de agrupación en el árbol).
+const arbolCargado = useState<boolean>('alcance-arbol-agrupaciones-cargado', () => false)
+const opcionesAgrupacion = computed(() =>
+  agrupacionesStore.arbolPlano.map((n) => ({ valor: n.id, etiqueta: '—'.repeat(n.nivel - 1) + ' ' + n.ruta })),
+)
+
+watchEffect(async () => {
+  const tenantId = tenantStore.activeTenant?.id
+  if (meta.value.tipo !== 'agrupacion' || !tenantId || arbolCargado.value) return
+  arbolCargado.value = true
+  await agrupacionesStore.cargarAgrupaciones(tenantId)
+})
 
 // CondicionHoja.valor es string | number (los campos de catálogo llevan código,
 // los numéricos un número), pero model-value de UInput solo acepta string —
@@ -75,6 +91,16 @@ function cambiarCampo(campo: CampoCondicion): void {
       :opciones="opcionesCatalogo"
       placeholder="— Elegir —"
       class="min-w-40"
+      :deshabilitado="readonly"
+      @update:model-value="actualizar({ valor: $event as string | number })"
+    />
+
+    <UiSelectorBuscable
+      v-else-if="meta.tipo === 'agrupacion'"
+      :model-value="modelValue.valor"
+      :opciones="opcionesAgrupacion"
+      placeholder="— Elegir agrupación —"
+      class="min-w-52"
       :deshabilitado="readonly"
       @update:model-value="actualizar({ valor: $event as string | number })"
     />

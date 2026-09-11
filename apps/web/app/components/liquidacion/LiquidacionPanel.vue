@@ -15,7 +15,7 @@
 // recibe LIQUIDACION_REQUIERE_ADMINISTRADOR de la base. Aquí se evita
 // mostrarle un botón que le va a fallar, nada más.
 import type { Database } from '@aquila/shared'
-import type { HallazgoPrevuelo } from '~/stores/liquidacion'
+import type { AvisoAlcance, HallazgoPrevuelo } from '~/stores/liquidacion'
 import { MESES, ESTADO_UI } from '~/config/liquidacion-ui'
 
 type PeriodoRow = Database['public']['Tables']['periodos']['Row']
@@ -34,6 +34,16 @@ const toast = useToast()
 const esAdministrador = computed(() => tenantStore.role === 'administrador')
 
 const hallazgos = ref<HallazgoPrevuelo[]>([])
+// ADC-01 — de la ÚLTIMA simulación de esta sesión de pantalla, no de la base:
+// a diferencia de `hallazgos` (siempre recalculado en vivo vía RPC), el motor
+// no tiene un endpoint liviano de solo-lectura — se pierde al recargar la
+// página hasta que se vuelva a simular. Se congela de verdad recién al
+// aplicar (avisos_aceptados, ver informe ADC-01 §3.2/apéndice UI).
+const avisosAlcance = ref<AvisoAlcance[]>([])
+const hallazgosConAlcance = computed<HallazgoPrevuelo[]>(() => [
+  ...hallazgos.value,
+  ...avisosAlcance.value.map((a) => ({ ...a, severidad: 'aviso' as const })),
+])
 const cargandoPrevuelo = ref(false)
 const trabajando = ref(false)
 const error = ref<string | null>(null)
@@ -144,6 +154,9 @@ async function refrescarLineas(): Promise<void> {
 watch(
   () => [props.periodo.id, props.liquidacion?.id, props.liquidacion?.estado],
   async () => {
+    // Una simulación vieja no describe el contexto nuevo — se descarta hasta
+    // que se vuelva a simular en esta pantalla.
+    avisosAlcance.value = []
     await Promise.all([refrescarPrevuelo(), refrescarLineas()])
   },
   { immediate: true },
@@ -173,6 +186,7 @@ function simular(): void {
   if (!tenantId) return
   void ejecutar(async () => {
     const r = await liquidacionStore.simular(props.periodo.id, tenantId)
+    avisosAlcance.value = r.avisos_alcance
     return r.descarto_anteriores > 0
       ? `Pre-Liquidación recalculada: ${r.lineas} líneas por ${formatoMoneda(r.tenant_total)}.`
       : `Pre-Liquidación lista: ${r.lineas} líneas por ${formatoMoneda(r.tenant_total)}.`
@@ -457,7 +471,7 @@ function descartar(): void {
     </div>
 
     <!-- ── verificación previa ──────────────────────────────────────── -->
-    <LiquidacionPrevuelo :hallazgos="hallazgos" :cargando="cargandoPrevuelo" />
+    <LiquidacionPrevuelo :hallazgos="hallazgosConAlcance" :cargando="cargandoPrevuelo" />
 
     <!-- ── detalle por unidad ───────────────────────────────────────── -->
     <section v-if="lineas.length > 0">

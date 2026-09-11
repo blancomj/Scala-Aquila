@@ -34,9 +34,18 @@ import {
   liquidar,
 } from '../../../packages/liquidation-engine/dist/index.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
+import { agruparAvisosAlcance } from '../_shared/avisos_alcance.ts'
 import { errorResponse, jsonResponse } from '../_shared/http.ts'
 import { logEvent } from '../_shared/logger.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
+
+// Espejo local de AvisoAlcanceSinDato (packages/liquidation-engine/src/
+// result.ts): dist/index.js pierde los exports type-only al compilar a JS.
+interface AvisoAlcanceLocal {
+  readonly conceptoCodigo: string
+  readonly inmuebleId: string
+  readonly campos: readonly string[]
+}
 
 // Bajo a propósito: aplicar es un acto por periodo, no una operación que se
 // repita. Un número alto aquí solo serviría para amplificar un error.
@@ -125,6 +134,12 @@ export default {
     // comparación en vez de fingir que se verificó — la RPC lo tratará
     // igual y el sello de datos sigue cubriendo su parte.
     let hashActual: string | null = null
+    // ADC-01: avisos de "dato sin clasificar" de ESTA corrida — solo existen
+    // cuando hubo recálculo (mismo condicional que hashActual, misma razón:
+    // una Pre-Liquidación anterior a L0 no trae snapshot_hash y no se
+    // reconstruye). Sin recálculo, se aplica sin avisos de alcance nuevos —
+    // los de fn_liquidacion_prevuelo (SQL) siguen cubriéndose igual.
+    let avisosAlcance: readonly AvisoAlcanceLocal[] = []
     if (liquidacion.snapshot_hash !== null) {
       const periodo = liquidacion.periodos as unknown as { anio: number; mes: number } | null
       if (!periodo) {
@@ -142,7 +157,9 @@ export default {
           anio: periodo.anio,
           mes: periodo.mes,
         })
-        hashActual = liquidar(snapshot).resultHash
+        const calculado = liquidar(snapshot)
+        hashActual = calculado.resultHash
+        avisosAlcance = calculado.resultado.avisosAlcance as AvisoAlcanceLocal[]
       } catch (excepcion) {
         const mensaje =
           excepcion instanceof Error ? excepcion.message : 'No se pudo reconstruir el snapshot.'
@@ -169,7 +186,11 @@ export default {
     // ── Todo lo demás pasa dentro de la transacción ───────────────────
     const { data: resultado, error: errorAplicar } = await ctx.supabase.rpc(
       'fn_aplicar_liquidacion',
-      { p_liquidacion_id: liquidacionId, p_snapshot_hash: hashActual },
+      {
+        p_liquidacion_id: liquidacionId,
+        p_snapshot_hash: hashActual,
+        p_avisos_alcance: agruparAvisosAlcance(avisosAlcance),
+      },
     )
 
     if (errorAplicar) {

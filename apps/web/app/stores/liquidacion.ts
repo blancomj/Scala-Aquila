@@ -47,6 +47,12 @@ export interface HallazgoPrevuelo {
   detalle: string
 }
 
+/** ADC-01 — {codigo, titulo, detalle} sin `severidad`: en este contexto
+ * siempre es 'aviso' (el motor nunca bloquea, ver informe ADC-01 §3.2). Se
+ * le agrega severidad='aviso' al mezclarlo con `hallazgos` para pintarlo con
+ * LiquidacionPrevuelo, que sí exige ese campo. */
+export type AvisoAlcance = Omit<HallazgoPrevuelo, 'severidad'>
+
 export interface ResultadoSimulacion {
   liquidacion_id: string
   periodo_id: string
@@ -56,6 +62,8 @@ export interface ResultadoSimulacion {
   lineas: number
   descarto_anteriores: number
   prevuelo: HallazgoPrevuelo[]
+  /** Solo en vivo — se congela en avisos_aceptados recién al aplicar, no aquí. */
+  avisos_alcance: AvisoAlcance[]
 }
 
 export interface ResultadoAplicacion {
