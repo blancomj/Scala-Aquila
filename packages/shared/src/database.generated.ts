@@ -1153,6 +1153,225 @@ export type Database = {
           },
         ]
       }
+      anuncio_audiencia: {
+        Row: {
+          anuncio_id: string
+          criterio: string
+          id: string
+          valor: string | null
+        }
+        Insert: {
+          anuncio_id: string
+          criterio: string
+          id?: string
+          valor?: string | null
+        }
+        Update: {
+          anuncio_id?: string
+          criterio?: string
+          id?: string
+          valor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anuncio_audiencia_anuncio_id_fkey"
+            columns: ["anuncio_id"]
+            isOneToOne: false
+            referencedRelation: "anuncios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anuncio_consecutivo: {
+        Row: {
+          anio: number
+          tenant_id: string
+          ultimo_numero: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio: number
+          tenant_id: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number
+          tenant_id?: string
+          ultimo_numero?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anuncio_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncio_consecutivo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anuncio_lectura: {
+        Row: {
+          anuncio_id: string
+          confirmado_at: string | null
+          leido_at: string
+          user_id: string
+        }
+        Insert: {
+          anuncio_id: string
+          confirmado_at?: string | null
+          leido_at?: string
+          user_id: string
+        }
+        Update: {
+          anuncio_id?: string
+          confirmado_at?: string | null
+          leido_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anuncio_lectura_anuncio_id_fkey"
+            columns: ["anuncio_id"]
+            isOneToOne: false
+            referencedRelation: "anuncios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anuncios: {
+        Row: {
+          anio: number | null
+          categoria_id: number
+          contenido: string
+          creado_por: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["anuncio_estado_t"]
+          id: string
+          motivo_rechazo: string | null
+          numero: number | null
+          prioridad_id: number
+          publicado_at: string | null
+          publicado_por: string | null
+          publicar_at: string | null
+          requiere_confirmacion: boolean
+          resumen: string | null
+          revisado_at: string | null
+          revisado_por: string | null
+          tenant_id: string
+          titulo: string
+          updated_at: string | null
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          anio?: number | null
+          categoria_id: number
+          contenido: string
+          creado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["anuncio_estado_t"]
+          id?: string
+          motivo_rechazo?: string | null
+          numero?: number | null
+          prioridad_id: number
+          publicado_at?: string | null
+          publicado_por?: string | null
+          publicar_at?: string | null
+          requiere_confirmacion?: boolean
+          resumen?: string | null
+          revisado_at?: string | null
+          revisado_por?: string | null
+          tenant_id: string
+          titulo: string
+          updated_at?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          anio?: number | null
+          categoria_id?: number
+          contenido?: string
+          creado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["anuncio_estado_t"]
+          id?: string
+          motivo_rechazo?: string | null
+          numero?: number | null
+          prioridad_id?: number
+          publicado_at?: string | null
+          publicado_por?: string | null
+          publicar_at?: string | null
+          requiere_confirmacion?: boolean
+          resumen?: string | null
+          revisado_at?: string | null
+          revisado_por?: string | null
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anuncios_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_prioridad_id_fkey"
+            columns: ["prioridad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_publicado_por_fkey"
+            columns: ["publicado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_revisado_por_fkey"
+            columns: ["revisado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atencion_tokens_consulta: {
         Row: {
           created_at: string
@@ -5502,6 +5721,7 @@ export type Database = {
       }
       documentos: {
         Row: {
+          anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
           created_at: string
@@ -5521,6 +5741,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
           created_at?: string
@@ -5540,6 +5761,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
           created_at?: string
@@ -5559,6 +5781,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "documentos_anuncio_id_fkey"
+            columns: ["anuncio_id"]
+            isOneToOne: false
+            referencedRelation: "anuncios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_caso_juridico_id_fkey"
             columns: ["caso_juridico_id"]
@@ -20716,6 +20945,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cron_anuncios_publicar_programados: { Args: never; Returns: undefined }
       cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
       cron_finanzas_flujo_alertas_diario: { Args: never; Returns: undefined }
       cron_gobierno_vencimientos_diario: { Args: never; Returns: undefined }
@@ -20972,6 +21202,28 @@ export type Database = {
       fn_anular_pago: {
         Args: { p_actor_id: string; p_motivo: string; p_pago_id: string }
         Returns: string
+      }
+      fn_anuncio_destinatarios: {
+        Args: { p_anuncio_id: string }
+        Returns: {
+          email: string
+          nombre: string
+          telefono: string
+          tercero_id: string
+        }[]
+      }
+      fn_anuncio_metricas: {
+        Args: { p_anuncio_id: string }
+        Returns: {
+          confirmados: number
+          destinatarios: number
+          leidos: number
+        }[]
+      }
+      fn_anuncio_publicar_programados: { Args: never; Returns: number }
+      fn_anuncio_siguiente_numero: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: number
       }
       fn_aplicar_anticipos: {
         Args: { p_inmueble_id: string; p_tenant_id: string }
@@ -24847,6 +25099,15 @@ export type Database = {
       actor_externo_origen_t: "autoverificacion" | "staff"
       actor_externo_persona_t: "propietario" | "tenedor"
       alcance_accion_cobranza_t: "inmueble" | "cargo"
+      anuncio_estado_t:
+        | "borrador"
+        | "pendiente_revision"
+        | "aprobado"
+        | "programado"
+        | "publicado"
+        | "archivado"
+        | "rechazado"
+        | "cancelado"
       asistencia_calidad_t: "propietario" | "apoderado" | "invitado" | "organo"
       atribucion_origen_t: "ley" | "reglamento"
       atributo_tipo_dato_t: "numero" | "texto" | "booleano" | "fecha" | "opcion"
@@ -25424,6 +25685,16 @@ export const Constants = {
       actor_externo_origen_t: ["autoverificacion", "staff"],
       actor_externo_persona_t: ["propietario", "tenedor"],
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
+      anuncio_estado_t: [
+        "borrador",
+        "pendiente_revision",
+        "aprobado",
+        "programado",
+        "publicado",
+        "archivado",
+        "rechazado",
+        "cancelado",
+      ],
       asistencia_calidad_t: ["propietario", "apoderado", "invitado", "organo"],
       atribucion_origen_t: ["ley", "reglamento"],
       atributo_tipo_dato_t: ["numero", "texto", "booleano", "fecha", "opcion"],

@@ -4102,3 +4102,61 @@ trío `origen_*` se dejó idéntico al de `acciones_cobranza_envios` para que es
 después sin migrar datos). Evidencia: 11 pruebas en `tests/rls/notificaciones.test.ts`, incluida la
 del puente real de finanzas. **No verificado en navegador**: `apps/web/.env` apunta al remoto, que
 aún no tiene estas migraciones.
+
+---
+
+## D-74
+
+EXS-3 (anuncios y comunicación oficial) — **la audiencia son reglas, no destinatarios; el ciclo de
+vida es un guard, no un permiso.** Migraciones `20260933100000`–`20260933140000`. Ver
+`Casos de uso/Experiencia y servicios/EXS_03_INFORME.md`.
+
+**Qué NO se construyó, verificado antes de empezar.** El diagnóstico señalaba este corte como el de
+mayor riesgo de duplicación. Comprobado: `gobierno_convocatorias` está atada a `reunion_id` (convoca
+a una reunión, no comunica algo general) y el compositor de correo manda a UN destinatario suelto
+sin segmentación ni ciclo de vida — ninguno solapa. Anuncios es dominio nuevo legítimo, y reutiliza
+entero lo que sí existía: `gobierno_segmento_destinatarios` (audiencia), COM-1 (despacho),
+`documentos` (adjuntos, con una columna FK más siguiendo su patrón) y `fn_notificar` (aviso in-app).
+
+**Audiencia declarativa (prompt 02 §13).** `anuncio_audiencia` guarda pares (criterio, valor) en el
+vocabulario que GOB-9 ya resuelve, y `fn_anuncio_destinatarios` los une contra datos **vivos**.
+Materializar destinatarios al publicar habría generado ~20.000 filas muertas al año en una
+copropiedad de 500 unidades y habría envejecido mal: quien vendió seguiría siendo destinatario de un
+anuncio de hace ocho meses. **Cero reglas = toda la copropiedad**: no hay criterio `todos` porque
+duplicaría el significado del conjunto vacío.
+
+**El ciclo de vida como guard — primera aplicación real del contrato de EXS-1 §3.3.**
+`guard_anuncio_transicion` valida la transición contra una lista cerrada, exige administrador para
+revisar y publicar, impide que quien redactó apruebe lo suyo (segregación, prompt 02 §27/§28),
+asigna el consecutivo al publicar y congela contenido y número después. Cero permisos nuevos, cero
+columnas en `rol_funcional_modulo`. El atajo borrador→publicado existe para emergencias (§7) pero
+exige administrador: un auxiliar siempre pasa por revisión.
+
+**Consecutivo al publicar y solo entonces.** Numerar al crear quemaría números en borradores
+descartados y dejaría huecos en una serie citable en un acta. Una constraint lo hace inviolable en
+ambos sentidos: publicado exige número, sin publicar no puede haberlo.
+
+**Publicación programada idempotente sin tabla auxiliar**: el filtro `estado='programado'` más el
+UPDATE que lo cambia bastan (GC-005); `FOR UPDATE SKIP LOCKED` evita que dos corridas peleen. El
+estado ES la marca.
+
+**El módulo `anuncios` lo cubren TODOS los roles funcionales, deliberadamente.**
+`puede_ver_modulo()` es un gate para módulos *sensibles*; aplicado sin más a la comunicación oficial
+tendría el efecto perverso de que asignar el rol `contador` a alguien le ocultara los avisos de
+seguridad del edificio. En vez de exceptuar este dominio del mecanismo (rompiendo la uniformidad de
+EXS-1) se sembraron los cinco roles contra `anuncios`: restringirlo mañana es borrar filas, sin
+tocar policies ni desplegar código.
+
+**Dos bugs reales que solo aparecieron al ejecutar** (ninguno visible leyendo el código):
+1. `is_member()` es false para `service_role` — `fn_anuncio_destinatarios`/`fn_anuncio_metricas`
+   rechazaban a las Edge Functions y al cron. Corregido con el criterio "fuera de banda" de
+   `guard_privileged_columns`: la membresía solo se comprueba si hay actor real.
+2. El `return` temprano del guard para `auth.uid()` nulo se saltaba **también el sellado**, así que
+   el job programado publicaba sin número y chocaba contra `anuncios_publicado_con_numero`. La
+   publicación programada estaba rota y el código parecía correcto. Corregido separando las
+   comprobaciones de rol (solo con actor) del sellado (siempre). Lo cazó la prueba del GC-005.
+
+Evidencia: 16 pruebas en `tests/rls/anuncios.test.ts`, más verificación en navegador del flujo
+completo — incluido el intento de auto-aprobación rechazado por el guard con su mensaje en pantalla.
+Pendientes declarados: el cron no está agendado en pg_cron (la función existe y está probada), los
+adjuntos tienen columna pero no UI, y el contenido es texto plano sin editor enriquecido.

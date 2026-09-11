@@ -1428,6 +1428,33 @@ export const ERROR_CODES = {
   NOTIFICACION_TIPO_INVALIDO: 'NOTIFICACION_TIPO_INVALIDO',
   // fn_notificar: p_prioridad no existe en lista_tipos familia PRIORIDAD_NOTIFICACION.
   NOTIFICACION_PRIORIDAD_INVALIDA: 'NOTIFICACION_PRIORIDAD_INVALIDA',
+
+  // ── EXS-3: anuncios y comunicación oficial (20260933100000+) ──
+  // guard_anuncio_transicion: el par (estado anterior, estado nuevo) no está en la lista cerrada.
+  ANUNCIO_TRANSICION_INVALIDA: 'ANUNCIO_TRANSICION_INVALIDA',
+  // guard_anuncio_transicion: intento de editar contenido, categoría o consecutivo de un anuncio
+  // ya publicado. Se archiva y se publica uno nuevo; el histórico es evidencia.
+  ANUNCIO_PUBLICADO_INMUTABLE: 'ANUNCIO_PUBLICADO_INMUTABLE',
+  // guard_anuncio_transicion: publicar sin pasar por revisión exige rol administrador.
+  ANUNCIO_PUBLICACION_DIRECTA_REQUIERE_ADMINISTRADOR: 'ANUNCIO_PUBLICACION_DIRECTA_REQUIERE_ADMINISTRADOR',
+  // guard_anuncio_transicion: aprobar o rechazar exige rol administrador.
+  ANUNCIO_REVISION_REQUIERE_ADMINISTRADOR: 'ANUNCIO_REVISION_REQUIERE_ADMINISTRADOR',
+  // guard_anuncio_transicion: publicar exige rol administrador.
+  ANUNCIO_PUBLICACION_REQUIERE_ADMINISTRADOR: 'ANUNCIO_PUBLICACION_REQUIERE_ADMINISTRADOR',
+  // guard_anuncio_transicion: segregación de funciones — quien redactó no aprueba lo suyo.
+  ANUNCIO_AUTOAPROBACION: 'ANUNCIO_AUTOAPROBACION',
+  // guard_anuncio_transicion: pasar a 'programado' sin publicar_at.
+  ANUNCIO_PROGRAMADO_SIN_FECHA: 'ANUNCIO_PROGRAMADO_SIN_FECHA',
+  // guard_anuncio_transicion: publicar_at debe ser futura al programar.
+  ANUNCIO_PROGRAMADO_EN_PASADO: 'ANUNCIO_PROGRAMADO_EN_PASADO',
+  // fn_anuncio_destinatarios / fn_anuncio_metricas: el anuncio no existe, o el solicitante no es
+  // miembro de su tenant. Mismo mensaje en ambos casos: el UUID no debe revelar qué hay en otras
+  // copropiedades.
+  ANUNCIO_NO_ENCONTRADO: 'ANUNCIO_NO_ENCONTRADO',
+  // enviar-anuncio: solo se despacha por correo un anuncio publicado.
+  ANUNCIO_INVALID_STATE: 'ANUNCIO_INVALID_STATE',
+  // enviar-anuncio: el anuncio no existe.
+  ANUNCIO_NOT_FOUND: 'ANUNCIO_NOT_FOUND',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
