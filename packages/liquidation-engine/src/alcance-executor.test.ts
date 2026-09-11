@@ -59,6 +59,7 @@ const BASE_CONCEPTO = {
   periodicidad: 'mensual',
   alcance: 'calculado',
   alcanceCondiciones: CONDICION_COMERCIAL,
+  criterioDistribucion: 'coeficiente',
 } as const
 
 describe('alcance calculado — ejecutarDirecto', () => {

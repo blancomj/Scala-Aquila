@@ -36,6 +36,7 @@ type ConceptoTipoRecurrencia = Database['public']['Enums']['concepto_tipo_recurr
 type ConceptoPeriodicidad = Database['public']['Enums']['concepto_periodicidad_t']
 type ConceptoEstado = Database['public']['Enums']['concepto_estado_t']
 type ConceptoAlcance = Database['public']['Enums']['concepto_alcance_t']
+type ConceptoCriterioDistribucion = Database['public']['Enums']['concepto_criterio_distribucion_t']
 type ConceptoVersionRow = Database['public']['Tables']['concepto_versiones']['Row']
 type ConceptoTestCaseRow = Database['public']['Tables']['concepto_test_cases']['Row']
 type JsonColumna = Database['public']['Tables']['concepto_test_cases']['Row']['entradas']
@@ -128,6 +129,7 @@ export const useConceptoStore = defineStore('concepto', () => {
       periodicidad: concepto.periodicidad,
       alcance: concepto.alcance,
       alcance_condiciones: concepto.alcance_condiciones,
+      criterio_distribucion: concepto.criterio_distribucion,
     }
 
     const { error: errorVersion } = await cliente.from('concepto_versiones').insert({
@@ -186,6 +188,7 @@ export const useConceptoStore = defineStore('concepto', () => {
     periodicidad: ConceptoPeriodicidad | null
     alcance: ConceptoAlcance
     alcanceCondiciones: CondicionAlcance | null
+    criterioDistribucion: ConceptoCriterioDistribucion
     presupuestoCuentaId?: string | null
   }): Promise<ConceptoRow> {
     const cliente = useSupabaseClient<Database>()
@@ -208,6 +211,7 @@ export const useConceptoStore = defineStore('concepto', () => {
         periodicidad: params.periodicidad,
         alcance: params.alcance,
         alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
+        criterio_distribucion: params.criterioDistribucion,
         presupuesto_cuenta_id: params.presupuestoCuentaId ?? null,
       })
       .select('*')
@@ -236,6 +240,7 @@ export const useConceptoStore = defineStore('concepto', () => {
     periodicidad: ConceptoPeriodicidad | null
     alcance: ConceptoAlcance
     alcanceCondiciones: CondicionAlcance | null
+    criterioDistribucion: ConceptoCriterioDistribucion
     presupuestoCuentaId?: string | null
   }): Promise<void> {
     const cliente = useSupabaseClient<Database>()
@@ -256,6 +261,7 @@ export const useConceptoStore = defineStore('concepto', () => {
         periodicidad: params.periodicidad,
         alcance: params.alcance,
         alcance_condiciones: params.alcanceCondiciones as unknown as JsonColumna,
+        criterio_distribucion: params.criterioDistribucion,
         presupuesto_cuenta_id: params.presupuestoCuentaId,
       })
       .eq('id', params.id)

@@ -68,6 +68,10 @@ export interface SnapshotConcepto {
   readonly alcance: 'todos' | 'calculado'
   /** Solo aplica (no null) cuando alcance==='calculado'. null para 'todos'. */
   readonly alcanceCondiciones: CondicionAlcance | null
+  /** ADC-01-ADD (§14) — solo con efecto cuando modoCalculo==='distribucion'.
+   * 'coeficiente' preserva el comportamiento histórico; 'area_privada' cambia
+   * el basis de allocate() en el Paso 2 (ver executor.ts). */
+  readonly criterioDistribucion: 'coeficiente' | 'area_privada'
 }
 
 export interface SnapshotPresupuesto {

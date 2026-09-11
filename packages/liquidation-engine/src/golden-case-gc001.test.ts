@@ -69,6 +69,7 @@ function snapshotGC001(mes: number): DataSnapshot {
         periodicidad: 'mensual',
         alcance: 'todos',
         alcanceCondiciones: null,
+        criterioDistribucion: 'coeficiente',
       },
     ],
     presupuestoVigente: { id: 'presupuesto-2026', anio: 2026, montoTotal: '120000000' },

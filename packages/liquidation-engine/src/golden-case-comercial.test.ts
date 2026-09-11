@@ -119,6 +119,7 @@ const BASE = {
   fechaFinAnio: null,
   fechaFinMes: null,
   periodicidad: 'mensual',
+  criterioDistribucion: 'coeficiente',
 } as const
 
 /** Administración general: 12.000.000 anuales → 1.000.000 al mes, a todos. */

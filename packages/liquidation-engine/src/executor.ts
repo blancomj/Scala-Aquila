@@ -193,7 +193,27 @@ function ejecutarDistribucion(
   // mismo criterio que ejecutarDirecto sobre un snapshot sin inmuebles.
   // allocate() exige targets.length > 0 (EmptyTargetsError), así que este
   // caso se salta el paso2 en vez de llamarlo.
-  const { inmuebles: inmueblesAplican, excluidosSinDato } = inmueblesQueAplican(concepto, snapshot)
+  const { inmuebles: inmueblesQueCumplenAlcance, excluidosSinDato: excluidosSinDatoAlcance } =
+    inmueblesQueAplican(concepto, snapshot)
+
+  // ADC-01-ADD (§14) — con criterioDistribucion='area_privada', un inmueble
+  // que SÍ cumple el alcance pero no tiene área diligenciada se excluye y
+  // reporta con el mismo mecanismo que agrupacion/tipo_inmueble (ver
+  // ExclusionPorDatoAusente): tratarlo como área 0 lo dejaría fuera del
+  // reparto en silencio, exactamente el caso que ADC-01 ya trató para otros
+  // campos ("el excluido no recibe su parte y allocate() la reparte entre
+  // los demás sin que nadie se entere").
+  const inmueblesAplican: SnapshotInmueble[] = []
+  const excluidosSinDatoArea: ExclusionPorDatoAusente[] = []
+  for (const inmueble of inmueblesQueCumplenAlcance) {
+    if (concepto.criterioDistribucion === 'area_privada' && inmueble.atributos.areaPrivada === null) {
+      excluidosSinDatoArea.push({ inmuebleId: inmueble.id, campos: ['area_privada'] })
+      continue
+    }
+    inmueblesAplican.push(inmueble)
+  }
+  const excluidosSinDato = [...excluidosSinDatoAlcance, ...excluidosSinDatoArea]
+
   if (inmueblesAplican.length === 0) {
     return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas: [], excluidosSinDato }
   }
@@ -202,13 +222,20 @@ function ejecutarDistribucion(
   // fracción de días activos — allocate() sigue repartiendo exactamente
   // cuotaPeriodo (Σ=fuente intacta), así que lo que un inmueble prorrateado
   // deja de pagar lo absorben los demás según su propio coeficiente, no
-  // queda déficit de recaudo (decisión del usuario, 2026-08-26).
+  // queda déficit de recaudo (decisión del usuario, 2026-08-26). Mismo
+  // razonamiento aplica al basis por área (ADC-01-ADD §14): la fracción
+  // activa sigue ponderando, cambia solo qué magnitud se pondera.
+  const basisDe = (i: SnapshotInmueble) =>
+    concepto.criterioDistribucion === 'area_privada'
+      ? multiplicarDecimales(i.atributos.areaPrivada as string, i.fraccionActiva)
+      : multiplicarDecimales(i.coeficiente, i.fraccionActiva)
+
   const paso2 = allocate({
     basisType: 'coefficient',
     sourceAmount: cuotaPeriodo,
     targets: inmueblesAplican.map((i) => ({
       id: i.codigo,
-      basis: multiplicarDecimales(i.coeficiente, i.fraccionActiva),
+      basis: basisDe(i),
     })),
     policy,
   })

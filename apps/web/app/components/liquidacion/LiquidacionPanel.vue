@@ -154,12 +154,22 @@ async function refrescarLineas(): Promise<void> {
 watch(
   () => [props.periodo.id, props.liquidacion?.id, props.liquidacion?.estado],
   async () => {
-    // Una simulación vieja no describe el contexto nuevo — se descarta hasta
-    // que se vuelva a simular en esta pantalla.
-    avisosAlcance.value = []
     await Promise.all([refrescarPrevuelo(), refrescarLineas()])
   },
   { immediate: true },
+)
+
+// Aparte del watch de arriba: avisosAlcance solo se descarta al cambiar de
+// PERIODO (una simulación vieja no describe un periodo distinto). No se
+// engancha al watch de arriba porque ese también reacciona a liquidacion?.id
+// y liquidacion?.estado, que cambian como EFECTO del propio simular() —
+// limpiarlo ahí borraba el aviso recién recibido antes de que se alcanzara
+// a pintar (carrera con cargarLiquidaciones() dentro de simular()).
+watch(
+  () => props.periodo.id,
+  () => {
+    avisosAlcance.value = []
+  },
 )
 
 /** Envuelve una acción: limpia mensajes, marca ocupado y refresca al final.

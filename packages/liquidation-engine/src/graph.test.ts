@@ -20,6 +20,7 @@ function concepto(
     periodicidad: 'mensual',
     alcance: 'todos',
     alcanceCondiciones: null,
+    criterioDistribucion: 'coeficiente',
     ...over,
   }
 }

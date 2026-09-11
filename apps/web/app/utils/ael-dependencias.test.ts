@@ -26,6 +26,7 @@ function concepto(overrides: Partial<ConceptoRow> & { codigo: string }): Concept
     periodicidad: 'mensual',
     alcance: 'todos',
     alcance_condiciones: null,
+    criterio_distribucion: 'coeficiente',
     presupuesto_cuenta_id: null,
     prioridad: 100,
     estado: 'activo',
@@ -62,6 +63,7 @@ describe('conceptoARowSnapshot', () => {
         periodicidad: 'mensual',
         alcance: 'todos',
         alcanceCondiciones: null,
+        criterioDistribucion: 'coeficiente',
       },
     ])
   })

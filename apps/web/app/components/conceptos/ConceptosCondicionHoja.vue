@@ -70,7 +70,8 @@ function cambiarCampo(campo: CampoCondicion): void {
   <div class="flex items-center gap-2 flex-wrap">
     <USelect
       :model-value="modelValue.campo"
-      :options="CAMPOS_ALCANCE.map(c => ({ value: c.campo, label: c.etiqueta }))"
+      :items="CAMPOS_ALCANCE.map(c => ({ value: c.campo, label: c.etiqueta }))"
+      value-key="value"
       size="sm"
       :disabled="readonly"
       @update:model-value="cambiarCampo($event as CampoCondicion)"
@@ -78,7 +79,8 @@ function cambiarCampo(campo: CampoCondicion): void {
 
     <USelect
       :model-value="modelValue.operador"
-      :options="operadoresDisponibles.map(op => ({ value: op, label: ETIQUETA_OPERADOR[op] }))"
+      :items="operadoresDisponibles.map(op => ({ value: op, label: ETIQUETA_OPERADOR[op] }))"
+      value-key="value"
       size="sm"
       class="w-16"
       :disabled="readonly"
@@ -107,8 +109,9 @@ function cambiarCampo(campo: CampoCondicion): void {
 
     <USelect
       v-else-if="meta.tipo === 'fijo'"
-      :model-value="modelValue.valor"
-      :options="(meta.opcionesFijas ?? []).map(o => ({ value: o.valor, label: o.etiqueta }))"
+      :model-value="modelValue.valor as string"
+      :items="(meta.opcionesFijas ?? []).map(o => ({ value: o.valor, label: o.etiqueta }))"
+      value-key="value"
       size="sm"
       class="min-w-40"
       :disabled="readonly"
@@ -117,8 +120,9 @@ function cambiarCampo(campo: CampoCondicion): void {
 
     <USelect
       v-else-if="meta.tipo === 'mes'"
-      :model-value="modelValue.valor"
-      :options="Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))"
+      :model-value="modelValue.valor as number"
+      :items="Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))"
+      value-key="value"
       size="sm"
       :disabled="readonly"
       @update:model-value="actualizar({ valor: Number($event) })"

@@ -23,6 +23,7 @@ const BASE: SnapshotConcepto = {
   periodicidad: 'mensual',
   alcance: 'todos',
   alcanceCondiciones: null,
+  criterioDistribucion: 'coeficiente',
 }
 
 describe('conceptoAplicaEnPeriodo — novedad', () => {

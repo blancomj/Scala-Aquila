@@ -3294,6 +3294,7 @@ export type Database = {
           concepto_id: string
           created_at: string
           created_by: string
+          criterio_distribucion: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           estado_concepto: Database["public"]["Enums"]["concepto_estado_t"]
           fecha_fin_anio: number | null
           fecha_fin_mes: number | null
@@ -3320,6 +3321,7 @@ export type Database = {
           concepto_id: string
           created_at?: string
           created_by: string
+          criterio_distribucion?: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           estado_concepto: Database["public"]["Enums"]["concepto_estado_t"]
           fecha_fin_anio?: number | null
           fecha_fin_mes?: number | null
@@ -3346,6 +3348,7 @@ export type Database = {
           concepto_id?: string
           created_at?: string
           created_by?: string
+          criterio_distribucion?: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           estado_concepto?: Database["public"]["Enums"]["concepto_estado_t"]
           fecha_fin_anio?: number | null
           fecha_fin_mes?: number | null
@@ -3406,6 +3409,7 @@ export type Database = {
           busqueda_tsv: unknown
           codigo: string
           created_at: string
+          criterio_distribucion: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           enviado_a_revision_at: string | null
           enviado_a_revision_por: string | null
           estado: Database["public"]["Enums"]["concepto_estado_t"]
@@ -3438,6 +3442,7 @@ export type Database = {
           busqueda_tsv?: unknown
           codigo: string
           created_at?: string
+          criterio_distribucion?: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           enviado_a_revision_at?: string | null
           enviado_a_revision_por?: string | null
           estado?: Database["public"]["Enums"]["concepto_estado_t"]
@@ -3470,6 +3475,7 @@ export type Database = {
           busqueda_tsv?: unknown
           codigo?: string
           created_at?: string
+          criterio_distribucion?: Database["public"]["Enums"]["concepto_criterio_distribucion_t"]
           enviado_a_revision_at?: string | null
           enviado_a_revision_por?: string | null
           estado?: Database["public"]["Enums"]["concepto_estado_t"]
@@ -11250,6 +11256,92 @@ export type Database = {
             columns: ["votacion_id"]
             isOneToOne: false
             referencedRelation: "gobierno_votaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inmueble_atributo_historico: {
+        Row: {
+          agrupacion_id: string | null
+          created_at: string
+          id: string
+          inmueble_id: string
+          tenant_id: string
+          tipo_id: number
+          uso_predio_id: number | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          agrupacion_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          tenant_id: string
+          tipo_id: number
+          uso_predio_id?: number | null
+          vigente_desde: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          agrupacion_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          tenant_id?: string
+          tipo_id?: number
+          uso_predio_id?: number | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmueble_atributo_historico_agrupacion_id_fkey"
+            columns: ["agrupacion_id"]
+            isOneToOne: false
+            referencedRelation: "agrupaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inmueble_atributo_historico_uso_predio_id_fkey"
+            columns: ["uso_predio_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -24669,6 +24761,7 @@ export type Database = {
         | "anulado"
       compromiso_bancario_origen_t: "factura_proveedor" | "lote_pago" | "manual"
       concepto_alcance_t: "todos" | "calculado"
+      concepto_criterio_distribucion_t: "coeficiente" | "area_privada"
       concepto_estado_t: "borrador" | "en_revision" | "activo" | "archivado"
       concepto_modo_calculo_t: "directo" | "distribucion"
       concepto_modo_valor_t: "fijo" | "formulado"
@@ -25252,6 +25345,7 @@ export const Constants = {
         "manual",
       ],
       concepto_alcance_t: ["todos", "calculado"],
+      concepto_criterio_distribucion_t: ["coeficiente", "area_privada"],
       concepto_estado_t: ["borrador", "en_revision", "activo", "archivado"],
       concepto_modo_calculo_t: ["directo", "distribucion"],
       concepto_modo_valor_t: ["fijo", "formulado"],

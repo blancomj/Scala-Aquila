@@ -106,6 +106,35 @@ interface FilaInmuebleAtributos {
   readonly agrupacion_id: string | null
 }
 
+/** ADC-01-ADD (§17/§18 PROMPT_01_ADAPTACION_COMERCIAL_CORE — no
+ * retroactividad): tipo_id/uso_predio_id/agrupacion_id NO se leen del valor
+ * actual de `inmuebles` sino de `inmueble_atributo_historico`, resuelto a
+ * `fechaReferencia` — mismo criterio que ya se usa para roles de persona más
+ * abajo. Sin esto, re-simular un periodo pasado después de que un inmueble
+ * cambiara de tipo/uso/agrupación usaría el valor ACTUAL, no el vigente en
+ * ese periodo. Cada inmueble tiene garantizada una fila vigente (backfill +
+ * trigger, 20260932910000) — su ausencia es un invariante roto, se lanza
+ * explícito en vez de asumir el valor en vivo. */
+async function resolverAtributosHistoricos(
+  cliente: AquilaClient,
+  inmuebleIds: readonly string[],
+  fechaReferencia: string,
+): Promise<
+  Map<string, { tipo_id: number; uso_predio_id: number | null; agrupacion_id: string | null }>
+> {
+  if (inmuebleIds.length === 0) return new Map()
+  const { data, error } = await cliente
+    .from('inmueble_atributo_historico')
+    .select('inmueble_id, tipo_id, uso_predio_id, agrupacion_id')
+    .in('inmueble_id', inmuebleIds)
+    .lte('vigente_desde', fechaReferencia)
+    .or(`vigente_hasta.is.null,vigente_hasta.gte.${fechaReferencia}`)
+  if (error) {
+    throw new Error(`No se pudo leer el histórico de atributos del inmueble: ${error.message}`)
+  }
+  return new Map(data.map((f) => [f.inmueble_id, f]))
+}
+
 /** ADC-01 — ruta raíz→nodo de cada agrupación, a partir de los pares
  * (id, parent_id) del árbol del tenant. Pura y exportada para poder probarla
  * sin Supabase (mismo criterio que calcularFraccionActiva).
@@ -351,10 +380,32 @@ export async function construirSnapshotDesdeSupabase(
     )
   if (errorInmuebles)
     throw new Error(`No se pudieron leer los inmuebles: ${errorInmuebles.message}`)
+
+  const historicoPorInmueble = await resolverAtributosHistoricos(
+    cliente,
+    inmueblesFilas.map((f) => f.id),
+    fechaReferencia,
+  )
+  const inmueblesFilasConHistorico: FilaInmuebleAtributos[] = inmueblesFilas.map((f) => {
+    const historico = historicoPorInmueble.get(f.id)
+    if (!historico) {
+      throw new Error(
+        `El inmueble ${f.codigo} no tiene atributos históricos vigentes para ${fechaReferencia} — revisa inmueble_atributo_historico`,
+      )
+    }
+    return {
+      id: f.id,
+      estado_legal_id: f.estado_legal_id,
+      habitabilidad_id: f.habitabilidad_id,
+      uso_predio_id: historico.uso_predio_id,
+      tipo_id: historico.tipo_id,
+      agrupacion_id: historico.agrupacion_id,
+    }
+  })
   const atributosPorInmueble = await resolverAtributosInmueble(
     cliente,
     tenantId,
-    inmueblesFilas,
+    inmueblesFilasConHistorico,
     fechaReferencia,
   )
 
@@ -453,7 +504,7 @@ export async function construirSnapshotDesdeSupabase(
   const { data: conceptosFilas, error: errorConceptos } = await cliente
     .from('conceptos')
     .select(
-      'id, codigo, modo_calculo, modo_valor, formula_ael, valor_fijo, prioridad, tipo_recurrencia, fecha_inicio_anio, fecha_inicio_mes, fecha_fin_anio, fecha_fin_mes, periodicidad, alcance, alcance_condiciones',
+      'id, codigo, modo_calculo, modo_valor, formula_ael, valor_fijo, prioridad, tipo_recurrencia, fecha_inicio_anio, fecha_inicio_mes, fecha_fin_anio, fecha_fin_mes, periodicidad, alcance, alcance_condiciones, criterio_distribucion',
     )
     .eq('tenant_id', tenantId)
     .eq('estado', 'activo')
@@ -485,6 +536,7 @@ export async function construirSnapshotDesdeSupabase(
       periodicidad: c.periodicidad,
       alcance: c.alcance,
       alcanceCondiciones: c.alcance_condiciones as unknown as SnapshotConcepto['alcanceCondiciones'],
+      criterioDistribucion: c.criterio_distribucion,
     }))
     .filter((c) => conceptoAplicaEnPeriodo(c, anio, mes))
 

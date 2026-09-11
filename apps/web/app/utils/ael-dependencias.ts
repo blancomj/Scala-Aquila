@@ -38,6 +38,7 @@ export function conceptoARowSnapshot(conceptos: readonly ConceptoRow[]): Snapsho
     periodicidad: c.periodicidad,
     alcance: c.alcance,
     alcanceCondiciones: c.alcance_condiciones as unknown as SnapshotConcepto['alcanceCondiciones'],
+    criterioDistribucion: c.criterio_distribucion,
   }))
 }
 

@@ -83,6 +83,10 @@ const modoCalculo = ref<'directo' | 'distribucion'>('distribucion')
 const modoValor = ref<'fijo' | 'formulado'>('formulado')
 const valorFijo = ref('')
 const formulaAel = ref('')
+// ADC-01-ADD (§14) — solo tiene efecto con modoCalculo='distribucion': qué
+// magnitud pondera allocate() en el Paso 2. 'coeficiente' preserva el
+// comportamiento histórico.
+const criterioDistribucion = ref<'coeficiente' | 'area_privada'>('coeficiente')
 const prioridad = ref(100)
 
 // Fase 2 — tipo de recurrencia + periodicidad. 'novedad' se deja en el
@@ -875,6 +879,7 @@ async function iniciarEdicion(concepto: (typeof conceptoStore.conceptos)[number]
   periodicidad.value = concepto.periodicidad ?? 'mensual'
   alcance.value = concepto.alcance
   alcanceCondiciones.value = concepto.alcance_condiciones as unknown as CondicionGrupo | null
+  criterioDistribucion.value = concepto.criterio_distribucion
   presupuestoCuentaId.value = concepto.presupuesto_cuenta_id
   error.value = null
   modoFormula.value = 'texto'
@@ -903,12 +908,19 @@ async function guardar(): Promise<void> {
     return
   }
   if (modoValor.value === 'formulado') {
-    if (!formulaAel.value) return
+    if (!formulaAel.value) {
+      error.value = 'Escribe una fórmula antes de guardar.'
+      tabActiva.value = 'formula'
+      return
+    }
     if (diagnosticosFormula.value.length > 0) {
       error.value = 'La fórmula tiene errores — corrígelos antes de guardar.'
+      tabActiva.value = 'formula'
       return
     }
   } else if (!valorFijo.value) {
+    error.value = 'Escribe un valor fijo antes de guardar.'
+    tabActiva.value = 'configuracion'
     return
   }
   if (errorTemporal.value) {
@@ -943,6 +955,7 @@ async function guardar(): Promise<void> {
           periodicidad: esRecurrente ? periodicidad.value : null,
           alcance: alcance.value,
           alcanceCondiciones: alcanceCondiciones.value,
+          criterioDistribucion: criterioDistribucion.value,
           presupuestoCuentaId: presupuestoCuentaId.value,
         })
         toast.add({ title: 'Concepto actualizado', color: 'success' })
@@ -964,6 +977,7 @@ async function guardar(): Promise<void> {
         periodicidad: esRecurrente ? periodicidad.value : null,
         alcance: alcance.value,
         alcanceCondiciones: alcanceCondiciones.value,
+        criterioDistribucion: criterioDistribucion.value,
         presupuestoCuentaId: presupuestoCuentaId.value,
       })
       // Tras crear, se navega al editor del concepto recién creado — ahí
@@ -1598,6 +1612,38 @@ async function probar(): Promise<void> {
                     <strong>Directo:</strong> la fórmula se evalúa una vez por cada inmueble, con sus
                     propios datos (área, coeficiente...) — el resultado es directamente el cargo de
                     ese inmueble.
+                  </p>
+                </div>
+
+                <div v-if="modoCalculo === 'distribucion'" class="space-y-1.5">
+                  <span class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Criterio de distribución</span>
+                  <div class="grid grid-flow-col auto-cols-fr gap-0.5 p-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 max-w-sm">
+                    <button
+                      v-for="opcion in [
+                        { v: 'coeficiente', t: 'Coeficiente' },
+                        { v: 'area_privada', t: 'Área privada' },
+                      ]"
+                      :key="opcion.v"
+                      type="button"
+                      :disabled="soloLectura"
+                      :aria-pressed="criterioDistribucion === opcion.v"
+                      class="px-3 py-1.5 text-sm rounded transition-colors disabled:opacity-50"
+                      :class="
+                        criterioDistribucion === opcion.v
+                          ? 'bg-white dark:bg-neutral-900 font-medium shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                      "
+                      @click="criterioDistribucion = opcion.v as 'coeficiente' | 'area_privada'"
+                    >
+                      {{ opcion.t }}
+                    </button>
+                  </div>
+                  <p class="text-xs text-neutral-500">
+                    {{
+                      criterioDistribucion === 'coeficiente'
+                        ? 'El total se reparte según el coeficiente de copropiedad de cada inmueble.'
+                        : 'El total se reparte según el área privada — los inmuebles sin área diligenciada quedan fuera y se reportan en Verificación previa.'
+                    }}
                   </p>
                 </div>
 

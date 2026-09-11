@@ -21,6 +21,7 @@ const RECURRENTE_SIEMPRE = {
   periodicidad: 'mensual',
   alcance: 'todos',
   alcanceCondiciones: null,
+  criterioDistribucion: 'coeficiente',
 } as const
 
 /** Fase 5 (alcance.ts) — irrelevante para estos tests de modo_valor, pero
