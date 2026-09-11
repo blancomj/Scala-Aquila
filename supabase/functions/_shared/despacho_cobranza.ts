@@ -132,6 +132,9 @@ async function registrarEvidenciaEnvio(
       proveedor: 'brevo',
       referencia_externa: datos.referenciaExterna,
       enviado_por: datos.enviadoPor,
+      // COM-1: ejecutar-accion-cobranza y cartera-ejecutar-lote solo se invocan con el JWT de un
+      // usuario autenticado (ctx.userClaims) — nunca hay una corrida sin una persona detrás.
+      es_automatico: false,
     })
     .select('id')
     .single()

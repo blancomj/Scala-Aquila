@@ -62,14 +62,21 @@ async function hmacHex(mensaje: string, clave: CryptoKey): Promise<string> {
   return aHex(new Uint8Array(firma))
 }
 
-/** Firma un enlace para el estado de cuenta `id`, válido por `vigenciaDias`.
- * `materialClave` inyecta la clave (tests); si se omite se lee del entorno. */
+/** Firma un enlace para el recurso `id`, válido por `vigenciaDias` (acepta fracciones — p. ej.
+ * 0.25 para 6 horas, MANT-11). `materialClave` inyecta la clave (tests); si se omite se lee del
+ * entorno.
+ * `Math.round`: sin él, un `vigenciaDias` fraccionario deja `exp` con decimales
+ * (`vigenciaDias * 24 * 3600` no es entero salvo que el número de días lo sea) — el propio
+ * `verificarTokenEnlace` de abajo exige `Number.isInteger(exp)`, así que un QR de vigencia corta
+ * (horas) quedaba siempre 'invalido'. Bug latente hasta MANT-11 (2026-09-09): los 3 llamadores
+ * previos (`ver-estado-cuenta`, `generar-enlace-*`, `generar-qr-activo`) solo pasaban días
+ * enteros (30, 90, 365*50), así que nunca lo disparaban. */
 export async function firmarTokenEnlace(
   id: string,
   vigenciaDias: number,
   materialClave?: string,
 ): Promise<string> {
-  const exp = Math.floor(Date.now() / 1000) + vigenciaDias * 24 * 3600
+  const exp = Math.floor(Date.now() / 1000) + Math.round(vigenciaDias * 24 * 3600)
   const clave = materialClave
     ? await claveDesdeMaterial(materialClave)
     : await clavePorEntorno()

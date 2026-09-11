@@ -4,6 +4,7 @@
 // AD-26 (Opción 1): no hay bandeja personal del propietario/residente — solo la administración
 // registra solicitudes aquí; el residente solo consulta por el enlace de token (§4.4).
 import type { Database } from '@aquila/shared'
+import type { SolicitudTriage } from '~/stores/gobiernoAtencion'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
@@ -13,9 +14,10 @@ type OpcionTipo = { id: number; codigo: string; nombre: string }
 
 const tenantStore = useTenantStore()
 const atencionStore = useGobiernoAtencionStore()
+const compositorStore = usePlantillasCompositorStore()
 
 const error = ref<string | null>(null)
-const pestana = ref<'bandeja' | 'sla' | 'tokens'>('bandeja')
+const pestana = ref<'bandeja' | 'triage' | 'sla' | 'tokens'>('bandeja')
 const inmuebles = ref<InmuebleOpcion[]>([])
 const terceros = ref<TerceroOpcion[]>([])
 const tiposSolicitud = ref<OpcionTipo[]>([])
@@ -39,6 +41,7 @@ async function cargar(): Promise<void> {
       atencionStore.cargarSolicitudes(tenantId),
       atencionStore.cargarConfiguracionesSla(tenantId),
       atencionStore.cargarTokens(tenantId),
+      atencionStore.cargarSolicitudesTriage(tenantId),
     ])
     inmuebles.value = inmueblesFilas ?? []
     terceros.value = (tercerosFilas ?? []).map((t) => ({
@@ -61,7 +64,11 @@ const estadoColor: Record<string, 'neutral' | 'primary' | 'warning' | 'success' 
 
 /** Orden por urgencia de SLA (§4.6): sin SLA al final; vencida primero, luego la que vence antes. */
 const solicitudesOrdenadas = computed(() => {
-  const abiertas = atencionStore.solicitudes.filter((s) => !['cerrada', 'anulada'].includes(s.estado))
+  // recibida_externa/rechazada_triage (GOB-8 parche §3.1) no cuentan para SLA y no son una
+  // solicitud real todavía — viven solo en la pestaña Triage, nunca en esta bandeja.
+  const abiertas = atencionStore.solicitudes.filter((s) => (
+    !['cerrada', 'anulada', 'recibida_externa', 'rechazada_triage'].includes(s.estado)
+  ))
   return [...abiertas].sort((a, b) => {
     if (!a.sla_vence_at && !b.sla_vence_at) return 0
     if (!a.sla_vence_at) return 1
@@ -104,6 +111,73 @@ async function guardar(): Promise<void> {
     await navigateTo(`/atencion/${nueva.id}`)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo registrar la solicitud.')
+  }
+}
+
+// ── GOB-8 (parche): triage de recepción externa ──────────────────────────
+const drawerTriage = ref(false)
+const triageAccion = ref<'aceptar' | 'rechazar'>('aceptar')
+const triageSolicitud = ref<SolicitudTriage | null>(null)
+const formTriage = reactive({ origenId: null as number | null, prioridadId: null as number | null, motivo: '' })
+const avisoTriage = ref<{ email: string; nombre: string; asunto: string; cuerpo: string } | null>(null)
+const enviandoAviso = ref(false)
+
+function abrirTriage(s: SolicitudTriage, accion: 'aceptar' | 'rechazar'): void {
+  triageSolicitud.value = s
+  triageAccion.value = accion
+  formTriage.origenId = null; formTriage.prioridadId = null; formTriage.motivo = ''
+  avisoTriage.value = null
+  drawerTriage.value = true
+}
+const formTriageValido = computed(() => (
+  triageAccion.value === 'aceptar' ? !!(formTriage.origenId && formTriage.prioridadId) : !!formTriage.motivo.trim()
+))
+async function confirmarTriage(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  const s = triageSolicitud.value
+  if (!tenantId || !s || !formTriageValido.value) return
+  error.value = null
+  try {
+    const nombreSolicitante = `${s.solicitante?.primer_nombre ?? ''} ${s.solicitante?.primer_apellido ?? ''}`.trim()
+    if (triageAccion.value === 'aceptar') {
+      await atencionStore.aceptarTriage({
+        tenantId, solicitudId: s.id, origenId: formTriage.origenId!, prioridadId: formTriage.prioridadId!,
+      })
+      // aceptarTriage() solo refresca la propia bandeja de triage — la solicitud recién promovida
+      // a 'nueva' no aparece en la bandeja normal hasta recargarla aquí también.
+      await atencionStore.cargarSolicitudes(tenantId)
+      avisoTriage.value = {
+        email: s.solicitante?.email ?? '', nombre: nombreSolicitante,
+        asunto: `Tu solicitud ${s.numero}/${s.anio} fue aceptada`,
+        cuerpo: `Hola ${nombreSolicitante}, tu solicitud "${s.asunto}" fue aceptada y ya está en curso.`,
+      }
+    } else {
+      await atencionStore.rechazarTriage({ tenantId, solicitudId: s.id, motivo: formTriage.motivo.trim() })
+      avisoTriage.value = {
+        email: s.solicitante?.email ?? '', nombre: nombreSolicitante,
+        asunto: `Tu solicitud ${s.numero}/${s.anio} no fue aceptada`,
+        cuerpo: `Hola ${nombreSolicitante}, tu solicitud "${s.asunto}" no fue aceptada. Motivo: ${formTriage.motivo.trim()}`,
+      }
+    }
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo resolver el triage.')
+  }
+}
+async function enviarAvisoTriage(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !avisoTriage.value?.email) return
+  error.value = null
+  enviandoAviso.value = true
+  try {
+    await compositorStore.enviarCorreo(tenantId, {
+      destinatario_email: avisoTriage.value.email, destinatario_nombre: avisoTriage.value.nombre,
+      asunto: avisoTriage.value.asunto, cuerpo: avisoTriage.value.cuerpo,
+    })
+    drawerTriage.value = false
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo enviar el aviso por correo.')
+  } finally {
+    enviandoAviso.value = false
   }
 }
 
@@ -191,6 +265,7 @@ async function revocar(tokenId: string): Promise<void> {
       <button
         v-for="p in [
           { valor: 'bandeja', etiqueta: 'Bandeja' },
+          { valor: 'triage', etiqueta: `Triage${atencionStore.solicitudesTriage.length ? ` (${atencionStore.solicitudesTriage.length})` : ''}` },
           { valor: 'sla', etiqueta: 'Configuración de SLA' },
           { valor: 'tokens', etiqueta: 'Tokens de consulta' },
         ]"
@@ -226,6 +301,33 @@ async function revocar(tokenId: string): Promise<void> {
         </NuxtLink>
         <p v-if="solicitudesOrdenadas.length === 0 && !atencionStore.loading" class="text-sm text-muted p-4">
           Todavía no hay solicitudes abiertas.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Triage de recepción externa (GOB-8 parche) ──────────────────── -->
+    <section v-else-if="pestana === 'triage'" class="space-y-3">
+      <p class="text-sm text-muted">
+        Solicitudes que llegaron por AQUILA External, pendientes de que un humano las acepte o
+        las rechace con motivo — separada de la bandeja normal porque todavía no cuentan como una
+        solicitud real ni corren SLA.
+      </p>
+      <div class="rounded-lg border border-default divide-y divide-default">
+        <div v-for="s in atencionStore.solicitudesTriage" :key="s.id" class="flex items-center justify-between gap-4 p-3">
+          <div>
+            <p class="font-medium">{{ s.numero }}/{{ s.anio }} · {{ s.asunto }}</p>
+            <p class="text-xs text-muted">
+              {{ s.inmueble?.codigo }} · {{ s.tipo?.nombre }} / {{ s.categoria?.nombre }} ·
+              {{ s.solicitante?.primer_nombre }} {{ s.solicitante?.primer_apellido }}
+            </p>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <UButton size="sm" variant="soft" @click="abrirTriage(s, 'aceptar')">Aceptar</UButton>
+            <UButton size="sm" variant="soft" color="error" @click="abrirTriage(s, 'rechazar')">Rechazar</UButton>
+          </div>
+        </div>
+        <p v-if="atencionStore.solicitudesTriage.length === 0 && !atencionStore.loading" class="text-sm text-muted p-4">
+          Sin solicitudes pendientes de triage.
         </p>
       </div>
     </section>
@@ -376,6 +478,60 @@ async function revocar(tokenId: string): Promise<void> {
         <div class="flex justify-end gap-2 w-full">
           <UButton variant="ghost" @click="drawerAbierto = false">Cancelar</UButton>
           <UButton :loading="atencionStore.guardando" :disabled="!formValido" @click="guardar()">Registrar</UButton>
+        </div>
+      </template>
+    </UiDrawer>
+
+    <UiDrawer
+      :abierto="drawerTriage" :titulo="triageAccion === 'aceptar' ? 'Aceptar en triage' : 'Rechazar en triage'"
+      @cerrar="drawerTriage = false"
+    >
+      <div v-if="!avisoTriage" class="space-y-3">
+        <p class="text-sm text-muted">
+          {{ triageSolicitud?.numero }}/{{ triageSolicitud?.anio }} · {{ triageSolicitud?.asunto }}
+        </p>
+        <template v-if="triageAccion === 'aceptar'">
+          <p class="text-xs text-muted">
+            El remitente externo no elige canal ni prioridad — se asignan aquí, en el momento del
+            triage. El SLA se calcula desde ahora, no desde que llegó la solicitud.
+          </p>
+          <UFormField label="Origen">
+            <USelect
+              :model-value="formTriage.origenId ?? undefined" class="w-full" :items="origenes.map((o) => ({ label: o.nombre, value: o.id }))"
+              @update:model-value="(v) => (formTriage.origenId = v as number)"
+            />
+          </UFormField>
+          <UFormField label="Prioridad">
+            <USelect
+              :model-value="formTriage.prioridadId ?? undefined" class="w-full" :items="prioridades.map((p) => ({ label: p.nombre, value: p.id }))"
+              @update:model-value="(v) => (formTriage.prioridadId = v as number)"
+            />
+          </UFormField>
+        </template>
+        <UFormField v-else label="Motivo del rechazo">
+          <UTextarea v-model="formTriage.motivo" class="w-full" :rows="3" />
+        </UFormField>
+      </div>
+      <div v-else class="space-y-3">
+        <UAlert color="success" variant="soft" :title="triageAccion === 'aceptar' ? 'Solicitud aceptada.' : 'Solicitud rechazada.'" />
+        <p v-if="!avisoTriage.email" class="text-sm text-muted">
+          El solicitante no tiene un correo registrado — no se puede enviar el aviso.
+        </p>
+        <template v-else>
+          <p class="text-sm text-muted">Avisar al solicitante ({{ avisoTriage.email }}) reutilizando el compositor de correo:</p>
+          <UFormField label="Asunto"><UInput v-model="avisoTriage.asunto" class="w-full" /></UFormField>
+          <UFormField label="Cuerpo"><UTextarea v-model="avisoTriage.cuerpo" class="w-full" :rows="4" /></UFormField>
+        </template>
+      </div>
+      <template #foot>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton variant="ghost" @click="drawerTriage = false">{{ avisoTriage ? 'Cerrar sin enviar' : 'Cancelar' }}</UButton>
+          <UButton v-if="!avisoTriage" :loading="atencionStore.guardando" :disabled="!formTriageValido" @click="confirmarTriage()">
+            Confirmar
+          </UButton>
+          <UButton v-else-if="avisoTriage.email" :loading="enviandoAviso" @click="enviarAvisoTriage()">
+            Enviar aviso
+          </UButton>
         </div>
       </template>
     </UiDrawer>

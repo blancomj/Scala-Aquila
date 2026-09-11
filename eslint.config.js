@@ -23,6 +23,14 @@ export default tseslint.config(
       // apps/web tiene su propia config (@nuxt/eslint, vue-eslint-parser) —
       // se lintea con `pnpm --filter @aquila/web lint`, no con esta config.
       'apps/web/**',
+      // apps/mobile (EXT-01, Expo/React Native) es un runtime distinto — JSX
+      // global, componentes que retornan void desde flechas cortas, etc. son
+      // idiomas normales de React Native que el `strictTypeChecked` de este
+      // config (pensado para los paquetes de dominio/dinero) no debe regir.
+      // Sin lint propio todavía (paquete nuevo, sin scripts build/lint/test
+      // a propósito — ver EXT_01_INFORME.md §3); se agrega aquí para no
+      // lintearlo con reglas que no le corresponden mientras tanto.
+      'apps/mobile/**',
       // Edge Functions corren en Deno, fuera de todo tsconfig de este
       // workspace pnpm — su propio deno.json por función define su alcance.
       'supabase/functions/**',

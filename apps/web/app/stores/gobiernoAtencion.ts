@@ -25,6 +25,20 @@ export interface SolicitudConDetalle extends SolicitudRow {
   solicitante: { primer_nombre: string | null; primer_apellido: string | null } | null
 }
 
+/** GOB-8 (parche) §6: fila de la bandeja de triage — recibida_externa, aparte de la bandeja
+ * normal. Incluye el email del solicitante (vía solicitante_ref → terceros) para el aviso por
+ * correo que dispara la UI tras aceptar/rechazar (§3.6, reutiliza el compositor existente). */
+export interface SolicitudTriage extends SolicitudRow {
+  tipo: { nombre: string } | null
+  categoria: { nombre: string } | null
+  inmueble: { codigo: string } | null
+  solicitante: { primer_nombre: string | null; primer_apellido: string | null; email: string | null } | null
+}
+
+const SELECT_SOLICITUD_TRIAGE = '*, '
+  + 'tipo:tipo_id(nombre), categoria:categoria_id(nombre), inmueble:inmueble_id(codigo), '
+  + 'solicitante:solicitante_ref(primer_nombre, primer_apellido, email)'
+
 export interface TokenConsultaConInmueble extends TokenConsultaRow {
   inmueble: { codigo: string } | null
 }
@@ -40,6 +54,7 @@ export const useGobiernoAtencionStore = defineStore('gobiernoAtencion', () => {
   const actuaciones = shallowRef<ActuacionRow[]>([])
   const configuracionesSla = shallowRef<SolicitudSlaRow[]>([])
   const tokens = shallowRef<TokenConsultaConInmueble[]>([])
+  const solicitudesTriage = shallowRef<SolicitudTriage[]>([])
   const loading = ref(false)
   const guardando = ref(false)
 
@@ -208,15 +223,63 @@ export const useGobiernoAtencionStore = defineStore('gobiernoAtencion', () => {
     }
   }
 
+  // ── GOB-8 (parche): triage de recepción externa ──────────────────────────
+  async function cargarSolicitudesTriage(tenantId: string): Promise<void> {
+    loading.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error } = await cliente
+        .from('solicitudes')
+        .select(SELECT_SOLICITUD_TRIAGE)
+        .eq('tenant_id', tenantId)
+        .eq('estado', 'recibida_externa')
+        .order('created_at')
+      if (error) throw error
+      solicitudesTriage.value = (data ?? []) as unknown as SolicitudTriage[]
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function aceptarTriage(params: {
+    tenantId: string; solicitudId: string; origenId: number; prioridadId: number
+  }): Promise<void> {
+    guardando.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { error } = await cliente.rpc('fn_solicitud_triage_aceptar', {
+        p_solicitud_id: params.solicitudId, p_origen_id: params.origenId, p_prioridad_id: params.prioridadId,
+      })
+      if (error) throw error
+      await cargarSolicitudesTriage(params.tenantId)
+    } finally {
+      guardando.value = false
+    }
+  }
+
+  async function rechazarTriage(params: { tenantId: string; solicitudId: string; motivo: string }): Promise<void> {
+    guardando.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { error } = await cliente.rpc('fn_solicitud_triage_rechazar', {
+        p_solicitud_id: params.solicitudId, p_motivo: params.motivo,
+      })
+      if (error) throw error
+      await cargarSolicitudesTriage(params.tenantId)
+    } finally {
+      guardando.value = false
+    }
+  }
+
   function limpiar(): void {
     solicitud.value = null
     actuaciones.value = []
   }
 
   return {
-    solicitudes, solicitud, actuaciones, configuracionesSla, tokens, loading, guardando,
+    solicitudes, solicitud, actuaciones, configuracionesSla, tokens, solicitudesTriage, loading, guardando,
     cargarSolicitudes, cargarSolicitud, cargarActuaciones, crearSolicitud, registrarActuacion,
     escalarSolicitud, cargarConfiguracionesSla, crearConfiguracionSla, cargarTokens,
-    generarTokenInmueble, revocarToken, limpiar,
+    generarTokenInmueble, revocarToken, cargarSolicitudesTriage, aceptarTriage, rechazarTriage, limpiar,
   }
 })

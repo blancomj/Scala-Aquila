@@ -41,10 +41,20 @@ const destino = computed(() => destinoSeguro(route.query.redirect))
 
 const nombreCompleto = ref('')
 const email = ref('')
+const emailTocado = ref(false)
 const password = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const confirmacionPendiente = ref(false)
+const mostrarPassword = ref(false)
+
+// Ver login.vue: mismo mensaje de formato, integrado al look del formulario
+// en vez del tooltip nativo del navegador; no se muestra hasta salir del campo.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const errorEmail = computed(() => {
+  if (!emailTocado.value || !email.value) return undefined
+  return EMAIL_REGEX.test(email.value) ? undefined : 'Ingresa un correo con formato válido.'
+})
 
 async function registrar(): Promise<void> {
   error.value = null
@@ -109,22 +119,50 @@ async function registrar(): Promise<void> {
       />
 
       <UFormField label="Nombre completo" name="full_name">
-        <UInput v-model="nombreCompleto" required autocomplete="name" class="w-full" />
+        <UInput
+          v-model="nombreCompleto"
+          required
+          autocomplete="name"
+          icon="i-lucide-user"
+          class="w-full"
+        />
       </UFormField>
 
-      <UFormField label="Correo electrónico" name="email">
-        <UInput v-model="email" type="email" required autocomplete="email" class="w-full" />
+      <UFormField label="Correo electrónico" name="email" :error="errorEmail">
+        <UInput
+          v-model="email"
+          type="email"
+          required
+          autocomplete="email"
+          icon="i-lucide-mail"
+          class="w-full"
+          @blur="emailTocado = true"
+        />
       </UFormField>
 
       <UFormField label="Contraseña" name="password">
         <UInput
           v-model="password"
-          type="password"
+          :type="mostrarPassword ? 'text' : 'password'"
           required
           autocomplete="new-password"
           minlength="8"
+          icon="i-lucide-lock"
+          :ui="{ trailing: 'pe-1' }"
           class="w-full"
-        />
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="mostrarPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              :aria-pressed="mostrarPassword"
+              @click="mostrarPassword = !mostrarPassword"
+            />
+          </template>
+        </UInput>
       </UFormField>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" />

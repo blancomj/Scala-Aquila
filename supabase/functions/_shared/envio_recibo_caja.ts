@@ -8,6 +8,7 @@
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { construirCorreoReciboCaja, enviarEmailReciboCaja } from './email_recibo_caja.ts'
 import { firmarTokenEnlace } from './link_token.ts'
+import { registrarEnvioComunicacion } from './comunicacion_generalizada.ts'
 
 export const VIGENCIA_ENLACE_DIAS = 30
 
@@ -47,7 +48,7 @@ export interface AdminMinimoRecibo {
       eq(col: 'inmueble_id', val: string): {
         is(col: 'vigente_hasta', val: null): {
           eq(col: 'rol.codigo', val: string): PromiseLike<{
-            data: { tercero: { email: string | null } | null }[] | null
+            data: { tercero: { id: string; email: string | null } | null }[] | null
             error: { message: string } | null
           }>
         }
@@ -65,6 +66,20 @@ export interface AdminMinimoRecibo {
         }
       }
     }
+  }
+  // COM-1: mismas dos firmas que AdminEnvios (comunicacion_generalizada.ts).
+  from(table: 'acciones_cobranza_envios'): {
+    insert(fila: Record<string, unknown>): {
+      select(campos: 'id'): {
+        single(): PromiseLike<{
+          data: { id: string } | null
+          error: { message: string; code?: string } | null
+        }>
+      }
+    }
+  }
+  from(table: 'acciones_cobranza_acuses'): {
+    insert(fila: Record<string, unknown>): PromiseLike<{ error: { message: string } | null }>
   }
 }
 
@@ -92,21 +107,36 @@ export async function fueNotificadoRecientementeRecibo(
   return data !== null
 }
 
-async function emailsDeDestinatarios(admin: AdminMinimoRecibo, inmuebleId: string): Promise<string[]> {
+export interface DestinatarioReciboCaja {
+  readonly email: string
+  readonly terceroId: string
+}
+
+/** COM-1: también devuelve terceroId — misma razón que envio_estado_cuenta.ts. */
+async function emailsDeDestinatarios(
+  admin: AdminMinimoRecibo,
+  inmuebleId: string,
+): Promise<DestinatarioReciboCaja[]> {
   const { data, error } = await admin
     .from('inmueble_persona_rol')
-    .select('tercero:terceros(email), rol:lista_tipos!inner(codigo)')
+    .select('tercero:terceros(id, email), rol:lista_tipos!inner(codigo)')
     .eq('inmueble_id', inmuebleId)
     .is('vigente_hasta', null)
     .eq('rol.codigo', 'copropietario')
   if (error) throw new Error(`INTERNAL_ERROR: destinatarios — ${error.message}`)
 
-  const emails = new Set<string>()
+  const vistos = new Set<string>()
+  const destinatarios: DestinatarioReciboCaja[] = []
   for (const fila of data ?? []) {
     const email = fila.tercero?.email
-    if (email) emails.add(email.toLowerCase())
+    const terceroId = fila.tercero?.id
+    if (!email || !terceroId) continue
+    const emailNormalizado = email.toLowerCase()
+    if (vistos.has(emailNormalizado)) continue
+    vistos.add(emailNormalizado)
+    destinatarios.push({ email: emailNormalizado, terceroId })
   }
-  return [...emails]
+  return destinatarios
 }
 
 export interface OpcionesEnvioRecibo {
@@ -145,9 +175,9 @@ export async function enviarReciboCajaPorId(
 
   const enviados: string[] = []
   let errores = 0
-  for (const email of destinatarios) {
+  for (const destinatario of destinatarios) {
     const resultado = await enviarEmailReciboCaja({
-      email,
+      email: destinatario.email,
       tenantNombre: registro.datos.tenant_nombre,
       inmuebleCodigo: registro.datos.inmueble_codigo,
       monto: Number(registro.datos.monto),
@@ -155,9 +185,35 @@ export async function enviarReciboCajaPorId(
       fechaPagoIso: registro.datos.fecha_pago,
       urlDocumento: enlace,
       vigenciaDias: VIGENCIA_ENLACE_DIAS,
+      reference: id,
     })
-    if (resultado.ok) enviados.push(email)
+    if (resultado.ok) enviados.push(destinatario.email)
     else errores += 1
+
+    // COM-1: mismo criterio que envio_estado_cuenta.ts — registra éxito o fallo, siempre.
+    await registrarEnvioComunicacion(admin, {
+      tenantId: registro.tenant_id,
+      origen: {
+        modulo: 'recibo_caja',
+        entidad: 'recibos_caja',
+        id,
+        evento: `recibo_caja.enviado:${destinatario.email}`,
+      },
+      canal: 'email',
+      destinatarioTerceroId: destinatario.terceroId,
+      destinatarioContacto: destinatario.email,
+      plantillaCodigo: 'recibo_caja_resumen',
+      plantillaVersion: 0,
+      asunto: resultado.subject,
+      contenidoRenderizado: resultado.html,
+      resultadoEnvio: {
+        success: resultado.ok,
+        providerMessageId: resultado.providerMessageId ?? undefined,
+        errorMessage: resultado.error ?? undefined,
+      },
+      actorId: opts.actorId ?? null,
+      esAutomatico: false,
+    })
   }
 
   try {

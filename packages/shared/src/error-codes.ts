@@ -817,6 +817,28 @@ export const ERROR_CODES = {
   // está cerrado.
   HALLAZGO_TRANSICION_INVALIDA: 'HALLAZGO_TRANSICION_INVALIDA',
 
+  // ── MANT-8: indicadores y tendencias de mantenimiento (20260932400000+) ──
+  // mant_tendencia_fallas: p_ventanas < 2 (no hay ventana anterior con qué comparar).
+  TENDENCIA_VENTANAS_INSUFICIENTES: 'TENDENCIA_VENTANAS_INSUFICIENTES',
+  // mant_tendencia_fallas: p_dias_ventana < 1.
+  TENDENCIA_DIAS_VENTANA_INVALIDO: 'TENDENCIA_DIAS_VENTANA_INVALIDO',
+
+  // ── MANT-9: salud del activo y apoyo a la decisión (20260932450000+) ──
+  // guard_salud_set_pesos_completos: los pesos de un set no suman 100 al activarlo.
+  SALUD_PESOS_INVALIDOS: 'SALUD_PESOS_INVALIDOS',
+  // guard_salud_factor_fuente: fuente_id no pertenece a FUENTE_SALUD_FACTOR.
+  SALUD_FACTOR_FUENTE_INVALIDA: 'SALUD_FACTOR_FUENTE_INVALIDA',
+  // fn_mant_registrar_salud_snapshot: mant_salud() devolvió índice null (sin datos).
+  SALUD_SIN_DATOS: 'SALUD_SIN_DATOS',
+  // guard_mant_escenario: activo_id/decision_id de otro tenant.
+  ESCENARIO_TENANT_INCONSISTENTE: 'ESCENARIO_TENANT_INCONSISTENTE',
+  // guard_mant_escenario: supuestos no es un objeto jsonb.
+  ESCENARIO_SUPUESTOS_FORMATO_INVALIDO: 'ESCENARIO_SUPUESTOS_FORMATO_INVALIDO',
+  // mant_evaluar_escenario: falta un supuesto de origen usuario que el tipo exige.
+  ESCENARIO_SUPUESTOS_INCOMPLETOS: 'ESCENARIO_SUPUESTOS_INCOMPLETOS',
+  // mant_evaluar_escenario: p_escenario_id no existe.
+  ESCENARIO_INEXISTENTE: 'ESCENARIO_INEXISTENTE',
+
   // ── FIN-2: factura de proveedor y retenciones aplicadas (20260931120000+) ──
   // guard_finanzas_factura_proveedor: proveedor/contrato/cuenta presupuestal/ejecución de otro
   // tenant. Reutiliza CUENTA_NO_ES_HOJA (ya registrado) para presupuesto_cuenta_id.
@@ -1238,6 +1260,27 @@ export const ERROR_CODES = {
   // (solicitud_encuesta.solicitud_id es unique).
   ATENCION_ENCUESTA_YA_RESPONDIDA: 'ATENCION_ENCUESTA_YA_RESPONDIDA',
 
+  // ── GOB-8 (parche): recepción externa de solicitudes con triage (20260932790000+) ──
+  // Prefijo SOLICITUD_, no ATENCION_ (al revés que el resto de GOB-8): estos tres códigos son
+  // específicos del camino de AQUILA External (actor externo + triage humano), verificado que no
+  // chocan con los SOLICITUD_* ya registrados por Fondos (fondo_solicitudes_uso) ni con los
+  // ATENCION_* de GOB-8 — ver GOB_08_PARCHE_INFORME.md.
+  // fn_solicitud_recibir_externa/fn_solicitud_estado_externo: el vínculo no existe, no es del
+  // usuario autenticado, ya no está vigente, o no corresponde al inmueble indicado.
+  SOLICITUD_EXTERNA_INMUEBLE_NO_VINCULADO: 'SOLICITUD_EXTERNA_INMUEBLE_NO_VINCULADO',
+  // fn_solicitud_triage_aceptar/_rechazar: la solicitud no está en recibida_externa.
+  SOLICITUD_TRIAGE_ESTADO_INVALIDO: 'SOLICITUD_TRIAGE_ESTADO_INVALIDO',
+  // fn_solicitud_triage_rechazar: rechazar en triage exige un motivo, sin excepción.
+  SOLICITUD_TRIAGE_RECHAZO_SIN_MOTIVO: 'SOLICITUD_TRIAGE_RECHAZO_SIN_MOTIVO',
+
+  // ── EXT-02: solicitudes desde External (20260932820000+) ─────────────────
+  // external-solicitudes-*: el vinculo_id del body no aparece en fn_actor_externo_mis_vinculos()
+  // del caller (no es suyo, o ya no está vigente) — check de la Edge Function, no de una RPC.
+  VINCULO_NO_PERTENECE: 'VINCULO_NO_PERTENECE',
+  // fn_solicitud_cancelar_externa: la solicitud ya salió de recibida_externa (ya en triage o más
+  // allá) — solo se puede cancelar antes de que el staff la haya mirado.
+  SOLICITUD_CANCELACION_FUERA_DE_PLAZO: 'SOLICITUD_CANCELACION_FUERA_DE_PLAZO',
+
   // ── CO-8: obligaciones tributarias (20260931900000+) ─────────────────────
   // guard_contable_cuenta_naturaleza_tributaria: naturaleza_tributaria_id fuera de clase 1/4/5,
   // o el id no pertenece a la familia NATURALEZA_TRIBUTARIA_CUENTA.
@@ -1262,6 +1305,121 @@ export const ERROR_CODES = {
   // ── GOB-9: comunicaciones y workflow transversal (20260931950000+) ──
   // gobierno_segmento_destinatarios: p_criterio no es uno de los 5 soportados.
   SEGMENTO_CRITERIO_INVALIDO: 'SEGMENTO_CRITERIO_INVALIDO',
+
+  // ── CO-9: gobierno corporativo, asamblea y conservación (20260932300000+) ──
+  CERTIFICACION_SIN_ESTADOS: 'CERTIFICACION_SIN_ESTADOS',
+  CERTIFICACION_SIN_TEXTO: 'CERTIFICACION_SIN_TEXTO',
+  CERTIFICACION_EJERCICIO_ABIERTO: 'CERTIFICACION_EJERCICIO_ABIERTO',
+  CERTIFICACION_YA_VIGENTE: 'CERTIFICACION_YA_VIGENTE',
+  CERTIFICACION_CONTADOR_INVALIDO: 'CERTIFICACION_CONTADOR_INVALIDO',
+  CERTIFICACION_INVALIDADA: 'CERTIFICACION_INVALIDADA',
+  CERTIFICACION_INVALIDACION_SIN_MOTIVO: 'CERTIFICACION_INVALIDACION_SIN_MOTIVO',
+  CERTIFICACION_INEXISTENTE: 'CERTIFICACION_INEXISTENTE',
+  DICTAMEN_TERCERO_SIN_ROL_REVISOR_FISCAL: 'DICTAMEN_TERCERO_SIN_ROL_REVISOR_FISCAL',
+  DICTAMEN_TIPO_OPINION_INVALIDO: 'DICTAMEN_TIPO_OPINION_INVALIDO',
+  RENDICION_INEXISTENTE: 'RENDICION_INEXISTENTE',
+  RENDICION_ESTADO_INVALIDO: 'RENDICION_ESTADO_INVALIDO',
+  RENDICION_ORIGEN_DUPLICADO: 'RENDICION_ORIGEN_DUPLICADO',
+  RENDICION_ORIGEN_FALTANTE: 'RENDICION_ORIGEN_FALTANTE',
+  RENDICION_SIN_DICTAMEN_OBLIGATORIO: 'RENDICION_SIN_DICTAMEN_OBLIGATORIO',
+  RENDICION_RECHAZO_SIN_MOTIVO: 'RENDICION_RECHAZO_SIN_MOTIVO',
+  RENDICION_DOCUMENTO_INVALIDO: 'RENDICION_DOCUMENTO_INVALIDO',
+  CASTIGO_ORIGEN_DUPLICADO: 'CASTIGO_ORIGEN_DUPLICADO',
+  CASTIGO_ORIGEN_FALTANTE: 'CASTIGO_ORIGEN_FALTANTE',
+
+  // ── FIN-4: flujo de caja proyectado y alertas de liquidez (20260932560000+) ──
+  // guard_finanzas_alerta_regla_tipo: tipo_id no pertenece a la familia TIPO_ALERTA_LIQUIDEZ.
+  FINANZAS_ALERTA_TIPO_INVALIDO: 'FINANZAS_ALERTA_TIPO_INVALIDO',
+  // finanzas_proyeccion_vs_real: p_snapshot_id no existe o no es visible para el tenant.
+  FINANZAS_SNAPSHOT_INEXISTENTE: 'FINANZAS_SNAPSHOT_INEXISTENTE',
+  // finanzas_flujo_snapshot_guardar: p_motivo vacío o nulo — el snapshot append-only exige motivo.
+  FINANZAS_SNAPSHOT_SIN_MOTIVO: 'FINANZAS_SNAPSHOT_SIN_MOTIVO',
+
+  // ── EXT-01: identidad del actor externo (20260932640000+) ──
+  // fn_actor_externo_solicitar_otp: p_canal no es 'email' ni 'sms'.
+  ACTOR_EXTERNO_CANAL_INVALIDO: 'ACTOR_EXTERNO_CANAL_INVALIDO',
+  // guard_actor_externo_vinculo: auth_user_id ya es tenant_member de ese tenant — AD-37.
+  ACTOR_EXTERNO_CONFLICTO_MEMBRESIA: 'ACTOR_EXTERNO_CONFLICTO_MEMBRESIA',
+  // guard_actor_externo_vinculo: ya existe un vínculo vigente y solapado para ese persona_rol_id.
+  ACTOR_EXTERNO_VINCULO_DUPLICADO: 'ACTOR_EXTERNO_VINCULO_DUPLICADO',
+  // guard_actor_externo_vinculo: vigente_hasta anterior a vigente_desde.
+  ACTOR_EXTERNO_VIGENCIA_INVALIDA: 'ACTOR_EXTERNO_VIGENCIA_INVALIDA',
+  // guard_actor_externo_vinculo: origen='autoverificacion' sin un OTP confirmado reciente.
+  ACTOR_EXTERNO_ALTA_SIN_VERIFICACION: 'ACTOR_EXTERNO_ALTA_SIN_VERIFICACION',
+  // guard_actor_externo_vinculo: intento de editar cualquier columna que no sea vigente_hasta.
+  ACTOR_EXTERNO_VINCULO_INMUTABLE: 'ACTOR_EXTERNO_VINCULO_INMUTABLE',
+  // fn_actor_externo_confirmar_otp / fn_actor_externo_paso_reforzado_confirmar: código inválido,
+  // vencido, ya usado, o intentos agotados.
+  OTP_INVALIDO_O_VENCIDO: 'OTP_INVALIDO_O_VENCIDO',
+  // fn_actor_externo_paso_reforzado_confirmar: solicitud inexistente, ya confirmada, vencida, o
+  // agotados sus 3 intentos.
+  PASO_REFORZADO_AGOTADO: 'PASO_REFORZADO_AGOTADO',
+  // actor-externo-confirmar-otp: el código es válido pero no resolvió ningún rol vigente.
+  ACTOR_EXTERNO_SIN_VINCULOS: 'ACTOR_EXTERNO_SIN_VINCULOS',
+  // actor-externo-confirmar-otp: el tercero no tiene email registrado — no se puede crear la cuenta.
+  ACTOR_EXTERNO_SIN_EMAIL_PARA_CUENTA: 'ACTOR_EXTERNO_SIN_EMAIL_PARA_CUENTA',
+
+  // ── MANT-10: reservas de zonas comunes (20260932710000+) ──
+  // guard_mant_zona_reserva_regla: genera_cargo=true sin concepto_id.
+  REGLA_RESERVA_SIN_CONCEPTO: 'REGLA_RESERVA_SIN_CONCEPTO',
+  // guard_mant_zona_reserva_regla: genera_cargo=true y el concepto no tiene modo_valor='fijo'
+  // (evaluar formula_ael por reserva sería un mecanismo de cobro propio, fuera de alcance).
+  REGLA_RESERVA_CONCEPTO_NO_FIJO: 'REGLA_RESERVA_CONCEPTO_NO_FIJO',
+  // guard_mant_reserva: la zona no tiene una mant_zona_reserva_regla vigente para esa fecha.
+  RESERVA_ZONA_SIN_REGLA_VIGENTE: 'RESERVA_ZONA_SIN_REGLA_VIGENTE',
+  // guard_mant_reserva: la franja excede duracion_maxima_minutos de la regla vigente.
+  RESERVA_DURACION_EXCEDIDA: 'RESERVA_DURACION_EXCEDIDA',
+  // guard_mant_reserva: no respeta anticipacion_minima_horas / anticipacion_maxima_dias.
+  RESERVA_FUERA_DE_VENTANA: 'RESERVA_FUERA_DE_VENTANA',
+  // guard_mant_reserva: el inmueble ya alcanzó maximo_activas_por_inmueble en esa zona.
+  RESERVA_LIMITE_INMUEBLE_EXCEDIDO: 'RESERVA_LIMITE_INMUEBLE_EXCEDIDO',
+  // guard_mant_reserva: cupo_simultaneo > 1 y ya hay tantas reservas activas traslapadas como cupo.
+  RESERVA_CUPO_EXCEDIDO: 'RESERVA_CUPO_EXCEDIDO',
+  // guard_mant_reserva: solicitante_origen='externo' y el vínculo no corresponde a ese inmueble.
+  RESERVA_INMUEBLE_NO_VINCULADO: 'RESERVA_INMUEBLE_NO_VINCULADO',
+  // guard_mant_reserva (UPDATE): intento de editar una columna distinta de estado y sus asociadas.
+  RESERVA_INMUTABLE: 'RESERVA_INMUTABLE',
+  // guard_mant_reserva (UPDATE): transición de estado fuera del ciclo de vida de reserva_estado_t.
+  RESERVA_TRANSICION_INVALIDA: 'RESERVA_TRANSICION_INVALIDA',
+  // fn_reserva_aprobar / fn_reserva_rechazar: la reserva no existe.
+  RESERVA_INEXISTENTE: 'RESERVA_INEXISTENTE',
+  // fn_reserva_aprobar / fn_reserva_rechazar: la reserva no está en estado 'solicitada'.
+  RESERVA_ESTADO_INVALIDO: 'RESERVA_ESTADO_INVALIDO',
+  // fn_reserva_rechazar: p_motivo vacío o nulo.
+  RESERVA_RECHAZO_SIN_MOTIVO: 'RESERVA_RECHAZO_SIN_MOTIVO',
+  // fn_reserva_aprobar: la regla genera_cargo=true pero no existe periodo para el anio/mes de la reserva.
+  PERIODO_NO_ENCONTRADO_PARA_FECHA_RESERVA: 'PERIODO_NO_ENCONTRADO_PARA_FECHA_RESERVA',
+
+  // ── EXT-03: reservas desde External (20260932850000+) ──
+  // fn_reserva_crear_externa: traduce el exclusion_violation crudo del exclude constraint de
+  // MANT-10 (traslape, cupo_simultaneo=1) a un código limpio — sin esto llegaba como
+  // INTERNAL_ERROR/500 en vez del 409 esperado (parsearErrorRpc solo entiende "CODE: mensaje").
+  RESERVA_TRASLAPE: 'RESERVA_TRASLAPE',
+  // external-reservas-disponibilidad: zona_comun_id no existe o no pertenece al tenant del vínculo.
+  RESERVA_ZONA_INEXISTENTE: 'RESERVA_ZONA_INEXISTENTE',
+
+  // ── MANT-11: visitantes y control de acceso (20260932750000+) ──
+  // guard_mant_autorizacion_visita: autorizado_por_origen='externo' y el vínculo no corresponde a ese inmueble.
+  AUTORIZACION_INMUEBLE_NO_VINCULADO: 'AUTORIZACION_INMUEBLE_NO_VINCULADO',
+  // guard_mant_autorizacion_visita: qr_expira_at excede fecha_prevista/hora + la ventana de 6 horas.
+  AUTORIZACION_VIGENCIA_EXCESIVA: 'AUTORIZACION_VIGENCIA_EXCESIVA',
+  // guard_mant_autorizacion_visita: la autorización ya está usada/revocada (terminal) o se intenta
+  // editar una columna distinta de estado/qr_token/qr_expira_at.
+  AUTORIZACION_ESTADO_INMUTABLE: 'AUTORIZACION_ESTADO_INMUTABLE',
+  // fn_autorizacion_visita_marcar_usada / fn_autorizacion_visita_revocar: la autorización no existe.
+  AUTORIZACION_INEXISTENTE: 'AUTORIZACION_INEXISTENTE',
+  // fn_autorizacion_visita_marcar_usada: la autorización no está en estado 'vigente'.
+  AUTORIZACION_ESTADO_INVALIDO: 'AUTORIZACION_ESTADO_INVALIDO',
+  // fn_autorizacion_visita_marcar_usada: qr_expira_at ya pasó (columna, además de la verificación
+  // criptográfica del token que hace la Edge Function antes de llamar esta función).
+  AUTORIZACION_VENCIDA: 'AUTORIZACION_VENCIDA',
+  // autorizacion-visita-validar / -consumir: verificarTokenEnlace() devolvió 'invalido'.
+  AUTORIZACION_QR_INVALIDO: 'AUTORIZACION_QR_INVALIDO',
+  // autorizacion-visita-consumir: fn_autorizacion_visita_marcar_usada() lanzó una excepción
+  // (autorización inexistente, no vigente, o vencida) después de que el token ya se verificó.
+  AUTORIZACION_CONSUMO_FALLIDO: 'AUTORIZACION_CONSUMO_FALLIDO',
+  // guard_mant_registro_acceso: intento de editar una columna distinta de egreso_at.
+  REGISTRO_ACCESO_INMUTABLE: 'REGISTRO_ACCESO_INMUTABLE',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

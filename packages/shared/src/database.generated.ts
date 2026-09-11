@@ -339,9 +339,10 @@ export type Database = {
           contenido_renderizado: string
           created_at: string
           destinatario_contacto: string
-          destinatario_tercero_id: string
+          destinatario_tercero_id: string | null
           enviado_at: string
           enviado_por: string | null
+          es_automatico: boolean
           id: string
           intento_numero: number
           origen_entidad: string | null
@@ -362,9 +363,10 @@ export type Database = {
           contenido_renderizado: string
           created_at?: string
           destinatario_contacto: string
-          destinatario_tercero_id: string
+          destinatario_tercero_id?: string | null
           enviado_at?: string
           enviado_por?: string | null
+          es_automatico?: boolean
           id?: string
           intento_numero: number
           origen_entidad?: string | null
@@ -385,9 +387,10 @@ export type Database = {
           contenido_renderizado?: string
           created_at?: string
           destinatario_contacto?: string
-          destinatario_tercero_id?: string
+          destinatario_tercero_id?: string | null
           enviado_at?: string
           enviado_por?: string | null
+          es_automatico?: boolean
           id?: string
           intento_numero?: number
           origen_entidad?: string | null
@@ -732,6 +735,143 @@ export type Database = {
             columns: ["zona_comun_id"]
             isOneToOne: false
             referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      actor_externo_otp: {
+        Row: {
+          canal: string
+          codigo_hash: string
+          contacto: string
+          creado_at: string
+          expira_at: string
+          id: string
+          intentos: number
+          usado_at: string | null
+        }
+        Insert: {
+          canal: string
+          codigo_hash: string
+          contacto: string
+          creado_at?: string
+          expira_at: string
+          id?: string
+          intentos?: number
+          usado_at?: string | null
+        }
+        Update: {
+          canal?: string
+          codigo_hash?: string
+          contacto?: string
+          creado_at?: string
+          expira_at?: string
+          id?: string
+          intentos?: number
+          usado_at?: string | null
+        }
+        Relationships: []
+      }
+      actor_externo_paso_reforzado: {
+        Row: {
+          accion: string
+          auth_user_id: string
+          codigo_hash: string
+          confirmado_at: string | null
+          contexto_id: string
+          creado_at: string
+          expira_at: string
+          id: string
+          intentos: number
+        }
+        Insert: {
+          accion: string
+          auth_user_id: string
+          codigo_hash: string
+          confirmado_at?: string | null
+          contexto_id: string
+          creado_at?: string
+          expira_at: string
+          id?: string
+          intentos?: number
+        }
+        Update: {
+          accion?: string
+          auth_user_id?: string
+          codigo_hash?: string
+          confirmado_at?: string | null
+          contexto_id?: string
+          creado_at?: string
+          expira_at?: string
+          id?: string
+          intentos?: number
+        }
+        Relationships: []
+      }
+      actor_externo_vinculo: {
+        Row: {
+          auth_user_id: string
+          creado_at: string
+          creado_por: string | null
+          id: string
+          origen: Database["public"]["Enums"]["actor_externo_origen_t"]
+          persona_rol_id: string
+          persona_tipo: Database["public"]["Enums"]["actor_externo_persona_t"]
+          tenant_id: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          auth_user_id: string
+          creado_at?: string
+          creado_por?: string | null
+          id?: string
+          origen: Database["public"]["Enums"]["actor_externo_origen_t"]
+          persona_rol_id: string
+          persona_tipo: Database["public"]["Enums"]["actor_externo_persona_t"]
+          tenant_id: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          auth_user_id?: string
+          creado_at?: string
+          creado_por?: string | null
+          id?: string
+          origen?: Database["public"]["Enums"]["actor_externo_origen_t"]
+          persona_rol_id?: string
+          persona_tipo?: Database["public"]["Enums"]["actor_externo_persona_t"]
+          tenant_id?: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actor_externo_vinculo_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actor_externo_vinculo_persona_rol_id_fkey"
+            columns: ["persona_rol_id"]
+            isOneToOne: false
+            referencedRelation: "inmueble_persona_rol"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actor_externo_vinculo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actor_externo_vinculo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2328,6 +2468,7 @@ export type Database = {
           novedad_id: string | null
           origen_tipo: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id: string
+          reserva_id: string | null
           tenant_id: string
         }
         Insert: {
@@ -2344,6 +2485,7 @@ export type Database = {
           novedad_id?: string | null
           origen_tipo: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id: string
+          reserva_id?: string | null
           tenant_id: string
         }
         Update: {
@@ -2360,6 +2502,7 @@ export type Database = {
           novedad_id?: string | null
           origen_tipo?: Database["public"]["Enums"]["cargo_origen_t"]
           periodo_id?: string
+          reserva_id?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -2431,6 +2574,13 @@ export type Database = {
             columns: ["periodo_id"]
             isOneToOne: false
             referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "mant_reservas"
             referencedColumns: ["id"]
           },
           {
@@ -3552,11 +3702,12 @@ export type Database = {
       }
       contable_castigo_cartera: {
         Row: {
-          acta_referencia: string
+          acta_referencia_texto: string | null
           autorizado_at: string | null
           autorizado_por: string | null
           creado_por: string | null
           created_at: string
+          decision_id: string | null
           id: string
           inmueble_id: string
           monto: number
@@ -3564,11 +3715,12 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
-          acta_referencia: string
+          acta_referencia_texto?: string | null
           autorizado_at?: string | null
           autorizado_por?: string | null
           creado_por?: string | null
           created_at?: string
+          decision_id?: string | null
           id?: string
           inmueble_id: string
           monto: number
@@ -3576,11 +3728,12 @@ export type Database = {
           tenant_id: string
         }
         Update: {
-          acta_referencia?: string
+          acta_referencia_texto?: string | null
           autorizado_at?: string | null
           autorizado_por?: string | null
           creado_por?: string | null
           created_at?: string
+          decision_id?: string | null
           id?: string
           inmueble_id?: string
           monto?: number
@@ -3600,6 +3753,13 @@ export type Database = {
             columns: ["creado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_castigo_cartera_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
             referencedColumns: ["id"]
           },
           {
@@ -3625,6 +3785,112 @@ export type Database = {
           },
           {
             foreignKeyName: "contable_castigo_cartera_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_certificacion: {
+        Row: {
+          administrador_documento: string | null
+          administrador_nombre: string
+          certificado_at: string
+          certificado_por: string
+          contador_nombre: string | null
+          contador_tarjeta_profesional: string | null
+          contador_tercero_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estados_incluidos: string[]
+          fecha_corte: string
+          hash_contenido: string
+          id: string
+          invalidada: boolean
+          invalidada_at: string | null
+          invalidada_motivo: string | null
+          tenant_id: string
+          texto_certificacion: string
+        }
+        Insert: {
+          administrador_documento?: string | null
+          administrador_nombre: string
+          certificado_at?: string
+          certificado_por: string
+          contador_nombre?: string | null
+          contador_tarjeta_profesional?: string | null
+          contador_tercero_id?: string | null
+          documento_id?: string | null
+          ejercicio: number
+          estados_incluidos: string[]
+          fecha_corte: string
+          hash_contenido: string
+          id?: string
+          invalidada?: boolean
+          invalidada_at?: string | null
+          invalidada_motivo?: string | null
+          tenant_id: string
+          texto_certificacion: string
+        }
+        Update: {
+          administrador_documento?: string | null
+          administrador_nombre?: string
+          certificado_at?: string
+          certificado_por?: string
+          contador_nombre?: string | null
+          contador_tarjeta_profesional?: string | null
+          contador_tercero_id?: string | null
+          documento_id?: string | null
+          ejercicio?: number
+          estados_incluidos?: string[]
+          fecha_corte?: string
+          hash_contenido?: string
+          id?: string
+          invalidada?: boolean
+          invalidada_at?: string | null
+          invalidada_motivo?: string | null
+          tenant_id?: string
+          texto_certificacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_certificacion_certificado_por_fkey"
+            columns: ["certificado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_certificacion_contador_tercero_id_fkey"
+            columns: ["contador_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_certificacion_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_certificacion_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_certificacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_certificacion_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -4317,6 +4583,102 @@ export type Database = {
           },
         ]
       }
+      contable_dictamen: {
+        Row: {
+          certificacion_id: string
+          created_at: string
+          documento_id: string | null
+          fecha: string
+          id: string
+          registrado_por: string | null
+          revisor_fiscal_tercero_id: string
+          tenant_id: string
+          texto: string
+          tipo_opinion_id: number
+        }
+        Insert: {
+          certificacion_id: string
+          created_at?: string
+          documento_id?: string | null
+          fecha: string
+          id?: string
+          registrado_por?: string | null
+          revisor_fiscal_tercero_id: string
+          tenant_id: string
+          texto: string
+          tipo_opinion_id: number
+        }
+        Update: {
+          certificacion_id?: string
+          created_at?: string
+          documento_id?: string | null
+          fecha?: string
+          id?: string
+          registrado_por?: string | null
+          revisor_fiscal_tercero_id?: string
+          tenant_id?: string
+          texto?: string
+          tipo_opinion_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_dictamen_certificacion_id_fkey"
+            columns: ["certificacion_id"]
+            isOneToOne: false
+            referencedRelation: "contable_certificacion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_revisor_fiscal_tercero_id_fkey"
+            columns: ["revisor_fiscal_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_dictamen_tipo_opinion_id_fkey"
+            columns: ["tipo_opinion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contable_estado_linea: {
         Row: {
           codigo: string
@@ -4646,6 +5008,75 @@ export type Database = {
           },
         ]
       }
+      contable_politica_conservacion: {
+        Row: {
+          actualizado_por: string | null
+          created_at: string
+          fundamento_normativo_id: number | null
+          id: string
+          plazo_anios: number
+          tenant_id: string
+          tipo_documento_id: number
+          updated_at: string
+        }
+        Insert: {
+          actualizado_por?: string | null
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          plazo_anios: number
+          tenant_id: string
+          tipo_documento_id: number
+          updated_at?: string
+        }
+        Update: {
+          actualizado_por?: string | null
+          created_at?: string
+          fundamento_normativo_id?: number | null
+          id?: string
+          plazo_anios?: number
+          tenant_id?: string
+          tipo_documento_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_politica_conservacion_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_conservacion_fundamento_normativo_id_fkey"
+            columns: ["fundamento_normativo_id"]
+            isOneToOne: false
+            referencedRelation: "fundamento_normativo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_conservacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_conservacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_politica_conservacion_tipo_documento_id_fkey"
+            columns: ["tipo_documento_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contable_politica_deterioro: {
         Row: {
           acta_referencia: string | null
@@ -4767,6 +5198,145 @@ export type Database = {
           },
           {
             foreignKeyName: "contable_politica_deterioro_tramo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contable_rendicion_cuentas: {
+        Row: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          acta_referencia_texto?: string | null
+          aprobada_at?: string | null
+          certificacion_id: string
+          creado_por?: string | null
+          created_at?: string
+          decision_id?: string | null
+          dictamen_id?: string | null
+          documento_id?: string | null
+          ejercicio: number
+          estado?: string
+          id?: string
+          libros_dian_fecha?: string | null
+          libros_dian_radicado?: string | null
+          libros_dian_registrado?: boolean
+          observaciones?: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at?: string | null
+          presupuesto_ejecutado_resumen?: Json | null
+          reunion_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          acta_referencia_texto?: string | null
+          aprobada_at?: string | null
+          certificacion_id?: string
+          creado_por?: string | null
+          created_at?: string
+          decision_id?: string | null
+          dictamen_id?: string | null
+          documento_id?: string | null
+          ejercicio?: number
+          estado?: string
+          id?: string
+          libros_dian_fecha?: string | null
+          libros_dian_radicado?: string | null
+          libros_dian_registrado?: boolean
+          observaciones?: string | null
+          periodo_desde?: string
+          periodo_hasta?: string
+          presentada_at?: string | null
+          presupuesto_ejecutado_resumen?: Json | null
+          reunion_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contable_rendicion_cuentas_certificacion_id_fkey"
+            columns: ["certificacion_id"]
+            isOneToOne: false
+            referencedRelation: "contable_certificacion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_dictamen_id_fkey"
+            columns: ["dictamen_id"]
+            isOneToOne: false
+            referencedRelation: "contable_dictamen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "v_documento_vigente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_reuniones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contable_rendicion_cuentas_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5633,6 +6203,113 @@ export type Database = {
           },
         ]
       }
+      finanzas_alerta_emitida: {
+        Row: {
+          created_at: string
+          detalle: Json
+          fecha_emision: string
+          id: string
+          regla_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          detalle: Json
+          fecha_emision: string
+          id?: string
+          regla_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          detalle?: Json
+          fecha_emision?: string
+          id?: string
+          regla_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_alerta_emitida_regla_id_fkey"
+            columns: ["regla_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_alerta_regla"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_alerta_emitida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_alerta_emitida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_alerta_regla: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id: string
+          nombre: string
+          semanas_consecutivas: number | null
+          tenant_id: string
+          tipo_id: number
+          umbral: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+          semanas_consecutivas?: number | null
+          tenant_id: string
+          tipo_id: number
+          umbral?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+          semanas_consecutivas?: number | null
+          tenant_id?: string
+          tipo_id?: number
+          umbral?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_alerta_regla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_alerta_regla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_alerta_regla_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finanzas_cuenta_bancaria_compromiso: {
         Row: {
           created_at: string
@@ -5703,6 +6380,63 @@ export type Database = {
           },
           {
             foreignKeyName: "finanzas_cuenta_bancaria_compromiso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_escenario_parametros: {
+        Row: {
+          created_at: string
+          dias_adicionales_pago_proveedor: number
+          escenario: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          pct_recaudo_esperado: number | null
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          dias_adicionales_pago_proveedor?: number
+          escenario: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          pct_recaudo_esperado?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          dias_adicionales_pago_proveedor?: number
+          escenario?: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          pct_recaudo_esperado?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_escenario_parametros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_escenario_parametros_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5982,6 +6716,109 @@ export type Database = {
           },
           {
             foreignKeyName: "finanzas_facturas_proveedor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_flujo_corridas_diarias: {
+        Row: {
+          disparado_at: string
+          fecha_corte: string
+          id: string
+          origen: string
+          tenant_id: string
+        }
+        Insert: {
+          disparado_at?: string
+          fecha_corte: string
+          id?: string
+          origen?: string
+          tenant_id: string
+        }
+        Update: {
+          disparado_at?: string
+          fecha_corte?: string
+          id?: string
+          origen?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_flujo_corridas_diarias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_flujo_corridas_diarias_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finanzas_flujo_snapshot: {
+        Row: {
+          created_at: string
+          escenario: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          fecha_calculo: string
+          generado_por: string | null
+          horizonte_dias: number
+          id: string
+          motivo: string
+          parametros: Json
+          resultado: Json
+          saldo_inicial: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          escenario: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          fecha_calculo?: string
+          generado_por?: string | null
+          horizonte_dias: number
+          id?: string
+          motivo: string
+          parametros: Json
+          resultado: Json
+          saldo_inicial: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          escenario?: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          fecha_calculo?: string
+          generado_por?: string | null
+          horizonte_dias?: number
+          id?: string
+          motivo?: string
+          parametros?: Json
+          resultado?: Json
+          saldo_inicial?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finanzas_flujo_snapshot_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_flujo_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finanzas_flujo_snapshot_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -11421,6 +12258,96 @@ export type Database = {
           },
         ]
       }
+      mant_autorizaciones_visita: {
+        Row: {
+          autorizado_por_origen: Database["public"]["Enums"]["autorizacion_origen_t"]
+          autorizado_por_ref: string
+          created_at: string
+          estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista: string
+          hora_desde: string | null
+          hora_hasta: string | null
+          id: string
+          inmueble_id: string
+          qr_expira_at: string | null
+          qr_token: string | null
+          tenant_id: string
+          tipo_id: number | null
+          visitante_documento: string | null
+          visitante_nombre: string
+        }
+        Insert: {
+          autorizado_por_origen: Database["public"]["Enums"]["autorizacion_origen_t"]
+          autorizado_por_ref: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista: string
+          hora_desde?: string | null
+          hora_hasta?: string | null
+          id?: string
+          inmueble_id: string
+          qr_expira_at?: string | null
+          qr_token?: string | null
+          tenant_id: string
+          tipo_id?: number | null
+          visitante_documento?: string | null
+          visitante_nombre: string
+        }
+        Update: {
+          autorizado_por_origen?: Database["public"]["Enums"]["autorizacion_origen_t"]
+          autorizado_por_ref?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista?: string
+          hora_desde?: string | null
+          hora_hasta?: string | null
+          id?: string
+          inmueble_id?: string
+          qr_expira_at?: string | null
+          qr_token?: string | null
+          tenant_id?: string
+          tipo_id?: number | null
+          visitante_documento?: string | null
+          visitante_nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_autorizaciones_visita_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_autorizaciones_visita_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_autorizaciones_visita_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_autorizaciones_visita_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_autorizaciones_visita_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_consecutivo: {
         Row: {
           anio: number
@@ -12060,6 +12987,87 @@ export type Database = {
           },
           {
             foreignKeyName: "mant_depreciacion_detalle_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_escenario: {
+        Row: {
+          activo_id: string
+          creado_at: string
+          creado_por: string | null
+          decision_id: string | null
+          evaluado_at: string | null
+          id: string
+          nombre: string
+          resultado: Json | null
+          supuestos: Json
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["escenario_tipo_t"]
+          updated_at: string | null
+        }
+        Insert: {
+          activo_id: string
+          creado_at?: string
+          creado_por?: string | null
+          decision_id?: string | null
+          evaluado_at?: string | null
+          id?: string
+          nombre: string
+          resultado?: Json | null
+          supuestos?: Json
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["escenario_tipo_t"]
+          updated_at?: string | null
+        }
+        Update: {
+          activo_id?: string
+          creado_at?: string
+          creado_por?: string | null
+          decision_id?: string | null
+          evaluado_at?: string | null
+          id?: string
+          nombre?: string
+          resultado?: Json | null
+          supuestos?: Json
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["escenario_tipo_t"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_escenario_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_escenario_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_escenario_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "gobierno_decisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_escenario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_escenario_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -14477,6 +15485,88 @@ export type Database = {
           },
         ]
       }
+      mant_registros_acceso: {
+        Row: {
+          autorizacion_id: string | null
+          egreso_at: string | null
+          id: string
+          ingreso_at: string
+          inmueble_destino_id: string
+          observaciones: string | null
+          registrado_por: string
+          tenant_id: string
+          visitante_documento: string | null
+          visitante_nombre: string
+        }
+        Insert: {
+          autorizacion_id?: string | null
+          egreso_at?: string | null
+          id?: string
+          ingreso_at?: string
+          inmueble_destino_id: string
+          observaciones?: string | null
+          registrado_por: string
+          tenant_id: string
+          visitante_documento?: string | null
+          visitante_nombre: string
+        }
+        Update: {
+          autorizacion_id?: string | null
+          egreso_at?: string | null
+          id?: string
+          ingreso_at?: string
+          inmueble_destino_id?: string
+          observaciones?: string | null
+          registrado_por?: string
+          tenant_id?: string
+          visitante_documento?: string | null
+          visitante_nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_registros_acceso_autorizacion_id_fkey"
+            columns: ["autorizacion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_autorizaciones_visita"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_inmueble_destino_id_fkey"
+            columns: ["inmueble_destino_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_inmueble_destino_id_fkey"
+            columns: ["inmueble_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_repuestos: {
         Row: {
           activo: boolean
@@ -14646,6 +15736,451 @@ export type Database = {
             columns: ["tipo_activo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_reservas: {
+        Row: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          cargo_id: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          inmueble_id: string
+          motivo_cancelacion: string | null
+          motivo_rechazo: string | null
+          penalizada: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo: number | null
+        }
+        Insert: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          cargo_id?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id?: string
+          inmueble_id: string
+          motivo_cancelacion?: string | null
+          motivo_rechazo?: string | null
+          penalizada?: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref?: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo?: number | null
+        }
+        Update: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          cargo_id?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha?: string
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          inmueble_id?: string
+          motivo_cancelacion?: string | null
+          motivo_rechazo?: string | null
+          penalizada?: boolean
+          solicitante_origen?: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref?: string | null
+          tenant_id?: string
+          zona_comun_id?: string
+          zona_cupo_simultaneo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_reservas_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "v_cargo_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_reservas_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_salud_banda: {
+        Row: {
+          created_at: string
+          etiqueta: string
+          id: string
+          orden: number
+          puntaje_desde: number
+          puntaje_hasta: number | null
+          set_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          etiqueta: string
+          id?: string
+          orden?: number
+          puntaje_desde: number
+          puntaje_hasta?: number | null
+          set_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          etiqueta?: string
+          id?: string
+          orden?: number
+          puntaje_desde?: number
+          puntaje_hasta?: number | null
+          set_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_salud_banda_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "mant_salud_set"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_banda_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_banda_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_salud_factor: {
+        Row: {
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          escala: Json
+          fuente_id: number
+          id: string
+          nombre: string
+          peso: number
+          set_id: string
+          tenant_id: string
+          ventana_dias: number
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          escala: Json
+          fuente_id: number
+          id?: string
+          nombre: string
+          peso: number
+          set_id: string
+          tenant_id: string
+          ventana_dias?: number
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          escala?: Json
+          fuente_id?: number
+          id?: string
+          nombre?: string
+          peso?: number
+          set_id?: string
+          tenant_id?: string
+          ventana_dias?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_salud_factor_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_factor_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "mant_salud_set"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_factor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_factor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_salud_set: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["vigencia_estado_t"]
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          version: number
+          vigente_desde: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vigencia_estado_t"]
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_salud_set_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_set_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_salud_snapshot: {
+        Row: {
+          activo_id: string
+          created_at: string
+          detalle: Json
+          fecha: string
+          id: string
+          indice: number
+          registrado_por: string | null
+          tenant_id: string
+          version_factores: number
+        }
+        Insert: {
+          activo_id: string
+          created_at?: string
+          detalle: Json
+          fecha: string
+          id?: string
+          indice: number
+          registrado_por?: string | null
+          tenant_id: string
+          version_factores: number
+        }
+        Update: {
+          activo_id?: string
+          created_at?: string
+          detalle?: Json
+          fecha?: string
+          id?: string
+          indice?: number
+          registrado_por?: string | null
+          tenant_id?: string
+          version_factores?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_salud_snapshot_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_snapshot_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_salud_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mant_zona_reserva_regla: {
+        Row: {
+          anticipacion_maxima_dias: number | null
+          anticipacion_minima_horas: number | null
+          concepto_id: string | null
+          created_at: string
+          cupo_simultaneo: number
+          duracion_maxima_minutos: number | null
+          genera_cargo: boolean
+          id: string
+          maximo_activas_por_inmueble: number | null
+          penalidad_cancelacion_tardia_horas: number | null
+          requiere_aprobacion: boolean
+          tenant_id: string
+          updated_at: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+          zona_comun_id: string
+        }
+        Insert: {
+          anticipacion_maxima_dias?: number | null
+          anticipacion_minima_horas?: number | null
+          concepto_id?: string | null
+          created_at?: string
+          cupo_simultaneo?: number
+          duracion_maxima_minutos?: number | null
+          genera_cargo?: boolean
+          id?: string
+          maximo_activas_por_inmueble?: number | null
+          penalidad_cancelacion_tardia_horas?: number | null
+          requiere_aprobacion: boolean
+          tenant_id: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+          zona_comun_id: string
+        }
+        Update: {
+          anticipacion_maxima_dias?: number | null
+          anticipacion_minima_horas?: number | null
+          concepto_id?: string | null
+          created_at?: string
+          cupo_simultaneo?: number
+          duracion_maxima_minutos?: number | null
+          genera_cargo?: boolean
+          id?: string
+          maximo_activas_por_inmueble?: number | null
+          penalidad_cancelacion_tardia_horas?: number | null
+          requiere_aprobacion?: boolean
+          tenant_id?: string
+          updated_at?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+          zona_comun_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_zona_reserva_regla_concepto_id_fkey"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_zona_reserva_regla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_zona_reserva_regla_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_zona_reserva_regla_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
             referencedColumns: ["id"]
           },
         ]
@@ -17272,14 +18807,18 @@ export type Database = {
           inmueble_id: string
           numero: number
           orden_trabajo_referencia: string | null
-          origen_id: number
-          prioridad_id: number
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
           resuelta_at: string | null
           sla_id: string | null
           sla_vence_at: string | null
           solicitante_ref: string
           tenant_id: string
           tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
           updated_at: string | null
         }
         Insert: {
@@ -17303,14 +18842,18 @@ export type Database = {
           inmueble_id: string
           numero: number
           orden_trabajo_referencia?: string | null
-          origen_id: number
-          prioridad_id: number
+          origen_actor_externo_id?: string | null
+          origen_id?: number | null
+          prioridad_id?: number | null
           resuelta_at?: string | null
           sla_id?: string | null
           sla_vence_at?: string | null
           solicitante_ref: string
           tenant_id: string
           tipo_id: number
+          triage_motivo_rechazo?: string | null
+          triage_resuelto_at?: string | null
+          triage_resuelto_por?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -17334,14 +18877,18 @@ export type Database = {
           inmueble_id?: string
           numero?: number
           orden_trabajo_referencia?: string | null
-          origen_id?: number
-          prioridad_id?: number
+          origen_actor_externo_id?: string | null
+          origen_id?: number | null
+          prioridad_id?: number | null
           resuelta_at?: string | null
           sla_id?: string | null
           sla_vence_at?: string | null
           solicitante_ref?: string
           tenant_id?: string
           tipo_id?: number
+          triage_motivo_rechazo?: string | null
+          triage_resuelto_at?: string | null
+          triage_resuelto_por?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -17402,6 +18949,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solicitudes_origen_actor_externo_id_fkey"
+            columns: ["origen_actor_externo_id"]
+            isOneToOne: false
+            referencedRelation: "actor_externo_vinculo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "solicitudes_origen_id_fkey"
             columns: ["origen_id"]
             isOneToOne: false
@@ -17448,6 +19002,13 @@ export type Database = {
             columns: ["tipo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_triage_resuelto_por_fkey"
+            columns: ["triage_resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -17608,6 +19169,7 @@ export type Database = {
           status: Database["public"]["Enums"]["tenant_status_t"]
           telefono_1: string | null
           telefono_2: string | null
+          tiene_revisor_fiscal: boolean | null
           tipo_division_id: number
           updated_at: string | null
           uso_economico: Database["public"]["Enums"]["copropiedad_uso_t"] | null
@@ -17647,6 +19209,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status_t"]
           telefono_1?: string | null
           telefono_2?: string | null
+          tiene_revisor_fiscal?: boolean | null
           tipo_division_id?: number
           updated_at?: string | null
           uso_economico?:
@@ -17688,6 +19251,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status_t"]
           telefono_1?: string | null
           telefono_2?: string | null
+          tiene_revisor_fiscal?: boolean | null
           tipo_division_id?: number
           updated_at?: string | null
           uso_economico?:
@@ -18211,6 +19775,85 @@ export type Database = {
       }
     }
     Views: {
+      mant_registros_acceso_resumen: {
+        Row: {
+          autorizacion_id: string | null
+          egreso_at: string | null
+          id: string | null
+          ingreso_at: string | null
+          inmueble_destino_id: string | null
+          observaciones: string | null
+          registrado_por: string | null
+          tenant_id: string | null
+          visitante_nombre: string | null
+        }
+        Insert: {
+          autorizacion_id?: string | null
+          egreso_at?: string | null
+          id?: string | null
+          ingreso_at?: string | null
+          inmueble_destino_id?: string | null
+          observaciones?: string | null
+          registrado_por?: string | null
+          tenant_id?: string | null
+          visitante_nombre?: string | null
+        }
+        Update: {
+          autorizacion_id?: string | null
+          egreso_at?: string | null
+          id?: string | null
+          ingreso_at?: string | null
+          inmueble_destino_id?: string | null
+          observaciones?: string | null
+          registrado_por?: string | null
+          tenant_id?: string | null
+          visitante_nombre?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_registros_acceso_autorizacion_id_fkey"
+            columns: ["autorizacion_id"]
+            isOneToOne: false
+            referencedRelation: "mant_autorizaciones_visita"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_inmueble_destino_id_fkey"
+            columns: ["inmueble_destino_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_inmueble_destino_id_fkey"
+            columns: ["inmueble_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_registros_acceso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_tenant_overview: {
         Row: {
           created_at: string | null
@@ -18684,6 +20327,17 @@ export type Database = {
           origen_id: string
         }[]
       }
+      contable_documentos_proximos_vencer_retencion: {
+        Args: { p_dias_anticipacion?: number; p_tenant_id: string }
+        Returns: {
+          bajo_legal_hold: boolean
+          dias_restantes: number
+          documento_id: string
+          fecha_limite: string
+          fecha_origen: string
+          tipo_documento: string
+        }[]
+      }
       contable_estado_financiero: {
         Args: {
           p_codigo_estado: string
@@ -18859,6 +20513,7 @@ export type Database = {
           status: Database["public"]["Enums"]["tenant_status_t"]
           telefono_1: string | null
           telefono_2: string | null
+          tiene_revisor_fiscal: boolean | null
           tipo_division_id: number
           updated_at: string | null
           uso_economico: Database["public"]["Enums"]["copropiedad_uso_t"] | null
@@ -18872,13 +20527,19 @@ export type Database = {
         }
       }
       cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
+      cron_finanzas_flujo_alertas_diario: { Args: never; Returns: undefined }
       cron_gobierno_vencimientos_diario: { Args: never; Returns: undefined }
       cron_mant_generar_programaciones_diario: {
         Args: never
         Returns: undefined
       }
       cron_mant_inventario_alertas_diario: { Args: never; Returns: undefined }
+      cron_mant_salud_snapshot_mensual: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
+      finanzas_alertas_evaluar: {
+        Args: { p_fecha?: string; p_tenant_id: string }
+        Returns: number
+      }
       finanzas_factura_descomposicion: {
         Args: { p_ejecucion_id: string }
         Returns: {
@@ -18906,6 +20567,34 @@ export type Database = {
           ya_en_lote: boolean
         }[]
       }
+      finanzas_flujo_proyectado: {
+        Args: {
+          p_escenario?: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          p_fecha_calculo?: string
+          p_horizonte_dias: number
+          p_tenant_id: string
+        }
+        Returns: {
+          componentes_insuficientes: string[]
+          egresos_contratos: number
+          egresos_cxp: number
+          egresos_mantenimiento: number
+          flujo_neto: number
+          ingresos_esperados: number
+          ingresos_otros: number
+          saldo_acumulado: number
+          semana: number
+        }[]
+      }
+      finanzas_flujo_snapshot_guardar: {
+        Args: {
+          p_escenario: Database["public"]["Enums"]["finanzas_flujo_escenario_t"]
+          p_horizonte_dias: number
+          p_motivo: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       finanzas_posicion_tesoreria: {
         Args: { p_fecha?: string; p_tenant_id: string }
         Returns: {
@@ -18918,6 +20607,19 @@ export type Database = {
           naturaleza: Database["public"]["Enums"]["posicion_naturaleza_t"]
           utilizable: boolean
         }[]
+      }
+      finanzas_proyeccion_vs_real: {
+        Args: { p_hasta: string; p_snapshot_id: string }
+        Returns: {
+          desviacion: number
+          flujo_neto_proyectado: number
+          flujo_neto_real: number
+          semana: number
+        }[]
+      }
+      finanzas_tasa_recaudo_historica: {
+        Args: { p_fecha?: string; p_meses?: number; p_tenant_id: string }
+        Returns: number
       }
       fn_acreditacion_accion: {
         Args: { p_accion_id: string; p_tenant_id: string }
@@ -18985,6 +20687,80 @@ export type Database = {
           monto: number
           tipo: string
         }[]
+      }
+      fn_actor_externo_confirmar_otp: {
+        Args: { p_canal: string; p_codigo: string; p_contacto: string }
+        Returns: {
+          email: string
+          nombre_completo: string
+          persona_rol_id: string
+          rol_codigo: string
+          telefono: string
+          tenant_id: string
+          tercero_id: string
+        }[]
+      }
+      fn_actor_externo_mis_vinculos: {
+        Args: { p_auth_user_id: string }
+        Returns: {
+          inmueble_id: string
+          persona_tipo: Database["public"]["Enums"]["actor_externo_persona_t"]
+          rol_codigo: string
+          tenant_id: string
+          tenant_nombre: string
+          vigente_desde: string
+          vigente_hasta: string
+          vinculo_id: string
+        }[]
+      }
+      fn_actor_externo_paso_reforzado_confirmar: {
+        Args: {
+          p_accion: string
+          p_auth_user_id: string
+          p_codigo: string
+          p_contexto_id: string
+        }
+        Returns: boolean
+      }
+      fn_actor_externo_paso_reforzado_solicitar: {
+        Args: {
+          p_accion: string
+          p_auth_user_id: string
+          p_contexto_id: string
+        }
+        Returns: string
+      }
+      fn_actor_externo_registrar_vinculo: {
+        Args: {
+          p_auth_user_id: string
+          p_creado_por?: string
+          p_origen: Database["public"]["Enums"]["actor_externo_origen_t"]
+          p_persona_rol_id: string
+          p_persona_tipo: Database["public"]["Enums"]["actor_externo_persona_t"]
+          p_tenant_id: string
+        }
+        Returns: {
+          auth_user_id: string
+          creado_at: string
+          creado_por: string | null
+          id: string
+          origen: Database["public"]["Enums"]["actor_externo_origen_t"]
+          persona_rol_id: string
+          persona_tipo: Database["public"]["Enums"]["actor_externo_persona_t"]
+          tenant_id: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "actor_externo_vinculo"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_actor_externo_solicitar_otp: {
+        Args: { p_canal: string; p_contacto: string }
+        Returns: string
       }
       fn_alertas_cartera: {
         Args: { p_fecha_referencia: string; p_tenant_id: string }
@@ -19054,6 +20830,101 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "novedades"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_autorizacion_visita_marcar_usada: {
+        Args: {
+          p_autorizacion_id: string
+          p_observaciones?: string
+          p_registrado_por: string
+        }
+        Returns: {
+          autorizacion_id: string | null
+          egreso_at: string | null
+          id: string
+          ingreso_at: string
+          inmueble_destino_id: string
+          observaciones: string | null
+          registrado_por: string
+          tenant_id: string
+          visitante_documento: string | null
+          visitante_nombre: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_registros_acceso"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_autorizacion_visita_mis_autorizaciones_externas: {
+        Args: { p_vinculo_id: string }
+        Returns: {
+          created_at: string
+          egreso_at: string
+          estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista: string
+          hora_desde: string
+          hora_hasta: string
+          id: string
+          ingreso_at: string
+          qr_expira_at: string
+          qr_token: string
+          tipo_id: number
+          visitante_documento: string
+          visitante_nombre: string
+        }[]
+      }
+      fn_autorizacion_visita_revocar: {
+        Args: { p_autorizacion_id: string }
+        Returns: {
+          autorizado_por_origen: Database["public"]["Enums"]["autorizacion_origen_t"]
+          autorizado_por_ref: string
+          created_at: string
+          estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista: string
+          hora_desde: string | null
+          hora_hasta: string | null
+          id: string
+          inmueble_id: string
+          qr_expira_at: string | null
+          qr_token: string | null
+          tenant_id: string
+          tipo_id: number | null
+          visitante_documento: string | null
+          visitante_nombre: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_autorizaciones_visita"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_autorizacion_visita_revocar_externa: {
+        Args: { p_autorizacion_id: string; p_vinculo_id: string }
+        Returns: {
+          autorizado_por_origen: Database["public"]["Enums"]["autorizacion_origen_t"]
+          autorizado_por_ref: string
+          created_at: string
+          estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          fecha_prevista: string
+          hora_desde: string | null
+          hora_hasta: string | null
+          id: string
+          inmueble_id: string
+          qr_expira_at: string | null
+          qr_token: string | null
+          tenant_id: string
+          tipo_id: number | null
+          visitante_documento: string | null
+          visitante_nombre: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_autorizaciones_visita"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -19197,6 +21068,39 @@ export type Database = {
         Args: { p_anio: number; p_tenant_id: string }
         Returns: string
       }
+      fn_contable_aprobar_rendicion: {
+        Args: { p_id: string }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_contable_cerrar_ejercicio: {
         Args: { p_anio: number; p_tenant_id: string }
         Returns: string
@@ -19209,6 +21113,44 @@ export type Database = {
         }
         Returns: string
       }
+      fn_contable_certificar_estados: {
+        Args: {
+          p_administrador_documento: string
+          p_contador_tarjeta_profesional?: string
+          p_contador_tercero_id?: string
+          p_ejercicio: number
+          p_estados_incluidos: string[]
+          p_fecha_corte: string
+          p_tenant_id: string
+          p_texto_certificacion: string
+        }
+        Returns: {
+          administrador_documento: string | null
+          administrador_nombre: string
+          certificado_at: string
+          certificado_por: string
+          contador_nombre: string | null
+          contador_tarjeta_profesional: string | null
+          contador_tercero_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estados_incluidos: string[]
+          fecha_corte: string
+          hash_contenido: string
+          id: string
+          invalidada: boolean
+          invalidada_at: string | null
+          invalidada_motivo: string | null
+          tenant_id: string
+          texto_certificacion: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_certificacion"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_contable_corregir_error: {
         Args: {
           p_comprobante_correcto_id: string
@@ -19220,17 +21162,227 @@ export type Database = {
         }
         Returns: string
       }
+      fn_contable_crear_rendicion: {
+        Args: {
+          p_certificacion_id: string
+          p_dictamen_id?: string
+          p_ejercicio: number
+          p_periodo_desde: string
+          p_periodo_hasta: string
+          p_presupuesto_ejecutado_resumen?: Json
+          p_tenant_id: string
+        }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_contable_invalidar_certificacion: {
+        Args: { p_ejercicio: number; p_motivo: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      fn_contable_presentar_rendicion: {
+        Args: {
+          p_acta_referencia_texto?: string
+          p_decision_id?: string
+          p_id: string
+          p_observaciones?: string
+        }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_contable_reabrir_periodo: {
         Args: { p_motivo: string; p_periodo_id: string; p_tenant_id: string }
         Returns: string
+      }
+      fn_contable_rechazar_rendicion: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_contable_reconocer_deterioro: {
         Args: { p_periodo_id: string; p_tenant_id: string }
         Returns: string
       }
+      fn_contable_registrar_dictamen: {
+        Args: {
+          p_certificacion_id: string
+          p_fecha: string
+          p_revisor_fiscal_tercero_id: string
+          p_tenant_id: string
+          p_texto: string
+          p_tipo_opinion_codigo: string
+        }
+        Returns: {
+          certificacion_id: string
+          created_at: string
+          documento_id: string | null
+          fecha: string
+          id: string
+          registrado_por: string | null
+          revisor_fiscal_tercero_id: string
+          tenant_id: string
+          texto: string
+          tipo_opinion_id: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_dictamen"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_contable_registrar_libros_dian: {
+        Args: { p_fecha: string; p_id: string; p_radicado: string }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_contable_siguiente_numero: {
         Args: { p_anio: number; p_tenant_id: string; p_tipo_id: number }
         Returns: number
+      }
+      fn_contable_vincular_documento_rendicion: {
+        Args: { p_documento_id: string; p_id: string }
+        Returns: {
+          acta_referencia_texto: string | null
+          aprobada_at: string | null
+          certificacion_id: string
+          creado_por: string | null
+          created_at: string
+          decision_id: string | null
+          dictamen_id: string | null
+          documento_id: string | null
+          ejercicio: number
+          estado: string
+          id: string
+          libros_dian_fecha: string | null
+          libros_dian_radicado: string | null
+          libros_dian_registrado: boolean
+          observaciones: string | null
+          periodo_desde: string
+          periodo_hasta: string
+          presentada_at: string | null
+          presupuesto_ejecutado_resumen: Json | null
+          reunion_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "contable_rendicion_cuentas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_contar_acciones_acreditadas: {
         Args: { p_inmueble_id: string; p_tenant_id: string }
@@ -19896,6 +22048,10 @@ export type Database = {
           existentes: number
         }[]
       }
+      fn_instanciar_finanzas_flujo_default: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       fn_instanciar_fondo_imprevistos: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -19956,6 +22112,10 @@ export type Database = {
           creadas: number
           existentes: number
         }[]
+      }
+      fn_instanciar_salud_factores_default: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
       }
       fn_leer_credenciales_pasarela: {
         Args: { p_config_id: string; p_tenant_id: string }
@@ -20419,6 +22579,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_mant_registrar_salud_snapshot: {
+        Args: { p_activo_id: string; p_fecha?: string; p_tenant_id: string }
+        Returns: string
+      }
       fn_mant_resolver_alcance_plan: {
         Args: { p_plan_id: string }
         Returns: number
@@ -20628,6 +22792,143 @@ export type Database = {
         }
         Returns: string
       }
+      fn_reserva_aprobar: {
+        Args: { p_reserva_id: string }
+        Returns: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          cargo_id: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          inmueble_id: string
+          motivo_cancelacion: string | null
+          motivo_rechazo: string | null
+          penalizada: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_reservas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_reserva_cancelar_externa: {
+        Args: { p_reserva_id: string; p_vinculo_id: string }
+        Returns: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          cargo_id: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          inmueble_id: string
+          motivo_cancelacion: string | null
+          motivo_rechazo: string | null
+          penalizada: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_reservas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_reserva_crear_externa: {
+        Args: {
+          p_fecha: string
+          p_hora_fin: string
+          p_hora_inicio: string
+          p_inmueble_id: string
+          p_vinculo_id: string
+          p_zona_comun_id: string
+        }
+        Returns: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          cargo_id: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          inmueble_id: string
+          motivo_cancelacion: string | null
+          motivo_rechazo: string | null
+          penalizada: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_reservas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_reserva_mis_reservas_externas: {
+        Args: { p_vinculo_id: string }
+        Returns: {
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          motivo_rechazo: string
+          penalizada: boolean
+          zona_comun_id: string
+        }[]
+      }
+      fn_reserva_rechazar: {
+        Args: { p_motivo: string; p_reserva_id: string }
+        Returns: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          cargo_id: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["reserva_estado_t"]
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          inmueble_id: string
+          motivo_cancelacion: string | null
+          motivo_rechazo: string | null
+          penalizada: boolean
+          solicitante_origen: Database["public"]["Enums"]["reserva_solicitante_t"]
+          solicitante_ref: string | null
+          tenant_id: string
+          zona_comun_id: string
+          zona_cupo_simultaneo: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mant_reservas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_resetear_copropiedad: { Args: { p_tenant_id: string }; Returns: Json }
       fn_reversar_comprobante: {
         Args: {
@@ -20656,6 +22957,221 @@ export type Database = {
           inmueble_id: string
           similitud: number
         }[]
+      }
+      fn_solicitud_cancelar_externa: {
+        Args: { p_solicitud_id: string; p_vinculo_id: string }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_solicitud_estado_externo: {
+        Args: { p_actor_externo_vinculo_id: string; p_solicitud_id: string }
+        Returns: {
+          anio: number
+          asunto: string
+          cerrada_at: string
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          numero: number
+          resuelta_at: string
+          triage_motivo_rechazo: string
+        }[]
+      }
+      fn_solicitud_mis_solicitudes_externas: {
+        Args: { p_vinculo_id: string }
+        Returns: {
+          anio: number
+          asunto: string
+          categoria_id: number
+          created_at: string
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          id: string
+          numero: number
+          tipo_id: number
+          triage_motivo_rechazo: string
+        }[]
+      }
+      fn_solicitud_recibir_externa: {
+        Args: {
+          p_actor_externo_vinculo_id: string
+          p_asunto: string
+          p_categoria_id: number
+          p_descripcion?: string
+          p_inmueble_id: string
+          p_tipo_id: number
+        }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_solicitud_triage_aceptar: {
+        Args: {
+          p_origen_id: number
+          p_prioridad_id: number
+          p_solicitud_id: string
+        }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_solicitud_triage_rechazar: {
+        Args: { p_motivo: string; p_solicitud_id: string }
+        Returns: {
+          agenda_punto_id: string | null
+          anio: number
+          anulada_motivo: string | null
+          asignado_a: string | null
+          asignado_at: string | null
+          asunto: string
+          calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
+          categoria_id: number
+          cerrada_at: string | null
+          creada_por: string | null
+          created_at: string
+          decision_id: string | null
+          descripcion: string | null
+          en_espera_desde: string | null
+          estado: Database["public"]["Enums"]["solicitud_estado_t"]
+          expediente_convivencia_id: string | null
+          id: string
+          inmueble_id: string
+          numero: number
+          orden_trabajo_referencia: string | null
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
+          resuelta_at: string | null
+          sla_id: string | null
+          sla_vence_at: string | null
+          solicitante_ref: string
+          tenant_id: string
+          tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_sugerir_plan_anual: {
         Args: { p_tenant_id: string }
@@ -20849,14 +23365,18 @@ export type Database = {
           inmueble_id: string
           numero: number
           orden_trabajo_referencia: string | null
-          origen_id: number
-          prioridad_id: number
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
           resuelta_at: string | null
           sla_id: string | null
           sla_vence_at: string | null
           solicitante_ref: string
           tenant_id: string
           tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
           updated_at: string | null
         }
         SetofOptions: {
@@ -20981,14 +23501,18 @@ export type Database = {
           inmueble_id: string
           numero: number
           orden_trabajo_referencia: string | null
-          origen_id: number
-          prioridad_id: number
+          origen_actor_externo_id: string | null
+          origen_id: number | null
+          prioridad_id: number | null
           resuelta_at: string | null
           sla_id: string | null
           sla_vence_at: string | null
           solicitante_ref: string
           tenant_id: string
           tipo_id: number
+          triage_motivo_rechazo: string | null
+          triage_resuelto_at: string | null
+          triage_resuelto_por: string | null
           updated_at: string | null
         }
         SetofOptions: {
@@ -21479,6 +24003,10 @@ export type Database = {
       }
       is_member: { Args: { p_tenant: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      mant_activo_estado_en: {
+        Args: { p_activo_id: string; p_fecha: string; p_tenant_id: string }
+        Returns: Database["public"]["Enums"]["activo_estado_t"]
+      }
       mant_activo_garantias_vigentes: {
         Args: { p_activo_id: string; p_fecha?: string }
         Returns: {
@@ -21497,6 +24025,13 @@ export type Database = {
           clave: string
           valor: Json
         }[]
+      }
+      mant_autorizacion_visita_vigente_real: {
+        Args: {
+          p_estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
+          p_qr_expira_at: string
+        }
+        Returns: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
       }
       mant_calcular_depreciacion: {
         Args: { p_periodo_id: string; p_tenant_id: string }
@@ -21581,6 +24116,10 @@ export type Database = {
           vence_at: string
         }[]
       }
+      mant_evaluar_escenario: {
+        Args: { p_escenario_id: string }
+        Returns: Json
+      }
       mant_habilitaciones_semaforo: {
         Args: { p_fecha?: string; p_tercero_id: string; p_umbral_dias?: number }
         Returns: {
@@ -21604,6 +24143,140 @@ export type Database = {
           ot_id: string
           severidad: Database["public"]["Enums"]["severidad_t"]
           vencido: boolean
+        }[]
+      }
+      mant_indicador_comprometido_estimado: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          comprometido_estimado: number
+          ordenes_con_estimado: number
+          ordenes_sin_estimado: number
+        }[]
+      }
+      mant_indicador_costo_m2: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          area_privada_total: number
+          costo_m2: number
+          costo_total: number
+        }[]
+      }
+      mant_indicador_cumplimiento_normativo: {
+        Args: { p_fecha?: string; p_tenant_id: string; p_umbral_dias?: number }
+        Returns: {
+          cantidad: number
+          estado: string
+        }[]
+      }
+      mant_indicador_cumplimiento_plan: {
+        Args: {
+          p_activo_id?: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          ejecutadas: number
+          excluidas_activo_no_disponible: number
+          pct: number
+          programadas: number
+        }[]
+      }
+      mant_indicador_disponibilidad: {
+        Args: {
+          p_activo_id: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          disponibilidad_pct: number
+          horas_cubiertas: number
+        }[]
+      }
+      mant_indicador_financiero_presupuesto: {
+        Args: {
+          p_cuenta_id?: string
+          p_presupuesto_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cuenta_codigo: string
+          cuenta_id: string
+          cuenta_nombre: string
+          cuenta_ruta: string
+          ejecutado: number
+          presupuestado: number
+        }[]
+      }
+      mant_indicador_habilitaciones_vencidas: {
+        Args: { p_fecha?: string; p_tenant_id: string; p_umbral_dias?: number }
+        Returns: {
+          estado: string
+          habilitacion_id: string
+          tercero_id: string
+          tercero_nombre: string
+          tipo_id: number
+          tipo_nombre: string
+          vigente_hasta: string
+        }[]
+      }
+      mant_indicador_hallazgos_criticos: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          activo_id: string
+          descripcion: string
+          dias_abierto: number
+          estado: Database["public"]["Enums"]["hallazgo_estado_t"]
+          fecha_limite: string
+          hallazgo_id: string
+          inspeccion_id: string
+        }[]
+      }
+      mant_indicador_mtbf: {
+        Args: {
+          p_activo_id: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          fallas: number
+          mtbf_horas: number
+        }[]
+      }
+      mant_indicador_mttr: {
+        Args: {
+          p_activo_id?: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          mttr_horas: number
+          muestras: number
+        }[]
+      }
+      mant_indicador_ot_a_tiempo: {
+        Args: {
+          p_activo_id?: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          a_tiempo: number
+          cerradas: number
+          pct: number
+        }[]
+      }
+      mant_indicador_proporcion_mantenimiento: {
+        Args: { p_desde: string; p_hasta: string; p_tenant_id: string }
+        Returns: {
+          cantidad: number
+          tipo_codigo: string
+          tipo_id: number
+          tipo_nombre: string
         }[]
       }
       mant_inventario_pendientes_contabilizar: {
@@ -21713,6 +24386,43 @@ export type Database = {
           severidad_nombre: string
         }[]
       }
+      mant_proyeccion: {
+        Args: { p_anio: number; p_tenant_id: string }
+        Returns: {
+          componente: string
+          datos_insuficientes: boolean
+          metodo: string
+          monto: number
+        }[]
+      }
+      mant_salud: {
+        Args: { p_activo_id: string; p_fecha?: string; p_tenant_id: string }
+        Returns: {
+          desglose: Json
+          indice: number
+          set_id: string
+          version: number
+        }[]
+      }
+      mant_salud_aplicar_escala: {
+        Args: { p_escala: Json; p_valor: number }
+        Returns: number
+      }
+      mant_salud_explicacion: {
+        Args: {
+          p_activo_id: string
+          p_desde: string
+          p_hasta: string
+          p_tenant_id: string
+        }
+        Returns: {
+          contribucion_desde: number
+          contribucion_hasta: number
+          factor_codigo: string
+          factor_nombre: string
+          variacion: number
+        }[]
+      }
       mant_stock: {
         Args: {
           p_almacen_id: string
@@ -21721,6 +24431,25 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: number
+      }
+      mant_tendencia_fallas: {
+        Args: {
+          p_activo_id: string
+          p_dias_ventana?: number
+          p_tenant_id: string
+          p_umbral_observaciones?: number
+          p_ventanas: number
+        }
+        Returns: {
+          costo: number
+          desde: string
+          fallas: number
+          hasta: string
+          mttr_horas: number
+          tendencia: string
+          variacion_pct: number
+          ventana: number
+        }[]
       }
       mant_verificar_habilitacion_tercero: {
         Args: {
@@ -21905,10 +24634,14 @@ export type Database = {
         | "recibido_constructora"
         | "donado"
         | "reposicion"
+      actor_externo_origen_t: "autoverificacion" | "staff"
+      actor_externo_persona_t: "propietario" | "tenedor"
       alcance_accion_cobranza_t: "inmueble" | "cargo"
       asistencia_calidad_t: "propietario" | "apoderado" | "invitado" | "organo"
       atribucion_origen_t: "ley" | "reglamento"
       atributo_tipo_dato_t: "numero" | "texto" | "booleano" | "fecha" | "opcion"
+      autorizacion_origen_t: "externo" | "staff"
+      autorizacion_visita_estado_t: "vigente" | "usada" | "vencida" | "revocada"
       base_calculo_t: "coeficientes_representados" | "coeficientes_totales"
       canal_cobranza_t:
         | "email"
@@ -21918,7 +24651,12 @@ export type Database = {
         | "fisico"
         | "interno"
       cargo_categoria_t: "capital" | "interes" | "otro"
-      cargo_origen_t: "liquidacion_linea" | "novedad" | "interes" | "descuento"
+      cargo_origen_t:
+        | "liquidacion_linea"
+        | "novedad"
+        | "interes"
+        | "descuento"
+        | "reserva"
       compromiso_bancario_estado_t:
         | "proyectado"
         | "reservado"
@@ -21958,6 +24696,7 @@ export type Database = {
       descuento_pronto_pago_modo_t: "reduce_deuda" | "saldo_a_favor"
       deterioro_metodo_t: "antiguedad" | "porcentaje_global" | "individual"
       ejecucion_liquidacion_t: "pagado_banco" | "pagado_caja" | "por_pagar"
+      escenario_tipo_t: "reparar" | "reemplazar" | "mantener"
       estado_accion_cobranza_t:
         | "programada"
         | "pendiente_aprobacion"
@@ -22032,6 +24771,7 @@ export type Database = {
         | "pagada_parcial"
         | "pagada"
         | "anulada"
+      finanzas_flujo_escenario_t: "base" | "conservador" | "optimista"
       fondo_base_calculo_t: "presupuesto_anual" | "cuota_administracion"
       fondo_compromiso_estado_t:
         | "proyectado"
@@ -22213,6 +24953,14 @@ export type Database = {
         | "tecnico_fabricante"
         | "contractual"
         | "interno"
+      reserva_estado_t:
+        | "solicitada"
+        | "aprobada"
+        | "rechazada"
+        | "cancelada"
+        | "completada"
+        | "no_show"
+      reserva_solicitante_t: "externo" | "staff"
       residual_metodo_t: "mayor_resto"
       respuesta_valor_t: "conforme" | "no_conforme" | "no_aplica"
       resultado_accion_cobranza_t:
@@ -22240,6 +24988,9 @@ export type Database = {
         | "resuelta"
         | "cerrada"
         | "anulada"
+        | "recibida_externa"
+        | "rechazada_triage"
+        | "cancelada_por_solicitante"
       tarea_estado_t: "pendiente" | "ejecutada" | "no_aplica"
       tenant_role_t: "auxiliar" | "auditor" | "administrador"
       tenant_status_t: "active" | "suspended" | "deleted"
@@ -22459,10 +25210,14 @@ export const Constants = {
         "donado",
         "reposicion",
       ],
+      actor_externo_origen_t: ["autoverificacion", "staff"],
+      actor_externo_persona_t: ["propietario", "tenedor"],
       alcance_accion_cobranza_t: ["inmueble", "cargo"],
       asistencia_calidad_t: ["propietario", "apoderado", "invitado", "organo"],
       atribucion_origen_t: ["ley", "reglamento"],
       atributo_tipo_dato_t: ["numero", "texto", "booleano", "fecha", "opcion"],
+      autorizacion_origen_t: ["externo", "staff"],
+      autorizacion_visita_estado_t: ["vigente", "usada", "vencida", "revocada"],
       base_calculo_t: ["coeficientes_representados", "coeficientes_totales"],
       canal_cobranza_t: [
         "email",
@@ -22473,7 +25228,13 @@ export const Constants = {
         "interno",
       ],
       cargo_categoria_t: ["capital", "interes", "otro"],
-      cargo_origen_t: ["liquidacion_linea", "novedad", "interes", "descuento"],
+      cargo_origen_t: [
+        "liquidacion_linea",
+        "novedad",
+        "interes",
+        "descuento",
+        "reserva",
+      ],
       compromiso_bancario_estado_t: [
         "proyectado",
         "reservado",
@@ -22521,6 +25282,7 @@ export const Constants = {
       descuento_pronto_pago_modo_t: ["reduce_deuda", "saldo_a_favor"],
       deterioro_metodo_t: ["antiguedad", "porcentaje_global", "individual"],
       ejecucion_liquidacion_t: ["pagado_banco", "pagado_caja", "por_pagar"],
+      escenario_tipo_t: ["reparar", "reemplazar", "mantener"],
       estado_accion_cobranza_t: [
         "programada",
         "pendiente_aprobacion",
@@ -22604,6 +25366,7 @@ export const Constants = {
         "pagada",
         "anulada",
       ],
+      finanzas_flujo_escenario_t: ["base", "conservador", "optimista"],
       fondo_base_calculo_t: ["presupuesto_anual", "cuota_administracion"],
       fondo_compromiso_estado_t: [
         "proyectado",
@@ -22808,6 +25571,15 @@ export const Constants = {
         "contractual",
         "interno",
       ],
+      reserva_estado_t: [
+        "solicitada",
+        "aprobada",
+        "rechazada",
+        "cancelada",
+        "completada",
+        "no_show",
+      ],
+      reserva_solicitante_t: ["externo", "staff"],
       residual_metodo_t: ["mayor_resto"],
       respuesta_valor_t: ["conforme", "no_conforme", "no_aplica"],
       resultado_accion_cobranza_t: [
@@ -22837,6 +25609,9 @@ export const Constants = {
         "resuelta",
         "cerrada",
         "anulada",
+        "recibida_externa",
+        "rechazada_triage",
+        "cancelada_por_solicitante",
       ],
       tarea_estado_t: ["pendiente", "ejecutada", "no_aplica"],
       tenant_role_t: ["auxiliar", "auditor", "administrador"],

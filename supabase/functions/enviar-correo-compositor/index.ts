@@ -19,6 +19,8 @@ import { COMPOSITOR_FIELD_REGISTRY } from '../../../packages/shared/src/composit
 import { errorResponse, jsonResponse, parsearErrorRpc, respuestaPreflight } from '../_shared/http.ts'
 import { enforceRateLimit } from '../_shared/rate_limit.ts'
 import { construirCorreoCompositor } from '../_shared/email_compositor.ts'
+import { enviarEmailCobranza } from '../_shared/email_cobranza_provider.ts'
+import { registrarEnvioComunicacion } from '../_shared/comunicacion_generalizada.ts'
 
 const payloadSchema = z.object({
   tenant_id: z.string().uuid(),
@@ -238,49 +240,49 @@ export default {
       params,
     )
 
-    // 6. Enviar vía Brevo
-    const apiKey = Deno.env.get('BREVO_API_KEY')
-    const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL')
-    const senderName = Deno.env.get('BREVO_SENDER_NAME') ?? 'Aquila PH'
-    if (!apiKey || !senderEmail) {
-      return errorResponse(500, 'CONFIG_INCOMPLETA', 'Brevo no está configurado.', undefined, correlationId)
-    }
-
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        sender: { email: senderEmail, name: senderName },
-        to: [{ email: p.destinatario_email }],
-        subject,
-        htmlContent: html,
-      }),
+    // 6. Enviar vía Brevo — vía enviarEmailCobranza (COM-1): es el único sitio del repo que ya
+    // normaliza providerMessageId, imprescindible para que el webhook de Brevo pueda resolver un
+    // acuse contra este envío.
+    const origenId = crypto.randomUUID()
+    const resultadoEnvio = await enviarEmailCobranza({
+      to: p.destinatario_email,
+      destinatarioNombre: p.destinatario_nombre,
+      subject,
+      html,
+      reference: origenId,
+      tags: ['compositor'],
     })
 
-    if (!res.ok) {
-      const cuerpoBrevo = await res.text()
+    // 7. Registrar el envío (éxito o fallo) en el histórico unificado — sin destinatario_tercero_id
+    // porque el compositor admite un correo suelto sin persona vinculada en terceros.
+    await registrarEnvioComunicacion(admin, {
+      tenantId: p.tenant_id,
+      origen: { modulo: 'compositor', entidad: 'compositor_envio', id: origenId, evento: 'compositor_correo.enviado' },
+      canal: 'email',
+      destinatarioTerceroId: null,
+      destinatarioContacto: p.destinatario_email,
+      plantillaCodigo: p.plantilla_id ?? 'texto_libre',
+      plantillaVersion: 0,
+      asunto: subject,
+      contenidoRenderizado: html,
+      resultadoEnvio,
+      actorId,
+      esAutomatico: false,
+    })
+
+    if (!resultadoEnvio.success) {
       logEvent({
         level: 'warn',
         action: 'enviar_correo_compositor.brevo_error',
         correlationId,
         actorId,
         tenantId: p.tenant_id,
-        meta: { status: res.status, body: cuerpoBrevo },
+        meta: { error: resultadoEnvio.errorMessage },
       })
-      return errorResponse(
-        502,
-        'BREVO_ERROR',
-        `Brevo respondió ${res.status}.`,
-        undefined,
-        correlationId,
-      )
+      return errorResponse(502, 'BREVO_ERROR', resultadoEnvio.errorMessage ?? 'Brevo no aceptó el correo.', undefined, correlationId)
     }
 
-    // 7. Auditar envío
+    // 8. Auditar envío (bitácora genérica complementaria — nada depende de esta fila)
     await admin.from('audit_log').insert({
       tenant_id: p.tenant_id,
       actor_id: actorId,

@@ -8,9 +8,18 @@ const cliente = useSupabaseClient()
 const config = useRuntimeConfig()
 
 const email = ref('')
+const emailTocado = ref(false)
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const enviado = ref(false)
+
+// Ver login.vue: mismo mensaje de formato, integrado al look del formulario
+// en vez del tooltip nativo del navegador; no se muestra hasta salir del campo.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const errorEmail = computed(() => {
+  if (!emailTocado.value || !email.value) return undefined
+  return EMAIL_REGEX.test(email.value) ? undefined : 'Ingresa un correo con formato válido.'
+})
 
 async function enviarEnlace(): Promise<void> {
   error.value = null
@@ -45,8 +54,16 @@ async function enviarEnlace(): Promise<void> {
     />
 
     <form v-else class="space-y-4" @submit.prevent="enviarEnlace">
-      <UFormField label="Correo electrónico" name="email">
-        <UInput v-model="email" type="email" required autocomplete="email" class="w-full" />
+      <UFormField label="Correo electrónico" name="email" :error="errorEmail">
+        <UInput
+          v-model="email"
+          type="email"
+          required
+          autocomplete="email"
+          icon="i-lucide-mail"
+          class="w-full"
+          @blur="emailTocado = true"
+        />
       </UFormField>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" />

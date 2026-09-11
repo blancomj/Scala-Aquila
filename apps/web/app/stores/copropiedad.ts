@@ -59,6 +59,8 @@ export interface ActualizarTenantParams {
   // CO-8 §4.3: periodicidad de declaración de IVA — solo tiene sentido con responsable_iva=true.
   iva_periodicidad_id?: number | null
   marco_fundamento?: string | null
+  // CO-9 §4.2: solo aplica al caso residencial — comercial/mixto ya lo exige Ley 675 art. 56.
+  tiene_revisor_fiscal?: boolean | null
 }
 
 export const useCopropiedadStore = defineStore('copropiedad', () => {

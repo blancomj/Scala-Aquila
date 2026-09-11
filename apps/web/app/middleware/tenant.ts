@@ -25,6 +25,8 @@
  * onboarding; active_tenant_id es solo una preferencia de sesión que se
  * puede — y debe — reconstruir a partir de ellas.
  */
+import type { Database } from '@aquila/shared'
+
 export default defineNuxtRouteMiddleware(async (to) => {
   // TODO lo que dependa del contexto de la app —stores, useCookie— se resuelve
   // ANTES del primer await. Tras un await se pierde ese contexto (unctx no lo
@@ -39,6 +41,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // compartido entre peticiones concurrentes, que es lo que Pinia advierte.
   const authStore = useAuthStore()
   const tenantStore = useTenantStore()
+  const cliente = useSupabaseClient<Database>()
   const copropiedadConfirmada = useCookie<boolean>('copropiedad-confirmada-sesion', {
     default: () => false,
   })
@@ -62,6 +65,21 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // /plataforma no declara este middleware, así que no hay bucle.
   if (tenantStore.memberships.length === 0 && perfil?.is_platform_admin) {
     return navigateTo('/plataforma')
+  }
+
+  // Un actor externo (EXT-01/AD-37) nunca tiene membership por diseño — "un actor externo
+  // nunca es tenant_member", regla que gobierna toda la serie External (APENDICE_EXT.md).
+  // Sin este chequeo caería en la rama de abajo ("crea tu copropiedad"), dejándolo crear una
+  // copropiedad fantasma si navega por accidente a una ruta interna con este middleware. Las
+  // páginas de portal-externo/* no declaran 'tenant', así que esto solo se ejerce en ese caso
+  // accidental — una llamada extra por sesión sin membership, nunca en el camino feliz normal.
+  if (tenantStore.memberships.length === 0 && perfil?.id) {
+    const { data: vinculosExterno } = await cliente.rpc('fn_actor_externo_mis_vinculos', {
+      p_auth_user_id: perfil.id,
+    })
+    if (vinculosExterno && vinculosExterno.length > 0) {
+      return navigateTo('/portal-externo/mis-vinculos')
+    }
   }
 
   if (tenantStore.memberships.length === 0) {

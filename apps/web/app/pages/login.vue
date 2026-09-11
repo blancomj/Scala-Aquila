@@ -12,9 +12,22 @@ const vieneDeInvitacion = computed(
 )
 
 const email = ref('')
+const emailTocado = ref(false)
 const password = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
+const mostrarPassword = ref(false)
+
+// Validación de formato en el cliente, además del `type="email"` nativo del
+// input (que ya bloquea el submit pero solo muestra el tooltip del
+// navegador) — este mensaje se integra al look del formulario. No se
+// muestra hasta que el usuario sale del campo, para no marcar error apenas
+// escribe la primera letra.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const errorEmail = computed(() => {
+  if (!emailTocado.value || !email.value) return undefined
+  return EMAIL_REGEX.test(email.value) ? undefined : 'Ingresa un correo con formato válido.'
+})
 
 // Nunca navegar a lo que venga en la query sin validar: sin esto, un enlace
 // tipo /login?redirect=https://evil.test lo aceptaría window.location.href
@@ -84,18 +97,40 @@ async function iniciarSesion(): Promise<void> {
         description="Si tu cuenta tiene otro correo, la invitación no se va a poder aceptar con esta sesión."
       />
 
-      <UFormField label="Correo electrónico" name="email">
-        <UInput v-model="email" type="email" required autocomplete="email" class="w-full" />
+      <UFormField label="Correo electrónico" name="email" :error="errorEmail">
+        <UInput
+          v-model="email"
+          type="email"
+          required
+          autocomplete="email"
+          icon="i-lucide-mail"
+          class="w-full"
+          @blur="emailTocado = true"
+        />
       </UFormField>
 
       <UFormField label="Contraseña" name="password">
         <UInput
           v-model="password"
-          type="password"
+          :type="mostrarPassword ? 'text' : 'password'"
           required
           autocomplete="current-password"
+          icon="i-lucide-lock"
+          :ui="{ trailing: 'pe-1' }"
           class="w-full"
-        />
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="mostrarPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              :aria-pressed="mostrarPassword"
+              @click="mostrarPassword = !mostrarPassword"
+            />
+          </template>
+        </UInput>
       </UFormField>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" />

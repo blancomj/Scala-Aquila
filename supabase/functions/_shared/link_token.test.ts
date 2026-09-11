@@ -31,7 +31,14 @@ Deno.test('verificar: un token válido para otro id NO sirve (id editado en la U
 Deno.test('verificar: firma alterada → inválido', async () => {
   const token = await firmarTokenEnlace(ID, 30, CLAVE)
   const partes = token.split('.')
-  const firmaAlterada = partes[2]!.slice(0, -1) === '0' ? `${partes[2]!.slice(0, -1)}1` : `${partes[2]!.slice(0, -1)}0`
+  // Bug de este test corregido en MANT-11: comparar `slice(0, -1)` (todo menos el último char,
+  // ~63 caracteres) contra `'0'` (un solo char) nunca era true — la rama "ya es 0" jamás se
+  // tomaba, así que si el ÚLTIMO carácter real ya era '0', "reemplazarlo por 0" no alteraba nada
+  // y el test pasaba sin haber probado lo que dice probar (~1/16 de las corridas, al azar del
+  // HMAC). Comparar el último carácter, no el prefijo.
+  const ultimo = partes[2]!.at(-1)
+  const alterado = ultimo === '0' ? '1' : '0'
+  const firmaAlterada = partes[2]!.slice(0, -1) + alterado
   assertEquals(
     await verificarTokenEnlace(`${partes[0]}.${partes[1]}.${firmaAlterada}`, ID, CLAVE),
     'invalido',
@@ -68,6 +75,20 @@ Deno.test('firmar: vigencias distintas producen exp distinto (y por tanto firma 
   const [, expA] = a.split('.')
   const [, expB] = b.split('.')
   assertEquals(Number(expA) - Number(expB), 24 * 3600)
+})
+
+Deno.test('firmar: vigencia fraccionaria (horas, MANT-11) produce un exp entero y verificable', async () => {
+  // Regresión: antes de MANT-11 (2026-09-09), exp = floor(now/1000) + vigenciaDias*24*3600 sin
+  // redondear — con vigenciaDias fraccionario (p. ej. 6 horas = 0.25 días) el resultado casi
+  // siempre tiene decimales, y verificarTokenEnlace() exige Number.isInteger(exp). Los 3
+  // llamadores previos a MANT-11 (ver-estado-cuenta, generar-enlace-*, generar-qr-activo) solo
+  // pasaban días enteros, así que nunca lo disparaban — un QR de vigencia corta (horas) quedaba
+  // siempre 'invalido'.
+  const seisHorasEnDias = 6 / 24
+  const token = await firmarTokenEnlace(ID, seisHorasEnDias, CLAVE)
+  const [, expTexto] = token.split('.')
+  assertEquals(Number.isInteger(Number(expTexto)), true)
+  assertEquals(await verificarTokenEnlace(token, ID, CLAVE), 'valido')
 })
 
 Deno.test('sha256HexPublico: hash conocido para cadena vacía', async () => {

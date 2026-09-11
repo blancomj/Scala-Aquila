@@ -3,7 +3,10 @@
 // enlace); el documento completo vive en el link firmado, nunca adjunto.
 //
 // construirCorreoReciboCaja() es PURA (sin red, sin Deno.env) para poder
-// testearla; enviarEmailReciboCaja() es la cáscara Brevo.
+// testearla; enviarEmailReciboCaja() es la cáscara Brevo — COM-1: delega en
+// enviarEmailCobranza (email_cobranza_provider.ts), mismo criterio que
+// email_estado_cuenta.ts, para obtener providerMessageId normalizado.
+import { enviarEmailCobranza } from './email_cobranza_provider.ts'
 
 export interface ParametrosCorreoReciboCaja {
   tenantNombre: string
@@ -103,36 +106,35 @@ export function construirCorreoReciboCaja(p: ParametrosCorreoReciboCaja): {
   return { subject, html }
 }
 
-export async function enviarEmailReciboCaja(
-  params: ParametrosCorreoReciboCaja & { email: string },
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const apiKey = Deno.env.get('BREVO_API_KEY')
-  const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL')
-  const senderName = Deno.env.get('BREVO_SENDER_NAME') ?? 'Aquila PH'
-  if (!apiKey || !senderEmail) {
-    return { ok: false, error: 'Brevo no está configurado (faltan variables de entorno).' }
-  }
+export interface ResultadoEnvioReciboCaja {
+  readonly ok: boolean
+  /** subject/html se devuelven SIEMPRE, incluso en fallo — mismo criterio que
+   * email_estado_cuenta.ts: el envío fallido también es evidencia. */
+  readonly subject: string
+  readonly html: string
+  readonly providerMessageId: string | null
+  readonly error: string | null
+}
 
+export async function enviarEmailReciboCaja(
+  params: ParametrosCorreoReciboCaja & { email: string; reference: string },
+): Promise<ResultadoEnvioReciboCaja> {
   const { subject, html } = construirCorreoReciboCaja(params)
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      sender: { email: senderEmail, name: senderName },
-      to: [{ email: params.email }],
-      subject,
-      htmlContent: html,
-    }),
+  const resultado = await enviarEmailCobranza({
+    to: params.email,
+    destinatarioNombre: null,
+    subject,
+    html,
+    reference: params.reference,
+    tags: ['recibo_caja', params.reference],
   })
 
-  if (!res.ok) {
-    const cuerpo = await res.text()
-    return { ok: false, error: `Brevo respondió ${res.status}: ${cuerpo}` }
+  return {
+    ok: resultado.success,
+    subject,
+    html,
+    providerMessageId: resultado.providerMessageId ?? null,
+    error: resultado.success ? null : (resultado.errorMessage ?? 'Brevo no aceptó el correo.'),
   }
-  return { ok: true }
 }

@@ -3879,3 +3879,100 @@ regresión (67/67 en `tests/plantillas-email`, `tests/plantillas-sms` y `tests/t
 sin modificar ni una línea, no reproducido como `it()` porque no tiene sentido correr la suite de
 otro archivo desde dentro de un test). Detalle completo en `GOB_09_INFORME.md`.
 
+## D-71
+
+Portal web de identidad para actores externos (adición de alcance nueva, no uno de los 40 cortes
+de `HOJA_DE_RUTA.md`) — login/sesión + landing mínima en `apps/web/app/pages/portal-externo/`,
+consumiendo los Edge Functions ya existentes de EXT-01 (`actor-externo-solicitar-otp`/
+`-confirmar-otp`) sin ningún backend/SQL nuevo. Reemplaza la dependencia de `apps/mobile` (2
+pantallas, nunca ejecutadas en un dispositivo real) para que un propietario/tenedor pueda
+identificarse desde la web.
+
+**Stack: páginas Nuxt minimalistas, no HTML/CSS/JS 100% estático fuera del framework.** El pedido
+original era "independiente, HTML+CSS+JS" — investigado antes de implementar: `apps/web/nuxt.config.ts`
+(D-16) resuelve la sesión vía cookies con el protocolo interno de `@nuxtjs/supabase`/`@supabase/ssr`,
+no `localStorage`. Un cliente Supabase JS "vanilla" en una página HTML suelta serviría el login de
+ese momento, pero la sesión no sería visible para el resto de la app (SSR + middleware) sin
+reproducir a mano ese protocolo de cookies — el mismo "mecanismo paralelo" que el proyecto evita en
+todas partes. Se optó por páginas Vue SFC (`layout:'blank', publico:true`, mismo patrón que
+`consulta-inmueble/index.vue`: HTML semántico plano + CSS propio con scope, sin Nuxt UI pesado) —
+visualmente equivalente a HTML/CSS/JS mínimo, con `useSupabaseClient()` dando la sincronía de
+cookies gratis. Decisión confirmada con el usuario vía `AskUserQuestion` antes de escribir código.
+
+**Hallazgo real durante la verificación en navegador (no supuesto de la documentación ni copiado
+de `apps/mobile/src/session/cliente.ts::establecerSesionDesdeOtp`, que nunca se ejecutó en un
+dispositivo): el intercambio de `hashed_token` por sesión falla con los parámetros que tanto el
+código de `apps/mobile` como el comentario original de `actor-externo-confirmar-otp/index.ts`
+asumían.** Probado en vivo contra el proyecto remoto (Scala - Aquila, `hwjmlyzzvpmhadldavbq`) con
+un contacto real (propietario en JARDINES DE BABILONIA): `cliente.auth.verifyOtp({email, token:
+hashed_token, type:'magiclink'})` fallaba siempre con "Token has expired or is invalid" aunque el
+token fuera válido y recién emitido. Diagnosticado leyendo `auth.one_time_tokens` directamente
+(dos hallazgos independientes, confirmados contra la tabla real, no adivinados):
+1. `hashed_token` de `admin.generateLink()` está pensado para el parámetro `token_hash` de
+   `verifyOtp` (flujo de enlace) — `token`+`email` es para el código de 6 dígitos de un OTP de
+   `signInWithOtp`, un flujo distinto.
+2. Para un usuario YA existente y confirmado (el caso normal de un login repetido de actor
+   externo), `admin.generateLink({type:'magiclink'})` guarda el token con `token_type =
+   'recovery_token'` en `auth.one_time_tokens`, no `magiclink_token` — `verifyOtp` debe pedir
+   `type:'recovery'`, no `'magiclink'`, para encontrarlo.
+
+Corregido en `apps/web/app/utils/actor-externo-api.ts::establecerSesionActorExterno` con
+`cliente.auth.verifyOtp({ token_hash: hashedToken, type: 'recovery' })`. **`apps/mobile` tiene el
+mismo bug latente**, sin corregir aquí (fuera de alcance de este corte, y esa app nunca se
+compiló/ejecutó para haberlo detectado antes).
+
+**Guard en `apps/web/app/middleware/tenant.ts`** (confirmado con el usuario, hallazgo #2 del Plan
+del corte): sin membership, antes de asumir "nunca tuvo copropiedad" y mandar a
+`/onboarding/create-tenant`, se verifica si el usuario tiene algún `actor_externo_vinculo` (vía
+`fn_actor_externo_mis_vinculos`, ya `security definer` desde el fix de EXT-02) y si es así redirige
+a `/portal-externo/mis-vinculos` — un actor externo (AD-37: nunca `tenant_member`) que navegue por
+accidente a una ruta interna ya no puede terminar creando una copropiedad fantasma. Verificado en
+navegador: sesión de actor externo → `/dashboard` → redirige a `/portal-externo/mis-vinculos`.
+
+Verificado en navegador de punta a punta contra datos reales (Scala - Aquila): solicitar código →
+correo real recibido → confirmar → sesión persistente en cookies (sobrevive recarga completa) →
+landing muestra el vínculo real (JARDINES DE BABILONIA / Copropietario) → cerrar sesión → vuelve a
+`/portal-externo`. `pnpm exec nuxt typecheck` y el lint de `apps/web` en cero errores sobre los
+archivos de este corte. Sin migraciones ni Edge Functions nuevas — cero cambios en
+`MIGRACIONES_LEDGER.md`.
+
+**Addendum mismo día — "Hacer una solicitud" (EXT-02), agregado a pedido del usuario "a manera de
+prueba" sobre el mismo portal.** El backend de EXT-02 (crear solicitud desde External) ya estaba
+cerrado en otra sesión — dos Edge Functions dedicadas (`external-solicitudes-catalogo`,
+`external-solicitudes-crear`), primeras de External que autentican por **sesión** (Bearer JWT) en
+vez de token firmado, resolviendo `inmueble_id`/`tenant_id` siempre server-side vía
+`fn_actor_externo_mis_vinculos` del propio caller — nunca del cuerpo que mande el cliente. Nueva
+página `apps/web/app/pages/portal-externo/nueva-solicitud.vue` (mismo patrón visual que las otras
+dos) + 4 funciones nuevas en `actor-externo-api.ts` (`obtenerCatalogoSolicitud`,
+`crearSolicitudExterna`), enlazadas desde un botón "Hacer una solicitud" en `mis-vinculos.vue`.
+Cero SQL nuevo — mismo contrato que ya usa `apps/mobile/src/screens/NuevaSolicitudScreen.tsx`.
+
+**Hallazgo real: `external-solicitudes-catalogo`/`-crear` NUNCA se habían desplegado al proyecto
+remoto**, aunque el código llevaba tiempo en el repo y EXT-02 constaba como cerrado (memoria de
+sesión, no en este archivo). Confirmado contra `list_edge_functions` (MCP Supabase): no aparecían
+en la lista de funciones `ACTIVE` de `hwjmlyzzvpmhadldavbq`, a diferencia de
+`actor-externo-solicitar-otp`/`-confirmar-otp` que sí. Síntoma en el navegador: error de CORS en
+el preflight (no un 404 limpio, porque el gateway de Supabase nunca encuentra la función). Corregido
+con `supabase functions deploy external-solicitudes-catalogo external-solicitudes-crear
+--project-ref hwjmlyzzvpmhadldavbq` (confirmado con el usuario antes de desplegar — acción con
+efecto en el proyecto remoto real). **Lección reutilizable**: "el corte quedó cerrado" no implica
+que sus Edge Functions llegaron a desplegarse — verificar contra `list_edge_functions` (o el
+dashboard), no solo contra el código del repo o la suite de pruebas (que corre contra RPCs
+directos, nunca contra la URL pública de la función).
+
+**Segundo hallazgo, de datos, no de código**: `JARDINES DE BABILONIA` (el único tenant con un
+actor externo real disponible para probar) no tiene ninguna fila `TIPO_SOLICITUD`/
+`CATEGORIA_SOLICITUD` en `lista_tipos` — ni propias del tenant ni de plataforma (`tenant_id is
+null`, tampoco existen para esta familia). Confirmado contra 27 tenants que sí tienen 2 valores
+activos cada uno. La página ahora muestra un estado vacío explícito ("Esta copropiedad todavía no
+tiene un catálogo... pídele al staff que lo active") en vez de un formulario en blanco. El staff
+configura esto en `Configuración → Catálogos` (`apps/web/app/pages/configuracion/catalogos.vue`,
+permiso `settings:manage`) — pantalla genérica de `lista_tipos` que no crea familias nuevas, solo
+valores dentro de una ya reconocida por el sistema. **No se sembró el catálogo para este tenant
+desde esta sesión** (dato de producción, fuera de alcance sin pedirlo explícitamente) — el
+envío real de una solicitud (`crearSolicitudExterna` → `fn_solicitud_recibir_externa`) quedó
+con el código escrito y desplegado pero **sin verificación end-to-end en navegador** (el
+catálogo vacío lo impide); el resto del flujo (elegir vínculo si hay más de uno, cargar catálogo,
+manejo de errores) sí se verificó en vivo contra este mismo tenant. `nuxt typecheck`/lint en cero
+errores sobre los archivos nuevos.
+

@@ -45,6 +45,132 @@ export type ResultadoComunicacion =
     }
   | { readonly tipo: 'no_ejecutable'; readonly codigo: string; readonly mensaje: string }
 
+/** Forma mínima que comparten EnvioEmailResult (email_cobranza_provider.ts) y SendSmsResult
+ * (sms_provider.ts) — lo único que registrarEnvioComunicacion necesita del resultado del envío. */
+export interface ResultadoEnvioProveedor {
+  readonly success: boolean
+  readonly providerMessageId?: string
+  readonly errorMessage?: string
+}
+
+export interface RegistrarEnvioParams {
+  readonly tenantId: string
+  readonly origen: OrigenComunicacion
+  readonly canal: 'sms' | 'email'
+  readonly destinatarioTerceroId: string | null
+  readonly destinatarioContacto: string
+  readonly plantillaCodigo: string
+  readonly plantillaVersion: number
+  readonly asunto: string | null
+  readonly contenidoRenderizado: string
+  readonly resultadoEnvio: ResultadoEnvioProveedor
+  readonly actorId: string | null
+  /** COM-1 §"es_automatico por emisor" — cada llamador declara a propósito si el envío lo
+   * disparó una persona o un cron/batch sin intervención humana en el momento. */
+  readonly esAutomatico: boolean
+}
+
+export interface ResultadoRegistroEnvio {
+  readonly envioId: string | null
+  readonly evidenciaError: string | null
+}
+
+/** Subconjunto estructural mínimo de ClienteAdmin que registrarEnvioComunicacion necesita — mismo
+ * criterio que AdminMinimo en envio_estado_cuenta.ts: así envio_estado_cuenta.ts/envio_recibo_caja.ts
+ * pueden llamar esta función sin acoplarse al tipo Database completo, solo ampliando su propio
+ * AdminMinimo con estas dos firmas de from(). El ClienteAdmin real (createClient<Database>) también
+ * la satisface estructuralmente sin cambios. */
+export interface AdminEnvios {
+  from(table: 'acciones_cobranza_envios'): {
+    insert(fila: Record<string, unknown>): {
+      select(campos: 'id'): {
+        single(): PromiseLike<{
+          data: { id: string } | null
+          error: { message: string; code?: string } | null
+        }>
+      }
+    }
+  }
+  from(table: 'acciones_cobranza_acuses'): {
+    insert(fila: Record<string, unknown>): PromiseLike<{ error: { message: string } | null }>
+  }
+}
+
+/**
+ * Registra en acciones_cobranza_envios + acciones_cobranza_acuses el hecho material de un envío
+ * ya despachado (o fallido) por el proveedor — extraído de enviarComunicacionGeneralizada (COM-1)
+ * para que también lo usen los emisores de correo que hasta ahora solo dejaban rastro en
+ * audit_log (compositor, estado de cuenta, recibo de caja): sin esta fila el webhook de Brevo no
+ * tiene envio_id contra el cual resolver un acuse.
+ *
+ * Nunca lanza: el correo/SMS ya salió (o falló, y eso también se registra) antes de llamar aquí —
+ * un fallo de auditoría no debe repetir ni revertir el envío real.
+ */
+export async function registrarEnvioComunicacion(
+  admin: AdminEnvios,
+  params: RegistrarEnvioParams,
+): Promise<ResultadoRegistroEnvio> {
+  const materialHash =
+    params.asunto === null ? params.contenidoRenderizado : `${params.asunto}\n\n${params.contenidoRenderizado}`
+  const contenidoHash = await calcularContenidoHash(materialHash)
+
+  const filaEnvio = {
+    tenant_id: params.tenantId,
+    accion_id: null,
+    origen_modulo: params.origen.modulo,
+    origen_entidad: params.origen.entidad,
+    origen_id: params.origen.id,
+    origen_evento: params.origen.evento,
+    intento_numero: 1,
+    canal: params.canal,
+    destinatario_tercero_id: params.destinatarioTerceroId,
+    destinatario_contacto: params.destinatarioContacto,
+    plantilla_codigo: params.plantillaCodigo,
+    plantilla_version: params.plantillaVersion,
+    asunto: params.asunto,
+    contenido_renderizado: params.contenidoRenderizado,
+    contenido_hash: contenidoHash,
+    proveedor: 'brevo',
+    referencia_externa: params.resultadoEnvio.providerMessageId ?? null,
+    enviado_por: params.actorId,
+    es_automatico: params.esAutomatico,
+  }
+
+  let { data: envio, error: errorEnvio } = await admin
+    .from('acciones_cobranza_envios')
+    .insert(filaEnvio)
+    .select('id')
+    .single()
+
+  // Choque contra acciones_cobranza_envios_origen_unico (23505): un reenvío deliberado del mismo
+  // origen/evento merece su propia fila — se reintenta una vez con el evento desambiguado en vez
+  // de perder la evidencia de que este segundo envío ocurrió.
+  if (errorEnvio && errorEnvio.code === '23505') {
+    const reintento = await admin
+      .from('acciones_cobranza_envios')
+      .insert({ ...filaEnvio, origen_evento: `${params.origen.evento}:${String(Date.now())}` })
+      .select('id')
+      .single()
+    envio = reintento.data
+    errorEnvio = reintento.error
+  }
+
+  if (errorEnvio || !envio) {
+    return { envioId: null, evidenciaError: errorEnvio?.message ?? 'INTERNAL_ERROR: sin fila de envío.' }
+  }
+
+  const { error: errorAcuse } = await admin.from('acciones_cobranza_acuses').insert({
+    tenant_id: params.tenantId,
+    envio_id: envio.id,
+    estado: params.resultadoEnvio.success ? 'encolado' : 'fallido',
+    ocurrido_at: new Date().toISOString(),
+    origen: 'proveedor',
+    motivo: params.resultadoEnvio.success ? null : (params.resultadoEnvio.errorMessage ?? null),
+  })
+
+  return { envioId: envio.id, evidenciaError: errorAcuse?.message ?? null }
+}
+
 /**
  * Envía (o simula) una comunicación generalizada. A diferencia de
  * despacharAccionCobranza, no resuelve destinatario/plantilla desde
@@ -131,58 +257,28 @@ export async function enviarComunicacionGeneralizada(
         })
       : await sendSms({ to: opciones.destinatarioContacto, body: contenido, reference: opciones.origen.id })
 
-  const materialHash = asunto === null ? contenido : `${asunto}\n\n${contenido}`
-  const contenidoHash = await calcularContenidoHash(materialHash)
-
-  const { data: envio, error: errorEnvio } = await admin
-    .from('acciones_cobranza_envios')
-    .insert({
-      tenant_id: opciones.tenantId,
-      accion_id: null,
-      origen_modulo: opciones.origen.modulo,
-      origen_entidad: opciones.origen.entidad,
-      origen_id: opciones.origen.id,
-      origen_evento: opciones.origen.evento,
-      intento_numero: 1,
-      canal: opciones.canal,
-      destinatario_tercero_id: opciones.destinatarioTerceroId,
-      destinatario_contacto: opciones.destinatarioContacto,
-      plantilla_codigo: opciones.eventType,
-      plantilla_version: plantillaVersion,
-      asunto,
-      contenido_renderizado: contenido,
-      contenido_hash: contenidoHash,
-      proveedor: 'brevo',
-      referencia_externa: resultadoEnvio.providerMessageId ?? null,
-      enviado_por: opciones.actorId,
-    })
-    .select('id')
-    .single()
-
-  if (errorEnvio) {
-    return {
-      tipo: 'enviada',
-      exito: resultadoEnvio.success,
-      envioId: null,
-      evidenciaError: errorEnvio.message,
-      errorMessage: resultadoEnvio.errorMessage ?? null,
-    }
-  }
-
-  const { error: errorAcuse } = await admin.from('acciones_cobranza_acuses').insert({
-    tenant_id: opciones.tenantId,
-    envio_id: envio.id,
-    estado: resultadoEnvio.success ? 'encolado' : 'fallido',
-    ocurrido_at: new Date().toISOString(),
-    origen: 'proveedor',
-    motivo: resultadoEnvio.success ? null : resultadoEnvio.errorMessage,
+  // es_automatico: true — el único invocador hoy de enviarComunicacionGeneralizada es el cron de
+  // vencimientos de gobierno (enviar-comunicacion no tiene disparo manual desde UI, COM-1).
+  const registro = await registrarEnvioComunicacion(admin, {
+    tenantId: opciones.tenantId,
+    origen: opciones.origen,
+    canal: opciones.canal,
+    destinatarioTerceroId: opciones.destinatarioTerceroId,
+    destinatarioContacto: opciones.destinatarioContacto,
+    plantillaCodigo: opciones.eventType,
+    plantillaVersion,
+    asunto,
+    contenidoRenderizado: contenido,
+    resultadoEnvio,
+    actorId: opciones.actorId,
+    esAutomatico: true,
   })
 
   return {
     tipo: 'enviada',
     exito: resultadoEnvio.success,
-    envioId: envio.id,
-    evidenciaError: errorAcuse?.message ?? null,
+    envioId: registro.envioId,
+    evidenciaError: registro.evidenciaError,
     errorMessage: resultadoEnvio.errorMessage ?? null,
   }
 }

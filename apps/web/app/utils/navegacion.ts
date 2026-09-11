@@ -69,6 +69,10 @@ export const NAV_ICONOS = {
   // Varias tarjetas apiladas con una flecha de salida: lote de pago agrupando facturas (FIN-3).
   lotesPago:
     'M4 7h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM7 4h13a1 1 0 0 1 1 1v2M15 12l4 4-4 4',
+  // Línea ascendente con puntos: flujo de caja proyectado (FIN-4).
+  flujoProyectado: 'M3 17l5-5 4 4 8-8M14 8h6v6',
+  // Velocímetro: tablero de finanzas, una sola pantalla con todo (FIN-4).
+  tableroFinanciero: 'M12 3a9 9 0 1 0 9 9M12 12l5-5M12 3v2M21 12h-2M5.6 5.6l1.4 1.4',
   // Edificio institucional con columnas: órganos de gobierno de la copropiedad (GOB-1).
   organosGobierno: 'M4 21h16M5 21V10.5L12 5l7 5.5V21M8 21v-7M12 21v-7M16 21v-7M4 10.5h16',
   // Personas alrededor de una mesa: reunión, convocatoria y asistencia (GOB-2).
@@ -90,6 +94,8 @@ export const NAV_ICONOS = {
   convivenciaGobierno: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3ZM12 8v5M12 16h.01',
   // Cuadrícula de paneles: tablero que agrega lo de todos los cortes de gobierno (GOB-9).
   tableroGobierno: 'M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 14h7v6H4z',
+  // Sobre: histórico unificado de correo enviado por cualquier módulo (COM-1).
+  comunicaciones: 'M3 8l9 6 9-6M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -387,6 +393,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'financiero',
         icono: NAV_ICONOS.contabilidad,
       },
+      {
+        label: 'Rendición de cuentas',
+        to: '/contabilidad/rendicion',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.contabilidad,
+      },
     ],
   },
   {
@@ -412,6 +425,20 @@ export const NAV_GRUPOS: NavGrupo[] = [
         permiso: 'data:read',
         modulo: 'financiero',
         icono: NAV_ICONOS.lotesPago,
+      },
+      {
+        label: 'Flujo de caja proyectado',
+        to: '/finanzas/flujo-proyectado',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.flujoProyectado,
+      },
+      {
+        label: 'Tablero de finanzas',
+        to: '/finanzas/tablero',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.tableroFinanciero,
       },
     ],
   },
@@ -473,8 +500,50 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.mantenimiento,
       },
       {
+        label: 'Reservas de zonas comunes',
+        to: '/mantenimiento/reservas',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Visitantes y acceso',
+        to: '/mantenimiento/acceso',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Indicadores',
+        to: '/mantenimiento/indicadores',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Salud de los activos',
+        to: '/mantenimiento/salud',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Escenarios: reparar o reemplazar',
+        to: '/mantenimiento/salud/escenarios',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
+        label: 'Mapa de riesgo',
+        to: '/mantenimiento/salud/mapa-riesgo',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.mantenimiento,
+      },
+      {
         label: 'Configuración de mantenimiento',
         to: '/mantenimiento/configuracion',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.configuracion,
+      },
+      {
+        label: 'Configuración de salud',
+        to: '/mantenimiento/salud/configuracion',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.configuracion,
       },
@@ -597,6 +666,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
       },
       { label: 'Usuarios', to: '/usuarios', permiso: 'users:manage', icono: NAV_ICONOS.usuarios },
       { label: 'Auditoría', to: '/auditoria', permiso: 'audit:view', icono: NAV_ICONOS.auditoria },
+      {
+        label: 'Comunicaciones',
+        to: '/comunicaciones',
+        permiso: 'audit:view',
+        icono: NAV_ICONOS.comunicaciones,
+      },
     ],
   },
 ]

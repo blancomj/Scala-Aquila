@@ -15,6 +15,7 @@
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { construirCorreoEstadoCuenta, enviarEmailEstadoCuenta } from './email_estado_cuenta.ts'
 import { firmarTokenEnlace } from './link_token.ts'
+import { registrarEnvioComunicacion } from './comunicacion_generalizada.ts'
 
 export const VIGENCIA_ENLACE_DIAS = 30
 
@@ -56,7 +57,7 @@ export interface AdminMinimo {
       eq(col: 'inmueble_id', val: string): {
         is(col: 'vigente_hasta', val: null): {
           eq(col: 'rol.codigo', val: string): PromiseLike<{
-            data: { tercero: { email: string | null } | null }[] | null
+            data: { tercero: { id: string; email: string | null } | null }[] | null
             error: { message: string } | null
           }>
         }
@@ -74,6 +75,21 @@ export interface AdminMinimo {
         }
       }
     }
+  }
+  // COM-1: mismas dos firmas que AdminEnvios (comunicacion_generalizada.ts) — permite pasar este
+  // AdminMinimo directamente a registrarEnvioComunicacion sin acoplarse al tipo Database completo.
+  from(table: 'acciones_cobranza_envios'): {
+    insert(fila: Record<string, unknown>): {
+      select(campos: 'id'): {
+        single(): PromiseLike<{
+          data: { id: string } | null
+          error: { message: string; code?: string } | null
+        }>
+      }
+    }
+  }
+  from(table: 'acciones_cobranza_acuses'): {
+    insert(fila: Record<string, unknown>): PromiseLike<{ error: { message: string } | null }>
   }
 }
 
@@ -102,26 +118,39 @@ export async function fueNotificadoRecientemente(
   return data !== null
 }
 
+export interface DestinatarioEstadoCuenta {
+  readonly email: string
+  readonly terceroId: string
+}
+
 /** Propietarios vigentes con email — misma definición de "vigente" que
  * cargarPropietarios en apps/web (inmueble_persona_rol sin vigente_hasta, rol
  * copropietario). `recibe_notificaciones` existe pero es nueva y nullable:
  * filtrarla aquí excluiría a todos los NULL; se activará cuando la columna
- * tenga backfill (documentado en D-28). */
-async function emailsDeDestinatarios(admin: AdminMinimo, inmuebleId: string): Promise<string[]> {
+ * tenga backfill (documentado en D-28).
+ * COM-1: también devuelve terceroId — acciones_cobranza_envios.destinatario_tercero_id lo
+ * necesita para poder trazar el envío hasta la persona real. */
+async function emailsDeDestinatarios(admin: AdminMinimo, inmuebleId: string): Promise<DestinatarioEstadoCuenta[]> {
   const { data, error } = await admin
     .from('inmueble_persona_rol')
-    .select('tercero:terceros(email), rol:lista_tipos!inner(codigo)')
+    .select('tercero:terceros(id, email), rol:lista_tipos!inner(codigo)')
     .eq('inmueble_id', inmuebleId)
     .is('vigente_hasta', null)
     .eq('rol.codigo', 'copropietario')
   if (error) throw new Error(`INTERNAL_ERROR: destinatarios — ${error.message}`)
 
-  const emails = new Set<string>()
+  const vistos = new Set<string>()
+  const destinatarios: DestinatarioEstadoCuenta[] = []
   for (const fila of data ?? []) {
     const email = fila.tercero?.email
-    if (email) emails.add(email.toLowerCase())
+    const terceroId = fila.tercero?.id
+    if (!email || !terceroId) continue
+    const emailNormalizado = email.toLowerCase()
+    if (vistos.has(emailNormalizado)) continue
+    vistos.add(emailNormalizado)
+    destinatarios.push({ email: emailNormalizado, terceroId })
   }
-  return [...emails]
+  return destinatarios
 }
 
 export interface OpcionesEnvio {
@@ -165,18 +194,46 @@ export async function enviarEstadoCuentaPorId(
 
   const enviados: string[] = []
   let errores = 0
-  for (const email of destinatarios) {
+  for (const destinatario of destinatarios) {
     const resultado = await enviarEmailEstadoCuenta({
-      email,
+      email: destinatario.email,
       tenantNombre: registro.datos.tenant_nombre,
       inmuebleCodigo: registro.datos.inmueble_codigo,
       saldoFinal: Number(registro.datos.saldo_final),
       corteIso: registro.datos.generado_en,
       urlDocumento: enlace,
       vigenciaDias: VIGENCIA_ENLACE_DIAS,
+      reference: id,
     })
-    if (resultado.ok) enviados.push(email)
+    if (resultado.ok) enviados.push(destinatario.email)
     else errores += 1
+
+    // COM-1: registro en acciones_cobranza_envios (éxito o fallo) — sin esta fila el webhook de
+    // Brevo no puede resolver un acuse de entrega/rebote para este correo. origen_evento incluye
+    // el destinatario porque un mismo documento puede notificarse a varios copropietarios.
+    await registrarEnvioComunicacion(admin, {
+      tenantId: registro.tenant_id,
+      origen: {
+        modulo: 'estado_cuenta',
+        entidad: 'estados_cuenta_generados',
+        id,
+        evento: `estado_cuenta.enviado:${destinatario.email}`,
+      },
+      canal: 'email',
+      destinatarioTerceroId: destinatario.terceroId,
+      destinatarioContacto: destinatario.email,
+      plantillaCodigo: 'estado_cuenta_resumen',
+      plantillaVersion: 0,
+      asunto: resultado.subject,
+      contenidoRenderizado: resultado.html,
+      resultadoEnvio: {
+        success: resultado.ok,
+        providerMessageId: resultado.providerMessageId ?? undefined,
+        errorMessage: resultado.error ?? undefined,
+      },
+      actorId: opts.actorId ?? null,
+      esAutomatico: opts.viaBatch ?? false,
+    })
   }
 
   // Rastro del envío (dedupe futuro + auditoría) — best-effort: el correo real

@@ -14,6 +14,8 @@ const confirmarPassword = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const exito = ref(false)
+const mostrarPassword = ref(false)
+const mostrarConfirmarPassword = ref(false)
 
 async function restablecer(): Promise<void> {
   error.value = null
@@ -55,23 +57,51 @@ async function restablecer(): Promise<void> {
       <UFormField label="Nueva contraseña" name="password">
         <UInput
           v-model="password"
-          type="password"
+          :type="mostrarPassword ? 'text' : 'password'"
           required
           autocomplete="new-password"
           minlength="8"
+          icon="i-lucide-lock"
+          :ui="{ trailing: 'pe-1' }"
           class="w-full"
-        />
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="mostrarPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              :aria-pressed="mostrarPassword"
+              @click="mostrarPassword = !mostrarPassword"
+            />
+          </template>
+        </UInput>
       </UFormField>
 
       <UFormField label="Confirmar contraseña" name="confirmar_password">
         <UInput
           v-model="confirmarPassword"
-          type="password"
+          :type="mostrarConfirmarPassword ? 'text' : 'password'"
           required
           autocomplete="new-password"
           minlength="8"
+          icon="i-lucide-lock"
+          :ui="{ trailing: 'pe-1' }"
           class="w-full"
-        />
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="mostrarConfirmarPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="mostrarConfirmarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              :aria-pressed="mostrarConfirmarPassword"
+              @click="mostrarConfirmarPassword = !mostrarConfirmarPassword"
+            />
+          </template>
+        </UInput>
       </UFormField>
 
       <UAlert v-if="error" color="error" variant="soft" :title="error" />

@@ -9,8 +9,12 @@
 // bloqueadas y no filtra aperturas a terceros (Ley 1581).
 //
 // construirCorreoEstadoCuenta() es PURA (sin red, sin Deno.env) para poder
-// testearla con deno test; enviarEmailEstadoCuenta() es la cáscara Brevo,
-// mismo patrón de extracción de error que email_invitation.ts.
+// testearla con deno test; enviarEmailEstadoCuenta() es la cáscara Brevo —
+// COM-1: delega en enviarEmailCobranza (email_cobranza_provider.ts) en vez
+// de hacer su propio fetch, porque ese es el único sitio del repo que ya
+// normaliza providerMessageId — sin él el webhook de Brevo no puede
+// resolver un acuse contra este envío.
+import { enviarEmailCobranza } from './email_cobranza_provider.ts'
 
 export interface ParametrosCorreoEstadoCuenta {
   tenantNombre: string
@@ -115,39 +119,39 @@ export function construirCorreoEstadoCuenta(p: ParametrosCorreoEstadoCuenta): {
   return { subject, html }
 }
 
-/** Envío real vía Brevo (/v3/smtp/email, HTML inline) — mismo criterio de
- * extracción de error que email_invitation.ts: Brevo reporta el motivo en el
- * cuerpo JSON, no en el status HTTP. */
-export async function enviarEmailEstadoCuenta(
-  params: ParametrosCorreoEstadoCuenta & { email: string },
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const apiKey = Deno.env.get('BREVO_API_KEY')
-  const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL')
-  const senderName = Deno.env.get('BREVO_SENDER_NAME') ?? 'Aquila PH'
-  if (!apiKey || !senderEmail) {
-    return { ok: false, error: 'Brevo no está configurado (faltan variables de entorno).' }
-  }
+/** Envío real vía Brevo (/v3/smtp/email, HTML inline) a través de
+ * enviarEmailCobranza — COM-1: subject/html/providerMessageId viajan en la
+ * respuesta porque envio_estado_cuenta.ts los necesita para registrar el
+ * envío en acciones_cobranza_envios (registrarEnvioComunicacion). */
+export interface ResultadoEnvioEstadoCuenta {
+  readonly ok: boolean
+  /** subject/html se devuelven SIEMPRE, incluso en fallo — el envío fallido también es evidencia
+   * (CAR §34.1: los intentos fallidos acreditan diligencia, no se descartan). */
+  readonly subject: string
+  readonly html: string
+  readonly providerMessageId: string | null
+  readonly error: string | null
+}
 
+export async function enviarEmailEstadoCuenta(
+  params: ParametrosCorreoEstadoCuenta & { email: string; reference: string },
+): Promise<ResultadoEnvioEstadoCuenta> {
   const { subject, html } = construirCorreoEstadoCuenta(params)
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      sender: { email: senderEmail, name: senderName },
-      to: [{ email: params.email }],
-      subject,
-      htmlContent: html,
-    }),
+  const resultado = await enviarEmailCobranza({
+    to: params.email,
+    destinatarioNombre: null,
+    subject,
+    html,
+    reference: params.reference,
+    tags: ['estado_cuenta', params.reference],
   })
 
-  if (!res.ok) {
-    const cuerpo = await res.text()
-    return { ok: false, error: `Brevo respondió ${res.status}: ${cuerpo}` }
+  return {
+    ok: resultado.success,
+    subject,
+    html,
+    providerMessageId: resultado.providerMessageId ?? null,
+    error: resultado.success ? null : (resultado.errorMessage ?? 'Brevo no aceptó el correo.'),
   }
-  return { ok: true }
 }

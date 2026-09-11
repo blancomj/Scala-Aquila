@@ -32,6 +32,7 @@ const ARCHIVOS_LEGADO_COLOR_HEX = new Set<string>([
   'components/cartera/DonutAntiguedad.vue', // dataviz — paleta categórica
   'components/cartera/EvolucionChart.vue', // dataviz — paleta categórica
   'pages/cartera/index.vue', // dataviz — paleta categórica (escalones de mora)
+  'pages/finanzas/flujo-proyectado.vue', // dataviz — paleta categórica (curvas base/conservador/optimista, FIN-4)
   // 'pages/comprobante-cuenta/[id].vue' salió del allowlist (D-27/D-28): el
   // visor público se reescribió solo con tokens — ya no necesita hex.
 ])

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Aquila External",
+    "slug": "aquila-external",
+    "scheme": "aquilaexternal",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": false },
+    "android": {}
+  }
+}

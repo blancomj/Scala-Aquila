@@ -43,6 +43,7 @@ const form = reactive({
   agenteRetencion: false,
   ivaPeriodicidadId: null as number | null,
   marcoFundamento: '',
+  tieneRevisorFiscal: false,
 })
 
 const opcionesPeriodicidadIva = ref<{ label: string; value: number }[]>([])
@@ -57,6 +58,7 @@ function sincronizarFormConTenant(): void {
   form.agenteRetencion = t.agente_retencion
   form.ivaPeriodicidadId = t.iva_periodicidad_id
   form.marcoFundamento = t.marco_fundamento ?? ''
+  form.tieneRevisorFiscal = t.tiene_revisor_fiscal ?? false
 }
 
 await useAsyncData('contable-configuracion', async () => {
@@ -104,6 +106,7 @@ async function guardar(): Promise<void> {
       agente_retencion: form.agenteRetencion,
       iva_periodicidad_id: form.responsableIva ? form.ivaPeriodicidadId : null,
       marco_fundamento: form.marcoFundamento.trim() || null,
+      tiene_revisor_fiscal: form.usoEconomico === 'residencial' ? form.tieneRevisorFiscal : null,
     })
     await contabilidadStore.cargarMarcoContable(tenantId)
     aviso.value = 'Clasificación guardada.'
@@ -161,6 +164,19 @@ async function guardar(): Promise<void> {
         <UCheckbox v-model="form.responsableIva" label="Responsable de IVA" />
         <UCheckbox v-model="form.agenteRetencion" label="Agente de retención en la fuente" />
       </div>
+
+      <UFormField
+        v-if="form.usoEconomico === 'residencial'"
+        label="Revisor fiscal"
+        description="Ley 675 art. 56 solo lo exige en uso comercial o mixto — para uso residencial es
+          decisión propia de la copropiedad, nunca inferida (CO-9 §4.2)."
+      >
+        <UCheckbox v-model="form.tieneRevisorFiscal" label="Esta copropiedad tiene revisor fiscal" />
+      </UFormField>
+      <p v-else-if="form.usoEconomico === 'comercial' || form.usoEconomico === 'mixto'" class="text-sm text-muted">
+        Revisor fiscal obligatorio por uso {{ form.usoEconomico }} (Ley 675 art. 56) — la rendición
+        de cuentas exigirá su dictamen antes de presentarse.
+      </p>
 
       <UFormField
         v-if="form.responsableIva"

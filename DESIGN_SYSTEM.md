@@ -155,7 +155,11 @@ Ese árbol (`.ficha-inmueble`, `apps/web/app/assets/css/ficha-inmueble.css`) ya 
 ## Fuera de alcance a propósito
 
 Este doc gobierna la *interfaz* (componentes, formularios, navegación). No gobierna:
-- **Dataviz** (gráficas de `components/cartera/*Chart.vue`, `pages/cartera/index.vue`): necesitan una paleta categórica de varios tonos distinguibles (ej. escalones de mora), no el acento único — usa la skill `dataviz` para eso, no `primary`/`brand`.
+- **Dataviz** (gráficas de `components/cartera/*Chart.vue`, `pages/cartera/index.vue`,
+  `pages/finanzas/flujo-proyectado.vue`): necesitan una paleta categórica de varios tonos
+  distinguibles (ej. escalones de mora, o las tres curvas de escenario base/conservador/optimista
+  del flujo de caja proyectado de FIN-4), no el acento único — usa la skill `dataviz` para eso, no
+  `primary`/`brand`.
 - **Syntax highlighting** (`utils/ael-codemirror.ts`, tema del editor de fórmulas AEL): los colores de tokens de código (keywords, strings...) son una convención propia de editores de código, no de marca.
 - **Codificación por origen del dato en el editor de fórmulas** (Fase 8): un valor de una fórmula se colorea según **de dónde sale**, no según qué clase de token es. Cuatro orígenes: Parámetro, Inmueble, Concepto y Función. Es categórico igual que dataviz — separa cosas que el usuario necesita distinguir de un vistazo, no jerarquiza interacción.
 
