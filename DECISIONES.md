@@ -3976,3 +3976,73 @@ catálogo vacío lo impide); el resto del flujo (elegir vínculo si hay más de 
 manejo de errores) sí se verificó en vivo contra este mismo tenant. `nuxt typecheck`/lint en cero
 errores sobre los archivos nuevos.
 
+
+---
+
+## D-72
+
+EXS-01 (serie Experiencia y Servicios, primer corte) — **el contrato de autorización, capacidades y
+deep links de los prompts 02–06 se expresa con los mecanismos que ya existen; no se crea un segundo
+sistema de permisos.** Corte de contrato: sin migraciones, sin tablas, sin cambios en
+`permissions.ts`. Ver `Casos de uso/Experiencia y servicios/EXS_01_INFORME.md`.
+
+**El problema.** Los cinco prompts piden permisos por acción (`announcement.publish`,
+`marketplace.moderar`, `directorio.ver`) y asumen un RBAC granular. El prompt 05 §46 llega a citar
+roles —"01 Administrador / 02 Agente / 03 Auditor / 04 Invitado"— que no son los de este
+repositorio: fue redactado contra un modelo anterior. Implementarlos literalmente crearía el
+"segundo sistema RBAC" que la propia hoja de ruta de esos prompts prohíbe en su §19.
+
+**La decisión: el grano de autorización es el módulo, no la acción.** Tres mecanismos existentes se
+reparten el trabajo, y ninguno es nuevo:
+
+1. **Rol de tenant** (`auxiliar | auditor | administrador`) decide quién escribe, vía `has_role()`.
+   `administrador ⊇ auxiliar` desde `20260822260000`; `auditor` es solo lectura.
+2. **Rol funcional** decide quién ve el módulo, vía `puede_ver_modulo(tenant, modulo)` —
+   `membership_roles_funcionales` + `rol_funcional_modulo`, con la semántica retrocompatible que ya
+   tiene: pasa si es administrador, **o si la membresía no tiene ningún rol funcional asignado**, o
+   si alguno cubre el módulo. Cada corte EXS declara su módulo (`anuncios`, `directorio`,
+   `movilidad`, `marketplace`) en la misma migración que crea sus tablas — EXS-01 no siembra
+   ninguno, porque sembrar un módulo sin tablas deja el gate gobernando el vacío.
+3. **Guard de transición en base de datos** decide quién aprueba. `crear` vs. `aprobar` vs.
+   `publicar` **no se modela como permiso**: se modela como transición de estado custodiada por un
+   trigger, con el patrón ya probado de `guard_accion_cobranza_transicion`, que hace las tres cosas
+   que el prompt 02 §27/§28 pide para redactor → revisor → aprobador: valida la transición contra
+   una lista cerrada de pares, exige rol explícito (`administrador`) para aprobar/rechazar, e impone
+   maker–checker (quien propuso no aprueba lo suyo). Hereda también el criterio de `auth.uid()` nulo
+   = cambio fuera de banda (service_role/fixtures), igual que `guard_privileged_columns`.
+
+**Por qué NO se añade una columna de acción a `rol_funcional_modulo`.** Esa tabla ya gobierna las
+policies de `juridico`, `financiero`, `cartera_cobranza`, `mantenimiento` y `estado_cuenta`;
+cambiarle la forma obliga a revisar todas esas policies para ganar expresividad que el guard de
+transición ya da, con la ventaja de que el guard vive junto al dato y no puede eludirse desde
+ningún cliente. Tocar `permissions.ts` además arrastra el test cruzado T-MATRIX
+(`tests/rbac/t-matrix.test.ts`) y su exigencia de 100 % de cobertura.
+
+**Frontera de autorización: dos carriles, y no se prueban igual.** Hallazgo de la verificación, no
+supuesto de la documentación. Un miembro entra por RLS (`is_member`, `has_role`,
+`puede_ver_modulo`); un actor externo **no pasa por RLS en absoluto** —no existe ni una policy para
+ellos— sino por Edge Function `external-*` + RPC `fn_*_externa` `security definer` que valida
+`actor_externo_vinculo.auth_user_id = auth.uid()` y lanza `VINCULO_NO_PERTENECE` (verificado
+verbatim en `fn_reserva_mis_reservas_externas`, `fn_solicitud_mis_solicitudes_externas`,
+`fn_autorizacion_visita_mis_autorizaciones_externas`). Escribir tests RLS para actores externos
+—como piden los prompts— sería probar el carril equivocado.
+
+Por decisión de alcance de la serie (Johnny, 2026-09-11) EXS construye **dominio administrativo, no
+experiencia externa**: solo el carril 1 se ejerce. El carril 2 se documenta igual porque el modelo
+de datos de EXS-03..06 decide si será posible después sin rehacerlo — el precedente es `MANT-10`/
+`MANT-11`, que construyeron reservas y visitantes dejando el modelo expuesto por `EXT-03`/`EXT-04`
+meses más tarde sin tocar sus tablas. De ahí la regla concreta: **toda entidad que un residente vaya
+a ver algún día debe ser alcanzable desde `inmueble_persona_rol` o `tercero_id`, no solo desde
+`profiles`/`memberships`.**
+
+**Deep links: tres mecanismos existentes, ninguno nuevo.** HMAC determinista sin estado
+(`_shared/link_token.ts`, D-27) para documento inmutable enviado por correo; token con estado y
+revocable (`atencion_tokens_consulta`, GOB-8) para acceso continuado a contexto vivo; aleatorio con
+solo el hash en BD (`_shared/tokens.ts`, AD-04) para credencial de un solo uso. En esta serie los
+enlaces son internos y no necesitan token: basta sesión + RLS. Cuando llegue la capa externa, el
+enlace a un anuncio es acceso continuado a contexto vivo → mecanismo 2, no 1.
+
+**Sin suite de pruebas, deliberadamente.** El contrato quedó decidido sin cambiar código y los
+módulos que gobernaría no existen todavía: no hay superficie que probar. Las pruebas de frontera y
+de capacidad se escriben en EXS-02, el primer corte con tablas propias. Escribirlas aquí sería
+probar un contrato contra el vacío.
