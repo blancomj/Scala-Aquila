@@ -158,20 +158,22 @@ d('ADC-01-ADD (§18/§36 Caso 6): cambio de uso histórico — no retroactivo', 
   }, 60_000)
 
   it('antes del cambio: el periodo pasado (2025-06) sí incluye el inmueble (era residencial)', async () => {
-    const { data, error } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodoPasadoId },
     })
-    if (error) throw error
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`simular-liquidacion: HTTP ${String(response?.status)}`)
+    }
 
-    expect(data!.avisos_alcance).toHaveLength(0)
+    expect(data.avisos_alcance).toHaveLength(0)
 
     const { data: lineas } = await admin
       .from('liquidacion_lineas')
       .select('inmueble_id, monto')
-      .eq('liquidacion_id', data!.liquidacion_id)
+      .eq('liquidacion_id', data.liquidacion_id)
     expect(lineas).toHaveLength(1)
     expect(lineas![0]!.inmueble_id).toBe(inmuebleId)
-    expect(Number(lineas![0]!.monto)).toBe(50_000)
+    expect(lineas![0]!.monto).toBe(50_000)
   }, 30_000)
 
   it('cambio físico HOY: el inmueble pasa a comercial (cierra la fila histórica vieja, abre una nueva)', async () => {
@@ -192,26 +194,28 @@ d('ADC-01-ADD (§18/§36 Caso 6): cambio de uso histórico — no retroactivo', 
     // Debe haber DOS filas: la vieja (residencial, ahora cerrada) y la nueva
     // (comercial, abierta) — el cambio no reescribe la fila vieja en el sitio.
     expect(historicos).toHaveLength(2)
-    expect(historicos![0]!.vigente_desde).toBe('2025-01-01')
-    expect(historicos![0]!.vigente_hasta).not.toBeNull()
-    expect(historicos![1]!.vigente_hasta).toBeNull()
+    expect(historicos[0]!.vigente_desde).toBe('2025-01-01')
+    expect(historicos[0]!.vigente_hasta).not.toBeNull()
+    expect(historicos[1]!.vigente_hasta).toBeNull()
   })
 
   it('después del cambio: re-simular el MISMO periodo pasado (2025-06) da el mismo resultado — no retroactivo', async () => {
-    const { data, error } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodoPasadoId },
     })
-    if (error) throw error
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`simular-liquidacion: HTTP ${String(response?.status)}`)
+    }
 
-    expect(data!.avisos_alcance).toHaveLength(0)
+    expect(data.avisos_alcance).toHaveLength(0)
 
     const { data: lineas } = await admin
       .from('liquidacion_lineas')
       .select('inmueble_id, monto')
-      .eq('liquidacion_id', data!.liquidacion_id)
+      .eq('liquidacion_id', data.liquidacion_id)
     expect(lineas).toHaveLength(1)
     expect(lineas![0]!.inmueble_id).toBe(inmuebleId)
-    expect(Number(lineas![0]!.monto)).toBe(50_000)
+    expect(lineas![0]!.monto).toBe(50_000)
   }, 30_000)
 
   it('un periodo del mes SIGUIENTE sí ve el uso nuevo: el inmueble queda fuera del alcance residencial', async () => {
@@ -238,15 +242,17 @@ d('ADC-01-ADD (§18/§36 Caso 6): cambio de uso histórico — no retroactivo', 
       .single<{ id: string }>()
     if (errPer) throw new Error(`fixture periodo siguiente: ${errPer.message}`)
 
-    const { data, error } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: per.id },
     })
-    if (error) throw error
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`simular-liquidacion: HTTP ${String(response?.status)}`)
+    }
 
     const { data: lineas } = await admin
       .from('liquidacion_lineas')
       .select('inmueble_id')
-      .eq('liquidacion_id', data!.liquidacion_id)
+      .eq('liquidacion_id', data.liquidacion_id)
     expect(lineas).toEqual([])
   }, 30_000)
 })

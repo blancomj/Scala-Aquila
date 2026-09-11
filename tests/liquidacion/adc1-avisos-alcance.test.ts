@@ -144,16 +144,18 @@ d('ADC-01: avisos de alcance por dato sin clasificar', () => {
   }, 60_000)
 
   it('simular: el inmueble sin uso_predio queda fuera del alcance Y el aviso llega en la respuesta', async () => {
-    const { data, error } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodo },
     })
-    if (error) throw error
-    liquidacionId = data!.liquidacion_id
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`simular-liquidacion: HTTP ${String(response?.status)}`)
+    }
+    liquidacionId = data.liquidacion_id
 
-    expect(data!.avisos_alcance).toHaveLength(1)
-    expect(data!.avisos_alcance[0]?.codigo).toBe('ALCANCE_DATO_SIN_CLASIFICAR_VIGILANCIA_COMERCIAL_ADC1')
-    expect(data!.avisos_alcance[0]?.titulo).toContain('1 inmueble(s)')
-    expect(data!.avisos_alcance[0]?.detalle).toContain('uso_predio')
+    expect(data.avisos_alcance).toHaveLength(1)
+    expect(data.avisos_alcance[0]?.codigo).toBe('ALCANCE_DATO_SIN_CLASIFICAR_VIGILANCIA_COMERCIAL_ADC1')
+    expect(data.avisos_alcance[0]?.titulo).toContain('1 inmueble(s)')
+    expect(data.avisos_alcance[0]?.detalle).toContain('uso_predio')
 
     // El motor no lo excluyó por accidente: la línea que sí se generó es la
     // del inmueble clasificado, con el monto fijo completo (alcance='calculado'
@@ -169,12 +171,14 @@ d('ADC-01: avisos de alcance por dato sin clasificar', () => {
   it('aplicar (vía Edge Function, no la RPC directa): el aviso queda congelado en avisos_aceptados', async () => {
     await cAdm.from('liquidaciones').update({ estado: 'pendiente_aprobacion' }).eq('id', liquidacionId)
 
-    const { data, error } = await cAdm.functions.invoke<RespuestaAplicar>('aplicar-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaAplicar>('aplicar-liquidacion', {
       body: { liquidacion_id: liquidacionId },
     })
-    if (error) throw error
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`aplicar-liquidacion: HTTP ${String(response?.status)}`)
+    }
 
-    expect(data!.avisos.map((a) => a.codigo)).toContain('ALCANCE_DATO_SIN_CLASIFICAR_VIGILANCIA_COMERCIAL_ADC1')
+    expect(data.avisos.map((a) => a.codigo)).toContain('ALCANCE_DATO_SIN_CLASIFICAR_VIGILANCIA_COMERCIAL_ADC1')
 
     const { data: liq } = await admin
       .from('liquidaciones')

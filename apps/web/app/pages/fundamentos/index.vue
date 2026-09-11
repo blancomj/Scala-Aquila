@@ -79,8 +79,8 @@ const filtroEstadoModelo = computed({
 })
 
 const columnasCatalogo = [
-  { clave: 'tipo', etiqueta: 'Tipo', ordenar: (f: any) => f.tipo },
-  { clave: 'norma', etiqueta: 'Norma', ordenar: (f: any) => f.norma },
+  { clave: 'tipo', etiqueta: 'Tipo', ordenar: (f: { tipo: string }) => f.tipo },
+  { clave: 'norma', etiqueta: 'Norma', ordenar: (f: { norma: string }) => f.norma },
   { clave: 'articulo', etiqueta: 'Artículo' },
   { clave: 'descripcion', etiqueta: 'Descripción' },
   { clave: 'fuente', etiqueta: 'Fuente' },

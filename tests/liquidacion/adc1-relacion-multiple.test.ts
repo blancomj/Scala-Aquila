@@ -212,17 +212,19 @@ d('ADC-01 (§36 Caso 8): relación múltiple — varios roles simultáneos en un
   }, 60_000)
 
   it('el inmueble aparece UNA sola vez por concepto — 6 roles simultáneos no duplican la fila', async () => {
-    const { data, error } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
+    const { data, response } = await cAdm.functions.invoke<RespuestaSimular>('simular-liquidacion', {
       body: { periodo_id: periodoId },
     })
-    if (error) throw error
+    if (!response || response.status !== 200 || !data) {
+      throw new Error(`simular-liquidacion: HTTP ${String(response?.status)}`)
+    }
 
-    expect(data!.avisos_alcance).toHaveLength(0)
+    expect(data.avisos_alcance).toHaveLength(0)
 
     const { data: lineas } = await admin
       .from('liquidacion_lineas')
       .select('inmueble_id, monto, concepto_id, conceptos!inner(codigo)')
-      .eq('liquidacion_id', data!.liquidacion_id)
+      .eq('liquidacion_id', data.liquidacion_id)
       .order('monto', { ascending: true })
     const filas = lineas as unknown as { inmueble_id: string; monto: number; conceptos: { codigo: string } }[]
 

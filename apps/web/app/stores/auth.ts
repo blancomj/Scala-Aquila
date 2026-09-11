@@ -8,7 +8,7 @@
  */
 import { defineStore } from 'pinia'
 import type { Ref, ShallowRef, ComputedRef } from 'vue'
-import type { Database } from '@aquila/shared'
+import type { Database, Json } from '@aquila/shared'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 
@@ -170,10 +170,9 @@ export const useAuthStore = defineStore('auth', (): AuthStoreApi => {
     } = await cliente.auth.getUser()
     if (!usuario) throw new Error('Sesión inválida.')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (cliente
       .from('profiles')
-      .update({ navigation_shortcuts: items as any })
+      .update({ navigation_shortcuts: items as unknown as Json })
       .eq('id', usuario.id)
       .select('*')
       .single())
