@@ -4160,3 +4160,53 @@ Evidencia: 16 pruebas en `tests/rls/anuncios.test.ts`, más verificación en nav
 completo — incluido el intento de auto-aprobación rechazado por el guard con su mensaje en pantalla.
 Pendientes declarados: el cron no está agendado en pg_cron (la función existe y está probada), los
 adjuntos tienen columna pero no UI, y el contenido es texto plano sin editor enriquecido.
+
+---
+
+## D-75
+
+EXS-4 (directorio) — **`mant_proveedor_perfil` se generaliza a `tercero_perfil`; el directorio es
+una proyección con tres reglas, no una segunda lista de terceros.** Migraciones
+`20260933200000`–`20260933220000`. Ver `Casos de uso/Experiencia y servicios/EXS_04_INFORME.md`.
+
+**La pregunta previa.** Sin capa externa (decisión de alcance de la serie), un administrador ya ve
+todos los terceros en `/terceros`, así que el corte corría el riesgo de duplicar una pantalla
+existente. Planteado al usuario antes de codificar, acotó el alcance a lo único que no existía en
+ninguna tabla: el **perfil comercial** de locales y negocios. `terceros` guarda identidad legal;
+`mant_proveedor_perfil` guardaba lo operativo de un proveedor (categorias_servicio →
+CATEGORIA_ACTIVO). Ninguna sabía decir "Panadería La Espiga, alimentación, abre de 6 a 8, local 12".
+
+**Generalización, no tabla nueva** (decisión del usuario): mismo movimiento que
+`documentos_inmueble → documentos` y `propietarios → personas → terceros` — este repositorio
+renombra cuando una tabla deja de pertenecer a un módulo. Coste medido antes de decidir: 2
+migraciones, 4 líneas de un store y una referencia en un test. La alternativa (`directorio_perfil`
+aparte) habría dejado al electricista que además atiende público con dos perfiles y dos categorías
+que nada obligaba a coincidir.
+
+**Lo que NO se renombró: los códigos de error.** `PROVEEDOR_TENANT_INCONSISTENTE` y
+`PROVEEDOR_CATEGORIA_INVALIDA` los comparte `guard_mant_proveedor_evaluacion`, que sigue
+existiendo; cambiarlos habría roto un contrato vigente por estética. Solo lo genuinamente nuevo
+estrenó nombre.
+
+**Las tres reglas que separan el directorio de un select sobre terceros:**
+
+1. **Existir no es aparecer** (prompt 03 §66): `publicado` nace false, publicar es deliberado y
+   queda sellado con quién y cuándo; el guard exige `nombre_comercial` para publicar porque una
+   ficha sin nombre no se puede encontrar; despublicar limpia el sello.
+2. **Mínima exposición de PII** (§15): `fn_directorio_listar` es **función y no vista**
+   precisamente para que las columnas sensibles de `terceros` no queden al alcance de un select más
+   ancho. `contacto_publico` es columna propia, separada de `terceros.email`/`telefono`, que son
+   datos de notificación administrativa y no deben publicarse por tener ficha (§16, §46).
+3. **La ubicación se deriva de `inmueble_persona_rol`, no se copia** (§25): si el negocio se muda
+   de local, la ficha lo refleja sin que nadie la edite.
+
+`CATEGORIA_COMERCIO` es familia propia y no reutiliza `CATEGORIA_ACTIVO`: una dice "qué clase de
+negocio es", la otra "en qué activos trabaja un proveedor"; mezclarlas llenaría el selector de
+mantenimiento de categorías inútiles para una orden de trabajo.
+
+Evidencia: 12 pruebas en `tests/rls/directorio.test.ts` (incluidas la de no-exposición de PII y la
+de ubicación derivada) y `proveedores-contratos.test.ts` verde tras el renombrado. Verificado en
+navegador, comprobando en el DOM —no solo en la API— que documento, correo y teléfono
+administrativos no llegan a la página. Pendientes declarados: sin niveles de visibilidad por
+segmento (solo el booleano), sin contacto intermediado vía Atención, sin fotos y sin enlace a
+Marketplace (que aún no existe).

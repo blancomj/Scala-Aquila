@@ -1455,6 +1455,18 @@ export const ERROR_CODES = {
   ANUNCIO_INVALID_STATE: 'ANUNCIO_INVALID_STATE',
   // enviar-anuncio: el anuncio no existe.
   ANUNCIO_NOT_FOUND: 'ANUNCIO_NOT_FOUND',
+
+  // ── EXS-4: directorio (20260933200000+) ──
+  // guard_tercero_perfil: categoria_comercio_id no pertenece a CATEGORIA_COMERCIO. Código propio
+  // y no PROVEEDOR_CATEGORIA_INVALIDA porque son familias distintas: aquella valida en qué
+  // activos trabaja un proveedor, esta qué clase de negocio es.
+  PERFIL_CATEGORIA_COMERCIO_INVALIDA: 'PERFIL_CATEGORIA_COMERCIO_INVALIDA',
+  // guard_tercero_perfil: publicar una ficha sin nombre_comercial la dejaría sin nombre por el
+  // que encontrarla. Se exige al publicar, no al crear el perfil.
+  PERFIL_PUBLICADO_SIN_NOMBRE: 'PERFIL_PUBLICADO_SIN_NOMBRE',
+  // fn_directorio_listar: quien no es miembro del tenant no obtiene directorio. Mismo criterio
+  // de no revelar que el tenant existe.
+  DIRECTORIO_NO_DISPONIBLE: 'DIRECTORIO_NO_DISPONIBLE',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

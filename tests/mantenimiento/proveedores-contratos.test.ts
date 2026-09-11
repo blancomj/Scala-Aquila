@@ -382,7 +382,7 @@ d('MANT-5: proveedores, contratos y garantías', () => {
     const { tenantId: tenantB, cliente: clienteB } = await crearTenantCompleto('aislar-b')
     const terceroA = await crearTercero(tenantA, 'AislarA')
 
-    const { error: errCruce } = await admin.from('mant_proveedor_perfil').insert({
+    const { error: errCruce } = await admin.from('tercero_perfil').insert({
       tenant_id: tenantB, tercero_id: terceroA,
     })
     expect(errCruce?.message).toContain('PROVEEDOR_TENANT_INCONSISTENTE')

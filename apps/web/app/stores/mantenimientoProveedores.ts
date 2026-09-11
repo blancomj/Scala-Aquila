@@ -6,8 +6,8 @@
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
 
-type PerfilRow = Database['public']['Tables']['mant_proveedor_perfil']['Row']
-type PerfilInsert = Database['public']['Tables']['mant_proveedor_perfil']['Insert']
+type PerfilRow = Database['public']['Tables']['tercero_perfil']['Row']
+type PerfilInsert = Database['public']['Tables']['tercero_perfil']['Insert']
 type HabilitacionRow = Database['public']['Tables']['mant_proveedor_habilitacion']['Row']
 type HabilitacionInsert = Database['public']['Tables']['mant_proveedor_habilitacion']['Insert']
 type SemaforoRow = Database['public']['Functions']['mant_habilitaciones_semaforo']['Returns'][number]
@@ -33,7 +33,7 @@ export const useMantenimientoProveedoresStore = defineStore('mantenimientoProvee
         { data: perfilFila }, { data: semaforoFilas, error: errSemaforo },
         { data: habilitacionesFilas, error: errHab }, { data: evaluacionesFilas, error: errEval },
       ] = await Promise.all([
-        cliente.from('mant_proveedor_perfil').select('*').eq('tenant_id', tenantId).eq('tercero_id', terceroId).maybeSingle(),
+        cliente.from('tercero_perfil').select('*').eq('tenant_id', tenantId).eq('tercero_id', terceroId).maybeSingle(),
         cliente.rpc('mant_habilitaciones_semaforo', { p_tercero_id: terceroId }),
         cliente.from('mant_proveedor_habilitacion').select('*').eq('tercero_id', terceroId).order('created_at', { ascending: false }),
         cliente.from('mant_proveedor_evaluacion').select('*').eq('tercero_id', terceroId).order('created_at', { ascending: false }),
@@ -63,7 +63,7 @@ export const useMantenimientoProveedoresStore = defineStore('mantenimientoProvee
     try {
       const cliente = useSupabaseClient<Database>()
       const { data, error } = await cliente
-        .from('mant_proveedor_perfil')
+        .from('tercero_perfil')
         .upsert(fila, { onConflict: 'tenant_id,tercero_id' })
         .select('*').single()
       if (error) throw error

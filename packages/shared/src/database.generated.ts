@@ -15739,68 +15739,6 @@ export type Database = {
           },
         ]
       }
-      mant_proveedor_perfil: {
-        Row: {
-          categorias_servicio: number[]
-          created_at: string
-          especialidades: string[]
-          estado_comercial_id: number | null
-          id: string
-          tenant_id: string
-          tercero_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          categorias_servicio?: number[]
-          created_at?: string
-          especialidades?: string[]
-          estado_comercial_id?: number | null
-          id?: string
-          tenant_id: string
-          tercero_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          categorias_servicio?: number[]
-          created_at?: string
-          especialidades?: string[]
-          estado_comercial_id?: number | null
-          id?: string
-          tenant_id?: string
-          tercero_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mant_proveedor_perfil_estado_comercial_id_fkey"
-            columns: ["estado_comercial_id"]
-            isOneToOne: false
-            referencedRelation: "lista_tipos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "platform_tenant_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mant_proveedor_perfil_tercero_id_fkey"
-            columns: ["tercero_id"]
-            isOneToOne: false
-            referencedRelation: "terceros"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mant_registros_acceso: {
         Row: {
           autorizacion_id: string | null
@@ -19709,6 +19647,106 @@ export type Database = {
           },
         ]
       }
+      tercero_perfil: {
+        Row: {
+          categoria_comercio_id: number | null
+          categorias_servicio: number[]
+          contacto_publico: string | null
+          created_at: string
+          descripcion: string | null
+          especialidades: string[]
+          estado_comercial_id: number | null
+          horario: string | null
+          id: string
+          nombre_comercial: string | null
+          publicado: boolean
+          publicado_at: string | null
+          publicado_por: string | null
+          tenant_id: string
+          tercero_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria_comercio_id?: number | null
+          categorias_servicio?: number[]
+          contacto_publico?: string | null
+          created_at?: string
+          descripcion?: string | null
+          especialidades?: string[]
+          estado_comercial_id?: number | null
+          horario?: string | null
+          id?: string
+          nombre_comercial?: string | null
+          publicado?: boolean
+          publicado_at?: string | null
+          publicado_por?: string | null
+          tenant_id: string
+          tercero_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria_comercio_id?: number | null
+          categorias_servicio?: number[]
+          contacto_publico?: string | null
+          created_at?: string
+          descripcion?: string | null
+          especialidades?: string[]
+          estado_comercial_id?: number | null
+          horario?: string | null
+          id?: string
+          nombre_comercial?: string | null
+          publicado?: boolean
+          publicado_at?: string | null
+          publicado_por?: string | null
+          tenant_id?: string
+          tercero_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_proveedor_perfil_estado_comercial_id_fkey"
+            columns: ["estado_comercial_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_proveedor_perfil_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tercero_perfil_categoria_comercio_id_fkey"
+            columns: ["categoria_comercio_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tercero_perfil_publicado_por_fkey"
+            columns: ["publicado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terceros: {
         Row: {
           busqueda_tsv: unknown
@@ -21876,6 +21914,20 @@ export type Database = {
           inmueble_id: string
           interes_causado: number
           saldo_credito: number
+        }[]
+      }
+      fn_directorio_listar: {
+        Args: { p_categoria?: number; p_tenant_id: string; p_texto?: string }
+        Returns: {
+          categoria_codigo: string
+          categoria_nombre: string
+          contacto_publico: string
+          descripcion: string
+          horario: string
+          nombre_comercial: string
+          tercero_id: string
+          tipo_persona: Database["public"]["Enums"]["tercero_tipo_t"]
+          ubicaciones: string[]
         }[]
       }
       fn_emitir_estados_cuenta: {

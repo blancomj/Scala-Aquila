@@ -96,6 +96,8 @@ export const NAV_ICONOS = {
   tableroGobierno: 'M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 14h7v6H4z',
   // Sobre: histórico unificado de correo enviado por cualquier módulo (COM-1).
   comunicaciones: 'M3 8l9 6 9-6M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z',
+  // Libreta abierta: fichas de negocios y servicios de la copropiedad (EXS-4).
+  directorio: 'M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5ZM8 7h8M8 11h5',
   // Megáfono: comunicación oficial publicada (EXS-3). Icono propio y no el
   // sobre de COM-1 a propósito — son cosas distintas: uno es el contenido
   // publicado, el otro el registro de lo que salió por correo.
@@ -122,6 +124,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: 'Copropiedad',
     items: [
       { label: 'Anuncios', to: '/anuncios', permiso: 'data:read', icono: NAV_ICONOS.anuncios },
+      { label: 'Directorio', to: '/directorio', permiso: 'data:read', icono: NAV_ICONOS.directorio },
       { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
       { label: 'Terceros', to: '/terceros', permiso: 'data:read', icono: NAV_ICONOS.terceros },
       {
