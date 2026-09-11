@@ -101,6 +101,55 @@ interface FilaInmuebleAtributos {
   readonly estado_legal_id: number | null
   readonly habitabilidad_id: number | null
   readonly uso_predio_id: number | null
+  /** ADC-01 — NOT NULL en el esquema (FK a TIPO_INMUEBLE). */
+  readonly tipo_id: number
+  readonly agrupacion_id: string | null
+}
+
+/** ADC-01 — ruta raíz→nodo de cada agrupación, a partir de los pares
+ * (id, parent_id) del árbol del tenant. Pura y exportada para poder probarla
+ * sin Supabase (mismo criterio que calcularFraccionActiva).
+ *
+ * Un parent_id que apunta a un nodo ausente, o un ciclo, cortan la ruta ahí en
+ * vez de lanzar: el `agrupaciones_no_ciclo` del esquema ya impide ambos, y el
+ * snapshot no es el lugar donde descubrir que el árbol quedó inconsistente —
+ * lanzar aquí dejaría al tenant sin poder liquidar. */
+export function construirRutasAgrupacion(
+  filas: readonly { readonly id: string; readonly parent_id: string | null }[],
+): Map<string, readonly string[]> {
+  const padrePorId = new Map<string, string | null>(filas.map((f) => [f.id, f.parent_id]))
+  const rutas = new Map<string, readonly string[]>()
+
+  function rutaDe(id: string, visitados: ReadonlySet<string>): readonly string[] {
+    const cacheada = rutas.get(id)
+    if (cacheada) return cacheada
+    const padre = padrePorId.get(id)
+    // `!padrePorId.has(padre)`: un parent_id que apunta fuera del árbol no se
+    // antepone a la ruta. Sin esa comprobación, ese id fantasma quedaría dentro
+    // y una condición `agrupacion = <fantasma>` se cumpliría — cobrándole un
+    // concepto segmentado a una unidad que no pertenece a esa agrupación.
+    const ruta =
+      padre === undefined || padre === null || !padrePorId.has(padre) || visitados.has(padre)
+        ? [id]
+        : [...rutaDe(padre, new Set([...visitados, id])), id]
+    rutas.set(id, ruta)
+    return ruta
+  }
+
+  for (const { id } of filas) rutaDe(id, new Set())
+  return rutas
+}
+
+async function resolverRutasAgrupacion(
+  cliente: AquilaClient,
+  tenantId: string,
+): Promise<Map<string, readonly string[]>> {
+  const { data: filas, error } = await cliente
+    .from('agrupaciones')
+    .select('id, parent_id')
+    .eq('tenant_id', tenantId)
+  if (error) throw new Error(`No se pudieron leer las agrupaciones: ${error.message}`)
+  return construirRutasAgrupacion(filas)
 }
 
 /** Fase 5 (alcance.ts): resuelve, para cada inmueble, los campos que un
@@ -125,7 +174,7 @@ async function resolverAtributosInmueble(
   const idsListaTipos = [
     ...new Set(
       inmueblesFilas
-        .flatMap((i) => [i.estado_legal_id, i.habitabilidad_id, i.uso_predio_id])
+        .flatMap((i) => [i.estado_legal_id, i.habitabilidad_id, i.uso_predio_id, i.tipo_id])
         .filter((id): id is number => id !== null),
     ),
   ]
@@ -211,6 +260,8 @@ async function resolverAtributosInmueble(
     )
   }
 
+  const rutasAgrupacion = await resolverRutasAgrupacion(cliente, tenantId)
+
   const resultado = new Map<string, Omit<AtributosInmueble, 'areaPrivada'>>()
   for (const inmueble of inmueblesFilas) {
     resultado.set(inmueble.id, {
@@ -229,6 +280,9 @@ async function resolverAtributosInmueble(
           ? (codigoPorListaTipoId.get(inmueble.uso_predio_id) ?? null)
           : null,
       saldoActual: saldoPorInmueble.has(inmueble.id) ? String(saldoPorInmueble.get(inmueble.id)) : null,
+      tipoInmueble: codigoPorListaTipoId.get(inmueble.tipo_id) ?? null,
+      agrupacionRuta:
+        inmueble.agrupacion_id !== null ? (rutasAgrupacion.get(inmueble.agrupacion_id) ?? null) : null,
     })
   }
   return resultado
@@ -289,7 +343,7 @@ export async function construirSnapshotDesdeSupabase(
   const { data: inmueblesFilas, error: errorInmuebles } = await cliente
     .from('inmuebles')
     .select(
-      'id, codigo, area_privada, area_comun, estado_legal_id, habitabilidad_id, uso_predio_id, estado, activo_desde, inactivo_desde',
+      'id, codigo, area_privada, area_comun, estado_legal_id, habitabilidad_id, uso_predio_id, tipo_id, agrupacion_id, estado, activo_desde, inactivo_desde',
     )
     .eq('tenant_id', tenantId)
     .or(
@@ -343,6 +397,8 @@ export async function construirSnapshotDesdeSupabase(
         tipoInquilino: atributosExtra?.tipoInquilino ?? null,
         usoPredio: atributosExtra?.usoPredio ?? null,
         saldoActual: atributosExtra?.saldoActual ?? null,
+        tipoInmueble: atributosExtra?.tipoInmueble ?? null,
+        agrupacionRuta: atributosExtra?.agrupacionRuta ?? null,
       },
     }
   })

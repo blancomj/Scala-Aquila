@@ -21,12 +21,28 @@ export interface TotalInmueble {
   readonly total: Money
 }
 
+/** ADC-01 — inmuebles que un concepto segmentado dejó fuera porque les falta el
+ * dato que su condición consulta (no porque el valor sea distinto). Alimenta un
+ * AVISO de pre-liquidación, nunca un bloqueo: la decisión es del administrador,
+ * pero tiene que verla. Criterio D4 (20260830580000): el aviso aceptado queda
+ * registrado al aplicar, así que meses después "¿sabíamos que el Local 5 no
+ * recibió la vigilancia comercial?" se responde con un sí verificable.
+ *
+ * NO entra en calcularResultHash (hash.ts serializa solo líneas y totales), así
+ * que exponerlo no invalida ninguna pre-liquidación ya sellada. */
+export interface AvisoAlcanceSinDato {
+  readonly conceptoCodigo: string
+  readonly inmuebleId: string
+  readonly campos: readonly string[]
+}
+
 export interface LiquidationResult {
   readonly tenantId: string
   readonly periodoId: string
   readonly lineas: readonly LineaResultado[]
   readonly totalesPorInmueble: readonly TotalInmueble[]
   readonly tenantTotal: Money
+  readonly avisosAlcance: readonly AvisoAlcanceSinDato[]
 }
 
 export function ensamblarResultado(
@@ -83,5 +99,12 @@ export function ensamblarResultado(
     lineas,
     totalesPorInmueble,
     tenantTotal: tenantTotalDesdeLineas,
+    avisosAlcance: resultadosConcepto.flatMap((r) =>
+      r.excluidosSinDato.map((e) => ({
+        conceptoCodigo: r.conceptoCodigo,
+        inmuebleId: e.inmuebleId,
+        campos: e.campos,
+      })),
+    ),
   }
 }

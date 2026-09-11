@@ -96,7 +96,7 @@ d('COM-1 — compositor de correo: envío real y rastro en el histórico', () =>
     if (error) throw new Error(`consultar envío: ${error.message}`)
     expect(envios).toHaveLength(1)
 
-    const envio = envios![0] as unknown as {
+    const envio = envios[0] as unknown as {
       accion_id: string | null
       origen_entidad: string
       origen_evento: string

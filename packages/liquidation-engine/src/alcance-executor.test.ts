@@ -17,6 +17,8 @@ const ATRIBUTOS_VACIOS = {
   tipoInquilino: null,
   usoPredio: null,
   saldoActual: null,
+  tipoInmueble: null,
+  agrupacionRuta: null,
 } as const
 
 const INMUEBLES: readonly SnapshotInmueble[] = [

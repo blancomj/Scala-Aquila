@@ -5,7 +5,7 @@
  * fase, intacto) y los bordes (día 1, último día del mes, febrero).
  */
 import { describe, expect, it } from 'vitest'
-import { calcularFraccionActiva } from './snapshot-supabase.js'
+import { calcularFraccionActiva, construirRutasAgrupacion } from './snapshot-supabase.js'
 
 describe('calcularFraccionActiva', () => {
   it('sin ninguna transición este periodo, retorna "1" (comportamiento de siempre)', () => {
@@ -41,5 +41,47 @@ describe('calcularFraccionActiva', () => {
   it('activo_desde y inactivo_desde ambos dentro del mismo periodo (alta y baja el mismo mes)', () => {
     // activo 10..20 = 11 días de 31.
     expect(calcularFraccionActiva(2026, 3, '2026-03-10', '2026-03-21')).toBe('0.3548387096774193548387096774193548')
+  })
+})
+
+/** ADC-01 — la ruta de ancestros es lo que permite que "sector comercial"
+ * alcance a un local que cuelga de un nivel dos escalones más abajo. */
+describe('construirRutasAgrupacion', () => {
+  it('una raíz es su propia ruta', () => {
+    const rutas = construirRutasAgrupacion([{ id: 'torre-a', parent_id: null }])
+    expect(rutas.get('torre-a')).toEqual(['torre-a'])
+  })
+
+  it('ordena la ruta de raíz a hoja, con todos los ancestros intermedios', () => {
+    const rutas = construirRutasAgrupacion([
+      { id: 'nivel-1', parent_id: 'bloque-1' },
+      { id: 'sector-com', parent_id: null },
+      { id: 'bloque-1', parent_id: 'sector-com' },
+    ])
+    expect(rutas.get('nivel-1')).toEqual(['sector-com', 'bloque-1', 'nivel-1'])
+    expect(rutas.get('bloque-1')).toEqual(['sector-com', 'bloque-1'])
+  })
+
+  it('ramas hermanas no comparten ancestros entre sí', () => {
+    const rutas = construirRutasAgrupacion([
+      { id: 'raiz', parent_id: null },
+      { id: 'a', parent_id: 'raiz' },
+      { id: 'b', parent_id: 'raiz' },
+    ])
+    expect(rutas.get('a')).toEqual(['raiz', 'a'])
+    expect(rutas.get('b')).toEqual(['raiz', 'b'])
+  })
+
+  it('un padre ausente corta la ruta en vez de lanzar (el tenant debe poder liquidar igual)', () => {
+    const rutas = construirRutasAgrupacion([{ id: 'huerfano', parent_id: 'no-existe' }])
+    expect(rutas.get('huerfano')).toEqual(['huerfano'])
+  })
+
+  it('un ciclo no cuelga la construcción', () => {
+    const rutas = construirRutasAgrupacion([
+      { id: 'x', parent_id: 'y' },
+      { id: 'y', parent_id: 'x' },
+    ])
+    expect(rutas.get('x')).toHaveLength(2)
   })
 })

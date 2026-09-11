@@ -33,6 +33,8 @@ const ATRIBUTOS_VACIOS = {
   tipoInquilino: null,
   usoPredio: null,
   saldoActual: null,
+  tipoInmueble: null,
+  agrupacionRuta: null,
 } as const
 
 function snapshotBase(conceptos: readonly SnapshotConcepto[]): DataSnapshot {

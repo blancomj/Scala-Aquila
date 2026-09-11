@@ -13,7 +13,7 @@ import {
   type Money,
   type RoundingPolicy,
 } from '@aquila/financial-kernel'
-import { inmuebleCumpleCondiciones } from './alcance.js'
+import { evaluarAlcance, type CampoCondicion } from './alcance.js'
 import { crearContexto, catalogoDesde } from './context.js'
 import {
   ConceptoFijoSinValorError,
@@ -29,6 +29,15 @@ export interface LineaLiquidacion {
   readonly monto: Money
 }
 
+/** ADC-01 — un inmueble que quedó fuera del alcance porque le falta el dato que
+ * la condición consulta, no porque su valor sea distinto. Es el caso que sí
+ * mueve plata sin que nadie se entere: el excluido no recibe su parte del
+ * concepto y allocate() reparte esa porción entre los demás. */
+export interface ExclusionPorDatoAusente {
+  readonly inmuebleId: string
+  readonly campos: readonly CampoCondicion[]
+}
+
 export interface ResultadoConcepto {
   readonly conceptoCodigo: string
   /** Lo que evaluó la fórmula: el total agregado si `distribucion`, o `null` si `directo`
@@ -37,6 +46,8 @@ export interface ResultadoConcepto {
   /** Monto de este periodo tras el Paso 1 (solo `distribucion`, PLAN §6.5). */
   readonly cuotaPeriodo: Money | null
   readonly lineas: readonly LineaLiquidacion[]
+  /** Vacío salvo alcance='calculado' con inmuebles excluidos por dato ausente. */
+  readonly excluidosSinDato: readonly ExclusionPorDatoAusente[]
 }
 
 function politicaDesde(snapshot: DataSnapshot): RoundingPolicy {
@@ -98,23 +109,36 @@ function valorDeConcepto(
  * 'calculado', solo pasan los que cumplen alcanceCondiciones — decisión del
  * usuario (2026-08-20): en distribución, el reparto se recalcula SOLO
  * sobre ese subconjunto, no sobre el edificio completo. */
-function inmueblesQueAplican(
-  concepto: SnapshotConcepto,
-  snapshot: DataSnapshot,
-): readonly SnapshotInmueble[] {
+interface AlcanceAplicado {
+  readonly inmuebles: readonly SnapshotInmueble[]
+  readonly excluidosSinDato: readonly ExclusionPorDatoAusente[]
+}
+
+function inmueblesQueAplican(concepto: SnapshotConcepto, snapshot: DataSnapshot): AlcanceAplicado {
   const { alcanceCondiciones } = concepto
   if (concepto.alcance === 'todos' || alcanceCondiciones === null) {
-    return snapshot.inmuebles
+    return { inmuebles: snapshot.inmuebles, excluidosSinDato: [] }
   }
   const contexto = { mesActual: snapshot.periodo.mes, anioActual: snapshot.periodo.anio }
-  return snapshot.inmuebles.filter((inmueble) =>
-    inmuebleCumpleCondiciones(
+  const inmuebles: SnapshotInmueble[] = []
+  const excluidosSinDato: ExclusionPorDatoAusente[] = []
+  for (const inmueble of snapshot.inmuebles) {
+    const { cumple, camposSinDato } = evaluarAlcance(
       alcanceCondiciones,
       inmueble.atributos,
       contexto,
       inmueble.coeficiente,
-    ),
-  )
+    )
+    if (cumple) {
+      inmuebles.push(inmueble)
+      continue
+    }
+    // Solo sobre los excluidos: si cumplió, ningún dato ausente cambió el desenlace.
+    if (camposSinDato.length > 0) {
+      excluidosSinDato.push({ inmuebleId: inmueble.id, campos: [...new Set(camposSinDato)] })
+    }
+  }
+  return { inmuebles, excluidosSinDato }
 }
 
 function ejecutarDirecto(
@@ -122,7 +146,8 @@ function ejecutarDirecto(
   snapshot: DataSnapshot,
   resultadosPrevios: ReadonlyMap<string, TypedValue>,
 ): ResultadoConcepto {
-  const lineas = inmueblesQueAplican(concepto, snapshot).map((inmueble): LineaLiquidacion => {
+  const { inmuebles, excluidosSinDato } = inmueblesQueAplican(concepto, snapshot)
+  const lineas = inmuebles.map((inmueble): LineaLiquidacion => {
     const valor = valorDeConcepto(concepto, snapshot, resultadosPrevios, inmueble.id)
     // H2 (auditoría externa 2026-08-26): sin total compartido que reconciliar
     // aquí (cada inmueble calcula el suyo de forma independiente) — se
@@ -131,7 +156,7 @@ function ejecutarDirecto(
     const monto = multiplicar(dinero(valor).valor, inmueble.fraccionActiva)
     return { inmuebleId: inmueble.id, conceptoCodigo: concepto.codigo, monto }
   })
-  return { conceptoCodigo: concepto.codigo, valorAgregado: null, cuotaPeriodo: null, lineas }
+  return { conceptoCodigo: concepto.codigo, valorAgregado: null, cuotaPeriodo: null, lineas, excluidosSinDato }
 }
 
 /** PLAN §6.5: Paso 1 (anual → 12 periodos) + Paso 2 (cuota del periodo → inmuebles).
@@ -168,9 +193,9 @@ function ejecutarDistribucion(
   // mismo criterio que ejecutarDirecto sobre un snapshot sin inmuebles.
   // allocate() exige targets.length > 0 (EmptyTargetsError), así que este
   // caso se salta el paso2 en vez de llamarlo.
-  const inmueblesAplican = inmueblesQueAplican(concepto, snapshot)
+  const { inmuebles: inmueblesAplican, excluidosSinDato } = inmueblesQueAplican(concepto, snapshot)
   if (inmueblesAplican.length === 0) {
-    return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas: [] }
+    return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas: [], excluidosSinDato }
   }
 
   // H2 (auditoría externa 2026-08-26): coeficiente efectivo = coeficiente ×
@@ -203,7 +228,7 @@ function ejecutarDistribucion(
     }
   })
 
-  return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas }
+  return { conceptoCodigo: concepto.codigo, valorAgregado, cuotaPeriodo, lineas, excluidosSinDato }
 }
 
 /** Docs/17 §158 CALCULATION ORDER: recorre el plan en el orden ya topológico. */
