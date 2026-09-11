@@ -1420,6 +1420,14 @@ export const ERROR_CODES = {
   AUTORIZACION_CONSUMO_FALLIDO: 'AUTORIZACION_CONSUMO_FALLIDO',
   // guard_mant_registro_acceso: intento de editar una columna distinta de egreso_at.
   REGISTRO_ACCESO_INMUTABLE: 'REGISTRO_ACCESO_INMUTABLE',
+
+  // ── EXS-2: notificaciones in-app (20260933000000+) ──
+  // fn_notificar: p_tipo_codigo no existe en lista_tipos familia TIPO_NOTIFICACION. Falla
+  // explícito en vez de emitir un aviso sin clasificar — cada corte EXS siembra sus propios
+  // tipos en la migración que crea sus tablas, y este error delata el olvido.
+  NOTIFICACION_TIPO_INVALIDO: 'NOTIFICACION_TIPO_INVALIDO',
+  // fn_notificar: p_prioridad no existe en lista_tipos familia PRIORIDAD_NOTIFICACION.
+  NOTIFICACION_PRIORIDAD_INVALIDA: 'NOTIFICACION_PRIORIDAD_INVALIDA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

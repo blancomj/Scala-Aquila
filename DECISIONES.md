@@ -4046,3 +4046,59 @@ enlace a un anuncio es acceso continuado a contexto vivo → mecanismo 2, no 1.
 módulos que gobernaría no existen todavía: no hay superficie que probar. Las pruebas de frontera y
 de capacidad se escriben en EXS-02, el primer corte con tablas propias. Escribirlas aquí sería
 probar un contrato contra el vacío.
+
+---
+
+## D-73
+
+EXS-2 (notificaciones in-app) — **una notificación se dirige a un MÓDULO, no a una persona**, y por
+eso la lectura vive en su propia tabla. Migraciones `20260933000000`–`20260933030000`. Ver
+`Casos de uso/Experiencia y servicios/EXS_02_INFORME.md`.
+
+**Lo que faltaba, verificado antes de construirlo.** AQUILA tenía los dos extremos de la cadena y no
+el del medio: tres tablas de DETECCIÓN (`finanzas_alerta_emitida`, `mant_inventario_alertas`,
+`gobierno_vencimiento_notificaciones`, ninguna con destinatario ni estado de lectura, consumidas
+solo dentro de la pantalla de su módulo) y el ledger de ENVÍO de COM-1. La pieza intermedia —un
+aviso dirigido, con lectura y enlace al contexto— no existía, y la campana lo suplía leyendo
+`audit_log` contra una cookie: el anti-patrón que el prompt 06 §13 prohíbe expresamente, con su
+propio comentario de cabecera admitiéndolo.
+
+**La decisión.** El usuario definió el destinatario como "quien tenga el rol funcional del módulo".
+La lectura literal —una columna `destinatario_rol_id`— se descartó porque **`puede_ver_modulo()` ya
+responde exactamente esa pregunta**: duplicar el criterio en una columna crearía dos fuentes de
+verdad capaces de divergir. La notificación lleva `modulo` y la ve quien pase el gate existente, con
+su semántica retrocompatible incluida (administrador, o sin roles funcionales asignados, o con un
+rol que cubra el módulo). Sin columna de destinatario, sin función nueva, sin tabla de suscripción.
+
+**Consecuencia estructural, no cosmética**: si varios miembros ven el mismo aviso, la lectura no
+puede ser una columna de la notificación. De ahí `notificacion_lectura`, append-only, una fila por
+(aviso, usuario) cuya ausencia ES el "no leído" — sin booleano que mantener sincronizado. Coincide
+con la estrategia B del prompt 02 §18 ("registrar únicamente lecturas"), sin materializar
+destinatarios al emitir.
+
+**Idempotencia con un detalle que importa**: la clave única es `(tenant_id, origen_entidad,
+coalesce(origen_id, uuid-cero), origen_evento)`. El `coalesce` no es adorno — en SQL dos NULL no
+colisionan, así que sin él un evento de tenant completo, sin entidad concreta, se duplicaría en cada
+corrida del cron diario que lo detecta.
+
+**Escritura imposible desde un cliente, por esquema y no por disciplina**: `notificaciones` no tiene
+policy de insert, y `fn_notificar()` (security definer, único emisor) tiene EXECUTE revocado de
+`authenticated`. La "fuente clara de verdad" del prompt 06 §16 queda garantizada estructuralmente:
+nadie puede fabricar avisos que parezcan del sistema.
+
+**Los tres puentes son triggers AFTER INSERT y no modifican ninguna de las tres tablas de
+detección.** AFTER y no BEFORE porque la función referencia la fila que la origina (mismo criterio
+que el patrón ya conocido del proyecto). Cada uno envuelve la emisión en un bloque exception: una
+alerta de stock debe registrarse aunque su aviso falle — la detección es el dato duro, la
+notificación es conveniencia.
+
+**`gobierno` no se sembró en `rol_funcional_modulo`, deliberadamente**: no existe ningún rol
+funcional de gobierno, y por la semántica de `puede_ver_modulo()` esos avisos los ven los
+administradores y quien no tenga roles asignados — lo deseable para plazos legales. Si algún día se
+crea el rol, sembrar su fila estrecha el gate sin tocar este corte.
+
+**Alcance acotado por decisión del usuario**: sin preferencias por usuario, y sin puente a COM-1 (el
+trío `origen_*` se dejó idéntico al de `acciones_cobranza_envios` para que ese puente sea posible
+después sin migrar datos). Evidencia: 11 pruebas en `tests/rls/notificaciones.test.ts`, incluida la
+del puente real de finanzas. **No verificado en navegador**: `apps/web/.env` apunta al remoto, que
+aún no tiene estas migraciones.

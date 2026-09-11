@@ -1,35 +1,45 @@
 <script setup lang="ts">
 /**
- * Campana de notificaciones — no existe una tabla `notificaciones` en el
- * esquema (verificado antes de construir esto). Reutiliza audit_log, la
- * única fuente real de "cosas que pasaron recientemente" (misma tabla que
- * ya usa dashboard/index.vue), en vez de inventar un sistema con estado
- * leído/no-leído que no existe en la base. El conteo de "nuevo" es
- * client-side: compara created_at contra la cookie `notificaciones-vistas`
- * (última vez que se abrió el panel) — honesto sobre lo que sabe (esta
- * sesión/navegador) y lo que no (no hay tabla de lectura por usuario).
+ * Campana de notificaciones — EXS-2.
+ *
+ * Hasta este corte leía `audit_log` y contaba lo "nuevo" comparando contra
+ * una cookie de este navegador, porque no existía una tabla de
+ * notificaciones. Ya existe: `notificaciones` + `notificacion_lectura`
+ * (20260933010000). Tres cosas cambian para quien la usa:
+ *
+ *   · lo que sale es lo que le concierne (RLS por tenant y por módulo
+ *     visible), no todo lo que ocurrió en la copropiedad;
+ *   · el "no leído" es real y por persona — sobrevive al cambio de equipo
+ *     o de navegador, que la cookie no hacía;
+ *   · cada aviso lleva al contexto exacto, no a la pantalla general.
+ *
+ * La actividad de auditoría no desaparece: sigue en /auditoria, que es su
+ * sitio. Campana y auditoría dejan de ser la misma cosa.
  */
 const tenantStore = useTenantStore()
-const auditStore = useAuditStore()
+const notificacionesStore = useNotificacionesStore()
 
 const menuAbierto = useMenuHeaderAbierto()
 const abierto = computed(() => menuAbierto.value === 'notificaciones')
 const contenedorRef = ref<HTMLElement | null>(null)
-const vistasEn = useCookie<string | null>('notificaciones-vistas', { default: () => null })
 
-const noLeidos = computed(() => {
-  if (!vistasEn.value) return auditStore.eventosRecientes.length
-  const umbral = new Date(vistasEn.value).getTime()
-  return auditStore.eventosRecientes.filter((e) => new Date(e.created_at).getTime() > umbral).length
-})
+const noLeidos = computed(() => notificacionesStore.noLeidas)
 
-async function alAbrir(): Promise<void> {
-  const abriendo = !abierto.value
-  menuAbierto.value = abriendo ? 'notificaciones' : null
-  if (!abriendo) return
+async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (tenantId) await auditStore.cargarEventosRecientes(tenantId)
-  vistasEn.value = new Date().toISOString()
+  if (tenantId) await notificacionesStore.cargar(tenantId)
+}
+
+// El contador debe verse sin abrir el panel, así que se carga al montar.
+onMounted(cargar)
+
+// Cambiar de copropiedad invalida por completo lo que había: son avisos de
+// otro tenant (prompt 06 §19/§20 — nada de resultados residuales al hacer
+// switch).
+watch(() => tenantStore.activeTenant?.id, cargar)
+
+function alAbrir(): void {
+  menuAbierto.value = abierto.value ? null : 'notificaciones'
 }
 
 function alPerderFoco(evento: FocusEvent): void {
@@ -38,8 +48,20 @@ function alPerderFoco(evento: FocusEvent): void {
   if (abierto.value) menuAbierto.value = null
 }
 
+async function alActivar(id: string, enlace: string | null): Promise<void> {
+  await notificacionesStore.marcarLeida(id)
+  menuAbierto.value = null
+  if (enlace) await navigateTo(enlace)
+}
+
 function formatoFecha(iso: string): string {
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+const CLASE_PRIORIDAD: Record<string, string> = {
+  critica: 'bg-red-500',
+  importante: 'bg-amber-500',
+  informativa: 'bg-gray-300 dark:bg-gray-600',
 }
 </script>
 
@@ -48,7 +70,8 @@ function formatoFecha(iso: string): string {
     <button
       type="button"
       class="relative w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-      title="Actividad reciente"
+      :title="noLeidos > 0 ? `${noLeidos} notificaciones sin leer` : 'Notificaciones'"
+      :aria-label="noLeidos > 0 ? `Notificaciones, ${noLeidos} sin leer` : 'Notificaciones'"
       @click="alAbrir"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
@@ -68,26 +91,57 @@ function formatoFecha(iso: string): string {
       class="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-xl z-40 overflow-hidden"
     >
       <div class="flex items-center justify-between px-3 pt-2.5 pb-1">
-        <p class="text-[10.5px] uppercase tracking-wide text-gray-400 font-mono">Actividad reciente</p>
-        <NuxtLink
-          to="/auditoria"
+        <p class="text-[10.5px] uppercase tracking-wide text-gray-400 font-mono">Notificaciones</p>
+        <button
+          v-if="noLeidos > 0"
+          type="button"
           class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
-          @click="menuAbierto = null"
+          @click="notificacionesStore.marcarTodasLeidas()"
         >
-          Ver todo
-        </NuxtLink>
+          Marcar todas leídas
+        </button>
       </div>
-      <p v-if="auditStore.eventosRecientes.length === 0" class="px-3 py-4 text-sm text-gray-400 text-center">
-        Sin actividad reciente.
+
+      <p
+        v-if="notificacionesStore.notificaciones.length === 0"
+        class="px-3 py-4 text-sm text-gray-400 text-center"
+      >
+        Sin notificaciones.
       </p>
+
       <ul v-else class="max-h-80 overflow-y-auto">
         <li
-          v-for="evento in auditStore.eventosRecientes"
-          :key="evento.id"
-          class="px-3 py-2 border-t border-gray-100 dark:border-gray-800 text-sm"
+          v-for="n in notificacionesStore.notificaciones"
+          :key="n.id"
+          class="border-t border-gray-100 dark:border-gray-800"
         >
-          <p class="text-gray-700 dark:text-gray-200">{{ evento.action }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">{{ formatoFecha(evento.created_at) }}</p>
+          <component
+            :is="n.enlace ? 'button' : 'div'"
+            :type="n.enlace ? 'button' : undefined"
+            class="w-full text-left px-3 py-2 text-sm flex gap-2"
+            :class="[
+              n.enlace ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : '',
+              n.leida ? 'opacity-60' : '',
+            ]"
+            @click="n.enlace ? alActivar(n.id, n.enlace) : undefined"
+          >
+            <!-- La prioridad no se comunica solo por color: el punto lleva
+                 su propio texto accesible (WCAG 2.2, prompt 02 §38). -->
+            <span
+              class="mt-1.5 w-2 h-2 rounded-full shrink-0"
+              :class="CLASE_PRIORIDAD[n.prioridad] ?? CLASE_PRIORIDAD.informativa"
+            />
+            <span class="sr-only">Prioridad {{ n.prioridad }}.</span>
+            <span class="min-w-0">
+              <span class="block text-gray-700 dark:text-gray-200" :class="n.leida ? '' : 'font-medium'">
+                {{ n.titulo }}
+              </span>
+              <span v-if="n.cuerpo" class="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {{ n.cuerpo }}
+              </span>
+              <span class="block text-xs text-gray-400 mt-0.5">{{ formatoFecha(n.createdAt) }}</span>
+            </span>
+          </component>
         </li>
       </ul>
     </div>
