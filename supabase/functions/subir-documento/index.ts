@@ -65,6 +65,7 @@ export default {
     const envioIdRaw = form.get('envio_id')
     const publicacionIdRaw = form.get('publicacion_id')
     const anuncioIdRaw = form.get('anuncio_id')
+    const terceroPerfilIdRaw = form.get('tercero_perfil_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -134,18 +135,33 @@ export default {
         correlationId,
       )
     }
+    // tercero_perfil_id — EXS-4: las fotos y el logo de una ficha del
+    // directorio. Cuelga del PERFIL y no del tercero porque el perfil es lo
+    // publicable (ver 20260933810000).
+    const terceroPerfilId =
+      typeof terceroPerfilIdRaw === 'string' && terceroPerfilIdRaw.length > 0 ? terceroPerfilIdRaw : null
+    if (terceroPerfilId !== null && !UUID_RE.test(terceroPerfilId)) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'tercero_perfil_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
     if (
       inmuebleId === null &&
       casoJuridicoId === null &&
       envioId === null &&
       publicacionId === null &&
       anuncioId === null &&
+      terceroPerfilId === null &&
       (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
     ) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id, envio_id, publicacion_id ni anuncio_id.',
+        'tenant_id debe ser un uuid válido cuando no se envía ningún alcance (inmueble_id, caso_juridico_id, envio_id, publicacion_id, anuncio_id o tercero_perfil_id).',
         undefined,
         correlationId,
       )
@@ -339,6 +355,25 @@ export default {
         )
       }
       tenantId = anuncio.tenant_id
+    } else if (terceroPerfilId !== null) {
+      const { data: perfil, error: errorPerfil } = await ctx.supabase
+        .from('tercero_perfil')
+        .select('id, tenant_id')
+        .eq('id', terceroPerfilId)
+        .maybeSingle()
+      if (errorPerfil) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorPerfil.message, undefined, correlationId)
+      }
+      if (!perfil) {
+        return errorResponse(
+          404,
+          'TERCERO_PERFIL_NO_ENCONTRADO',
+          'La ficha del directorio no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = perfil.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -433,6 +468,10 @@ export default {
         : consultaVigente.eq('publicacion_id', publicacionId)
     consultaVigente =
       anuncioId === null ? consultaVigente.is('anuncio_id', null) : consultaVigente.eq('anuncio_id', anuncioId)
+    consultaVigente =
+      terceroPerfilId === null
+        ? consultaVigente.is('tercero_perfil_id', null)
+        : consultaVigente.eq('tercero_perfil_id', terceroPerfilId)
 
     // EXS-6 · las fotos de un aviso NO se versionan entre sí.
     //
@@ -450,8 +489,11 @@ export default {
     //
     //  EXS-3 · lo mismo para los adjuntos de un anuncio: la convocatoria y
     //  el presupuesto anexo son dos documentos, no dos versiones de uno.
+    //
+    //  EXS-4 · y lo mismo para la ficha del directorio: el logo y la foto
+    //  del local conviven, no se corrigen entre sí.
     let vigente: { grupo_id: string; version: number } | null = null
-    if (publicacionId === null && anuncioId === null) {
+    if (publicacionId === null && anuncioId === null && terceroPerfilId === null) {
       const { data, error: errorVigente } = await consultaVigente.maybeSingle()
       if (errorVigente) {
         return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
@@ -472,7 +514,9 @@ export default {
             ? `_publicacion/${publicacionId}`
             : anuncioId !== null
               ? `_anuncio/${anuncioId}`
-              : '_copropiedad')
+              : terceroPerfilId !== null
+                ? `_directorio/${terceroPerfilId}`
+                : '_copropiedad')
     const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
@@ -504,6 +548,7 @@ export default {
         envio_id: envioId,
         publicacion_id: publicacionId,
         anuncio_id: anuncioId,
+        tercero_perfil_id: terceroPerfilId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

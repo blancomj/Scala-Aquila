@@ -14,16 +14,31 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const asuntosStore = useAsuntosStore()
+const authStore = useAuthStore()
 
 const SENTINEL_TODOS = 'todos'
 const filtroModulo = ref<string>(SENTINEL_TODOS)
+
+// Dueño: «todo / lo mío / sin dueño». Solo una de las siete ramas asigna
+// persona (las solicitudes de Atención), así que este filtro únicamente
+// aparece cuando hay algo asignado — en una copropiedad que no reparte
+// solicitudes sería una fila de botones que no cambia nada.
+type FiltroDueno = 'todos' | 'mios' | 'sin_dueno'
+const filtroDueno = ref<FiltroDueno>('todos')
+
+// profiles.id ES el id del usuario de auth; se usa ese y no
+// useSupabaseUser().value.id, que durante SSR puede venir sin id.
+const miId = computed(() => authStore.profile?.id ?? null)
 
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
   await asuntosStore.cargar(tenantId)
 }
-onMounted(cargar)
+onMounted(async () => {
+  await authStore.cargarPerfil()
+  await cargar()
+})
 watch(() => tenantStore.activeTenant?.id, cargar)
 
 const ETIQUETA_MODULO: Record<string, string> = {
@@ -41,11 +56,43 @@ const modulos = computed(() =>
   })),
 )
 
+/** Hay reparto de trabajo en esta copropiedad, o no lo hay. */
+const hayAsignaciones = computed(() => asuntosStore.asuntos.some((a) => a.asignadoA !== null))
+
+const misAsuntos = computed(() => asuntosStore.mios(miId.value).length)
+
+const filtrados = computed(() => {
+  let lista =
+    filtroModulo.value === SENTINEL_TODOS
+      ? asuntosStore.asuntos
+      : asuntosStore.asuntos.filter((a) => a.origenModulo === filtroModulo.value)
+  if (filtroDueno.value === 'mios') lista = lista.filter((a) => a.asignadoA === miId.value)
+  else if (filtroDueno.value === 'sin_dueno') lista = lista.filter((a) => a.asignadoA === null)
+  return lista
+})
+
+// Paginación en cliente, no en SQL: la bandeja ya viene acotada a lo que
+// este usuario puede atender y en un edificio eso son decenas de filas
+// (AD-24). Bajar limit/offset a `fn_mis_asuntos` obligaría a repetir la
+// consulta —siete ramas y un union all— por cada cambio de página, que es
+// más trabajo para el servidor que traerlo una vez.
+const POR_PAGINA = 20
+const pagina = ref(1)
+
+const totalPaginas = computed(() => Math.max(1, Math.ceil(filtrados.value.length / POR_PAGINA)))
+
+// Cambiar de filtro con la página 3 abierta dejaría la lista en blanco si
+// el nuevo conjunto tiene una sola página.
+watch([filtroModulo, filtroDueno], () => {
+  pagina.value = 1
+})
+
 const visibles = computed(() =>
-  filtroModulo.value === SENTINEL_TODOS
-    ? asuntosStore.asuntos
-    : asuntosStore.asuntos.filter((a) => a.origenModulo === filtroModulo.value),
+  filtrados.value.slice((pagina.value - 1) * POR_PAGINA, pagina.value * POR_PAGINA),
 )
+
+const desde = computed(() => (filtrados.value.length === 0 ? 0 : (pagina.value - 1) * POR_PAGINA + 1))
+const hasta = computed(() => Math.min(pagina.value * POR_PAGINA, filtrados.value.length))
 
 const hoy = new Date().toISOString().slice(0, 10)
 
@@ -152,6 +199,29 @@ function claseModulo(modulo: string): string {
         </span>
       </div>
 
+      <!-- Reparto: solo si alguien reparte. Sin asignaciones, estos
+           botones no separarían nada. -->
+      <div v-if="hayAsignaciones" class="flex items-center gap-2 flex-wrap">
+        <button
+          v-for="opcion in [
+            { valor: 'todos' as const, etiqueta: `Todo (${asuntosStore.asuntos.length})` },
+            { valor: 'mios' as const, etiqueta: `Asignados a mí (${misAsuntos})` },
+            { valor: 'sin_dueno' as const, etiqueta: `Sin dueño (${asuntosStore.sinDueno.length})` },
+          ]"
+          :key="opcion.valor"
+          type="button"
+          class="px-3 py-1 rounded-full text-xs border transition-colors"
+          :class="
+            filtroDueno === opcion.valor
+              ? 'border-primary text-primary font-medium'
+              : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400'
+          "
+          @click="filtroDueno = opcion.valor"
+        >
+          {{ opcion.etiqueta }}
+        </button>
+      </div>
+
       <ul class="space-y-2">
         <li
           v-for="a in visibles"
@@ -171,6 +241,15 @@ function claseModulo(modulo: string): string {
                 >
                   {{ textoVencimiento(a.venceAt) }}
                 </span>
+                <!-- Solo se marca lo tuyo. Decir «asignado a otra persona»
+                     exigiría traer su nombre, y saber quién lo lleva es
+                     cosa de la pantalla del dominio, no de la bandeja. -->
+                <span
+                  v-if="a.asignadoA !== null && a.asignadoA === miId"
+                  class="px-2 py-0.5 rounded-full text-[11px] bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                >
+                  Tuyo
+                </span>
               </div>
               <p class="text-sm font-medium truncate">{{ a.titulo }}</p>
               <p v-if="a.resumen" class="text-xs text-neutral-600 dark:text-neutral-400 truncate">
@@ -185,6 +264,36 @@ function claseModulo(modulo: string): string {
           </div>
         </li>
       </ul>
+
+      <div
+        v-if="filtrados.length > POR_PAGINA"
+        class="flex items-center justify-between gap-3 pt-1"
+      >
+        <p class="text-xs text-neutral-500">
+          {{ desde }}–{{ hasta }} de {{ filtrados.length }}
+        </p>
+        <div class="flex items-center gap-2">
+          <UButton size="xs" variant="ghost" :disabled="pagina === 1" @click="pagina -= 1">
+            Anterior
+          </UButton>
+          <span class="text-xs text-neutral-500">{{ pagina }} / {{ totalPaginas }}</span>
+          <UButton
+            size="xs"
+            variant="ghost"
+            :disabled="pagina >= totalPaginas"
+            @click="pagina += 1"
+          >
+            Siguiente
+          </UButton>
+        </div>
+      </div>
+
+      <p
+        v-if="filtrados.length === 0"
+        class="text-sm text-neutral-500 py-6 text-center"
+      >
+        Ningún asunto coincide con este filtro.
+      </p>
     </template>
   </div>
 </template>

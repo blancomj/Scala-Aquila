@@ -13,6 +13,30 @@ const tenantStore = useTenantStore()
 const authStore = useAuthStore()
 const route = useRoute()
 
+// EXS-7 · el contador de «Mis asuntos». Mismo criterio que la campana: el
+// número tiene que verse SIN entrar a la pantalla, porque su razón de ser
+// es avisar de que hay trabajo. Comparte el store con /asuntos, así que
+// abrir la bandeja no vuelve a consultar.
+//
+// Solo el total: desglosar por módulo en una franja de 14px no cabe, y el
+// detalle ya está a un clic. Si el total es 0 no se pinta nada — una
+// insignia en cero es ruido que enseña a ignorar la insignia.
+const asuntosStore = useAsuntosStore()
+
+async function cargarAsuntos(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) await asuntosStore.cargar(tenantId)
+}
+onMounted(cargarAsuntos)
+watch(() => tenantStore.activeTenant?.id, cargarAsuntos)
+
+/** Colapsado, el punto no dice cuántos: el tooltip sí, que es lo único que
+ *  queda para quien navega con teclado o lector de pantalla. */
+function etiquetaConContador(item: NavItem): string {
+  if (item.to !== NAV_ASUNTOS.to || asuntosStore.total === 0) return item.label
+  return `${item.label} (${String(asuntosStore.total)})`
+}
+
 // Colapso del sidebar (icon-only) persistido en cookie (SSR-safe) —
 // localStorage a secas produce hydration mismatch porque el server no lo
 // puede leer en el primer render. Solo aplica >= md — en mobile el sidebar
@@ -105,13 +129,13 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
           v-for="item in [NAV_INICIO, NAV_ASUNTOS, NAV_COPROPIEDADES, NAV_AYUDA]"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
+          class="relative flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"
           :class="
             activo(item.to)
               ? 'bg-indigo-600 text-white font-medium'
               : 'text-slate-300 hover:bg-slate-800 hover:text-white'
           "
-          :title="colapsado ? item.label : undefined"
+          :title="colapsado ? etiquetaConContador(item) : undefined"
         >
           <svg
             viewBox="0 0 24 24"
@@ -126,6 +150,19 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
             <path :d="item.icono" />
           </svg>
           <span v-if="!colapsado" class="truncate">{{ item.label }}</span>
+          <!-- Colapsado no cabe un número: un punto dice «hay algo» y el
+               número está a un clic. -->
+          <span
+            v-if="item.to === NAV_ASUNTOS.to && asuntosStore.total > 0 && colapsado"
+            class="absolute left-6 top-1 w-1.5 h-1.5 rounded-full bg-amber-400"
+            aria-hidden="true"
+          />
+          <span
+            v-else-if="item.to === NAV_ASUNTOS.to && asuntosStore.total > 0"
+            class="ml-auto rounded-full bg-amber-500 text-white text-[10px] leading-none px-1.5 py-0.5 font-medium"
+          >
+            {{ asuntosStore.total }}
+          </span>
         </NuxtLink>
       </div>
 

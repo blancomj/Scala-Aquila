@@ -1535,6 +1535,13 @@ export const ERROR_CODES = {
   // (subir-documento devuelve ANUNCIO_NO_ENCONTRADO cuando el anuncio no existe o el actor no
   //  puede verlo — ya registrado arriba, en EXS-3.)
 
+  // guard_documento_tipo_familia: la foto cita una ficha de directorio de otra copropiedad
+  // (20260933810000). Nace con la validación, a diferencia de anuncio_id, que estuvo sin ella
+  // desde EXS-3.
+  TERCERO_PERFIL_INVALIDO: 'TERCERO_PERFIL_INVALIDO',
+  // subir-documento: se pidió subir una foto a una ficha que no existe o que el actor no ve.
+  TERCERO_PERFIL_NO_ENCONTRADO: 'TERCERO_PERFIL_NO_ENCONTRADO',
+
   // ── EXS-7: mis asuntos (20260933500000) ──
   // fn_mis_asuntos: quien no es miembro del tenant no tiene bandeja. Mismo criterio de no
   // revelar que la copropiedad existe que el directorio y el marketplace.

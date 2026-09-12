@@ -24,6 +24,9 @@ export interface Asunto {
   enlace: string
   createdAt: string
   venceAt: string | null
+  /** Solo la rama de Atención lo trae: es el único dominio del corte que asigna dueño. En las
+   *  demás es null, y eso significa "le toca a quien pueda", no "falta asignarlo". */
+  asignadoA: string | null
 }
 
 interface FilaAsunto {
@@ -37,6 +40,7 @@ interface FilaAsunto {
   enlace: string
   created_at: string
   vence_at: string | null
+  asignado_a: string | null
 }
 
 export const useAsuntosStore = defineStore('asuntos', () => {
@@ -65,6 +69,7 @@ export const useAsuntosStore = defineStore('asuntos', () => {
         enlace: a.enlace,
         createdAt: a.created_at,
         venceAt: a.vence_at,
+        asignadoA: a.asignado_a,
       }))
     } catch (e) {
       error.value = mensajeError(e, 'No se pudieron cargar los asuntos.')
@@ -88,5 +93,19 @@ export const useAsuntosStore = defineStore('asuntos', () => {
     return asuntos.value.filter((a) => a.venceAt !== null && a.venceAt.slice(0, 10) < hoy).length
   })
 
-  return { asuntos, loading, error, cargar, porModulo, vencidos }
+  /** Cuántos asuntos hay en total — lo que pinta la insignia del sidebar. */
+  const total = computed(() => asuntos.value.length)
+
+  /** Los que llevan tu nombre. Se calcula aquí y no en SQL porque el conjunto ya viene
+   *  acotado a lo que puedes atender y cabe entero en memoria (AD-24: un tenant es un
+   *  edificio); bajarlo a la función solo añadiría un parámetro sin ahorrar trabajo. */
+  function mios(userId: string | null): Asunto[] {
+    if (userId === null) return []
+    return asuntos.value.filter((a) => a.asignadoA === userId)
+  }
+
+  /** Con dueño explícito que no eres tú: lo que alguien ya lleva. */
+  const sinDueno = computed(() => asuntos.value.filter((a) => a.asignadoA === null))
+
+  return { asuntos, loading, error, cargar, porModulo, vencidos, total, mios, sinDueno }
 })

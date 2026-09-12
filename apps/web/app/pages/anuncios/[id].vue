@@ -153,7 +153,13 @@ function fechaHora(iso: string | null): string {
 
     <!-- Adjuntos: van pegados al cuerpo porque son parte de lo comunicado,
          no metadatos del anuncio -->
-    <AnunciosAnuncioAdjuntos :anuncio-id="anuncioId" :estado="a.estado" />
+    <UiGaleriaDocumentos
+      :anuncio-id="anuncioId"
+      titulo="Adjuntos"
+      vacio="Este anuncio no tiene documentos adjuntos."
+      :editable="!['publicado', 'archivado', 'cancelado'].includes(a.estado)"
+      motivo-bloqueo="Un anuncio publicado ya no admite adjuntos: lleva consecutivo y lo que se comunicó no se reescribe. Si hace falta añadir algo, redacta otro anuncio."
+    />
 
     <!-- Audiencia -->
     <section class="space-y-2">

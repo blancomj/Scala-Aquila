@@ -65,6 +65,17 @@ watch(() => tenantStore.activeTenant?.id, cargarTodo)
 const ruta = useRoute()
 
 async function abrirDesdeEnlace(): Promise<void> {
+  // `/marketplace?texto=…` — lo usa el enlace de una ficha del directorio
+  // para buscar los avisos de ese negocio. Es una BÚSQUEDA por su nombre
+  // público y no una consulta por tercero a propósito: el tablón nunca
+  // expone quién publicó (EXS-6), y cruzar por id delataría la autoría de
+  // todos los demás avisos.
+  const texto = ruta.query.texto
+  if (typeof texto === 'string' && texto !== '') {
+    busqueda.value = texto
+    await aplicarFiltros()
+  }
+
   const id = ruta.query.publicacion
   if (typeof id !== 'string' || id === '') return
   const existe = marketplaceStore.publicaciones.some((p) => p.id === id)

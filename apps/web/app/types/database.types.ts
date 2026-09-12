@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -5739,6 +5734,7 @@ export type Database = {
           subido_por: string | null
           tamano_bytes: number | null
           tenant_id: string
+          tercero_perfil_id: string | null
           tipo_documento_id: number
           version: number
         }
@@ -5760,6 +5756,7 @@ export type Database = {
           subido_por?: string | null
           tamano_bytes?: number | null
           tenant_id: string
+          tercero_perfil_id?: string | null
           tipo_documento_id: number
           version?: number
         }
@@ -5781,6 +5778,7 @@ export type Database = {
           subido_por?: string | null
           tamano_bytes?: number | null
           tenant_id?: string
+          tercero_perfil_id?: string | null
           tipo_documento_id?: number
           version?: number
         }
@@ -5853,6 +5851,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_tercero_perfil_id_fkey"
+            columns: ["tercero_perfil_id"]
+            isOneToOne: false
+            referencedRelation: "tercero_perfil"
             referencedColumns: ["id"]
           },
           {
@@ -21087,6 +21092,7 @@ export type Database = {
           subido_por: string | null
           tamano_bytes: number | null
           tenant_id: string | null
+          tercero_perfil_id: string | null
           tipo_documento_id: number | null
           version: number | null
         }
@@ -21159,6 +21165,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_tercero_perfil_id_fkey"
+            columns: ["tercero_perfil_id"]
+            isOneToOne: false
+            referencedRelation: "tercero_perfil"
             referencedColumns: ["id"]
           },
           {
@@ -22549,8 +22562,11 @@ export type Database = {
           categoria_nombre: string
           contacto_publico: string
           descripcion: string
+          fotos: number
           horario: string
           nombre_comercial: string
+          perfil_id: string
+          portada_path: string
           tercero_id: string
           tipo_persona: Database["public"]["Enums"]["tercero_tipo_t"]
           ubicaciones: string[]
@@ -23811,6 +23827,7 @@ export type Database = {
         Args: { p_dias_anticipacion?: number; p_tenant_id: string }
         Returns: {
           accion: string
+          asignado_a: string
           created_at: string
           enlace: string
           estado: string
@@ -26293,12 +26310,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26322,11 +26339,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26347,11 +26364,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26372,11 +26389,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26389,11 +26406,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26929,3 +26946,4 @@ export const Constants = {
     },
   },
 } as const
+

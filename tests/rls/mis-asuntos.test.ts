@@ -40,6 +40,7 @@ interface Asunto {
   enlace: string
   created_at: string
   vence_at: string | null
+  asignado_a: string | null
 }
 
 async function idListaTipos(admin: Cliente, tipo: string, codigo: string): Promise<number> {
@@ -413,5 +414,81 @@ d('EXS-7: mis asuntos', () => {
     expect(propios.some((a) => a.origen_id === pubOtro!.id)).toBe(false)
 
     await eliminarTenant(admin, otro.id)
+  }, 30_000)
+
+  // ── asignado_a (20260933800000) ──
+  //
+  //  De las siete ramas solo Atención asigna dueño. Que las demás traigan
+  //  null no es un hueco por rellenar: significa "le toca a quien pueda".
+  //
+  //  El fixture es más largo que los otros de este archivo porque
+  //  `solicitudes` exige vocabulario propio del tenant, inmueble y
+  //  consecutivo — es la tabla de GOB-8, no una del corte.
+
+  async function crearSolicitud(asunto: string, asignadoA: string | null): Promise<void> {
+    const vocabulario = async (familia: string, codigo: string): Promise<number> => {
+      const { data, error } = await admin
+        .from('lista_tipos')
+        .insert({ tipo: familia, codigo, nombre: codigo, tenant_id: tenant.id })
+        .select('id')
+        .single<{ id: number }>()
+      if (error) throw new Error(`fixture ${familia}.${codigo}: ${error.message}`)
+      return data.id
+    }
+    // Códigos únicos por llamada: lista_tipos es único por (tenant, tipo, código).
+    const sufijo = Math.random().toString(36).slice(2, 8)
+    const tipoSolicitud = await vocabulario('TIPO_SOLICITUD', `peticion-${sufijo}`)
+    const categoriaSolicitud = await vocabulario('CATEGORIA_SOLICITUD', `general-${sufijo}`)
+    // solicitudes_clasificacion_completa exige origen y prioridad salvo en
+    // los estados de triaje externo, que no son los de esta prueba.
+    const origenSolicitud = await vocabulario('ORIGEN_SOLICITUD', `telefono-${sufijo}`)
+    const prioridadSolicitud = await vocabulario('PRIORIDAD_SOLICITUD', `media-${sufijo}`)
+    const tipoInmueble = await idListaTipos(admin, 'TIPO_INMUEBLE', 'apartamento')
+
+    const { data: inmueble, error: errorInmueble } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenant.id, codigo: `A-${sufijo}`, tipo_id: tipoInmueble })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorInmueble) throw new Error(`fixture inmueble: ${errorInmueble.message}`)
+
+    const { error } = await admin.from('solicitudes').insert({
+      tenant_id: tenant.id,
+      numero: Math.floor(Math.random() * 100000),
+      anio: new Date().getUTCFullYear(),
+      tipo_id: tipoSolicitud,
+      categoria_id: categoriaSolicitud,
+      solicitante_ref: tercero,
+      inmueble_id: inmueble.id,
+      calidad: 'propietario',
+      origen_id: origenSolicitud,
+      prioridad_id: prioridadSolicitud,
+      asunto,
+      asignado_a: asignadoA,
+    })
+    if (error) throw new Error(`fixture solicitud: ${error.message}`)
+  }
+
+  it('la bandeja distingue lo asignado de lo que le toca a cualquiera', async () => {
+    await crearSolicitud('Sin dueño todavía', null)
+    await crearSolicitud('La lleva el administrador', administrador.id)
+
+    const filas = await asuntos(comoAdmin)
+    const sinDueno = filas.find((a) => a.titulo === 'Sin dueño todavía')
+    const conDueno = filas.find((a) => a.titulo === 'La lleva el administrador')
+
+    expect(sinDueno, 'la solicitud sin asignar debería estar en la bandeja').toBeDefined()
+    expect(conDueno, 'la solicitud asignada debería estar en la bandeja').toBeDefined()
+    expect(sinDueno!.asignado_a).toBeNull()
+    expect(conDueno!.asignado_a).toBe(administrador.id)
+  }, 60_000)
+
+  it('las ramas que no asignan dueño devuelven null, y eso es lo correcto', async () => {
+    const filas = await asuntos(comoAdmin)
+    const ajenasAAtencion = filas.filter((a) => a.origen_modulo !== 'atencion')
+    expect(ajenasAAtencion.length).toBeGreaterThan(0)
+    // Ninguna otra rama inventa un dueño: aprobar un anuncio le toca a
+    // cualquier administrador, no a uno nominado.
+    expect(ajenasAAtencion.every((a) => a.asignado_a === null)).toBe(true)
   }, 30_000)
 })

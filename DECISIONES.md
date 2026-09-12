@@ -4583,3 +4583,60 @@ más difícil de leer que tener dos.
 distinto y `version: 1` cada uno, sus URLs firmadas devuelven los PDF, y al publicar el anuncio la
 sección queda en solo lectura con los adjuntos aún visibles. 4 pruebas nuevas en
 `tests/rls/anuncios.test.ts` (20 en total).
+
+## D-83
+
+**El grupo de pendientes baratos de la serie EXS**, los cinco que ya no dependían de nada.
+Migraciones `20260933800000` y `20260933810000`.
+
+Antes de ejecutarlos, dos de los pendientes de la lista resultaron estar mal clasificados y se
+corrigen aquí: **«visibilidad por segmento» no depende de la capa externa** —el motor de audiencias
+de GOB-9 (`gobierno_segmento_destinatarios`, 5 criterios) es genérico y `fn_anuncio_destinatarios`
+no es más que su envoltorio—, y **«prevención de enumeración» no es un pendiente sino una pregunta
+cerrada en EXS-8**: los ids son UUID v4 y toda lectura pasa por RLS o por función que valida
+pertenencia, con pruebas que lo fijan.
+
+**1 · Contador de «Mis asuntos» en el sidebar.** Mismo criterio que la campana: el número tiene que
+verse sin entrar a la pantalla, porque su razón de ser es avisar. Comparte store con `/asuntos`, así
+que abrir la bandeja no vuelve a consultar. Colapsado no cabe un número: se pinta un punto y el
+total va al `title`, que es lo único que le queda a quien navega con teclado. En cero no se pinta
+nada — una insignia en cero enseña a ignorar la insignia.
+
+**2 · Paginación de la bandeja**, 20 por página, **en cliente**. La bandeja ya viene acotada a lo
+que el usuario puede atender y en un edificio eso son decenas de filas (AD-24); bajar `limit/offset`
+a `fn_mis_asuntos` obligaría a repetir siete ramas y un `union all` en cada cambio de página. Cambiar
+de filtro reinicia a la página 1: si no, filtrar desde la página 3 dejaría la lista en blanco.
+
+**3 · «Asignado a mí».** `fn_mis_asuntos` gana una columna, `asignado_a`, y **DROP + CREATE** porque
+cambia el tipo de retorno. De las siete ramas solo Atención tiene dueño (`solicitudes.asignado_a`,
+GOB-8); en las otras seis es null **y eso significa algo**: ese trabajo le toca a quien pueda, no a
+una persona. Repartir nominalmente un anuncio pendiente sería inventar un proceso que el dominio no
+tiene. En la fila solo se marca lo tuyo: decir «lo lleva otra persona» exigiría traer su nombre, y
+saber quién lo lleva es cosa de la pantalla del dominio. El filtro entero solo aparece si hay
+asignaciones.
+
+**4 · Fotos del directorio.** Cuarta FK de dominio en `documentos`, y la primera que nace completa:
+columna, índice parcial, **la vista recreada en la misma migración** —`v_documento_vigente` es un
+`select *` y este repositorio ya tropezó cuatro veces con que no hereda columnas nuevas— y **el
+guard con la validación de tenant desde el primer día**, que es justo lo que a `anuncio_id` le faltó
+durante todo EXS-3. Cuelga del **perfil** y no del tercero porque el perfil es lo publicable:
+despublicar la ficha deja la imagen sin sitio por construcción. Sin versionado entre imágenes, como
+marketplace y anuncios. `fn_directorio_listar` devuelve ahora `perfil_id` (sin él la pantalla no
+puede subir ni listar) y la portada como RUTA, no como URL firmada.
+
+**5 · Enlace directorio → marketplace, como BÚSQUEDA y no como consulta por tercero.** Es la
+decisión menos obvia del corte. El tablón expone `identidad_publica` y **nunca** el tercero que
+publicó (EXS-6): cruzar ficha y avisos por `publicador_tercero_id` delataría, en todos los demás
+avisos, a quién pertenece cada uno. El enlace lleva a `/marketplace?texto=<nombre comercial>`, que
+no revela nada que el usuario no pudiera teclear él mismo. La versión fuerte —que una publicación
+declare su ficha del directorio con una FK opt-in, legítima porque ese negocio ya es público— queda
+propuesta y sin hacer: es columna nueva y decisión de producto, no parte de este grupo.
+
+**Componente compartido**: `AnuncioAdjuntos` se generalizó a `UiGaleriaDocumentos`, que ahora sirve
+a anuncios y a directorio. Sigue sin ser `UiLibreriaDocumentos`, y por la misma razón de siempre:
+aquella está construida sobre el versionado y aquí subir añade, no reemplaza.
+
+Verificado en navegador con datos reales: portada en la tarjeta, enlace que deja el buscador del
+tablón relleno, insignia de 26 en el sidebar (punto y tooltip al colapsar), paginación «1–20 de 26»
+y el filtro «Asignados a mí (8)» dejando 8 filas, todas marcadas. 4 pruebas nuevas (15 en
+mis-asuntos, 14 en directorio).

@@ -11,6 +11,31 @@ const tenantStore = useTenantStore()
 const directorioStore = useDirectorioStore()
 const tercerosStore = useTercerosStore()
 const catalogosStore = useCatalogosStore()
+const documentosStore = useDocumentosStore()
+
+// ── Fotos (20260933810000) ──
+//
+// La función del directorio devuelve la RUTA de la portada, no una URL: el
+// bucket es privado y firmar en SQL exigiría meter ahí su clave. Se firma
+// aquí, una vez por ficha visible, y se guarda en un mapa para no volver a
+// pedirlo en cada re-render.
+const portadas = ref<Record<string, string>>({})
+
+async function firmarPortadas(): Promise<void> {
+  const pendientes = directorioStore.fichas.filter(
+    (f) => f.portadaPath !== null && !(f.perfilId in portadas.value),
+  )
+  await Promise.all(
+    pendientes.map(async (f) => {
+      try {
+        portadas.value[f.perfilId] = await documentosStore.urlDescarga(f.portadaPath!)
+      } catch {
+        // Una portada que no se puede firmar no debe tumbar el directorio:
+        // la ficha se muestra sin imagen, que es como estaba antes.
+      }
+    }),
+  )
+}
 
 type Tab = 'consultar' | 'gestion'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
@@ -36,6 +61,7 @@ async function cargarTodo(): Promise<void> {
     directorioStore.cargarPerfiles(tenantId),
     tercerosStore.cargarTerceros(tenantId),
   ])
+  await firmarPortadas()
 }
 onMounted(cargarTodo)
 watch(() => tenantStore.activeTenant?.id, cargarTodo)
@@ -47,6 +73,7 @@ async function aplicarFiltros(): Promise<void> {
     categoriaId: filtroCategoria.value === SENTINEL_TODAS ? null : Number(filtroCategoria.value),
     texto: busqueda.value.trim() || undefined,
   })
+  await firmarPortadas()
 }
 
 const itemsCategoria = computed(() => [
@@ -120,6 +147,23 @@ async function guardar(): Promise<void> {
   } finally {
     guardando.value = false
   }
+}
+
+// Las fotos se gestionan por PERFIL, no por tercero: la FK cuelga del
+// perfil porque es lo publicable (20260933810000).
+const fotosAbierto = ref(false)
+const perfilFotos = ref<string | null>(null)
+
+function abrirFotos(perfilId: string): void {
+  perfilFotos.value = perfilId
+  fotosAbierto.value = true
+}
+
+async function cerrarFotos(): Promise<void> {
+  fotosAbierto.value = false
+  // La portada de la tarjeta sale de la función, así que hay que releer
+  // para que una foto recién subida aparezca en la pestaña de consulta.
+  await cargarTodo()
 }
 
 async function alternarPublicacion(terceroId: string, publicado: boolean): Promise<void> {
@@ -200,8 +244,16 @@ const itemsTercero = computed(() =>
         <article
           v-for="f in directorioStore.fichas"
           :key="f.terceroId"
-          class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-2"
+          class="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden"
         >
+          <img
+            v-if="portadas[f.perfilId]"
+            :src="portadas[f.perfilId]"
+            :alt="`Imagen de ${f.nombreComercial ?? 'la ficha'}`"
+            class="w-full h-32 object-cover"
+            loading="lazy"
+          >
+          <div class="p-4 space-y-2">
           <div>
             <h3 class="text-sm font-medium">{{ f.nombreComercial }}</h3>
             <p v-if="f.categoriaNombre" class="text-xs text-neutral-500">{{ f.categoriaNombre }}</p>
@@ -223,6 +275,21 @@ const itemsTercero = computed(() =>
               <dd class="font-mono">{{ f.contactoPublico }}</dd>
             </div>
           </dl>
+
+          <!-- Enlace al tablón como BÚSQUEDA por el nombre comercial, no
+               como consulta por tercero. El marketplace solo expone
+               `identidad_publica` y nunca el tercero que publicó (EXS-6):
+               cruzar ficha y avisos por el id delataría, en todos los demás
+               avisos, a quién pertenece cada uno. Esto no revela nada que
+               el usuario no pudiera teclear él mismo en el buscador. -->
+          <NuxtLink
+            v-if="f.nombreComercial"
+            :to="`/marketplace?texto=${encodeURIComponent(f.nombreComercial)}`"
+            class="inline-block text-xs text-primary hover:underline"
+          >
+            Buscar sus avisos en el tablón →
+          </NuxtLink>
+          </div>
         </article>
       </div>
     </div>
@@ -268,6 +335,7 @@ const itemsTercero = computed(() =>
         <template #celda-acciones="{ fila }">
           <div class="flex gap-2 justify-end">
             <UButton size="xs" variant="ghost" @click="abrirEdicion(fila.terceroId)">Editar</UButton>
+            <UButton size="xs" variant="ghost" @click="abrirFotos(fila.id)">Fotos</UButton>
             <UButton
               size="xs"
               :variant="fila.publicado ? 'ghost' : 'outline'"
@@ -333,6 +401,19 @@ const itemsTercero = computed(() =>
           Guardar ficha
         </UButton>
       </template>
+    </UiDrawer>
+
+    <UiDrawer
+      :abierto="fotosAbierto"
+      titulo="Fotos de la ficha"
+      subtitulo="La más antigua es la portada que se ve en el directorio. Cada imagen se guarda aparte: subir una nueva no reemplaza a las anteriores."
+      @cerrar="cerrarFotos"
+    >
+      <UiGaleriaDocumentos
+        v-if="perfilFotos"
+        :perfil-id="perfilFotos"
+        vacio="Esta ficha todavía no tiene imágenes."
+      />
     </UiDrawer>
   </div>
 </template>

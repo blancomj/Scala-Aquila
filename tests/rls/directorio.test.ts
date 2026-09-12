@@ -278,4 +278,74 @@ d('EXS-4: directorio de la copropiedad', () => {
     expect(error?.message).toContain('DIRECTORIO_NO_DISPONIBLE')
     await eliminarTenant(admin, otro.id)
   }, 30_000)
+
+  // ── Fotos (20260933810000) ──
+
+  it('la portada es la más antigua y el conteo crece; ninguna versiona a la otra', async () => {
+    const { data: perfil } = await admin
+      .from('tercero_perfil')
+      .select('id')
+      .eq('tercero_id', terceroComercio)
+      .single<{ id: string }>()
+
+    const tipoFoto = await idListaTipos(admin, 'TIPO_DOCUMENTO', 'fotografia')
+    // Por service_role, como en marketplace: documentos no admite INSERT de
+    // `authenticated`; el camino real del usuario es la Edge Function, que
+    // acaba en este mismo insert y por tanto en este mismo guard.
+    for (const nombre of ['logo.png', 'local.png']) {
+      const { error } = await admin.from('documentos').insert({
+        tenant_id: tenant.id,
+        tercero_perfil_id: perfil!.id,
+        tipo_documento_id: tipoFoto,
+        grupo_id: crypto.randomUUID(),
+        version: 1,
+        nombre_archivo: nombre,
+        storage_path: `${tenant.id}/_directorio/${perfil!.id}/${nombre}`,
+        tamano_bytes: 100,
+      })
+      expect(error, `subiendo ${nombre}`).toBeNull()
+    }
+
+    const { data } = await cliente.rpc('fn_directorio_listar', { p_tenant_id: tenant.id })
+    const ficha = ((data ?? []) as unknown as (FichaDirectorio & {
+      portada_path: string | null
+      fotos: number
+      perfil_id: string
+    })[])[0]!
+
+    // Las dos conviven: si se versionaran, la vista devolvería una sola.
+    expect(ficha.fotos).toBe(2)
+    // La primera que subieron es la portada, y no cambia al añadir otra.
+    expect(ficha.portada_path).toContain('logo.png')
+    // Ruta, no URL firmada: el bucket es privado y firmar en SQL exigiría
+    // su clave dentro de la función.
+    expect(ficha.portada_path).not.toContain('http')
+    // El id del PERFIL, que es de donde cuelga la FK — sin él la pantalla
+    // no podría subir ni listar.
+    expect(ficha.perfil_id).toBe(perfil!.id)
+  }, 30_000)
+
+  it('una foto no puede colgar de una ficha de otra copropiedad', async () => {
+    const otro = await crearTenant(admin, 'exs4-foto-ajena')
+    const { data: perfil } = await admin
+      .from('tercero_perfil')
+      .select('id')
+      .eq('tercero_id', terceroComercio)
+      .single<{ id: string }>()
+    const tipoFoto = await idListaTipos(admin, 'TIPO_DOCUMENTO', 'fotografia')
+
+    const { error } = await admin.from('documentos').insert({
+      tenant_id: otro.id,
+      tercero_perfil_id: perfil!.id,
+      tipo_documento_id: tipoFoto,
+      grupo_id: crypto.randomUUID(),
+      version: 1,
+      nombre_archivo: 'robada.png',
+      storage_path: `${otro.id}/_directorio/${perfil!.id}/robada.png`,
+      tamano_bytes: 100,
+    })
+    expect(error?.message).toContain('TERCERO_PERFIL_INVALIDO')
+
+    await eliminarTenant(admin, otro.id)
+  }, 30_000)
 })

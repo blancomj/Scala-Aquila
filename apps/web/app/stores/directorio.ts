@@ -17,6 +17,8 @@ import { mensajeError } from '~/utils/error-message'
 
 export interface FichaDirectorio {
   terceroId: string
+  /** Id del PERFIL, no del tercero: las fotos cuelgan del perfil (20260933810000). */
+  perfilId: string
   nombreComercial: string | null
   categoriaCodigo: string | null
   categoriaNombre: string | null
@@ -25,6 +27,9 @@ export interface FichaDirectorio {
   contactoPublico: string | null
   tipoPersona: string
   ubicaciones: string[]
+  /** Ruta en el bucket privado, no una URL: la firma la pide el cliente al mostrarla. */
+  portadaPath: string | null
+  fotos: number
 }
 
 export interface PerfilTercero {
@@ -41,6 +46,7 @@ export interface PerfilTercero {
 
 interface FilaFicha {
   tercero_id: string
+  perfil_id: string
   nombre_comercial: string | null
   categoria_codigo: string | null
   categoria_nombre: string | null
@@ -49,6 +55,8 @@ interface FilaFicha {
   contacto_publico: string | null
   tipo_persona: string
   ubicaciones: string[]
+  portada_path: string | null
+  fotos: number
 }
 
 export const useDirectorioStore = defineStore('directorio', () => {
@@ -73,6 +81,7 @@ export const useDirectorioStore = defineStore('directorio', () => {
       if (err) throw err
       fichas.value = ((data ?? []) as unknown as FilaFicha[]).map((f) => ({
         terceroId: f.tercero_id,
+        perfilId: f.perfil_id,
         nombreComercial: f.nombre_comercial,
         categoriaCodigo: f.categoria_codigo,
         categoriaNombre: f.categoria_nombre,
@@ -81,6 +90,8 @@ export const useDirectorioStore = defineStore('directorio', () => {
         contactoPublico: f.contacto_publico,
         tipoPersona: f.tipo_persona,
         ubicaciones: f.ubicaciones,
+        portadaPath: f.portada_path,
+        fotos: f.fotos,
       }))
     } catch (e) {
       error.value = mensajeError(e, 'No se pudo cargar el directorio.')
