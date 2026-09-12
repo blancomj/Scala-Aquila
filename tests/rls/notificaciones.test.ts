@@ -253,8 +253,13 @@ d('EXS-2: notificaciones in-app', () => {
     expect(notis).toHaveLength(1)
     expect(notis![0]!.titulo).toBe('Saldo bajo en operativa')
     expect(notis![0]!.modulo).toBe('financiero')
-    // Lleva al contexto, no al home del módulo (prompt 06 §12).
-    expect(notis![0]!.enlace).toBe('/finanzas/flujo')
+    // Lleva al contexto, no al home del módulo (prompt 06 §12). La ruta
+    // decía '/finanzas/flujo' y esa página no existe: la corrigió
+    // 20260933710000 tras verla dar 404 en el navegador. Que esta prueba
+    // pasara con el enlace roto es justo el motivo de
+    // tests/governance/enlaces-notificaciones.test.ts — fijar el literal
+    // no comprueba que resuelva.
+    expect(notis![0]!.enlace).toBe('/finanzas/flujo-proyectado')
     expect(notis![0]!.origen_entidad).toBe('finanzas_alerta_emitida')
   }, 30_000)
 

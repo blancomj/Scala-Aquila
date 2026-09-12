@@ -4492,3 +4492,52 @@ junto con `subir-documento` actualizada (la de remoto era v14, sin el alcance `p
 al proyecto correcto pasando `SUPABASE_DB_URL` por entorno, sin modificar ese archivo — contiene
 credenciales y moverlas no es algo que deba hacerse de oficio. **Mientras siga así, un
 `pnpm db:push:prod` a secas apunta al proyecto equivocado.**
+
+## D-81
+
+Cierre de los tres pendientes que dejó D-80, y **un fallo de EXS-2 que solo apareció al usar la
+campana con el ratón**. Migración `20260933710000`.
+
+**1 · Tipos regenerados contra el remoto.** Los ocho cortes de la serie derivaron
+`database.generated.ts` y `database.types.ts` de la base local, porque `pnpm db:types` exige un
+project ref remoto. Con la serie ya aplicada en `hwjmlyzzvpmhadldavbq`, se regeneraron desde ahí:
+la lista de tablas coincide exactamente con la versión local —confirmación independiente de que
+local y remoto están alineados— y vuelve el bloque `PostgrestVersion` que la generación local no
+emite.
+
+**2 · `.env.production` corregido.** Pasa a apuntar a `hwjmlyzzvpmhadldavbq` (Scala - Aquila),
+tomando las cinco claves de `.env.remoto`. Hasta hoy apuntaba a `alfftzoxwsurvzknsczs`
+("Scala-Prod"), cientos de migraciones por detrás y ajeno a la aplicación: un `pnpm db:push:prod`
+a secas iba al destino equivocado, y el push de D-80 tuvo que esquivarlo pasando `SUPABASE_DB_URL`
+por entorno. El archivo anterior queda en `.env.production.scala-prod.bak` —lo que sea
+`alfftzoxwsurvzknsczs` sigue sin decidirse, y hasta saberlo no se le aplica nada—. Ambos están
+cubiertos por `.gitignore` y ningún valor salió del disco.
+
+**3 · La campana de EXS-2, verificada en navegador — y rota.** Era el único corte de la serie que
+nunca se había mirado con los ojos. El panel abre, el contador cuenta, la leída aparece atenuada y
+marcar leída persiste por persona: todo eso funciona. **El enlace no.** Dos de los tres puentes de
+detección apuntaban a páginas que no existen:
+
+| Emitía | La página real es |
+|---|---|
+| `/finanzas/flujo` | `/finanzas/flujo-proyectado` |
+| `/gobierno` | `/gobierno/tablero` (no hay índice) |
+
+En la base local eran **142 de 246 avisos** que terminaban en "Page not found". El tercero
+(`/mantenimiento/inventario`) y el de anuncios (`/anuncios/<id>`) sí resolvían.
+
+**Por qué nadie lo vio, que es lo interesante.** Nada en el camino falla: `fn_notificar` no conoce
+el router del front, el trigger se traga sus propios errores a propósito (la detección es el dato
+duro, el aviso es conveniencia), y la prueba de EXS-2 comprobaba que el aviso se emite **con su
+enlace**, no que el enlace resuelva — de hecho `tests/rls/notificaciones.test.ts` fijaba el literal
+roto y pasaba en verde. Un enlace muerto solo se nota pulsándolo.
+
+Se corrigen las dos funciones **y las filas ya emitidas**: arreglar solo el emisor dejaría el 404
+vivo en la campana de quien ya lo tenía.
+
+**Prueba de gobernanza nueva** (`tests/governance/enlaces-notificaciones.test.ts`), hermana de la
+de crons: cada `p_enlace` literal tiene que resolver contra las páginas reales de
+`apps/web/app/pages`, y ninguna notificación viva puede apuntar a una ruta inexistente. **Lee la
+definición viva en `pg_proc`, no las migraciones** — una migración es historia inmutable y el
+literal equivocado sigue escrito en la que lo introdujo aunque un `create or replace` posterior ya
+lo haya corregido. Así el próximo renombrado de página lo dice la suite, no un usuario.
