@@ -71,6 +71,38 @@ interface FilaConsulta {
   inmuebles: string[]
 }
 
+
+/** MOV-1 — un paso registrado en la bitácora. */
+export interface PasoBitacora {
+  id: string
+  placa: string
+  sentido: 'entrada' | 'salida'
+  momento: string
+  autorizado: boolean
+  esVisitante: boolean
+  observaciones: string | null
+}
+
+/** MOV-1 — el resultado de registrar un paso: la fila más el estado de capacidad. */
+export interface ResultadoPaso {
+  placa: string
+  autorizado: boolean
+  esVisitante: boolean
+  visitantesDentro: number
+  cuposVisitante: number | null
+  aviso: string | null
+}
+
+/** MOV-1 — un vehículo que está dentro ahora, derivado del último paso. */
+export interface VehiculoDentro {
+  placa: string
+  esVisitante: boolean
+  autorizado: boolean
+  desde: string
+  horasDentro: number
+  excedido: boolean
+}
+
 export const useVehiculosStore = defineStore('vehiculos', () => {
   const vehiculos = shallowRef<Vehiculo[]>([])
   const permisos = shallowRef<PermisoVehiculo[]>([])
@@ -237,7 +269,11 @@ export const useVehiculosStore = defineStore('vehiculos', () => {
     tipoId: number
     vigenteDesde: string
     vigenteHasta: string | null
+    /** MOV-1: el cupo cuando el parqueadero es bien privado (un inmueble de tipo
+     *  `parqueadero`). El guard rechaza cualquier otro tipo. */
     inmuebleId: string | null
+    /** MOV-1: el cupo cuando es área común de uso exclusivo. Excluyente con inmuebleId. */
+    cupoZonaId?: string | null
     motivo: string | null
   }): Promise<boolean> {
     error.value = null
@@ -250,6 +286,7 @@ export const useVehiculosStore = defineStore('vehiculos', () => {
         vigente_desde: params.vigenteDesde,
         vigente_hasta: params.vigenteHasta,
         inmueble_id: params.inmuebleId,
+        cupo_zona_id: params.cupoZonaId ?? null,
         motivo: params.motivo,
       })
       if (err) throw err
@@ -276,6 +313,172 @@ export const useVehiculosStore = defineStore('vehiculos', () => {
     }
   }
 
+
+  // ── MOV-1 · bitácora de portería ──
+  //
+  //  La escritura NO va contra la tabla: `vehiculo_paso` no tiene policy
+  //  de INSERT para `authenticated` a propósito — un insert directo podría
+  //  afirmar "autorizado = true" sobre cualquier placa. Todo pasa por
+  //  fn_vehiculo_registrar_paso, que además devuelve el estado de cupos.
+  const bitacora = shallowRef<PasoBitacora[]>([])
+  const dentro = shallowRef<VehiculoDentro[]>([])
+  const ultimoPaso = ref<ResultadoPaso | null>(null)
+
+  async function registrarPaso(params: {
+    tenantId: string
+    sentido: 'entrada' | 'salida'
+    placa?: string
+    autorizacionId?: string
+    observaciones?: string
+  }): Promise<ResultadoPaso | null> {
+    error.value = null
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error: err } = await cliente.rpc('fn_vehiculo_registrar_paso', {
+        p_tenant_id: params.tenantId,
+        p_sentido: params.sentido,
+        p_placa: params.placa ?? undefined,
+        p_autorizacion_id: params.autorizacionId ?? undefined,
+        p_observaciones: params.observaciones ?? undefined,
+      })
+      if (err) throw err
+      const fila = (data ?? [])[0]
+      if (!fila) return null
+      ultimoPaso.value = {
+        placa: fila.placa,
+        autorizado: fila.autorizado,
+        esVisitante: fila.es_visitante,
+        visitantesDentro: fila.visitantes_dentro,
+        cuposVisitante: fila.cupos_visitante,
+        aviso: fila.aviso,
+      }
+      return ultimoPaso.value
+    } catch (e) {
+      error.value = mensajeError(e, 'No se pudo registrar el paso.')
+      return null
+    }
+  }
+
+  async function cargarDentro(tenantId: string): Promise<void> {
+    error.value = null
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error: err } = await cliente.rpc('fn_movilidad_dentro', {
+        p_tenant_id: tenantId,
+      })
+      if (err) throw err
+      dentro.value = (data ?? []).map((d) => ({
+        placa: d.placa,
+        esVisitante: d.es_visitante,
+        autorizado: d.autorizado,
+        desde: d.desde,
+        horasDentro: d.horas_dentro,
+        excedido: d.excedido,
+      }))
+    } catch (e) {
+      error.value = mensajeError(e, 'No se pudo leer qué hay dentro.')
+    }
+  }
+
+  /** La bitácora sí se LEE por tabla: su policy de select existe, y filtrar
+   *  por placa en el servidor evita traerse el histórico entero. */
+  async function cargarBitacora(tenantId: string, placa?: string): Promise<void> {
+    loading.value = true
+    error.value = null
+    try {
+      const cliente = useSupabaseClient<Database>()
+      let consulta = cliente
+        .from('vehiculo_paso')
+        .select('id, placa, sentido, momento, autorizado, es_visitante, observaciones')
+        .eq('tenant_id', tenantId)
+        .order('momento', { ascending: false })
+        .limit(100)
+      if (placa && placa.trim() !== '') {
+        consulta = consulta.ilike('placa', `%${placa.trim()}%`)
+      }
+      const { data, error: err } = await consulta
+      if (err) throw err
+      bitacora.value = (data ?? []).map((p) => ({
+        id: p.id,
+        placa: p.placa,
+        sentido: p.sentido,
+        momento: p.momento,
+        autorizado: p.autorizado,
+        esVisitante: p.es_visitante,
+        observaciones: p.observaciones,
+      }))
+    } catch (e) {
+      error.value = mensajeError(e, 'No se pudo cargar la bitácora.')
+    } finally {
+      loading.value = false
+    }
+  }
+
+
+  /** MOV-1 — los cupos disponibles para asignar, de las DOS figuras que ya existen: inmuebles
+   *  de tipo `parqueadero` (bien privado) y zonas comunes de uso exclusivo. El prefijo del
+   *  valor dice a qué tabla apunta, porque el permiso tiene una FK distinta para cada una. */
+  async function cargarCupos(tenantId: string): Promise<{ valor: string; etiqueta: string }[]> {
+    const cliente = useSupabaseClient<Database>()
+    const [{ data: inmuebles }, { data: zonas }] = await Promise.all([
+      cliente
+        .from('inmuebles')
+        .select('id, codigo, lista_tipos!inmuebles_tipo_id_fkey(codigo)')
+        .eq('tenant_id', tenantId),
+      cliente
+        .from('zonas_comunes')
+        .select('id, codigo, nombre')
+        .eq('tenant_id', tenantId)
+        .not('uso_exclusivo_inmueble_id', 'is', null),
+    ])
+    return [
+      ...(inmuebles ?? [])
+        .filter((i) => i.lista_tipos?.codigo === 'parqueadero')
+        .map((i) => ({ valor: `i:${i.id}`, etiqueta: `${i.codigo} (privado)` })),
+      ...(zonas ?? []).map((z) => ({
+        valor: `z:${z.id}`,
+        etiqueta: `${z.codigo ?? z.nombre} (común de uso exclusivo)`,
+      })),
+    ]
+  }
+
+  /** MOV-1 — capacidad de visitantes. undefined = esta copropiedad no controla eso, que es
+   *  distinto de cero (= no cabe nadie). */
+  async function cargarConfigMovilidad(
+    tenantId: string,
+  ): Promise<{ cuposVisitante: number | undefined; horasMax: number | undefined }> {
+    const cliente = useSupabaseClient<Database>()
+    const { data } = await cliente
+      .from('movilidad_config')
+      .select('cupos_visitante, horas_max_visitante')
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+    return {
+      cuposVisitante: data?.cupos_visitante ?? undefined,
+      horasMax: data?.horas_max_visitante ?? undefined,
+    }
+  }
+
+  async function guardarConfigMovilidad(
+    tenantId: string,
+    valores: { cuposVisitante: number | undefined; horasMax: number | undefined },
+  ): Promise<boolean> {
+    error.value = null
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { error: err } = await cliente.from('movilidad_config').upsert({
+        tenant_id: tenantId,
+        cupos_visitante: valores.cuposVisitante ?? null,
+        horas_max_visitante: valores.horasMax ?? null,
+      })
+      if (err) throw err
+      return true
+    } catch (e) {
+      error.value = mensajeError(e, 'No se pudo guardar la configuración de movilidad.')
+      return false
+    }
+  }
+
   return {
     vehiculos,
     permisos,
@@ -289,5 +492,14 @@ export const useVehiculosStore = defineStore('vehiculos', () => {
     retirar,
     otorgarPermiso,
     revocarPermiso,
+    bitacora,
+    dentro,
+    ultimoPaso,
+    registrarPaso,
+    cargarDentro,
+    cargarBitacora,
+    cargarCupos,
+    cargarConfigMovilidad,
+    guardarConfigMovilidad,
   }
 })

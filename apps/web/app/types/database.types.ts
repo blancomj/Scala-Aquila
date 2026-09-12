@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -16574,6 +16569,45 @@ export type Database = {
           },
         ]
       }
+      movilidad_config: {
+        Row: {
+          created_at: string
+          cupos_visitante: number | null
+          horas_max_visitante: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cupos_visitante?: number | null
+          horas_max_visitante?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cupos_visitante?: number | null
+          horas_max_visitante?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movilidad_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movilidad_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notificacion_lectura: {
         Row: {
           leida_at: string
@@ -20468,9 +20502,88 @@ export type Database = {
           },
         ]
       }
+      vehiculo_paso: {
+        Row: {
+          autorizacion_visita_id: string | null
+          autorizado: boolean
+          created_at: string
+          es_visitante: boolean
+          id: string
+          momento: string
+          observaciones: string | null
+          placa: string
+          placa_normalizada: string | null
+          registrado_por: string | null
+          sentido: Database["public"]["Enums"]["vehiculo_sentido_t"]
+          tenant_id: string
+          vehiculo_id: string | null
+        }
+        Insert: {
+          autorizacion_visita_id?: string | null
+          autorizado: boolean
+          created_at?: string
+          es_visitante?: boolean
+          id?: string
+          momento?: string
+          observaciones?: string | null
+          placa: string
+          placa_normalizada?: string | null
+          registrado_por?: string | null
+          sentido: Database["public"]["Enums"]["vehiculo_sentido_t"]
+          tenant_id: string
+          vehiculo_id?: string | null
+        }
+        Update: {
+          autorizacion_visita_id?: string | null
+          autorizado?: boolean
+          created_at?: string
+          es_visitante?: boolean
+          id?: string
+          momento?: string
+          observaciones?: string | null
+          placa?: string
+          placa_normalizada?: string | null
+          registrado_por?: string | null
+          sentido?: Database["public"]["Enums"]["vehiculo_sentido_t"]
+          tenant_id?: string
+          vehiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_paso_autorizacion_visita_id_fkey"
+            columns: ["autorizacion_visita_id"]
+            isOneToOne: false
+            referencedRelation: "mant_autorizaciones_visita"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_paso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_paso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_paso_vehiculo_id_fkey"
+            columns: ["vehiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehiculo_permiso: {
         Row: {
           created_at: string
+          cupo_inmueble_id: string | null
+          cupo_zona_id: string | null
           estado: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id: string
           inmueble_id: string | null
@@ -20487,6 +20600,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cupo_inmueble_id?: string | null
+          cupo_zona_id?: string | null
           estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id?: string
           inmueble_id?: string | null
@@ -20503,6 +20618,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cupo_inmueble_id?: string | null
+          cupo_zona_id?: string | null
           estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id?: string
           inmueble_id?: string | null
@@ -20518,6 +20635,27 @@ export type Database = {
           vigente_hasta?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vehiculo_permiso_cupo_inmueble_id_fkey"
+            columns: ["cupo_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_cupo_inmueble_id_fkey"
+            columns: ["cupo_inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_cupo_zona_id_fkey"
+            columns: ["cupo_zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehiculo_permiso_inmueble_id_fkey"
             columns: ["inmueble_id"]
@@ -23844,6 +23982,18 @@ export type Database = {
           vence_at: string
         }[]
       }
+      fn_movilidad_dentro: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          autorizado: boolean
+          desde: string
+          es_visitante: boolean
+          excedido: boolean
+          horas_dentro: number
+          placa: string
+          vehiculo_id: string
+        }[]
+      }
       fn_normalizar_placa: { Args: { p_placa: string }; Returns: string }
       fn_notificar: {
         Args: {
@@ -24455,6 +24605,24 @@ export type Database = {
           responsables: string[]
           tipo: string
           vehiculo_id: string
+        }[]
+      }
+      fn_vehiculo_registrar_paso: {
+        Args: {
+          p_autorizacion_id?: string
+          p_observaciones?: string
+          p_placa?: string
+          p_sentido: Database["public"]["Enums"]["vehiculo_sentido_t"]
+          p_tenant_id: string
+        }
+        Returns: {
+          autorizado: boolean
+          aviso: string
+          cupos_visitante: number
+          es_visitante: boolean
+          paso_id: string
+          placa: string
+          visitantes_dentro: number
         }[]
       }
       fundamento_validacion_pendiente: {
@@ -26295,6 +26463,7 @@ export type Database = {
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
       vehiculo_estado_t: "activo" | "inactivo" | "retirado"
+      vehiculo_sentido_t: "entrada" | "salida"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
       votacion_estado_t: "abierta" | "cerrada" | "anulada"
       votacion_metodo_t: "si_no_abstencion" | "opciones" | "eleccion"
@@ -26315,12 +26484,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26344,11 +26513,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26369,11 +26538,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26394,11 +26563,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26411,11 +26580,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26943,6 +27112,7 @@ export const Constants = {
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
       vehiculo_estado_t: ["activo", "inactivo", "retirado"],
+      vehiculo_sentido_t: ["entrada", "salida"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
       votacion_estado_t: ["abierta", "cerrada", "anulada"],
       votacion_metodo_t: ["si_no_abstencion", "opciones", "eleccion"],
@@ -26951,3 +27121,4 @@ export const Constants = {
     },
   },
 } as const
+

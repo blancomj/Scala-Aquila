@@ -12,9 +12,11 @@ const tenantStore = useTenantStore()
 const vehiculosStore = useVehiculosStore()
 const catalogosStore = useCatalogosStore()
 
-type Tab = 'porteria' | 'inventario'
+type Tab = 'porteria' | 'dentro' | 'bitacora' | 'inventario'
 const TABS: ReadonlyArray<{ id: Tab; etiqueta: string }> = [
-  { id: 'porteria', etiqueta: 'Consulta de placa' },
+  { id: 'porteria', etiqueta: 'Portería' },
+  { id: 'dentro', etiqueta: 'Dentro ahora' },
+  { id: 'bitacora', etiqueta: 'Bitácora' },
   { id: 'inventario', etiqueta: 'Inventario' },
 ]
 const tabActiva = ref<Tab>('porteria')
@@ -33,6 +35,7 @@ async function cargarTodo(): Promise<void> {
   servicios.value = de('SERVICIO_VEHICULO')
   tiposPermiso.value = de('TIPO_PERMISO_VEHICULO')
   await vehiculosStore.cargar(tenantId, incluirRetirados.value)
+  await Promise.all([cargarCupos(tenantId), cargarConfig(tenantId)])
 }
 onMounted(async () => {
   await cargarTodo()
@@ -46,6 +49,17 @@ watch(() => tenantStore.activeTenant?.id, cargarTodo)
 const ruta = useRoute()
 
 async function abrirDesdeEnlace(): Promise<void> {
+  // MOV-1: el asunto del visitante excedido enlaza a la bitácora de ESA
+  // placa, no al listado entero.
+  const tab = ruta.query.tab
+  const placa = ruta.query.placa
+  if (tab === 'bitacora') {
+    tabActiva.value = 'bitacora'
+    if (typeof placa === 'string') filtroPlaca.value = placa
+    await cargarPanelActivo()
+    return
+  }
+
   const id = ruta.query.vehiculo
   if (typeof id !== 'string' || id === '') return
   if (!vehiculosStore.vehiculos.some((v) => v.id === id)) return
@@ -63,6 +77,89 @@ async function consultar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId || placaBuscada.value.trim() === '') return
   await vehiculosStore.buscarPorPlaca(tenantId, placaBuscada.value.trim())
+}
+
+
+// ── MOV-1 · registrar el paso ──
+//
+//  El registro va DESPUÉS de la consulta y no en vez de ella: el portero
+//  primero mira si la placa entra, y luego deja constancia de que pasó.
+//  Nunca se le impide registrar — ni placa desconocida, ni cupo lleno—,
+//  porque un carro que entró y no quedó anotado es el peor resultado
+//  posible. Lo que hace el sistema es avisar.
+const registrando = ref(false)
+const observacionPaso = ref('')
+
+async function registrarPaso(sentido: 'entrada' | 'salida'): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  const placa = placaBuscada.value.trim()
+  if (!tenantId || placa === '') return
+  registrando.value = true
+  try {
+    await vehiculosStore.registrarPaso({
+      tenantId,
+      sentido,
+      placa,
+      observaciones: observacionPaso.value.trim() || undefined,
+    })
+    observacionPaso.value = ''
+    await vehiculosStore.cargarDentro(tenantId)
+  } finally {
+    registrando.value = false
+  }
+}
+
+// ── MOV-1 · dentro ahora y bitácora ──
+const filtroPlaca = ref('')
+
+async function cargarPanelActivo(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  if (tabActiva.value === 'dentro') await vehiculosStore.cargarDentro(tenantId)
+  if (tabActiva.value === 'bitacora') await vehiculosStore.cargarBitacora(tenantId, filtroPlaca.value)
+}
+watch(tabActiva, cargarPanelActivo)
+
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+
+// ── MOV-1 · cupos de parqueadero y capacidad ──
+//
+//  El cupo NO es inventario de este módulo: son los inmuebles de tipo
+//  `parqueadero` (bien privado, con matrícula) y las zonas comunes de uso
+//  exclusivo. El store los lee de donde ya viven y los devuelve juntos,
+//  con prefijo para saber a qué tabla apunta cada uno.
+const cupos = ref<{ valor: string; etiqueta: string }[]>([])
+const SIN_CUPO = ''
+const cupoElegido = ref<string>(SIN_CUPO)
+
+const config = ref<{ cuposVisitante: number | undefined; horasMax: number | undefined }>({
+  cuposVisitante: undefined,
+  horasMax: undefined,
+})
+const guardandoConfig = ref(false)
+const esAdministrador = computed(() => tenantStore.role === 'administrador')
+
+async function cargarCupos(tenantId: string): Promise<void> {
+  cupos.value = await vehiculosStore.cargarCupos(tenantId)
+}
+
+async function cargarConfig(tenantId: string): Promise<void> {
+  config.value = await vehiculosStore.cargarConfigMovilidad(tenantId)
+}
+
+async function guardarConfig(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  guardandoConfig.value = true
+  try {
+    await vehiculosStore.guardarConfigMovilidad(tenantId, config.value)
+    await vehiculosStore.cargarDentro(tenantId)
+  } finally {
+    guardandoConfig.value = false
+  }
 }
 
 // ── Inventario ──
@@ -201,7 +298,9 @@ async function otorgar(): Promise<void> {
     tipoId: nuevoPermiso.value.tipoId,
     vigenteDesde: nuevoPermiso.value.vigenteDesde,
     vigenteHasta: nuevoPermiso.value.vigenteHasta || null,
-    inmuebleId: null,
+    // El prefijo dice a qué tabla apunta: 'i:' inmueble, 'z:' zona común.
+    inmuebleId: cupoElegido.value.startsWith('i:') ? cupoElegido.value.slice(2) : null,
+    cupoZonaId: cupoElegido.value.startsWith('z:') ? cupoElegido.value.slice(2) : null,
     motivo: nuevoPermiso.value.motivo.trim() || null,
   })
   if (ok) await vehiculosStore.cargarPermisos(vehiculoPermisos.value)
@@ -279,6 +378,58 @@ function etiquetaPermiso(p: { estado: string; vigenteDesde: string; vigenteHasta
         </UButton>
       </div>
 
+      <!-- Registrar el paso: siempre disponible, incluso si la consulta no
+           encontró nada. Esa es justamente la placa que interesa anotar. -->
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-3">
+        <div class="flex items-end gap-3 flex-wrap">
+          <UFormField label="Observación (opcional)" class="flex-1 min-w-48">
+            <UInput v-model="observacionPaso" placeholder="Lo que convenga dejar anotado" class="w-full" />
+          </UFormField>
+          <UButton
+            size="xs"
+            :disabled="placaBuscada.trim() === ''"
+            :loading="registrando"
+            @click="registrarPaso('entrada')"
+          >
+            Registrar entrada
+          </UButton>
+          <UButton
+            size="xs"
+            variant="outline"
+            :disabled="placaBuscada.trim() === ''"
+            :loading="registrando"
+            @click="registrarPaso('salida')"
+          >
+            Registrar salida
+          </UButton>
+        </div>
+
+        <div
+          v-if="vehiculosStore.ultimoPaso"
+          class="rounded-lg p-3 text-sm"
+          :class="
+            vehiculosStore.ultimoPaso.aviso
+              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200'
+              : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200'
+          "
+        >
+          <p class="font-medium">
+            Registrado: {{ vehiculosStore.ultimoPaso.placa }}
+            <span v-if="!vehiculosStore.ultimoPaso.autorizado"> · sin permiso vigente</span>
+          </p>
+          <p v-if="vehiculosStore.ultimoPaso.aviso" class="mt-1">
+            {{ vehiculosStore.ultimoPaso.aviso }}
+          </p>
+          <p
+            v-if="vehiculosStore.ultimoPaso.cuposVisitante !== null"
+            class="text-xs mt-1 opacity-80"
+          >
+            Visitantes dentro: {{ vehiculosStore.ultimoPaso.visitantesDentro }} de
+            {{ vehiculosStore.ultimoPaso.cuposVisitante }}.
+          </p>
+        </div>
+      </div>
+
       <p
         v-if="vehiculosStore.consulta !== null && vehiculosStore.consulta.length === 0"
         class="text-sm text-neutral-500 py-8 text-center"
@@ -338,6 +489,123 @@ function etiquetaPermiso(p: { estado: string; vigenteDesde: string; vigenteHasta
     </div>
 
     <!-- ── Inventario ── -->
+    <!-- ── Dentro ahora ── -->
+    <div v-else-if="tabActiva === 'dentro'" role="tabpanel" class="space-y-3">
+      <p class="text-xs text-neutral-500">
+        Derivado del último paso de cada placa: nadie mantiene una lista de ocupación. Si algo no
+        cuadra, se corrige registrando el paso que faltó — no editando.
+      </p>
+
+      <!-- Capacidad: solo el administrador la fija, porque cambia a quién
+           se le avisa que no cabe. Vacío no es cero: vacío significa que
+           esta copropiedad no controla eso. -->
+      <div
+        v-if="esAdministrador"
+        class="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 flex items-end gap-3 flex-wrap"
+      >
+        <UFormField label="Cupos de visitante" hint="Vacío = sin control">
+          <UInput v-model.number="config.cuposVisitante" type="number" min="1" class="w-36" />
+        </UFormField>
+        <UFormField label="Horas máximas" hint="Vacío = sin límite">
+          <UInput v-model.number="config.horasMax" type="number" min="1" class="w-36" />
+        </UFormField>
+        <UButton size="xs" variant="outline" :loading="guardandoConfig" @click="guardarConfig">
+          Guardar
+        </UButton>
+        <p class="text-xs text-neutral-500 basis-full">
+          Pasarse del cupo o del tiempo no impide entrar ni salir: aparece como aviso en portería y
+          como asunto en «Mis asuntos».
+        </p>
+      </div>
+
+      <p v-if="vehiculosStore.dentro.length === 0" class="text-sm text-neutral-500 py-8 text-center">
+        No hay ningún vehículo dentro.
+      </p>
+
+      <ul v-else class="space-y-2">
+        <li
+          v-for="d in vehiculosStore.dentro"
+          :key="d.placa"
+          class="flex items-center justify-between gap-4 rounded-lg border p-3"
+          :class="
+            d.excedido
+              ? 'border-red-300 dark:border-red-800'
+              : 'border-neutral-200 dark:border-neutral-800'
+          "
+        >
+          <div>
+            <p class="font-mono text-sm font-medium">{{ d.placa }}</p>
+            <p class="text-xs text-neutral-500">
+              Desde {{ fechaHora(d.desde) }} · {{ d.horasDentro }} h
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span
+              v-if="d.esVisitante"
+              class="px-2 py-0.5 rounded-full text-[11px] bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+            >
+              Visitante
+            </span>
+            <span
+              v-if="!d.autorizado"
+              class="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+            >
+              Sin permiso
+            </span>
+            <span
+              v-if="d.excedido"
+              class="px-2 py-0.5 rounded-full text-[11px] bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+            >
+              Excedido
+            </span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ── Bitácora ── -->
+    <div v-else-if="tabActiva === 'bitacora'" role="tabpanel" class="space-y-3">
+      <div class="flex items-center gap-3">
+        <UInput
+          v-model="filtroPlaca"
+          placeholder="Filtrar por placa"
+          class="w-64"
+          @keyup.enter="cargarPanelActivo"
+        />
+        <UButton size="xs" variant="outline" :loading="vehiculosStore.loading" @click="cargarPanelActivo">
+          Filtrar
+        </UButton>
+      </div>
+
+      <p v-if="vehiculosStore.bitacora.length === 0" class="text-sm text-neutral-500 py-8 text-center">
+        No hay pasos registrados todavía.
+      </p>
+
+      <ul v-else class="space-y-1">
+        <li
+          v-for="b in vehiculosStore.bitacora"
+          :key="b.id"
+          class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2"
+        >
+          <div class="min-w-0">
+            <p class="text-sm">
+              <span class="font-mono font-medium">{{ b.placa }}</span>
+              <span class="text-neutral-500"> · {{ b.sentido === 'entrada' ? 'Entró' : 'Salió' }}</span>
+            </p>
+            <p class="text-xs text-neutral-500">
+              {{ fechaHora(b.momento) }}<span v-if="b.observaciones"> · {{ b.observaciones }}</span>
+            </p>
+          </div>
+          <span
+            v-if="!b.autorizado"
+            class="shrink-0 px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+          >
+            Sin permiso
+          </span>
+        </li>
+      </ul>
+    </div>
+
     <div v-else role="tabpanel" class="space-y-3">
       <div class="flex items-center justify-between">
         <UCheckbox v-model="incluirRetirados" label="Mostrar también los retirados" />
@@ -535,6 +803,18 @@ function etiquetaPermiso(p: { estado: string; vigenteDesde: string; vigenteHasta
               <UInput v-model="nuevoPermiso.vigenteHasta" type="date" class="w-full" />
             </UFormField>
           </div>
+          <UFormField
+            label="Cupo de parqueadero"
+            hint="Opcional"
+            help="Solo parqueaderos: los de matrícula propia salen de Inmuebles, y los comunes de uso exclusivo de Zonas comunes. Un cupo no puede tener dos permisos vigentes."
+          >
+            <UiSelectorBuscable
+              v-model="cupoElegido"
+              :opciones="cupos"
+              placeholder="Sin cupo asignado"
+              class="w-full"
+            />
+          </UFormField>
           <UFormField label="Motivo">
             <UInput v-model="nuevoPermiso.motivo" class="w-full" />
           </UFormField>

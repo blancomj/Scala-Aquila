@@ -4640,3 +4640,64 @@ Verificado en navegador con datos reales: portada en la tarjeta, enlace que deja
 tablón relleno, insignia de 26 en el sidebar (punto y tooltip al colapsar), paginación «1–20 de 26»
 y el filtro «Asignados a mí (8)» dejando 8 filas, todas marcadas. 4 pruebas nuevas (15 en
 mis-asuntos, 14 en directorio).
+
+## D-84
+
+**MOV-1 — bitácora de portería, ocupación derivada y cupos de parqueadero.** Migraciones
+`20260933900000`–`20260933940000`. Tercer corte sobre movilidad, tras EXS-5.
+
+**Lo que NO se creó, que es la mitad del diseño.** Antes de modelar se revisó qué existía ya:
+
+- **No hay tabla de cupos.** El parqueadero como BIEN PRIVADO es un `inmuebles` de tipo
+  `parqueadero` —con matrícula y coeficiente— y como ÁREA COMÚN DE USO EXCLUSIVO es una
+  `zonas_comunes` con `uso_exclusivo_inmueble_id`. Son dos figuras jurídicas distintas y el
+  repositorio ya modelaba ambas. Movilidad referencia ese inventario; no lo administra.
+- **No se duplicó `mant_registros_acceso`** (MANT-11), que registra el ingreso de PERSONAS contra
+  una autorización. `vehiculo_paso` registra VEHÍCULOS, en los dos sentidos, con o sin
+  autorización. Cuando coinciden —una visita en carro— apuntan a la misma autorización sin copiar
+  nada.
+
+**Y un error que cometí y conviene que quede escrito**: la primera versión de `20260933930000`
+añadía `cupo_inmueble_id`… sin ver que `inmueble_id` YA ERA el cupo, documentado así por EXS-5
+(«el parqueadero asignado es un inmueble más»). Es exactamente la duplicación contra la que
+advertía su propia cabecera. Se corrigió: solo se añade `cupo_zona_id`, que era la figura que
+faltaba. **Antes de añadir una columna a una tabla ajena, leer los comentarios de las que ya
+tiene.**
+
+**La decisión central: el cupo AVISA, no impide.** Si el parqueadero de visitantes está lleno y
+entra un carro igual —lo autorizó el portero, era una ambulancia—, el hecho ocurrió. Una función
+que rechazara el registro dejaría el vehículo dentro y **fuera de la bitácora**, que es el peor
+resultado posible: se pierde justo el dato que después hará falta. `fn_vehiculo_registrar_paso`
+nunca niega; devuelve cuántos hay dentro y cuántos caben. Es el mismo criterio que hace que la
+tabla registre **también lo no autorizado**: un sistema que solo sabe anotar lo correcto no sirve
+para averiguar qué pasó.
+
+**`autorizado` se guarda, y es la excepción a «no persistir lo derivado».** EXS-5 lo calcula en
+vivo, que es correcto para «¿puede entrar ahora?». La bitácora responde otra pregunta: «¿estaba
+autorizado CUANDO entró?». Revocar hoy un permiso no puede cambiar un hecho de hace un mes. Se
+guarda la foto, no la fórmula — y hay prueba que lo fija.
+
+**«Qué hay dentro» es derivado**, del último paso de cada placa: no hay tabla de ocupación que
+mantener sincronizada, y un registro olvidado se corrige registrando, no editando.
+
+**Los dos caminos de entrada, sin tocar MANT-11.** El portero teclea, o llega un QR. Con
+autorización, la función delega el consumo de un solo uso en `fn_autorizacion_visita_marcar_usada`,
+que sigue siendo la dueña de esa regla. **Solo la entrada consume**: negar la salida contra una
+autorización ya `usada` dejaría la bitácora con una entrada sin cierre.
+
+**Octava rama de «Mis asuntos»**: el visitante que excedió `horas_max_visitante`. Va a la bandeja y
+no a una notificación porque no es un evento que se lee, es trabajo que sigue ahí hasta que el
+carro se va — y **desaparece solo** cuando la portería registra la salida, sin que nadie cierre
+nada.
+
+**Tres reglas que el guard de EXS-5 no tenía** y se cierran aquí: el inmueble del permiso es del
+mismo tenant (validaba el del vehículo, no el del inmueble), es de tipo `parqueadero`, y un cupo no
+puede tener dos permisos vigentes (índices únicos parciales).
+
+Verificado en navegador de punta a punta: placa desconocida registrada con aviso, «Dentro ahora»
+derivado, bitácora filtrable, configuración de capacidad guardada y el aviso de exceso saliendo con
+el conteo real. 13 pruebas nuevas, incluidas la del QR —que comprueba que produce ingreso de
+persona Y paso de vehículo— y la de la bandeja.
+
+**Pendiente consciente**: la lectura automática de placa (LPR) queda fuera — depende de hardware y
+de un proveedor externo, y se evaluará cuando haya un edificio pidiéndolo.

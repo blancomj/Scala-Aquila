@@ -1547,6 +1547,20 @@ export const ERROR_CODES = {
   // revelar que la copropiedad existe que el directorio y el marketplace.
   ASUNTOS_NO_DISPONIBLES: 'ASUNTOS_NO_DISPONIBLES',
 
+  // ── MOV-1: bitácora de portería y cupos (20260933900000+) ──
+  // fn_vehiculo_registrar_paso / fn_movilidad_dentro: quien no es miembro no tiene portería.
+  // Mismo criterio de no revelar que la copropiedad existe que el resto de la serie.
+  MOVILIDAD_NO_DISPONIBLE: 'MOVILIDAD_NO_DISPONIBLE',
+  // fn_vehiculo_registrar_paso: registrar un paso es operación de portería, no de consulta.
+  MOVILIDAD_REGISTRO_REQUIERE_AGENTE: 'MOVILIDAD_REGISTRO_REQUIERE_AGENTE',
+  // fn_vehiculo_registrar_paso: no se tecleó placa y la autorización tampoco trae una.
+  MOVILIDAD_PLACA_REQUERIDA: 'MOVILIDAD_PLACA_REQUERIDA',
+  // guard_vehiculo_permiso: el cupo citado es de otra copropiedad.
+  CUPO_INVALIDO: 'CUPO_INVALIDO',
+  // guard_vehiculo_permiso: se asignó como cupo un inmueble que no es de tipo parqueadero —
+  // error de captura que si no se atrapa aquí solo se nota al leer el informe.
+  CUPO_NO_ES_PARQUEADERO: 'CUPO_NO_ES_PARQUEADERO',
+
   // ── EXS-8: hardening (20260933600000+) ──
   // guard_rate_limit_escritura: techo de escrituras por hora y por persona en tablas que se
   // escriben por PostgREST directo, sin Edge Function que llamara a enforceRateLimit.
