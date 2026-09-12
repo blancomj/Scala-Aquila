@@ -109,6 +109,8 @@ export const NAV_ICONOS = {
   // debe prometerlo; además repetir un path haría ilegible el sidebar
   // colapsado, que es justo lo que esta tabla existe para evitar.
   marketplace: 'M4 7h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM12 4v3M8 12h8M8 15h5',
+  // Bandeja de entrada: lo que espera una decisión de quien mira (EXS-7).
+  asuntos: 'M4 13h4l1.5 3h5L16 13h4M4 13l2.5-7.5a1 1 0 0 1 1-.5h9a1 1 0 0 1 1 .5L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -116,6 +118,14 @@ export const NAV_COPROPIEDADES: NavItem = {
   label: 'Mis copropiedades',
   to: '/copropiedades',
   icono: NAV_ICONOS.copropiedades,
+}
+/** EXS-7 — va en el bloque superior y no dentro de un grupo de módulo a
+ * propósito: no es un módulo más, es la bandeja de trabajo de quien mira, y
+ * reúne cosas de cuatro dominios distintos. */
+export const NAV_ASUNTOS: NavItem = {
+  label: 'Mis asuntos',
+  to: '/asuntos',
+  icono: NAV_ICONOS.asuntos,
 }
 export const NAV_PLATAFORMA: NavItem = {
   label: 'Plataforma',

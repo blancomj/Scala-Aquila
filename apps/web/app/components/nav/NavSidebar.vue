@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   NAV_AYUDA,
+  NAV_ASUNTOS,
   NAV_COPROPIEDADES,
   NAV_GRUPOS,
   NAV_INICIO,
@@ -101,7 +102,7 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
     <nav class="flex-1 min-h-0 overflow-y-auto py-3 px-2 space-y-4 sidebar-scroll">
       <div class="space-y-0.5">
         <NuxtLink
-          v-for="item in [NAV_INICIO, NAV_COPROPIEDADES, NAV_AYUDA]"
+          v-for="item in [NAV_INICIO, NAV_ASUNTOS, NAV_COPROPIEDADES, NAV_AYUDA]"
           :key="item.to"
           :to="item.to"
           class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm"

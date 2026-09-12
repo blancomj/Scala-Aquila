@@ -34,8 +34,24 @@ async function cargarTodo(): Promise<void> {
   tiposPermiso.value = de('TIPO_PERMISO_VEHICULO')
   await vehiculosStore.cargar(tenantId, incluirRetirados.value)
 }
-onMounted(cargarTodo)
+onMounted(async () => {
+  await cargarTodo()
+  await abrirDesdeEnlace()
+})
 watch(() => tenantStore.activeTenant?.id, cargarTodo)
+
+// Deep link de EXS-7: `/movilidad?vehiculo=<id>` abre los permisos de ese
+// vehículo, que es donde se renueva el que está por vencer — el asunto que
+// trajo al usuario hasta aquí.
+const ruta = useRoute()
+
+async function abrirDesdeEnlace(): Promise<void> {
+  const id = ruta.query.vehiculo
+  if (typeof id !== 'string' || id === '') return
+  if (!vehiculosStore.vehiculos.some((v) => v.id === id)) return
+  tabActiva.value = 'inventario'
+  await abrirPermisos(id)
+}
 
 const nombreTipo = computed(() => new Map(tipos.value.map((t) => [t.id, t.nombre])))
 const nombrePermiso = computed(() => new Map(tiposPermiso.value.map((t) => [t.id, t.nombre])))

@@ -23802,6 +23802,21 @@ export type Database = {
           riesgo_nombre: string
         }[]
       }
+      fn_mis_asuntos: {
+        Args: { p_dias_anticipacion?: number; p_tenant_id: string }
+        Returns: {
+          accion: string
+          created_at: string
+          enlace: string
+          estado: string
+          origen_entidad: string
+          origen_id: string
+          origen_modulo: string
+          resumen: string
+          titulo: string
+          vence_at: string
+        }[]
+      }
       fn_normalizar_placa: { Args: { p_placa: string }; Returns: string }
       fn_notificar: {
         Args: {

@@ -4357,3 +4357,50 @@ filtra en silencio y afecta cero filas** (un INSERT sí falla con 42501). Pendie
 sin agendar en pg_cron, sin aviso al publicador cuando llega un interés (fn_notificar
 va a un módulo, no a una persona sin login), sin visibilidad por segmento, y sin rate limiting ni
 prevención de enumeración —que renacen con la capa externa.
+
+## D-78
+
+EXS-7 (Mis asuntos) — **agregación server-side sin tabla; el asunto se deriva del estado vivo y cada
+rama filtra por quien puede ACTUAR, no por quien puede mirar.** Migración `20260933500000`. Ver
+`Casos de uso/Experiencia y servicios/EXS_07_INFORME.md`.
+
+**No hay tabla `mis_asuntos`**, y el porqué conviene dejarlo escrito porque la tentación de
+materializar una bandeja vuelve cada vez que alguien mira el tiempo de respuesta: sería un espejo de
+siete estados que ya viven en sus dominios, mantenido por triggers, y la primera vez que uno fallara
+la bandeja mostraría trabajo inexistente o escondería trabajo real. `fn_mis_asuntos` agrega siete
+ramas con `union all` sobre el estado vivo: aprobar el anuncio lo saca de la bandeja porque deja de
+cumplir el `where`, no porque alguien lo borre. Misma familia que `autorizado` en EXS-5 (D-76) y la
+mora en `v_cargo_saldo`. Consecuencia en la UI: **no hay botón de "marcar como hecho"** — ofrecerlo
+permitiría ocultar trabajo sin hacerlo.
+
+**ASUNTO ≠ NOTIFICACIÓN** (prompt 06 §13): una notificación desaparece cuando se LEE, un asunto
+cuando se HACE. Por eso la función **no lee `notificaciones`**, aunque fuera la fuente más cómoda:
+si lo hiciera, marcar un aviso como leído borraría de la bandeja un trabajo pendiente. Hay prueba
+dedicada (emite por `fn_notificar`, marca leída, verifica que el interés sigue ahí).
+
+**Filtrar por quien puede ACTUAR** es el matiz que hace útil la bandeja. Un auxiliar VE un anuncio
+pendiente, pero `guard_anuncio_transicion` no le deja aprobarlo: ponérselo sería ruido que no puede
+atender y entrenaría a ignorar la bandeja. Reparto: anuncios y reportes → administrador; permisos
+por vencer → administrador (es quien renueva); intereses y publicaciones por expirar → auxiliar o
+administrador; publicaciones por aprobar → **la escalera de EXS-6 tal cual** (residente: cualquiera
+del equipo; auxiliar: solo administrador), sin reimplementarla — es la misma condición sobre
+`origen`. `solicitudes` no pasa por `puede_ver_modulo` porque su policy es `is_member` a secas
+(GOB-8): no se le inventa un gate que la tabla no tiene.
+
+**Vencimientos** (decisión de Johnny): entran como asuntos con `vence_at`, ventana de 15 días
+parametrizable. Se incluyen los YA vencidos —un permiso caducado sigue siendo trabajo— y el orden es
+`vence_at nulls last, created_at`: primero lo que vence antes, y lo sin plazo por antigüedad, para
+que lo que lleva meses parado no quede sepultado.
+
+**Deep links**: no se inventó mecanismo — EXS-1 §4 ya lo cerró (enlaces internos relativos, sin
+token, bastan sesión + RLS). Anuncios y Atención tienen página de detalle (`/anuncios/<id>`,
+`/atencion/<id>`); marketplace y movilidad no, así que el contexto exacto se resuelve con parámetro
+(`/marketplace?publicacion=<id>`, `/movilidad?vehiculo=<id>`) que la página lee al montar y abre el
+drawer correspondiente. Nunca el home pelado del módulo (§12).
+
+Evidencia: 13 pruebas en `tests/rls/mis-asuntos.test.ts`. Verificado en navegador: la bandeja mostró
+3 asuntos de 2 módulos —incluido un anuncio real que ya llevaba tiempo pendiente en GC-001, prueba
+de que agrega datos vivos—, se siguió el deep link hasta el drawer correcto, se atendió el interés y
+al volver **la bandeja pasó de 3 a 2 sola**. Pendientes declarados: sin contador en el sidebar, sin
+mantenimiento/cartera/gobierno (alcance cerrado en los 4 EXS + Atención), sin "asignado a mí" (solo
+Atención tiene `asignado_a` hoy), y sin paginación.

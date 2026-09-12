@@ -1522,6 +1522,11 @@ export const ERROR_CODES = {
   // subir-documento: se pidió adjuntar una foto a una publicación que no existe o que el actor
   // no puede ver. Mismo criterio de no revelar qué hay en otras copropiedades.
   PUBLICACION_NO_ENCONTRADA: 'PUBLICACION_NO_ENCONTRADA',
+
+  // ── EXS-7: mis asuntos (20260933500000) ──
+  // fn_mis_asuntos: quien no es miembro del tenant no tiene bandeja. Mismo criterio de no
+  // revelar que la copropiedad existe que el directorio y el marketplace.
+  ASUNTOS_NO_DISPONIBLES: 'ASUNTOS_NO_DISPONIBLES',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

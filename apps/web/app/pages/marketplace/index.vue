@@ -52,8 +52,26 @@ async function cargarTodo(): Promise<void> {
   ])
   await firmarPortadas()
 }
-onMounted(cargarTodo)
+onMounted(async () => {
+  await cargarTodo()
+  await abrirDesdeEnlace()
+})
 watch(() => tenantStore.activeTenant?.id, cargarTodo)
+
+// Deep link de EXS-7: `/marketplace?publicacion=<id>` abre el aviso concreto
+// en vez de dejar al usuario buscándolo en la lista. Marketplace no tiene
+// página de detalle propia, así que el "contexto exacto" que pide el prompt
+// 06 §12 se resuelve con la pestaña correcta y el drawer abierto.
+const ruta = useRoute()
+
+async function abrirDesdeEnlace(): Promise<void> {
+  const id = ruta.query.publicacion
+  if (typeof id !== 'string' || id === '') return
+  const existe = marketplaceStore.publicaciones.some((p) => p.id === id)
+  if (!existe) return
+  tabActiva.value = 'gestion'
+  await abrirIntereses(id)
+}
 
 async function aplicarFiltros(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
