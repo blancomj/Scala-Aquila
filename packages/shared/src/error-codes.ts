@@ -1527,6 +1527,11 @@ export const ERROR_CODES = {
   // fn_mis_asuntos: quien no es miembro del tenant no tiene bandeja. Mismo criterio de no
   // revelar que la copropiedad existe que el directorio y el marketplace.
   ASUNTOS_NO_DISPONIBLES: 'ASUNTOS_NO_DISPONIBLES',
+
+  // ── EXS-8: hardening (20260933600000+) ──
+  // guard_rate_limit_escritura: techo de escrituras por hora y por persona en tablas que se
+  // escriben por PostgREST directo, sin Edge Function que llamara a enforceRateLimit.
+  RATE_LIMIT_EXCEDIDO: 'RATE_LIMIT_EXCEDIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

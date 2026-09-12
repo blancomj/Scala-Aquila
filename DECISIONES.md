@@ -4404,3 +4404,51 @@ de que agrega datos vivos—, se siguió el deep link hasta el drawer correcto, 
 al volver **la bandeja pasó de 3 a 2 sola**. Pendientes declarados: sin contador en el sidebar, sin
 mantenimiento/cartera/gobierno (alcance cerrado en los 4 EXS + Atención), sin "asignado a mí" (solo
 Atención tiene `asignado_a` hoy), y sin paginación.
+
+## D-79
+
+EXS-8 (hardening, QA y Golden Journey) — **la RLS impide escribir donde no debes, no escribir
+demasiado: faltaba rate limiting en las escrituras que no pasan por Edge Function.** Migración
+`20260933600000`. Cierra la serie EXS. Ver `Casos de uso/Experiencia y servicios/EXS_08_INFORME.md`.
+
+**El hallazgo.** El prompt 05 §20 exige límites a la creación de publicaciones, reportes e
+intereses, «reutilizando el mecanismo existente». El mecanismo existía (`check_rate_limit`, GAP-12)
+pero **solo lo llamaban las Edge Functions** vía `_shared/rate_limit.ts`. Las escrituras de EXS-6
+van por PostgREST directo contra la tabla, así que estaban sin techo: un miembro con sesión válida
+podía crear diez mil publicaciones en un bucle. Los uploads sí estaban cubiertos sin planearlo —
+`subir-documento` ya llamaba a `enforceRateLimit`, y las fotos de EXS-6 heredaron el límite al
+engancharse ahí.
+
+**La corrección**: `guard_rate_limit_escritura`, función compartida que toma bucket y máximo de
+`tg_argv` (mismo patrón que `forbid_mutation_salvo_tenant_borrado`, compartida por 10 tablas), sobre
+`publicaciones` (20/h), `publicacion_interes` (40/h), `publicacion_reporte` (**10/h**, el más bajo
+porque reportar es barato y es la palanca del hostigamiento) y `vehiculos` (40/h). Tres decisiones:
+(a) **el bucket lleva el uid** — un techo global dejaría que un usuario ruidoso bloqueara a toda la
+copropiedad, convirtiendo el control de abuso en el abuso; (b) **fuera de banda no se limita**,
+mismo criterio que toda la serie, con prueba que lo fija; (c) **el orden de disparo queda escrito en
+la migración** — Postgres dispara los BEFORE por orden alfabético y `..._guard` precede a
+`..._rate_limit`, que es lo deseable (un payload inválido no debe gastar cupo), pero depende de los
+nombres y renombrar un trigger lo cambiaría en silencio.
+
+**Lo auditado y verificado contra la base, no por lectura del código**: `ENABLE`+`FORCE RLS` en las
+11 tablas de la serie; `search_path=''` en todas las funciones `security definer`; `revoke execute`
+en todos los guards; `is_member` en las 5 funciones de lectura; ids UUID v4 no recorribles (§21).
+
+**Lo que deliberadamente NO se hizo**: no se añadieron tokens contra enumeración —los ids son UUID
+v4 y toda lectura pasa por RLS o por función que valida pertenencia, así que conocer un id no da
+acceso: sería criptografía sin amenaza—, ni rate limiting de lecturas (sin superficie de scraping
+con solo miembros autenticados y catálogos del tamaño de un edificio).
+
+Evidencia: **32 pruebas nuevas**. `exs8-hardening.test.ts` (14) ataca IDOR, manipulación de tenant,
+enumeración, PII y volumen **con una sesión legítima de otra copropiedad** —el atacante interesante
+es el que tiene cuenta—. `exs8-golden-journey.test.ts` (18 pasos dependientes, en orden) recorre los
+seis cortes que construyeron algo y verifica que **encajan entre sí**: el anuncio que redacta el
+auxiliar cae en la bandeja del administrador y no en la suya; el auxiliar no aprueba lo suyo en
+marketplace; un administrador de dos copropiedades ve cada bandeja por separado. Esos tres pasos son
+los que justifican el recorrido — ninguna suite aislada los habría detectado, porque cruzan módulos.
+
+**Deuda abierta de la serie completa** (inventario, no del corte): ningún cron agendado en pg_cron
+—`cron_anuncios_publicar_programados` y `cron_marketplace_expirar` existen y nadie los llama, así
+que la publicación programada y la expiración no ocurren solas—; nada de la serie está en el
+proyecto remoto; sin aviso al publicador cuando llega un interés; sin visibilidad por segmento; sin
+contador de asuntos ni paginación; tipos generados desde local en los ocho cortes.
