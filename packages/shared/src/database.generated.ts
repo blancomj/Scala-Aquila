@@ -12589,6 +12589,8 @@ export type Database = {
           qr_token: string | null
           tenant_id: string
           tipo_id: number | null
+          vehiculo_placa: string | null
+          vehiculo_placa_normalizada: string | null
           visitante_documento: string | null
           visitante_nombre: string
         }
@@ -12606,6 +12608,8 @@ export type Database = {
           qr_token?: string | null
           tenant_id: string
           tipo_id?: number | null
+          vehiculo_placa?: string | null
+          vehiculo_placa_normalizada?: string | null
           visitante_documento?: string | null
           visitante_nombre: string
         }
@@ -12623,6 +12627,8 @@ export type Database = {
           qr_token?: string | null
           tenant_id?: string
           tipo_id?: number | null
+          vehiculo_placa?: string | null
+          vehiculo_placa_normalizada?: string | null
           visitante_documento?: string | null
           visitante_nombre?: string
         }
@@ -20143,6 +20149,296 @@ export type Database = {
           },
         ]
       }
+      vehiculo_permiso: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
+          id: string
+          inmueble_id: string | null
+          motivo: string | null
+          motivo_revocacion: string | null
+          otorgado_por: string | null
+          revocado_at: string | null
+          revocado_por: string | null
+          tenant_id: string
+          tipo_id: number
+          vehiculo_id: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
+          id?: string
+          inmueble_id?: string | null
+          motivo?: string | null
+          motivo_revocacion?: string | null
+          otorgado_por?: string | null
+          revocado_at?: string | null
+          revocado_por?: string | null
+          tenant_id: string
+          tipo_id: number
+          vehiculo_id: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
+          id?: string
+          inmueble_id?: string | null
+          motivo?: string | null
+          motivo_revocacion?: string | null
+          otorgado_por?: string | null
+          revocado_at?: string | null
+          revocado_por?: string | null
+          tenant_id?: string
+          tipo_id?: number
+          vehiculo_id?: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_permiso_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_otorgado_por_fkey"
+            columns: ["otorgado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_revocado_por_fkey"
+            columns: ["revocado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_permiso_vehiculo_id_fkey"
+            columns: ["vehiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehiculo_relacion: {
+        Row: {
+          created_at: string
+          id: string
+          inmueble_id: string | null
+          rol_id: number
+          tenant_id: string
+          tercero_id: string | null
+          vehiculo_id: string
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inmueble_id?: string | null
+          rol_id: number
+          tenant_id: string
+          tercero_id?: string | null
+          vehiculo_id: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inmueble_id?: string | null
+          rol_id?: number
+          tenant_id?: string
+          tercero_id?: string | null
+          vehiculo_id?: string
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_relacion_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_rol_id_fkey"
+            columns: ["rol_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_tercero_id_fkey"
+            columns: ["tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_relacion_vehiculo_id_fkey"
+            columns: ["vehiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehiculos: {
+        Row: {
+          anio: number | null
+          color: string | null
+          creado_por: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["vehiculo_estado_t"]
+          id: string
+          marca: string | null
+          modelo: string | null
+          motivo_retiro: string | null
+          observaciones: string | null
+          placa: string
+          placa_normalizada: string | null
+          retirado_at: string | null
+          servicio_id: number | null
+          tenant_id: string
+          tipo_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          anio?: number | null
+          color?: string | null
+          creado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vehiculo_estado_t"]
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          motivo_retiro?: string | null
+          observaciones?: string | null
+          placa: string
+          placa_normalizada?: string | null
+          retirado_at?: string | null
+          servicio_id?: number | null
+          tenant_id: string
+          tipo_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          anio?: number | null
+          color?: string | null
+          creado_por?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["vehiculo_estado_t"]
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          motivo_retiro?: string | null
+          observaciones?: string | null
+          placa?: string
+          placa_normalizada?: string | null
+          retirado_at?: string | null
+          servicio_id?: number | null
+          tenant_id?: string
+          tipo_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculos_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculos_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zonas_comunes: {
         Row: {
           activa: boolean
@@ -21377,6 +21673,8 @@ export type Database = {
           qr_token: string | null
           tenant_id: string
           tipo_id: number | null
+          vehiculo_placa: string | null
+          vehiculo_placa_normalizada: string | null
           visitante_documento: string | null
           visitante_nombre: string
         }
@@ -21403,6 +21701,8 @@ export type Database = {
           qr_token: string | null
           tenant_id: string
           tipo_id: number | null
+          vehiculo_placa: string | null
+          vehiculo_placa_normalizada: string | null
           visitante_documento: string | null
           visitante_nombre: string
         }
@@ -23154,6 +23454,7 @@ export type Database = {
           riesgo_nombre: string
         }[]
       }
+      fn_normalizar_placa: { Args: { p_placa: string }; Returns: string }
       fn_notificar: {
         Args: {
           p_cuerpo?: string
@@ -23747,6 +24048,22 @@ export type Database = {
           descripcion: string
           fundamento: string
           patron: string
+        }[]
+      }
+      fn_vehiculo_por_placa: {
+        Args: { p_placa: string; p_tenant_id: string }
+        Returns: {
+          autorizado: boolean
+          color: string
+          estado: Database["public"]["Enums"]["vehiculo_estado_t"]
+          inmuebles: string[]
+          marca: string
+          modelo: string
+          permiso_hasta: string
+          placa: string
+          responsables: string[]
+          tipo: string
+          vehiculo_id: string
         }[]
       }
       fundamento_validacion_pendiente: {
@@ -25457,6 +25774,7 @@ export type Database = {
       pasarela_modo_t: "sandbox" | "produccion"
       pasarela_proveedor_t: "wompi" | "payu" | "epayco" | "bold"
       periodo_estado_t: "abierto" | "en_liquidacion" | "cerrado" | "bloqueado"
+      permiso_vehiculo_estado_t: "vigente" | "revocado"
       plan_alcance_t: "activo" | "tipo_activo" | "categoria" | "ubicacion"
       plan_frecuencia_origen_t: "heredada_requisito" | "propia"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
@@ -25576,6 +25894,7 @@ export type Database = {
         | "LIQUIDACION_COMPLETADA"
       tipo_tasa_referencia_t: "ibc_consumo_ordinario"
       user_status_t: "active" | "suspended"
+      vehiculo_estado_t: "activo" | "inactivo" | "retirado"
       vigencia_estado_t: "borrador" | "vigente" | "historica"
       votacion_estado_t: "abierta" | "cerrada" | "anulada"
       votacion_metodo_t: "si_no_abstencion" | "opciones" | "eleccion"
@@ -26084,6 +26403,7 @@ export const Constants = {
       pasarela_modo_t: ["sandbox", "produccion"],
       pasarela_proveedor_t: ["wompi", "payu", "epayco", "bold"],
       periodo_estado_t: ["abierto", "en_liquidacion", "cerrado", "bloqueado"],
+      permiso_vehiculo_estado_t: ["vigente", "revocado"],
       plan_alcance_t: ["activo", "tipo_activo", "categoria", "ubicacion"],
       plan_frecuencia_origen_t: ["heredada_requisito", "propia"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
@@ -26212,6 +26532,7 @@ export const Constants = {
       ],
       tipo_tasa_referencia_t: ["ibc_consumo_ordinario"],
       user_status_t: ["active", "suspended"],
+      vehiculo_estado_t: ["activo", "inactivo", "retirado"],
       vigencia_estado_t: ["borrador", "vigente", "historica"],
       votacion_estado_t: ["abierta", "cerrada", "anulada"],
       votacion_metodo_t: ["si_no_abstencion", "opciones", "eleccion"],

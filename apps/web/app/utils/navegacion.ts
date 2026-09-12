@@ -102,6 +102,8 @@ export const NAV_ICONOS = {
   // sobre de COM-1 a propósito — son cosas distintas: uno es el contenido
   // publicado, el otro el registro de lo que salió por correo.
   anuncios: 'M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1ZM14 8a4 4 0 0 1 0 8M17 5a8 8 0 0 1 0 14',
+  // Automóvil de perfil: vehículos y permisos de acceso (EXS-5).
+  movilidad: 'M5 17h14M6.5 17a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM20.5 17a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM4 17v-4l2-5h12l2 5v4M6 13h12',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -126,6 +128,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { label: 'Anuncios', to: '/anuncios', permiso: 'data:read', icono: NAV_ICONOS.anuncios },
       { label: 'Directorio', to: '/directorio', permiso: 'data:read', icono: NAV_ICONOS.directorio },
       { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
+      { label: 'Movilidad', to: '/movilidad', permiso: 'data:read', icono: NAV_ICONOS.movilidad },
       { label: 'Terceros', to: '/terceros', permiso: 'data:read', icono: NAV_ICONOS.terceros },
       {
         label: 'Zonas comunes',

@@ -4210,3 +4210,60 @@ navegador, comprobando en el DOM —no solo en la API— que documento, correo y
 administrativos no llegan a la página. Pendientes declarados: sin niveles de visibilidad por
 segmento (solo el booleano), sin contacto intermediado vía Atención, sin fotos y sin enlace a
 Marketplace (que aún no existe).
+
+## D-76
+
+EXS-5 (vehículos y movilidad) — **el permiso vehicular NO converge con `mant_autorizaciones_visita`;
+registrar no es autorizar; y "autorizado" se deriva, nunca se almacena.** Migraciones
+`20260933300000`–`20260933330000`. Ver `Casos de uso/Experiencia y servicios/EXS_05_INFORME.md`.
+
+**El gate de producto que la hoja de ruta dejó abierto** era si el permiso vehicular converge con
+las autorizaciones de visita de MANT-11. El reconocimiento del código lo respondió antes de que el
+usuario decidiera a ciegas: `mant_autorizaciones_visita` modela una visita de **un solo uso**
+(`visitante_nombre`, `fecha_prevista`, `hora_desde/hasta`, QR firmado de vigencia corta, estado
+`vigente → usada`), y el carro de un residente entra a diario durante años. Unirlas habría dejado un
+enum donde la mitad de los estados no aplica a la mitad de las filas y un QR consumible que nadie
+consume. El usuario decidió **las dos cosas**, y la frontera queda escrita en la cabecera de
+`20260933320000`:
+
+- visita puntual, con carro o sin él → `mant_autorizaciones_visita` (+ columna `vehiculo_placa` nueva)
+- movilidad estable de la copropiedad → `vehiculos` + `vehiculo_permiso`
+
+La mitad de MANT-11 costó **una columna, no una tabla**. Deliberadamente **no es FK a `vehiculos`**:
+el carro de un visitante no pertenece a la copropiedad, y registrarlo como vehículo lo metería en el
+inventario y le haría competir por la unicidad de placa con los que sí son de aquí. Lo que sí
+comparte es `fn_normalizar_placa`, para que portería busque una placa una sola vez.
+
+**La placa se normaliza en una columna GENERADA, no en un trigger** (prompt 04 §32: una sola
+implementación, no tres runtimes divergentes). La diferencia importa: con `generated always as` no
+existe camino —ni `service_role`, ni carga masiva, ni psql— capaz de guardar una placa sin
+normalizar. Se conserva lo tecleado para mostrarlo y se deriva la forma canónica para comparar.
+
+**Registrar no es autorizar** (prompt 04 §16), y de ahí tres consecuencias:
+1. **`autorizado` se deriva** en `fn_vehiculo_por_placa` contra permisos vigentes y fecha de hoy.
+   Por eso `permiso_vehiculo_estado_t` tiene DOS valores: *"vencido"* no es estado sino consecuencia
+   de `vigente_hasta < hoy`; almacenarlo exigiría un job diario para cambiar una columna que la
+   fecha ya dice (mismo criterio que `v_cargo_saldo` con la mora).
+2. **Otorgar exige `administrador`; registrar admite `auxiliar`**. Dejar entrar un carro es más
+   sensible que anotar que existe.
+3. **La coherencia la impone la base**: `tg_vehiculo_retiro_revoca_permisos` revoca los permisos
+   vigentes al retirar. Sin él, un carro retirado seguiría autorizado en la consulta de portería.
+
+**Unicidad entre los activos, historia conservada** (decisión del usuario): índice único **parcial**
+`where estado <> 'retirado'`. Eso es lo que hace de `vehiculo_estado_t` un enum legítimo bajo D-24 —
+**gobierna el índice único**, no describe. No hay delete: un vehículo se retira, y el retiro exige
+fecha (`vehiculos_retiro_coherente`) para que "retirado" nunca sea un estado sin cuándo.
+
+**Un solo modelo de vehículo** (prompt 04 §3): las diferencias van en `vehiculo_relacion` —tercero,
+inmueble o ambos, con `rol_id` y vigencia—, no en tablas por tipo de dueño. No reutiliza
+`PERSONA_PREDIO`, que dice cómo se relaciona alguien con un *inmueble*: el dueño de un carro no tiene
+por qué serlo del apartamento (§10). `TIPO` y `SERVICIO` son familias separadas (§8) para no inventar
+valores combinados. El parqueadero es un `inmueble_id` del permiso: no se crea un segundo modelo de
+parqueaderos (§19/§20).
+
+Evidencia: 15 pruebas en `tests/rls/vehiculos.test.ts`. Verificado en navegador el ciclo completo
+—registrar `wxy-88 z`, consultar `WXY88Z` sin permiso, otorgar, consultar `wxy 88z` autorizado,
+retirar y ver el permiso revocado solo—, con limpieza del dato de prueba al terminar. Pendientes
+declarados: sin bitácora de entradas/salidas (enganchar `mant_registros_acceso` es una FK más), sin
+cupos de parqueadero, sin lectura de placa por cámara, y sin aviso de permiso por vencer (exige un
+cron, el mismo pendiente que arrastra EXS-3).

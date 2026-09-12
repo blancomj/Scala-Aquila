@@ -1467,6 +1467,20 @@ export const ERROR_CODES = {
   // fn_directorio_listar: quien no es miembro del tenant no obtiene directorio. Mismo criterio
   // de no revelar que el tenant existe.
   DIRECTORIO_NO_DISPONIBLE: 'DIRECTORIO_NO_DISPONIBLE',
+
+  // ── EXS-5: vehículos y movilidad (20260933300000+) ──
+  // guard_vehiculo_permiso: tipo_id no pertenece a TIPO_PERMISO_VEHICULO.
+  PERMISO_VEHICULO_TIPO_INVALIDO: 'PERMISO_VEHICULO_TIPO_INVALIDO',
+  // guard_vehiculo_permiso: el permiso y el vehículo que ampara son de copropiedades distintas.
+  // Lo comprueba el guard y no una FK compuesta porque el tenant del permiso ya lo fija la
+  // policy; esto atrapa el caso en que alguien pase un vehiculo_id de otra copropiedad.
+  PERMISO_VEHICULO_TENANT_INCONSISTENTE: 'PERMISO_VEHICULO_TENANT_INCONSISTENTE',
+  // guard_vehiculo_permiso: un vehículo retirado no recibe permisos vigentes — retirar es
+  // terminal y su placa ya puede estar registrada a nombre de otro carro.
+  PERMISO_VEHICULO_RETIRADO: 'PERMISO_VEHICULO_RETIRADO',
+  // fn_vehiculo_por_placa: quien no es miembro del tenant no consulta placas. Mismo mensaje que
+  // para una placa inexistente: la consulta no debe servir para averiguar qué carros hay.
+  VEHICULO_NO_ENCONTRADO: 'VEHICULO_NO_ENCONTRADO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
