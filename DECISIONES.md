@@ -4267,3 +4267,93 @@ retirar y ver el permiso revocado solo—, con limpieza del dato de prueba al te
 declarados: sin bitácora de entradas/salidas (enganchar `mant_registros_acceso` es una FK más), sin
 cupos de parqueadero, sin lectura de placa por cámara, y sin aviso de permiso por vencer (exige un
 cron, el mismo pendiente que arrastra EXS-3).
+
+## D-77
+
+EXS-6 (marketplace) — **un tablón de anuncios, no un e-commerce; la escalera de aprobación sella el
+rol de origen; y el precio es un dato informativo que no toca `financial-kernel`.** Migraciones
+`20260933400000`–`20260933440000`. Ver `Casos de uso/Experiencia y servicios/EXS_06_INFORME.md`.
+
+**El gate de producto que bloqueaba el corte entero** lo cerró Johnny el 2026-09-12: *los vecinos se
+arreglan por fuera, la copropiedad no interviene en la transacción; el precio es informativo y el
+inmueble no participa en nada*. Con eso, todo lo que el prompt 05 §3 prohíbe (carrito, checkout,
+órdenes, pasarela, escrow, comisiones, conciliación de ventas, garantía de la transacción) deja de
+ser una restricción autoimpuesta y pasa a ser consecuencia del producto: no hay nada que conciliar
+porque no hay nada que cobrar. El flujo es publicación → descubrimiento → interés → negociación
+externa → cierre.
+
+**El precio es `numeric(18,2)` —la convención del repositorio, jamás float— pero NO es dinero
+contable**: no entra a `financial-kernel`, no genera asiento, cuenta por cobrar, factura, recaudo ni
+retención, y no toca la cuenta del inmueble. La distinción: un importe del kernel es *la obligación
+de alguien*; este número es lo que un vecino escribió en su aviso. En pantalla se muestra con
+`formatoMoneda` (punto único de verdad consolidado por la auditoría de 2026-08-26 tras hallarlo
+copiado 18 veces) — no se hizo la copia 19, y formatear no es aritmética. Regla de dominio: **un
+regalo no lleva precio**.
+
+**La escalera de aprobación**, cerrada por Johnny con más precisión que la propuesta:
+
+| quien crea | quien aprueba |
+|---|---|
+| residente | auxiliar **o** administrador |
+| auxiliar | administrador |
+| administrador | él mismo (publica directo) |
+
+Principio: **nadie aprueba lo suyo salvo el administrador**. Dos decisiones la sostienen:
+
+1. **`origen` se SELLA del rol real de quien inserta, y es inmutable.** Si se aceptara del cliente,
+   un auxiliar podría declararse `administrador` y saltarse su escalón (hay prueba que lo intenta y
+   falla). Si se leyera de la membresía viva al revisar, ascender a alguien cambiaría
+   retroactivamente quién puede aprobar lo que ya publicó: **manda el rol que regía al crear**.
+2. **`'residente'` queda preparado y NO ejercido**: en esta serie los residentes no tienen login
+   (§0.1 A), así que hoy solo se ejercen los escalones 2 y 3. El primero se construyó y se prueba
+   fuera de banda, porque el encargo de la hoja de ruta es que la capa externa no obligue a rehacer
+   el modelo.
+
+Mismo patrón que `guard_anuncio_transicion` (D-74): lista cerrada de transiciones, rol explícito y
+**sellado de columnas siempre** —también fuera de banda—, separado de las comprobaciones de rol.
+Además, **editar el contenido de una publicación viva se rechaza** (§12): hay que devolverla a
+borrador, lo que limpia el sello anterior y obliga a una aprobación nueva.
+
+**Tres identidades separadas**: `publicador_tercero_id` (de quién es el aviso — nunca público),
+`creado_por` (quién lo capturó) e `identidad_publica` (cómo se firma — lo único público, texto libre
+porque cuánta identidad mostrar es decisión de cada quien, §7). **No hay columna de contacto** a
+propósito (§15, §22): el interés es el único canal, y eso es lo que hace verdad que la
+administración ponga en contacto y se aparte. `fn_marketplace_listar` es **función y no vista**, por
+el mismo motivo que `fn_directorio_listar`.
+
+**Lo que se estudió y se decidió NO reutilizar: `solicitudes` (Atención)**, que el prompt 05 §14/§15
+pedía evaluar. No encaja: es el radicado formal de una PQRS, con consecutivo anual, SLA, y
+`inmueble_id`/`solicitante_ref` NOT NULL. Abrir un radicado con SLA por cada "me interesa un sofá"
+la desnaturaliza; y para el reporte, quien reporta hoy es un miembro del equipo, que no tiene ni
+tercero ni inmueble. Ambos son tablas propias ligeras. Sí se reutilizó `documentos` para las fotos,
+con una columna FK más, como manda su patrón.
+
+**Expirar SÍ se almacena, a diferencia de `autorizado` en EXS-5** (D-76), y la diferencia está
+razonada: expirar es una transición real del ciclo de vida, con fila de historia, y lo expirado
+**puede renovarse**; un permiso vencido no tiene nada que registrar porque la fecha ya lo dice.
+
+**Las fotos van en `documentos` con la columna FK `publicacion_id`, y cerrarlas destapó tres cosas.**
+(a) `v_documento_vigente` es un `select *`, y una vista NO hereda columnas agregadas después de
+crearla: no exponía **ni `publicacion_id` ni `anuncio_id`**, así que el adjunto de anuncios de EXS-3
+tampoco era visible. Recreada; su comentario ahora exige recrearla en la misma migración que añada
+una FK de dominio. (b) `documentos` no tiene policy INSERT para `authenticated` — se extendió
+`subir-documento` con `publicacion_id`, resolviendo el tenant contra la publicación. (c) **El
+versionado habría borrado la galería**: la función agrupa por (tenant, tipo, alcance) asumiendo que
+el alcance identifica UN documento (con `pago_id` siempre da version=1), pero una publicación tiene
+VARIAS fotos — agrupadas, subir la del respaldo borraría de la vista la del frente. Para
+publicaciones el agrupamiento se desactiva: cada foto es un documento propio. El tablón recibe
+`portada_path` (RUTA, no URL: el bucket es privado y firma el cliente con su sesión).
+
+**Hallazgo que NO se corrigió porque no está roto**: borrar una publicación con fotos falla con
+`APPEND_ONLY: documentos no admite DELETE (SEC-14)`. `forbid_mutation_salvo_tenant_borrado` deja
+pasar el DELETE justo cuando el tenant ya no existe —el único borrado real del sistema— y una
+publicación no se borra nunca, se cierra. El CASCADE describe el único caso en que se ejerce; queda
+escrito en el comentario de la columna (`20260933470000`).
+
+Evidencia: 24 pruebas en `tests/rls/marketplace.test.ts`. Verificado en navegador el ciclo completo,
+comprobando **en el DOM** que el tablón no contiene documento, correo, teléfono ni razón social legal
+del tercero. Hallazgo de método anotado: **un UPDATE que no pasa la policy RLS no lanza error — la
+filtra en silencio y afecta cero filas** (un INSERT sí falla con 42501). Pendientes declarados: cron
+sin agendar en pg_cron, sin aviso al publicador cuando llega un interés (fn_notificar
+va a un módulo, no a una persona sin login), sin visibilidad por segmento, y sin rate limiting ni
+prevención de enumeración —que renacen con la capa externa.

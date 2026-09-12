@@ -52,6 +52,30 @@ export const useDocumentosStore = defineStore('documentos', () => {
     }
   }
 
+  /** EXS-6 — las fotos de un aviso del marketplace. Consulta aparte y no un parámetro más de
+   * `cargarDocumentos` porque su semántica es distinta: aquí se esperan VARIAS filas (una
+   * galería), mientras que los demás alcances devuelven la versión vigente de cada grupo. */
+  async function cargarFotosPublicacion(
+    tenantId: string,
+    publicacionId: string,
+  ): Promise<DocumentoVigenteRow[]> {
+    loading.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error: errorFotos } = await cliente
+        .from('v_documento_vigente')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('publicacion_id', publicacionId)
+        .order('created_at', { ascending: true })
+      if (errorFotos) throw errorFotos
+      documentos.value = data ?? []
+      return documentos.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   /** `inmuebleId` null = sube un documento de la copropiedad misma — la Edge
    * Function exige entonces `tenant_id` explícito (verificado ahí contra la
    * membresía real del actor, ver subir-documento/index.ts). `casoJuridicoId`/
@@ -70,12 +94,18 @@ export const useDocumentosStore = defineStore('documentos', () => {
     /** PRQ-CAR-022: adjunta el documento a un envío puntual de cobranza (constancia de
      * entrega, acuse firmado del canal físico). */
     envioId?: string
+    /** EXS-6: foto de un aviso del marketplace. A diferencia de los demás alcances, una
+     * publicación tiene VARIAS fotos, así que la Edge Function no las versiona entre sí —
+     * cada foto es un documento propio, no la corrección de la anterior. */
+    publicacionId?: string
   }): Promise<DocumentoVigenteRow> {
     subiendo.value = true
     try {
       const cliente = useSupabaseClient<Database>()
       const form = new FormData()
-      if (params.envioId) {
+      if (params.publicacionId) {
+        form.set('publicacion_id', params.publicacionId)
+      } else if (params.envioId) {
         form.set('envio_id', params.envioId)
       } else if (params.casoJuridicoId) {
         form.set('caso_juridico_id', params.casoJuridicoId)
@@ -95,7 +125,11 @@ export const useDocumentosStore = defineStore('documentos', () => {
       })
       if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
 
-      await cargarDocumentos(params.tenantId, params.inmuebleId, params.casoJuridicoId, params.envioId)
+      if (params.publicacionId) {
+        await cargarFotosPublicacion(params.tenantId, params.publicacionId)
+      } else {
+        await cargarDocumentos(params.tenantId, params.inmuebleId, params.casoJuridicoId, params.envioId)
+      }
       return data!
     } finally {
       subiendo.value = false
@@ -138,6 +172,7 @@ export const useDocumentosStore = defineStore('documentos', () => {
     loading,
     subiendo,
     cargarDocumentos,
+    cargarFotosPublicacion,
     subirDocumento,
     urlDescarga,
     documentoPorId,

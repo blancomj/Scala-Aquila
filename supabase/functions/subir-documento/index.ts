@@ -63,6 +63,7 @@ export default {
     const pagoIdRaw = form.get('pago_id')
     const casoJuridicoIdRaw = form.get('caso_juridico_id')
     const envioIdRaw = form.get('envio_id')
+    const publicacionIdRaw = form.get('publicacion_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -105,16 +106,30 @@ export default {
     if (envioId !== null && !UUID_RE.test(envioId)) {
       return errorResponse(400, 'INVALID_PAYLOAD', 'envio_id debe ser un uuid válido.', undefined, correlationId)
     }
+    // publicacion_id — EXS-6: las fotos de un aviso del marketplace. Mismo
+    // criterio de resolución de tenant que los anteriores.
+    const publicacionId =
+      typeof publicacionIdRaw === 'string' && publicacionIdRaw.length > 0 ? publicacionIdRaw : null
+    if (publicacionId !== null && !UUID_RE.test(publicacionId)) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'publicacion_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
     if (
       inmuebleId === null &&
       casoJuridicoId === null &&
       envioId === null &&
+      publicacionId === null &&
       (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
     ) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id ni envio_id.',
+        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id, envio_id ni publicacion_id.',
         undefined,
         correlationId,
       )
@@ -270,6 +285,25 @@ export default {
         )
       }
       tenantId = envio.tenant_id
+    } else if (publicacionId !== null) {
+      const { data: publicacion, error: errorPublicacion } = await ctx.supabase
+        .from('publicaciones')
+        .select('id, tenant_id')
+        .eq('id', publicacionId)
+        .maybeSingle()
+      if (errorPublicacion) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorPublicacion.message, undefined, correlationId)
+      }
+      if (!publicacion) {
+        return errorResponse(
+          404,
+          'PUBLICACION_NO_ENCONTRADA',
+          'La publicación no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = publicacion.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -358,9 +392,31 @@ export default {
         ? consultaVigente.is('caso_juridico_id', null)
         : consultaVigente.eq('caso_juridico_id', casoJuridicoId)
     consultaVigente = envioId === null ? consultaVigente.is('envio_id', null) : consultaVigente.eq('envio_id', envioId)
-    const { data: vigente, error: errorVigente } = await consultaVigente.maybeSingle()
-    if (errorVigente) {
-      return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
+    consultaVigente =
+      publicacionId === null
+        ? consultaVigente.is('publicacion_id', null)
+        : consultaVigente.eq('publicacion_id', publicacionId)
+
+    // EXS-6 · las fotos de un aviso NO se versionan entre sí.
+    //
+    //  El versionado de esta función agrupa por (tenant, tipo, alcance) y
+    //  asume que ese alcance identifica UN documento: la escritura de
+    //  propiedad del inmueble 501, el comprobante del pago X. Con pago_id
+    //  eso siempre resuelve en version=1 porque un pago tiene un
+    //  comprobante — y el comentario de arriba lo dice explícitamente.
+    //
+    //  Una publicación, en cambio, tiene VARIAS fotos, y todas comparten
+    //  tipo y publicacion_id. Si se agruparan, la segunda foto sería la
+    //  "version 2" de la primera y v_documento_vigente mostraría una sola:
+    //  subir la foto del respaldo borraría de la galería la del frente.
+    //  Cada foto es un documento propio, no la corrección de otra.
+    let vigente: { grupo_id: string; version: number } | null = null
+    if (publicacionId === null) {
+      const { data, error: errorVigente } = await consultaVigente.maybeSingle()
+      if (errorVigente) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
+      }
+      vigente = data
     }
 
     const grupoId = vigente?.grupo_id ?? crypto.randomUUID()
@@ -372,7 +428,9 @@ export default {
         ? `_caso-juridico/${casoJuridicoId}`
         : envioId !== null
           ? `_envio/${envioId}`
-          : '_copropiedad')
+          : publicacionId !== null
+            ? `_publicacion/${publicacionId}`
+            : '_copropiedad')
     const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
@@ -402,6 +460,7 @@ export default {
         pago_id: pagoId,
         caso_juridico_id: casoJuridicoId,
         envio_id: envioId,
+        publicacion_id: publicacionId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

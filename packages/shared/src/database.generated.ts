@@ -5733,6 +5733,7 @@ export type Database = {
           inmueble_id: string | null
           nombre_archivo: string
           pago_id: string | null
+          publicacion_id: string | null
           storage_path: string
           subido_por: string | null
           tamano_bytes: number | null
@@ -5753,6 +5754,7 @@ export type Database = {
           inmueble_id?: string | null
           nombre_archivo: string
           pago_id?: string | null
+          publicacion_id?: string | null
           storage_path: string
           subido_por?: string | null
           tamano_bytes?: number | null
@@ -5773,6 +5775,7 @@ export type Database = {
           inmueble_id?: string | null
           nombre_archivo?: string
           pago_id?: string | null
+          publicacion_id?: string | null
           storage_path?: string
           subido_por?: string | null
           tamano_bytes?: number | null
@@ -5828,6 +5831,13 @@ export type Database = {
             columns: ["pago_id"]
             isOneToOne: false
             referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_publicacion_id_fkey"
+            columns: ["publicacion_id"]
+            isOneToOne: false
+            referencedRelation: "publicaciones"
             referencedColumns: ["id"]
           },
           {
@@ -18780,6 +18790,304 @@ export type Database = {
           },
         ]
       }
+      publicacion_interes: {
+        Row: {
+          atendido: boolean
+          atendido_at: string | null
+          created_at: string
+          id: string
+          interesado_nombre: string | null
+          interesado_tercero_id: string | null
+          mensaje: string | null
+          publicacion_id: string
+          registrado_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          atendido?: boolean
+          atendido_at?: string | null
+          created_at?: string
+          id?: string
+          interesado_nombre?: string | null
+          interesado_tercero_id?: string | null
+          mensaje?: string | null
+          publicacion_id: string
+          registrado_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          atendido?: boolean
+          atendido_at?: string | null
+          created_at?: string
+          id?: string
+          interesado_nombre?: string | null
+          interesado_tercero_id?: string | null
+          mensaje?: string | null
+          publicacion_id?: string
+          registrado_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicacion_interes_interesado_tercero_id_fkey"
+            columns: ["interesado_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_interes_publicacion_id_fkey"
+            columns: ["publicacion_id"]
+            isOneToOne: false
+            referencedRelation: "publicaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_interes_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_interes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_interes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publicacion_reporte: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          id: string
+          motivo_id: number
+          publicacion_id: string
+          reportado_por: string | null
+          resolucion: string | null
+          resuelto: boolean
+          resuelto_at: string | null
+          resuelto_por: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          motivo_id: number
+          publicacion_id: string
+          reportado_por?: string | null
+          resolucion?: string | null
+          resuelto?: boolean
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          motivo_id?: number
+          publicacion_id?: string
+          reportado_por?: string | null
+          resolucion?: string | null
+          resuelto?: boolean
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicacion_reporte_motivo_id_fkey"
+            columns: ["motivo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_reporte_publicacion_id_fkey"
+            columns: ["publicacion_id"]
+            isOneToOne: false
+            referencedRelation: "publicaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_reporte_reportado_por_fkey"
+            columns: ["reportado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_reporte_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_reporte_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacion_reporte_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publicaciones: {
+        Row: {
+          aprobada_at: string | null
+          aprobada_por: string | null
+          categoria_id: number
+          cerrada_at: string | null
+          condicion_id: number | null
+          creado_por: string | null
+          created_at: string
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["publicacion_estado_t"]
+          id: string
+          identidad_publica: string
+          moneda: string
+          motivo_cierre: string | null
+          motivo_rechazo: string | null
+          negociable: boolean
+          origen: Database["public"]["Enums"]["publicacion_origen_t"]
+          precio: number | null
+          publicada_at: string | null
+          publicador_tercero_id: string
+          tenant_id: string
+          tipo_id: number
+          titulo: string
+          updated_at: string | null
+          vigente_hasta: string | null
+        }
+        Insert: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          categoria_id: number
+          cerrada_at?: string | null
+          condicion_id?: number | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["publicacion_estado_t"]
+          id?: string
+          identidad_publica: string
+          moneda?: string
+          motivo_cierre?: string | null
+          motivo_rechazo?: string | null
+          negociable?: boolean
+          origen?: Database["public"]["Enums"]["publicacion_origen_t"]
+          precio?: number | null
+          publicada_at?: string | null
+          publicador_tercero_id: string
+          tenant_id: string
+          tipo_id: number
+          titulo: string
+          updated_at?: string | null
+          vigente_hasta?: string | null
+        }
+        Update: {
+          aprobada_at?: string | null
+          aprobada_por?: string | null
+          categoria_id?: number
+          cerrada_at?: string | null
+          condicion_id?: number | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["publicacion_estado_t"]
+          id?: string
+          identidad_publica?: string
+          moneda?: string
+          motivo_cierre?: string | null
+          motivo_rechazo?: string | null
+          negociable?: boolean
+          origen?: Database["public"]["Enums"]["publicacion_origen_t"]
+          precio?: number | null
+          publicada_at?: string | null
+          publicador_tercero_id?: string
+          tenant_id?: string
+          tipo_id?: number
+          titulo?: string
+          updated_at?: string | null
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicaciones_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_condicion_id_fkey"
+            columns: ["condicion_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_publicador_tercero_id_fkey"
+            columns: ["publicador_tercero_id"]
+            isOneToOne: false
+            referencedRelation: "terceros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limit_hits: {
         Row: {
           bucket: string
@@ -20761,6 +21069,7 @@ export type Database = {
       }
       v_documento_vigente: {
         Row: {
+          anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
           created_at: string | null
@@ -20772,6 +21081,7 @@ export type Database = {
           inmueble_id: string | null
           nombre_archivo: string | null
           pago_id: string | null
+          publicacion_id: string | null
           storage_path: string | null
           subido_por: string | null
           tamano_bytes: number | null
@@ -20780,6 +21090,13 @@ export type Database = {
           version: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documentos_anuncio_id_fkey"
+            columns: ["anuncio_id"]
+            isOneToOne: false
+            referencedRelation: "anuncios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_caso_juridico_id_fkey"
             columns: ["caso_juridico_id"]
@@ -20820,6 +21137,13 @@ export type Database = {
             columns: ["pago_id"]
             isOneToOne: false
             referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_publicacion_id_fkey"
+            columns: ["publicacion_id"]
+            isOneToOne: false
+            referencedRelation: "publicaciones"
             referencedColumns: ["id"]
           },
           {
@@ -21289,6 +21613,7 @@ export type Database = {
       }
       cron_mant_inventario_alertas_diario: { Args: never; Returns: undefined }
       cron_mant_salud_snapshot_mensual: { Args: never; Returns: undefined }
+      cron_marketplace_expirar: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
       finanzas_alertas_evaluar: {
         Args: { p_fecha?: string; p_tenant_id: string }
@@ -23434,6 +23759,33 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_marketplace_listar: {
+        Args: {
+          p_categoria?: number
+          p_tenant_id: string
+          p_texto?: string
+          p_tipo?: number
+        }
+        Returns: {
+          categoria_codigo: string
+          categoria_nombre: string
+          condicion_nombre: string
+          descripcion: string
+          fotos: number
+          id: string
+          identidad_publica: string
+          intereses: number
+          moneda: string
+          negociable: boolean
+          portada_path: string
+          precio: number
+          publicada_at: string
+          tipo_codigo: string
+          tipo_nombre: string
+          titulo: string
+          vigente_hasta: string
+        }[]
+      }
       fn_matriz_trazabilidad: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -23519,6 +23871,7 @@ export type Database = {
           tercero_id: string
         }[]
       }
+      fn_publicaciones_expirar: { Args: never; Returns: number }
       fn_rechazar_novedad: {
         Args: { p_motivo: string; p_novedad_id: string }
         Returns: {
@@ -25788,6 +26141,15 @@ export type Database = {
       presupuesto_reconocimiento_ingreso_t: "causacion" | "caja"
       programacion_estado_t: "pendiente" | "generada" | "omitida" | "cancelada"
       propuesta_estado_t: "pendiente" | "aprobada" | "rechazada"
+      publicacion_estado_t:
+        | "borrador"
+        | "pendiente_aprobacion"
+        | "publicada"
+        | "rechazada"
+        | "pausada"
+        | "cerrada"
+        | "expirada"
+      publicacion_origen_t: "residente" | "auxiliar" | "administrador"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
       requisito_tipo_t:
         | "legal_nacional"
@@ -26418,6 +26780,16 @@ export const Constants = {
       presupuesto_reconocimiento_ingreso_t: ["causacion", "caja"],
       programacion_estado_t: ["pendiente", "generada", "omitida", "cancelada"],
       propuesta_estado_t: ["pendiente", "aprobada", "rechazada"],
+      publicacion_estado_t: [
+        "borrador",
+        "pendiente_aprobacion",
+        "publicada",
+        "rechazada",
+        "pausada",
+        "cerrada",
+        "expirada",
+      ],
+      publicacion_origen_t: ["residente", "auxiliar", "administrador"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
       requisito_tipo_t: [
         "legal_nacional",

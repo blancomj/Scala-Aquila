@@ -1481,6 +1481,47 @@ export const ERROR_CODES = {
   // fn_vehiculo_por_placa: quien no es miembro del tenant no consulta placas. Mismo mensaje que
   // para una placa inexistente: la consulta no debe servir para averiguar qué carros hay.
   VEHICULO_NO_ENCONTRADO: 'VEHICULO_NO_ENCONTRADO',
+
+  // ── EXS-6: marketplace (20260933400000+) ──
+  // guard_publicacion: tipo_id, categoria_id o condicion_id de la familia equivocada.
+  PUBLICACION_TIPO_INVALIDO: 'PUBLICACION_TIPO_INVALIDO',
+  PUBLICACION_CATEGORIA_INVALIDA: 'PUBLICACION_CATEGORIA_INVALIDA',
+  PUBLICACION_CONDICION_INVALIDA: 'PUBLICACION_CONDICION_INVALIDA',
+  // guard_publicacion: un regalo con precio es una contradicción, no un descuido.
+  PUBLICACION_REGALO_CON_PRECIO: 'PUBLICACION_REGALO_CON_PRECIO',
+  // guard_publicacion: el tercero que publica es de otra copropiedad.
+  PUBLICACION_TERCERO_INCONSISTENTE: 'PUBLICACION_TERCERO_INCONSISTENTE',
+  // guard_publicacion: el par (estado anterior, estado nuevo) no está en la lista cerrada.
+  PUBLICACION_TRANSICION_INVALIDA: 'PUBLICACION_TRANSICION_INVALIDA',
+  // guard_publicacion: `origen` es historia sellada al crear; cambiarlo movería el escalón de
+  // aprobación que le toca a esa publicación.
+  PUBLICACION_ORIGEN_INMUTABLE: 'PUBLICACION_ORIGEN_INMUTABLE',
+  // guard_publicacion: editar el contenido de una publicación viva se saltaría la moderación;
+  // hay que devolverla a borrador y aprobarla de nuevo.
+  PUBLICACION_EDICION_EVADE_MODERACION: 'PUBLICACION_EDICION_EVADE_MODERACION',
+  // guard_publicacion: publicar sin pasar por aprobación es prerrogativa del administrador.
+  PUBLICACION_DIRECTA_REQUIERE_ADMINISTRADOR: 'PUBLICACION_DIRECTA_REQUIERE_ADMINISTRADOR',
+  // guard_publicacion: escalera de aprobación — lo que publica un auxiliar lo aprueba un
+  // administrador.
+  PUBLICACION_APROBACION_REQUIERE_ADMINISTRADOR: 'PUBLICACION_APROBACION_REQUIERE_ADMINISTRADOR',
+  // guard_publicacion: aprobar lo de un residente, o rechazar, exige ser del equipo.
+  PUBLICACION_APROBACION_REQUIERE_EQUIPO: 'PUBLICACION_APROBACION_REQUIERE_EQUIPO',
+  // guard_publicacion_interes: no se expresa interés en algo que no está en el tablón.
+  INTERES_PUBLICACION_NO_DISPONIBLE: 'INTERES_PUBLICACION_NO_DISPONIBLE',
+  INTERES_TENANT_INCONSISTENTE: 'INTERES_TENANT_INCONSISTENTE',
+  // guard_publicacion_reporte: motivo de familia equivocada, o publicación de otro tenant.
+  REPORTE_MOTIVO_INVALIDO: 'REPORTE_MOTIVO_INVALIDO',
+  REPORTE_TENANT_INCONSISTENTE: 'REPORTE_TENANT_INCONSISTENTE',
+  // fn_marketplace_listar: quien no es miembro no obtiene tablón. Mismo criterio que el
+  // directorio: no revelar que la copropiedad existe.
+  MARKETPLACE_NO_DISPONIBLE: 'MARKETPLACE_NO_DISPONIBLE',
+  // guard_documento_tipo_familia: la foto cita una publicación de otra copropiedad. Código
+  // propio y no PUBLICACION_TERCERO_INCONSISTENTE porque son cosas distintas: aquella valida
+  // de quién es el aviso, esta a qué aviso cuelga un documento.
+  PUBLICACION_INVALIDA: 'PUBLICACION_INVALIDA',
+  // subir-documento: se pidió adjuntar una foto a una publicación que no existe o que el actor
+  // no puede ver. Mismo criterio de no revelar qué hay en otras copropiedades.
+  PUBLICACION_NO_ENCONTRADA: 'PUBLICACION_NO_ENCONTRADA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
