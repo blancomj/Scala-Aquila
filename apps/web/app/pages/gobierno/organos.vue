@@ -2,6 +2,7 @@
 // GOB-1 §4.5: tarjetas por órgano con miembros vigentes, panel de atribuciones (ley vs
 // reglamento), alertas de obligatoriedad/vencimiento, historial de composiciones anteriores.
 import type { Database } from '@aquila/shared'
+import type { OrganoConTipo } from '~/stores/gobiernoOrganos'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
@@ -108,10 +109,42 @@ async function guardarOrgano(): Promise<void> {
     errorOrgano.value = mensajeError(excepcion, 'No se pudo crear el órgano.')
   }
 }
-async function terminarOrgano(id: string): Promise<void> {
+// ── Drawer: terminar órgano (confirmación + fecha + motivo) ──────────────
+//
+// Terminar un órgano no es un clic reversible ni silencioso: cierra un
+// consejo/comité/asamblea vigente y el motivo queda en el historial. El
+// CHECK gobierno_organos_terminacion_con_motivo (D-85) lo exige en la base
+// también — esta pantalla es la primera barrera, no la única.
+const drawerTerminarAbierto = ref(false)
+const organoATerminar = ref<OrganoConTipo | null>(null)
+const formTerminar = reactive({
+  vigenteHasta: new Date().toISOString().slice(0, 10),
+  motivo: '',
+})
+const errorTerminar = ref<string | null>(null)
+
+function abrirTerminarOrgano(organo: OrganoConTipo): void {
+  organoATerminar.value = organo
+  formTerminar.vigenteHasta = new Date().toISOString().slice(0, 10)
+  formTerminar.motivo = ''
+  errorTerminar.value = null
+  drawerTerminarAbierto.value = true
+}
+async function confirmarTerminarOrgano(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return
-  await organosStore.terminarOrgano(id, tenantId, new Date().toISOString().slice(0, 10))
+  const organo = organoATerminar.value
+  if (!tenantId || !organo) return
+  if (formTerminar.motivo.trim() === '') {
+    errorTerminar.value = 'Indica el motivo de la terminación.'
+    return
+  }
+  errorTerminar.value = null
+  try {
+    await organosStore.terminarOrgano(organo.id, tenantId, formTerminar.vigenteHasta, formTerminar.motivo.trim())
+    drawerTerminarAbierto.value = false
+  } catch (excepcion) {
+    errorTerminar.value = mensajeError(excepcion, 'No se pudo terminar el órgano.')
+  }
 }
 
 // ── Drawer: agregar miembro ────────────────────────────────────────────────
@@ -230,7 +263,7 @@ async function terminarAtribucion(id: string): Promise<void> {
               {{ organo.tipo?.nombre }} · vigente desde {{ organo.vigente_desde }}
             </p>
           </div>
-          <UButton size="xs" variant="ghost" color="error" @click="terminarOrgano(organo.id)">Terminar</UButton>
+          <UButton size="xs" variant="ghost" color="error" @click="abrirTerminarOrgano(organo)">Terminar</UButton>
         </div>
 
         <div>
@@ -376,6 +409,45 @@ async function terminarAtribucion(id: string): Promise<void> {
             @click="guardarAtribucion()"
           >
             Agregar
+          </UButton>
+        </div>
+      </template>
+    </UiDrawer>
+
+    <UiDrawer
+      :abierto="drawerTerminarAbierto"
+      titulo="Terminar órgano"
+      @cerrar="drawerTerminarAbierto = false"
+    >
+      <div class="space-y-3">
+        <UAlert
+          color="warning"
+          variant="soft"
+          :title="`¿Terminar ${organoATerminar?.nombre || organoATerminar?.tipo?.nombre}?`"
+          description="Deja de estar vigente desde la fecha indicada. Sus miembros vigentes quedan cesantes y sus atribuciones vigentes se cierran, ambos con esa misma fecha."
+        />
+        <UAlert v-if="errorTerminar" color="error" variant="soft" :title="errorTerminar" />
+        <UFormField label="Vigente hasta" name="vigenteHasta">
+          <UInput v-model="formTerminar.vigenteHasta" type="date" class="w-full" />
+        </UFormField>
+        <UFormField label="Motivo" name="motivo">
+          <UTextarea
+            v-model="formTerminar.motivo"
+            class="w-full"
+            placeholder="Ej. renuncia colectiva, fin de período sin renovación, disolución del comité"
+          />
+        </UFormField>
+      </div>
+      <template #foot>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton variant="ghost" @click="drawerTerminarAbierto = false">Cancelar</UButton>
+          <UButton
+            color="error"
+            :loading="organosStore.guardando"
+            :disabled="formTerminar.motivo.trim() === ''"
+            @click="confirmarTerminarOrgano()"
+          >
+            Terminar órgano
           </UButton>
         </div>
       </template>

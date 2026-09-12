@@ -4701,3 +4701,33 @@ persona Y paso de vehículo— y la de la bandeja.
 
 **Pendiente consciente**: la lectura automática de placa (LPR) queda fuera — depende de hardware y
 de un proveedor externo, y se evaluará cuando haya un edificio pidiéndolo.
+
+## D-85
+
+**Terminar un órgano de gobierno exige confirmación, fecha y motivo.** Migración `20260934000000`.
+Pedido directo del usuario: el botón "Terminar" de `/gobierno/organos` cerraba el órgano al primer
+clic, sin preguntar nada — vigente_hasta quedaba fijo en la fecha de hoy y no quedaba ningún
+rastro de por qué.
+
+**El motivo se exige en la base, no solo en la UI.** Mismo patrón que `motivo_revocacion` en
+`vehiculo_permiso` (EXS-5) y en `atencion_tokens_consulta` (GOB-8): columna
+`motivo_terminacion` nullable + CHECK `gobierno_organos_terminacion_con_motivo` que exige
+texto no vacío en cuanto `vigente_hasta` deja de ser null. La UI es la primera barrera, no la
+única — un `UPDATE` directo sin motivo también falla.
+
+**Backfill antes del CHECK.** Ya existía al menos un órgano terminado sin motivo (dato de
+prueba anterior a este cambio); la migración lo rellena con un texto explícito
+("Motivo no registrado…") antes de agregar la restricción, para no romper `ADD CONSTRAINT`
+contra datos existentes — el mismo problema, documentado, que ya había aparecido con vistas
+`select *` en otros cortes.
+
+**UI**: nuevo drawer (`UiDrawer`, mismo componente que el resto de la pantalla, no un modal
+nuevo) con la fecha editable (por defecto hoy) y el motivo obligatorio — el botón de
+confirmar queda deshabilitado hasta que hay texto. No toca miembros ni atribuciones vigentes
+del órgano: eso se termina aparte, a propósito (evita que un clic cierre en cascada algo que
+el usuario no pidió cerrar).
+
+Verificado en navegador: intentar confirmar sin motivo no hace nada (el órgano sigue vigente);
+con motivo, el órgano pasa al historial con la fecha y el motivo correctos. Prueba nueva en
+`tests/gobierno/organos.test.ts` (13) cubre el CHECK: sin motivo falla, motivo en blanco falla,
+con motivo pasa.

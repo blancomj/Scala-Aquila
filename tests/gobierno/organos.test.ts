@@ -314,4 +314,27 @@ d('GOB-1: órganos de gobierno y sus miembros', () => {
     // migración. Constancia explícita, no una segunda implementación de la regla.
     expect(true).toBe(true)
   })
+
+  it('13. terminar un órgano sin motivo falla (gobierno_organos_terminacion_con_motivo, D-85)', async () => {
+    const { tenantId } = await crearTenantCompleto('gob1-t13')
+    const organoId = await crearOrgano(tenantId, 'comite', { nombre: 'Comité de obras' })
+
+    const { error: sinMotivo } = await admin
+      .from('gobierno_organos')
+      .update({ vigente_hasta: '2026-06-01' })
+      .eq('id', organoId)
+    expect(sinMotivo?.message).toMatch(/gobierno_organos_terminacion_con_motivo/)
+
+    const { error: motivoEnBlanco } = await admin
+      .from('gobierno_organos')
+      .update({ vigente_hasta: '2026-06-01', motivo_terminacion: '   ' })
+      .eq('id', organoId)
+    expect(motivoEnBlanco?.message).toMatch(/gobierno_organos_terminacion_con_motivo/)
+
+    const { error: conMotivo } = await admin
+      .from('gobierno_organos')
+      .update({ vigente_hasta: '2026-06-01', motivo_terminacion: 'Disolución del comité ad hoc' })
+      .eq('id', organoId)
+    expect(conMotivo).toBeNull()
+  }, 30_000)
 })

@@ -57,8 +57,12 @@ watch(
 )
 
 // Grupos colapsados (acordeón) — guarda los TÍTULOS cerrados, no los
-// abiertos: por defecto (cookie vacía) todos los grupos están expandidos.
-const gruposCerrados = useCookie<string[]>('sidebar-grupos-cerrados', { default: () => [] })
+// abiertos. Por defecto (primer ingreso, cookie sin fijar) todos arrancan
+// cerrados: un usuario nuevo no debe ver la barra lateral entera desplegada
+// antes de haber elegido nada.
+const gruposCerrados = useCookie<string[]>('sidebar-grupos-cerrados', {
+  default: () => NAV_GRUPOS.map((g) => g.titulo),
+})
 
 // Acordeón: al desplegar un grupo, cualquier otro que estuviera desplegado
 // se repliega — nunca queda más de uno abierto a la vez. Al replegar el

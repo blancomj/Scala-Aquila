@@ -63,6 +63,12 @@ async function iniciarSesion(): Promise<void> {
       error.value = errorAuth.message
       return
     }
+    // El acordeón del sidebar (NavSidebar.vue) recuerda qué grupos quedaron
+    // abiertos entre recargas de la MISMA sesión, pero un inicio de sesión
+    // nuevo debe arrancar con todo cerrado — borrar la cookie aquí, no solo
+    // confiar en el default de useCookie: si ya existía de una sesión
+    // anterior, el default nunca se aplica.
+    useCookie('sidebar-grupos-cerrados').value = null
     // Recarga completa, no navigateTo() — mismo motivo que
     // NavTenantSwitcher.vue/copropiedades/index.vue al cambiar de
     // copropiedad: justo después de signInWithPassword() hay una ventana de

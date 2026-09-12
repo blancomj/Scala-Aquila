@@ -10600,6 +10600,7 @@ export type Database = {
           created_at: string
           documento_id: string | null
           id: string
+          motivo_terminacion: string | null
           nombre: string | null
           reglamento_referencia: string | null
           tenant_id: string
@@ -10612,6 +10613,7 @@ export type Database = {
           created_at?: string
           documento_id?: string | null
           id?: string
+          motivo_terminacion?: string | null
           nombre?: string | null
           reglamento_referencia?: string | null
           tenant_id: string
@@ -10624,6 +10626,7 @@ export type Database = {
           created_at?: string
           documento_id?: string | null
           id?: string
+          motivo_terminacion?: string | null
           nombre?: string | null
           reglamento_referencia?: string | null
           tenant_id?: string
@@ -20586,7 +20589,6 @@ export type Database = {
       vehiculo_permiso: {
         Row: {
           created_at: string
-          cupo_inmueble_id: string | null
           cupo_zona_id: string | null
           estado: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id: string
@@ -20604,7 +20606,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          cupo_inmueble_id?: string | null
           cupo_zona_id?: string | null
           estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id?: string
@@ -20622,7 +20623,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          cupo_inmueble_id?: string | null
           cupo_zona_id?: string | null
           estado?: Database["public"]["Enums"]["permiso_vehiculo_estado_t"]
           id?: string
@@ -20639,20 +20639,6 @@ export type Database = {
           vigente_hasta?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "vehiculo_permiso_cupo_inmueble_id_fkey"
-            columns: ["cupo_inmueble_id"]
-            isOneToOne: false
-            referencedRelation: "inmuebles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vehiculo_permiso_cupo_inmueble_id_fkey"
-            columns: ["cupo_inmueble_id"]
-            isOneToOne: false
-            referencedRelation: "v_inmuebles_sin_titular"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "vehiculo_permiso_cupo_zona_id_fkey"
             columns: ["cupo_zona_id"]
@@ -23074,6 +23060,15 @@ export type Database = {
       fn_gobierno_expensa_necesaria_mensual: {
         Args: { p_fecha: string; p_inmueble_id: string }
         Returns: number
+      }
+      fn_gobierno_organo_terminar: {
+        Args: {
+          p_motivo: string
+          p_organo_id: string
+          p_tenant_id: string
+          p_vigente_hasta: string
+        }
+        Returns: undefined
       }
       fn_gobierno_politica_semaforo_vigente: {
         Args: { p_tenant_id: string }

@@ -87,11 +87,24 @@ export const useGobiernoOrganosStore = defineStore('gobiernoOrganos', () => {
     }
   }
 
-  async function terminarOrgano(id: string, tenantId: string, vigenteHasta: string): Promise<void> {
+  // D-85: termina el órgano Y, en la misma transacción (fn_gobierno_organo_terminar), cierra a
+  // sus miembros y atribuciones que seguían vigentes — nadie queda "vigente" en un órgano que ya
+  // es historia.
+  async function terminarOrgano(
+    id: string,
+    tenantId: string,
+    vigenteHasta: string,
+    motivoTerminacion: string,
+  ): Promise<void> {
     guardando.value = true
     try {
       const cliente = useSupabaseClient<Database>()
-      const { error } = await cliente.from('gobierno_organos').update({ vigente_hasta: vigenteHasta }).eq('id', id)
+      const { error } = await cliente.rpc('fn_gobierno_organo_terminar', {
+        p_organo_id: id,
+        p_tenant_id: tenantId,
+        p_vigente_hasta: vigenteHasta,
+        p_motivo: motivoTerminacion,
+      })
       if (error) throw error
       await cargarOrganos(tenantId)
     } finally {

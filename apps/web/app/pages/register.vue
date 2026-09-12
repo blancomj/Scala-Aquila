@@ -83,6 +83,10 @@ async function registrar(): Promise<void> {
       confirmacionPendiente.value = true
       return
     }
+    // Ver login.vue: un inicio de sesión nuevo arranca con el acordeón del
+    // sidebar cerrado, no con lo que quedara de una cuenta anterior en la
+    // misma pestaña.
+    useCookie('sidebar-grupos-cerrados').value = null
     // Recarga completa, no navigateTo() — mismo motivo que login.vue: evita
     // la condición de carrera justo después de autenticar (visto en vivo
     // 2026-08-28) y cualquier caché de authStore/tenantStore de una cuenta
