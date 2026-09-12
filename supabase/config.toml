@@ -309,3 +309,17 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/subir-evidencia-auditoria/deno.json"
 entrypoint = "./functions/subir-evidencia-auditoria/index.ts"
+
+# EXS-3 — despacho por correo de un anuncio publicado. Delega en COM-1
+# (registrarEnvioComunicacion) con origen_modulo = 'anuncios': no duplica el
+# ledger de envíos ni los acuses. Requiere sesión real: quien despacha es un
+# administrador que decide hacerlo, no un proceso.
+#
+# Esta entrada faltaba desde EXS-3 (junto con su deno.json), así que la
+# función existía en el repositorio y era IMPOSIBLE de desplegar — nada
+# fallaba, simplemente nunca llegaba al proyecto remoto.
+[functions.enviar-anuncio]
+enabled = true
+verify_jwt = true
+import_map = "./functions/enviar-anuncio/deno.json"
+entrypoint = "./functions/enviar-anuncio/index.ts"

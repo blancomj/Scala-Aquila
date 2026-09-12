@@ -4452,3 +4452,43 @@ los que justifican el recorrido — ninguna suite aislada los habría detectado,
 que la publicación programada y la expiración no ocurren solas—; nada de la serie está en el
 proyecto remoto; sin aviso al publicador cuando llega un interés; sin visibilidad por segmento; sin
 contador de asuntos ni paginación; tipos generados desde local en los ocho cortes.
+
+## D-80
+
+Cierre operativo de la serie EXS — **los dos crons quedan agendados y la serie se despliega en el
+proyecto remoto correcto.** Migración `20260933700000`.
+
+**Los crons que faltaban.** EXS-3 y EXS-6 escribieron `cron_anuncios_publicar_programados` y
+`cron_marketplace_expirar` siguiendo el patrón del repositorio, correctas e idempotentes, y **nadie
+las llamó nunca**: la publicación programada y la expiración no ocurrían solas. No había forma de
+notarlo —un cron que no existe no da error, solo deja trabajo sin hacer—.
+
+**Las dos frecuencias son distintas, por el grano del dato que comparan:**
+`fn_anuncio_publicar_programados` compara `publicar_at <= now()`, un TIMESTAMP: con un cron diario,
+un anuncio pedido para las 15:00 saldría a la mañana siguiente, lo que vacía de sentido la palabra
+"programado" — va **cada 15 minutos**. `fn_publicaciones_expirar` compara
+`vigente_hasta < current_date`, una FECHA: nada cambia dentro del día — va **diaria a las 05:00 UTC**
+(medianoche en Colombia, para que el tablón esté limpio cuando alguien lo mire).
+
+**Prueba de gobernanza nueva** (`tests/governance/crons-agendados.test.ts`): toda función `cron_*`
+tiene que estar agendada en `cron.job`. El nombre `cron_*` es una promesa —"esto lo dispara el
+scheduler"— y ahora es exigible; si alguien la escribe y olvida el `cron.schedule`, lo dice la
+suite en vez de descubrirlo un usuario meses después. Incluye una lista explícita de excepciones
+documentadas, hoy vacía.
+
+**Despliegue.** Destino: **`hwjmlyzzvpmhadldavbq` (Scala - Aquila)**, ca-central-1 — el proyecto que
+la aplicación usa de verdad. Se aplicaron las 27 migraciones de la serie
+(`20260933000000`–`20260933700000`) tras un dry-run que confirmó el alcance exacto: ninguna
+migración ajena. Verificado contra el remoto: 11 tablas con `FORCE RLS`, 2 crons activos, las
+funciones con `search_path=''` y los guards sin `execute` para `authenticated`.
+
+**`enviar-anuncio` era IMPOSIBLE de desplegar desde EXS-3**, y nadie lo había notado: la función
+existía en el repositorio pero le faltaban su `deno.json` (usa imports npm bare) y su entrada en
+`config.toml`. Sin ellos el despliegue simplemente no la incluía, sin error. Corregido y desplegada,
+junto con `subir-documento` actualizada (la de remoto era v14, sin el alcance `publicacion_id`).
+
+**Riesgo que queda abierto y NO se tocó**: `.env.production` sigue apuntando a
+`alfftzoxwsurvzknsczs` (Scala-Prod), que no es donde vive la aplicación. El push de hoy se dirigió
+al proyecto correcto pasando `SUPABASE_DB_URL` por entorno, sin modificar ese archivo — contiene
+credenciales y moverlas no es algo que deba hacerse de oficio. **Mientras siga así, un
+`pnpm db:push:prod` a secas apunta al proyecto equivocado.**
