@@ -1523,6 +1523,18 @@ export const ERROR_CODES = {
   // no puede ver. Mismo criterio de no revelar qué hay en otras copropiedades.
   PUBLICACION_NO_ENCONTRADA: 'PUBLICACION_NO_ENCONTRADA',
 
+  // guard_documento_tipo_familia: el adjunto cita un anuncio de otra copropiedad. Hermano de
+  // PUBLICACION_INVALIDA, y le faltaba desde EXS-3: anuncio_id era el único alcance de
+  // documentos sin validación de tenant.
+  ANUNCIO_INVALIDO: 'ANUNCIO_INVALIDO',
+  // guard_documento_tipo_familia: no se adjunta a un anuncio ya publicado, archivado o
+  // cancelado. Al publicar, el anuncio recibe consecutivo y se congela; un adjunto posterior
+  // cambiaría lo que los residentes vieron bajo esa referencia y, siendo documentos
+  // append-only, no podría retirarse.
+  ANUNCIO_NO_EDITABLE: 'ANUNCIO_NO_EDITABLE',
+  // (subir-documento devuelve ANUNCIO_NO_ENCONTRADO cuando el anuncio no existe o el actor no
+  //  puede verlo — ya registrado arriba, en EXS-3.)
+
   // ── EXS-7: mis asuntos (20260933500000) ──
   // fn_mis_asuntos: quien no es miembro del tenant no tiene bandeja. Mismo criterio de no
   // revelar que la copropiedad existe que el directorio y el marketplace.

@@ -346,4 +346,87 @@ d('EXS-3: anuncios y comunicación oficial', () => {
     const { error } = await cAdmin1.from('anuncios').update({ estado: 'archivado' }).eq('id', id)
     expect(error).toBeNull()
   }, 30_000)
+
+  // ── Adjuntos (20260933720000) ──
+  //
+  //  La columna documentos.anuncio_id existía desde el corte y nadie podía
+  //  escribirla: no hay policy INSERT para authenticated, y subir-documento
+  //  no conocía el parámetro. Estas pruebas fijan las dos reglas que la
+  //  migración añade al guard, porque ninguna se deduce del esquema.
+
+  async function adjuntar(
+    anuncioId: string,
+    opciones?: { tenantId?: string; nombre?: string },
+  ): Promise<string | null> {
+    const tipoDocumento = await idListaTipos(admin, 'TIPO_DOCUMENTO', 'otro_documento')
+    const tenantId = opciones?.tenantId ?? tenant.id
+    const nombre = opciones?.nombre ?? 'anexo.pdf'
+    // Por service_role: documentos no admite INSERT de `authenticated` — la
+    // ruta real del usuario es la Edge Function, que acaba en este mismo
+    // insert y por tanto en este mismo guard.
+    const { error } = await admin.from('documentos').insert({
+      tenant_id: tenantId,
+      anuncio_id: anuncioId,
+      tipo_documento_id: tipoDocumento,
+      grupo_id: crypto.randomUUID(),
+      version: 1,
+      nombre_archivo: nombre,
+      storage_path: `${tenantId}/_anuncio/${anuncioId}/${nombre}`,
+      tamano_bytes: 100,
+    })
+    return error?.message ?? null
+  }
+
+  it('un anuncio en borrador admite varios adjuntos, y ninguno versiona al otro', async () => {
+    const id = await crearBorrador(cAdmin1, 'Convocatoria con anexos', admin1.id)
+
+    expect(await adjuntar(id, { nombre: 'convocatoria.pdf' })).toBeNull()
+    expect(await adjuntar(id, { nombre: 'presupuesto.pdf' })).toBeNull()
+
+    // Los dos siguen vigentes: son documentos distintos, no dos versiones
+    // del mismo. Si se agruparan, la vista devolvería uno solo.
+    const { data } = await admin
+      .from('v_documento_vigente')
+      .select('nombre_archivo')
+      .eq('anuncio_id', id)
+    expect((data ?? []).map((d) => d.nombre_archivo).sort()).toEqual([
+      'convocatoria.pdf',
+      'presupuesto.pdf',
+    ])
+  }, 30_000)
+
+  it('publicado ya no admite adjuntos: lo comunicado no se reescribe', async () => {
+    const id = await crearBorrador(cAdmin1, 'Ya comunicado', admin1.id)
+    expect(await adjuntar(id, { nombre: 'antes.pdf' })).toBeNull()
+
+    await cAdmin1.from('anuncios').update({ estado: 'publicado' }).eq('id', id)
+
+    const mensaje = await adjuntar(id, { nombre: 'despues.pdf' })
+    expect(mensaje).toContain('ANUNCIO_NO_EDITABLE')
+
+    // Lo que se adjuntó antes de publicar sigue ahí y visible.
+    const { data } = await admin.from('v_documento_vigente').select('nombre_archivo').eq('anuncio_id', id)
+    expect(data).toHaveLength(1)
+  }, 30_000)
+
+  it('rechazado sí admite adjuntos: vuelve a edición', async () => {
+    const id = await crearBorrador(cAdmin1, 'Devuelto por el revisor', admin1.id)
+    await cAdmin1.from('anuncios').update({ estado: 'pendiente_revision' }).eq('id', id)
+    await cAdmin2
+      .from('anuncios')
+      .update({ estado: 'rechazado', motivo_rechazo: 'Falta el anexo' })
+      .eq('id', id)
+
+    expect(await adjuntar(id, { nombre: 'el-anexo-que-faltaba.pdf' })).toBeNull()
+  }, 30_000)
+
+  it('un adjunto no puede colgar de un anuncio de otra copropiedad', async () => {
+    const otro = await crearTenant(admin, 'exs3-adjunto-ajeno')
+    const id = await crearBorrador(cAdmin1, 'Anuncio propio', admin1.id)
+
+    const mensaje = await adjuntar(id, { tenantId: otro.id, nombre: 'robado.pdf' })
+    expect(mensaje).toContain('ANUNCIO_INVALIDO')
+
+    await eliminarTenant(admin, otro.id)
+  }, 30_000)
 })

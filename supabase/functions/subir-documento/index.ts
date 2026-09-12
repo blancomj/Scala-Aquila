@@ -64,6 +64,7 @@ export default {
     const casoJuridicoIdRaw = form.get('caso_juridico_id')
     const envioIdRaw = form.get('envio_id')
     const publicacionIdRaw = form.get('publicacion_id')
+    const anuncioIdRaw = form.get('anuncio_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -119,17 +120,32 @@ export default {
         correlationId,
       )
     }
+    // anuncio_id — EXS-3: los adjuntos de una comunicación oficial. Mismo
+    // criterio de resolución de tenant que los anteriores. La columna
+    // existía desde 20260933110000 y esta función no la conocía, así que
+    // hasta 20260933720000 solo service_role podía escribirla.
+    const anuncioId = typeof anuncioIdRaw === 'string' && anuncioIdRaw.length > 0 ? anuncioIdRaw : null
+    if (anuncioId !== null && !UUID_RE.test(anuncioId)) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'anuncio_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
     if (
       inmuebleId === null &&
       casoJuridicoId === null &&
       envioId === null &&
       publicacionId === null &&
+      anuncioId === null &&
       (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
     ) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id, envio_id ni publicacion_id.',
+        'tenant_id debe ser un uuid válido cuando no se envía inmueble_id, caso_juridico_id, envio_id, publicacion_id ni anuncio_id.',
         undefined,
         correlationId,
       )
@@ -304,6 +320,25 @@ export default {
         )
       }
       tenantId = publicacion.tenant_id
+    } else if (anuncioId !== null) {
+      const { data: anuncio, error: errorAnuncio } = await ctx.supabase
+        .from('anuncios')
+        .select('id, tenant_id')
+        .eq('id', anuncioId)
+        .maybeSingle()
+      if (errorAnuncio) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorAnuncio.message, undefined, correlationId)
+      }
+      if (!anuncio) {
+        return errorResponse(
+          404,
+          'ANUNCIO_NO_ENCONTRADO',
+          'El anuncio no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = anuncio.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -396,6 +431,8 @@ export default {
       publicacionId === null
         ? consultaVigente.is('publicacion_id', null)
         : consultaVigente.eq('publicacion_id', publicacionId)
+    consultaVigente =
+      anuncioId === null ? consultaVigente.is('anuncio_id', null) : consultaVigente.eq('anuncio_id', anuncioId)
 
     // EXS-6 · las fotos de un aviso NO se versionan entre sí.
     //
@@ -410,8 +447,11 @@ export default {
     //  "version 2" de la primera y v_documento_vigente mostraría una sola:
     //  subir la foto del respaldo borraría de la galería la del frente.
     //  Cada foto es un documento propio, no la corrección de otra.
+    //
+    //  EXS-3 · lo mismo para los adjuntos de un anuncio: la convocatoria y
+    //  el presupuesto anexo son dos documentos, no dos versiones de uno.
     let vigente: { grupo_id: string; version: number } | null = null
-    if (publicacionId === null) {
+    if (publicacionId === null && anuncioId === null) {
       const { data, error: errorVigente } = await consultaVigente.maybeSingle()
       if (errorVigente) {
         return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
@@ -430,7 +470,9 @@ export default {
           ? `_envio/${envioId}`
           : publicacionId !== null
             ? `_publicacion/${publicacionId}`
-            : '_copropiedad')
+            : anuncioId !== null
+              ? `_anuncio/${anuncioId}`
+              : '_copropiedad')
     const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
@@ -461,6 +503,7 @@ export default {
         caso_juridico_id: casoJuridicoId,
         envio_id: envioId,
         publicacion_id: publicacionId,
+        anuncio_id: anuncioId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

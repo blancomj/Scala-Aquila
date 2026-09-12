@@ -76,6 +76,29 @@ export const useDocumentosStore = defineStore('documentos', () => {
     }
   }
 
+  /** EXS-3 — los adjuntos de un anuncio. Misma forma que las fotos de una publicación y por el
+   * mismo motivo: se esperan VARIAS filas, no la versión vigente de un grupo. */
+  async function cargarAdjuntosAnuncio(
+    tenantId: string,
+    anuncioId: string,
+  ): Promise<DocumentoVigenteRow[]> {
+    loading.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error: errorAdjuntos } = await cliente
+        .from('v_documento_vigente')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('anuncio_id', anuncioId)
+        .order('created_at', { ascending: true })
+      if (errorAdjuntos) throw errorAdjuntos
+      documentos.value = data ?? []
+      return documentos.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   /** `inmuebleId` null = sube un documento de la copropiedad misma — la Edge
    * Function exige entonces `tenant_id` explícito (verificado ahí contra la
    * membresía real del actor, ver subir-documento/index.ts). `casoJuridicoId`/
@@ -98,6 +121,10 @@ export const useDocumentosStore = defineStore('documentos', () => {
      * publicación tiene VARIAS fotos, así que la Edge Function no las versiona entre sí —
      * cada foto es un documento propio, no la corrección de la anterior. */
     publicacionId?: string
+    /** EXS-3: adjunto de una comunicación oficial. Como la publicación, un anuncio tiene VARIOS
+     * adjuntos y no se versionan entre sí. Solo se admite antes de publicar: después, el guard
+     * responde ANUNCIO_NO_EDITABLE. */
+    anuncioId?: string
   }): Promise<DocumentoVigenteRow> {
     subiendo.value = true
     try {
@@ -105,6 +132,8 @@ export const useDocumentosStore = defineStore('documentos', () => {
       const form = new FormData()
       if (params.publicacionId) {
         form.set('publicacion_id', params.publicacionId)
+      } else if (params.anuncioId) {
+        form.set('anuncio_id', params.anuncioId)
       } else if (params.envioId) {
         form.set('envio_id', params.envioId)
       } else if (params.casoJuridicoId) {
@@ -127,6 +156,8 @@ export const useDocumentosStore = defineStore('documentos', () => {
 
       if (params.publicacionId) {
         await cargarFotosPublicacion(params.tenantId, params.publicacionId)
+      } else if (params.anuncioId) {
+        await cargarAdjuntosAnuncio(params.tenantId, params.anuncioId)
       } else {
         await cargarDocumentos(params.tenantId, params.inmuebleId, params.casoJuridicoId, params.envioId)
       }
@@ -173,6 +204,7 @@ export const useDocumentosStore = defineStore('documentos', () => {
     subiendo,
     cargarDocumentos,
     cargarFotosPublicacion,
+    cargarAdjuntosAnuncio,
     subirDocumento,
     urlDescarga,
     documentoPorId,

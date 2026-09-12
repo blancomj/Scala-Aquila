@@ -151,6 +151,10 @@ function fechaHora(iso: string | null): string {
       </template>
     </div>
 
+    <!-- Adjuntos: van pegados al cuerpo porque son parte de lo comunicado,
+         no metadatos del anuncio -->
+    <AnunciosAnuncioAdjuntos :anuncio-id="anuncioId" :estado="a.estado" />
+
     <!-- Audiencia -->
     <section class="space-y-2">
       <h2 class="text-sm font-medium">Dirigido a</h2>

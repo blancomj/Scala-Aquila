@@ -4541,3 +4541,45 @@ de crons: cada `p_enlace` literal tiene que resolver contra las páginas reales 
 definición viva en `pg_proc`, no las migraciones** — una migración es historia inmutable y el
 literal equivocado sigue escrito en la que lo introdujo aunque un `create or replace` posterior ya
 lo haya corregido. Así el próximo renombrado de página lo dice la suite, no un usuario.
+
+## D-82
+
+**Adjuntos de anuncios: la columna existía desde EXS-3 y no había puerta.** Migración
+`20260933720000`.
+
+`documentos.anuncio_id` está desde `20260933110000`, y hasta hoy **nadie podía escribirla**:
+`documentos` no tiene policy INSERT para `authenticated` (SEC-14), toda subida pasa por la Edge
+Function `subir-documento`, y esa función no conocía el parámetro. Solo `service_role` podía
+adjuntar, y nadie leía la columna. Desde EXS-6 además era visible en `v_documento_vigente`, lo que
+la hacía parecer terminada. Es el caso opuesto al de D-81: allá el emisor apuntaba a una página que
+no existía; aquí el dato tenía sitio y no tenía camino.
+
+**La decisión de producto: no se adjunta a un anuncio ya publicado.** Al publicar, el anuncio
+recibe consecutivo y `guard_anuncio_transicion` congela sus columnas. Un adjunto posterior
+cambiaría lo que los residentes vieron bajo esa misma referencia y, siendo `documentos`
+append-only, tampoco podría retirarse: el error quedaría a la vista para siempre. Quien necesite
+añadir algo redacta otro anuncio, que es lo que deja rastro. Admiten adjunto `borrador`,
+`pendiente_revision`, `aprobado`, `programado` y `rechazado` —todos anteriores a la publicación,
+incluido el devuelto por el revisor—; lo rechazan `publicado`, `archivado` y `cancelado`.
+
+El guard vale **también fuera de banda**: el sellado no depende del actor, así que ni `service_role`
+puede adjuntar a un anuncio publicado. Es el mismo criterio de toda la serie —comprobaciones de rol
+solo con actor, sellado siempre— y aquí se ejerce sobre la integridad de lo comunicado.
+
+**Y el hueco que faltaba desde EXS-3**: `guard_documento_tipo_familia` validaba que el inmueble, el
+caso jurídico, el envío y la publicación citados fueran del mismo tenant, pero **no el anuncio** —
+era el único alcance de `documentos` sin esa validación. Ahora responde `ANUNCIO_INVALIDO`.
+
+**Sin versionado entre adjuntos**, igual que las fotos del marketplace: la convocatoria y el
+presupuesto anexo son dos documentos, no dos versiones de uno. Si se agruparan, subir el segundo
+haría desaparecer el primero de `v_documento_vigente`.
+
+**La pantalla** es un componente propio (`AnuncioAdjuntos.vue`) y **no** `UiLibreriaDocumentos`:
+aquella está construida sobre el versionado —muestra "próxima versión" y reemplaza lo anterior—, y
+aquí ocurre lo contrario; meter ambos comportamientos en un componente con una bandera lo volvería
+más difícil de leer que tener dos.
+
+**Verificado en navegador y contra la Edge Function real**: dos adjuntos suben con `grupo_id`
+distinto y `version: 1` cada uno, sus URLs firmadas devuelven los PDF, y al publicar el anuncio la
+sección queda en solo lectura con los adjuntos aún visibles. 4 pruebas nuevas en
+`tests/rls/anuncios.test.ts` (20 en total).
