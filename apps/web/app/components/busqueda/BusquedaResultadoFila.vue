@@ -89,6 +89,49 @@ const CONFIG: Record<ResultadoBusqueda['categoria'], ConfigCategoria> = {
     icono: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8ZM14 3v5h5M9 13l2 2 4-4',
     primaria: () => ({ label: 'Ver en Auditoría', to: '/auditoria' }),
   },
+  anuncio: {
+    icono: 'M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1ZM14 8a4 4 0 0 1 0 8M17 5a8 8 0 0 1 0 14',
+    primaria: (r) => ({ label: 'Ver anuncio', to: `/anuncios/${r.entidadId}` }),
+  },
+  vehiculo: {
+    icono: 'M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M5 17V9l2-4h10l2 4v8M5 9h14',
+    primaria: (r) => ({ label: 'Ver en Movilidad', to: `/movilidad?vehiculo=${r.entidadId}` }),
+  },
+  // Sin ficha por id (una sola pantalla de tarjetas) — mismo criterio que
+  // agrupacion/zona_comun.
+  organo_gobierno: {
+    icono: 'M12 3 4 7v2h16V7ZM6 9v9M10 9v9M14 9v9M18 9v9M4 21h16',
+    primaria: () => ({ label: 'Ver órganos de gobierno', to: '/gobierno/organos' }),
+  },
+  reunion_gobierno: {
+    icono: 'M8 3v4M16 3v4M4 9h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z',
+    primaria: (r) => ({ label: 'Ver reunión', to: `/gobierno/reuniones/${r.entidadId}` }),
+  },
+  decision_gobierno: {
+    icono: 'M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4Z',
+    primaria: (r) => ({ label: 'Ver decisión', to: `/gobierno/decisiones/${r.entidadId}` }),
+  },
+  orden_trabajo: {
+    icono: 'M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 1 5.4-5.4L14.7 6.3Z',
+    primaria: (r) => ({ label: 'Ver orden de trabajo', to: `/mantenimiento/ordenes-trabajo/${r.entidadId}` }),
+  },
+  // Sin ficha por id — se gestiona en la lista de inspecciones, no en una
+  // página propia por hallazgo. Distinta de "hallazgo" (auditoría).
+  hallazgo_mantenimiento: {
+    icono: 'M11 3a8 8 0 1 0 5.3 14.02l3.34 3.34a1 1 0 0 0 1.41-1.41l-3.34-3.34A8 8 0 0 0 11 3Z',
+    primaria: () => ({ label: 'Ver en Mantenimiento', to: '/mantenimiento/inspecciones' }),
+  },
+  accion_cobranza: {
+    icono: 'M12 8v4l3 3M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z',
+    primaria: (r) => ({
+      label: r.inmuebleId ? 'Ver ficha del inmueble' : 'Ver acciones de cobranza',
+      to: r.inmuebleId ? `/inmuebles/${r.inmuebleId}` : '/cartera/acciones',
+    }),
+  },
+  solicitud: {
+    icono: 'M4 4h16v12H8l-4 4Z M8 9h8M8 12h5',
+    primaria: (r) => ({ label: 'Ver solicitud', to: `/atencion/${r.entidadId}` }),
+  },
 }
 
 const config = computed(() => CONFIG[props.resultado.categoria])

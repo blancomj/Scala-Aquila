@@ -57,12 +57,15 @@ export const useMantenimientoInspeccionesStore = defineStore('mantenimientoInspe
     items.value = data ?? []
   }
 
-  async function cargarInspecciones(tenantId: string, formatoId?: string): Promise<void> {
+  /** `activoId` — Fase 5 de mantenimiento de activos (D-92): la Ficha 360° necesita las
+   * inspecciones de ESTE activo, no las del tenant completo. */
+  async function cargarInspecciones(tenantId: string, formatoId?: string, activoId?: string): Promise<void> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
       let consulta = cliente.from('mant_inspecciones').select('*').eq('tenant_id', tenantId)
       if (formatoId) consulta = consulta.eq('formato_id', formatoId)
+      if (activoId) consulta = consulta.eq('activo_id', activoId)
       const { data, error } = await consulta.order('fecha', { ascending: false }).limit(200)
       if (error) throw error
       inspecciones.value = data ?? []

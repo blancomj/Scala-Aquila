@@ -43,6 +43,7 @@ export type Database = {
           alcance: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
           aprobada_at: string | null
           aprobada_por: string | null
+          busqueda_tsv: unknown
           canal: Database["public"]["Enums"]["canal_cobranza_t"]
           cargo_id: string | null
           clasificacion_codigo: string
@@ -80,6 +81,7 @@ export type Database = {
           alcance?: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
           aprobada_at?: string | null
           aprobada_por?: string | null
+          busqueda_tsv?: unknown
           canal: Database["public"]["Enums"]["canal_cobranza_t"]
           cargo_id?: string | null
           clasificacion_codigo: string
@@ -117,6 +119,7 @@ export type Database = {
           alcance?: Database["public"]["Enums"]["alcance_accion_cobranza_t"]
           aprobada_at?: string | null
           aprobada_por?: string | null
+          busqueda_tsv?: unknown
           canal?: Database["public"]["Enums"]["canal_cobranza_t"]
           cargo_id?: string | null
           clasificacion_codigo?: string
@@ -1250,6 +1253,7 @@ export type Database = {
       anuncios: {
         Row: {
           anio: number | null
+          busqueda_tsv: unknown
           categoria_id: number
           contenido: string
           creado_por: string | null
@@ -1274,6 +1278,7 @@ export type Database = {
         }
         Insert: {
           anio?: number | null
+          busqueda_tsv?: unknown
           categoria_id: number
           contenido: string
           creado_por?: string | null
@@ -1298,6 +1303,7 @@ export type Database = {
         }
         Update: {
           anio?: number | null
+          busqueda_tsv?: unknown
           categoria_id?: number
           contenido?: string
           creado_por?: string | null
@@ -9687,6 +9693,7 @@ export type Database = {
           anio: number
           anulada_at: string | null
           anulada_motivo: string | null
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -9710,6 +9717,7 @@ export type Database = {
           anio: number
           anulada_at?: string | null
           anulada_motivo?: string | null
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -9733,6 +9741,7 @@ export type Database = {
           anio?: number
           anulada_at?: string | null
           anulada_motivo?: string | null
+          busqueda_tsv?: unknown
           created_at?: string
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -10597,6 +10606,7 @@ export type Database = {
       }
       gobierno_organos: {
         Row: {
+          busqueda_tsv: unknown
           created_at: string
           documento_id: string | null
           id: string
@@ -10610,6 +10620,7 @@ export type Database = {
           vigente_hasta: string | null
         }
         Insert: {
+          busqueda_tsv?: unknown
           created_at?: string
           documento_id?: string | null
           id?: string
@@ -10623,6 +10634,7 @@ export type Database = {
           vigente_hasta?: string | null
         }
         Update: {
+          busqueda_tsv?: unknown
           created_at?: string
           documento_id?: string | null
           id?: string
@@ -10952,6 +10964,7 @@ export type Database = {
       }
       gobierno_reuniones: {
         Row: {
+          busqueda_tsv: unknown
           cancelada_motivo: string | null
           cerrada_at: string | null
           coeficiente_set_id: string | null
@@ -10973,6 +10986,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          busqueda_tsv?: unknown
           cancelada_motivo?: string | null
           cerrada_at?: string | null
           coeficiente_set_id?: string | null
@@ -10994,6 +11008,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          busqueda_tsv?: unknown
           cancelada_motivo?: string | null
           cerrada_at?: string | null
           coeficiente_set_id?: string | null
@@ -13745,6 +13760,7 @@ export type Database = {
           aceptado_at: string | null
           aceptado_motivo: string | null
           aceptado_por: string | null
+          busqueda_tsv: unknown
           cerrado_at: string | null
           cerrado_evidencia_documento_id: string | null
           created_at: string
@@ -13763,6 +13779,7 @@ export type Database = {
           aceptado_at?: string | null
           aceptado_motivo?: string | null
           aceptado_por?: string | null
+          busqueda_tsv?: unknown
           cerrado_at?: string | null
           cerrado_evidencia_documento_id?: string | null
           created_at?: string
@@ -13781,6 +13798,7 @@ export type Database = {
           aceptado_at?: string | null
           aceptado_motivo?: string | null
           aceptado_por?: string | null
+          busqueda_tsv?: unknown
           cerrado_at?: string | null
           cerrado_evidencia_documento_id?: string | null
           created_at?: string
@@ -14677,6 +14695,7 @@ export type Database = {
           aprobada_por: string | null
           asignado_tercero_id: string | null
           asignado_usuario_id: string | null
+          busqueda_tsv: unknown
           cancelada_motivo: string | null
           cerrada_at: string | null
           contrato_id: string | null
@@ -14713,6 +14732,7 @@ export type Database = {
           aprobada_por?: string | null
           asignado_tercero_id?: string | null
           asignado_usuario_id?: string | null
+          busqueda_tsv?: unknown
           cancelada_motivo?: string | null
           cerrada_at?: string | null
           contrato_id?: string | null
@@ -14749,6 +14769,7 @@ export type Database = {
           aprobada_por?: string | null
           asignado_tercero_id?: string | null
           asignado_usuario_id?: string | null
+          busqueda_tsv?: unknown
           cancelada_motivo?: string | null
           cerrada_at?: string | null
           contrato_id?: string | null
@@ -19516,6 +19537,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -19551,6 +19573,7 @@ export type Database = {
           asignado_a?: string | null
           asignado_at?: string | null
           asunto: string
+          busqueda_tsv?: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at?: string | null
@@ -19586,6 +19609,7 @@ export type Database = {
           asignado_a?: string | null
           asignado_at?: string | null
           asunto?: string
+          busqueda_tsv?: unknown
           calidad?: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id?: number
           cerrada_at?: string | null
@@ -20793,6 +20817,7 @@ export type Database = {
       vehiculos: {
         Row: {
           anio: number | null
+          busqueda_tsv: unknown
           color: string | null
           creado_por: string | null
           created_at: string
@@ -20812,6 +20837,7 @@ export type Database = {
         }
         Insert: {
           anio?: number | null
+          busqueda_tsv?: unknown
           color?: string | null
           creado_por?: string | null
           created_at?: string
@@ -20831,6 +20857,7 @@ export type Database = {
         }
         Update: {
           anio?: number | null
+          busqueda_tsv?: unknown
           color?: string | null
           creado_por?: string | null
           created_at?: string
@@ -23454,6 +23481,7 @@ export type Database = {
           aceptado_at: string | null
           aceptado_motivo: string | null
           aceptado_por: string | null
+          busqueda_tsv: unknown
           cerrado_at: string | null
           cerrado_evidencia_documento_id: string | null
           created_at: string
@@ -23518,6 +23546,7 @@ export type Database = {
           aceptado_at: string | null
           aceptado_motivo: string | null
           aceptado_por: string | null
+          busqueda_tsv: unknown
           cerrado_at: string | null
           cerrado_evidencia_documento_id: string | null
           created_at: string
@@ -23549,6 +23578,7 @@ export type Database = {
           aceptado_at: string | null
           aceptado_motivo: string | null
           aceptado_por: string | null
+          busqueda_tsv: unknown
           cerrado_at: string | null
           cerrado_evidencia_documento_id: string | null
           created_at: string
@@ -23585,6 +23615,7 @@ export type Database = {
           aprobada_por: string | null
           asignado_tercero_id: string | null
           asignado_usuario_id: string | null
+          busqueda_tsv: unknown
           cancelada_motivo: string | null
           cerrada_at: string | null
           contrato_id: string | null
@@ -23636,6 +23667,7 @@ export type Database = {
           aprobada_por: string | null
           asignado_tercero_id: string | null
           asignado_usuario_id: string | null
+          busqueda_tsv: unknown
           cancelada_motivo: string | null
           cerrada_at: string | null
           contrato_id: string | null
@@ -23690,6 +23722,7 @@ export type Database = {
           aprobada_por: string | null
           asignado_tercero_id: string | null
           asignado_usuario_id: string | null
+          busqueda_tsv: unknown
           cancelada_motivo: string | null
           cerrada_at: string | null
           contrato_id: string | null
@@ -24322,6 +24355,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -24401,6 +24435,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -24449,6 +24484,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -24493,6 +24529,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -24696,6 +24733,7 @@ export type Database = {
           anio: number
           anulada_at: string | null
           anulada_motivo: string | null
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -24740,6 +24778,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -24805,6 +24844,7 @@ export type Database = {
           anio: number
           anulada_at: string | null
           anulada_motivo: string | null
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -24876,6 +24916,7 @@ export type Database = {
           asignado_a: string | null
           asignado_at: string | null
           asunto: string
+          busqueda_tsv: unknown
           calidad: Database["public"]["Enums"]["gobierno_expediente_calidad_t"]
           categoria_id: number
           cerrada_at: string | null
@@ -25283,6 +25324,7 @@ export type Database = {
           anio: number
           anulada_at: string | null
           anulada_motivo: string | null
+          busqueda_tsv: unknown
           created_at: string
           descripcion: string | null
           estado: Database["public"]["Enums"]["gobierno_decision_estado_t"]
@@ -25404,6 +25446,25 @@ export type Database = {
           garantia_id: string
           origen: Database["public"]["Enums"]["garantia_origen_t"]
           vigente_hasta: string
+        }[]
+      }
+      mant_activos_listado: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          capitalizado: boolean
+          categoria_nombre: string
+          codigo: string
+          criticidad_banda: string
+          estado: Database["public"]["Enums"]["activo_estado_t"]
+          id: string
+          nombre: string
+          proximo_mantenimiento: string
+          tipo_nombre: string
+          ubicacion: string
+          ultimo_mantenimiento: string
+          valor_neto: number
+          vida_util_meses: number
+          vida_util_restante_meses: number
         }[]
       }
       mant_atributos_huerfanos: {

@@ -22,6 +22,7 @@ export const useMantenimientoContratosStore = defineStore('mantenimientoContrato
   const ejecucion = ref<EjecucionRow | null>(null)
   const activosCubiertos = shallowRef<ContratoActivoRow[]>([])
   const clausulas = shallowRef<ClausulaRow[]>([])
+  const contratosPorActivo = shallowRef<ContratoRow[]>([])
   const loading = ref(false)
   const guardando = ref(false)
 
@@ -67,6 +68,27 @@ export const useMantenimientoContratosStore = defineStore('mantenimientoContrato
       activosCubiertos.value = activosFilas ?? []
       clausulas.value = clausulasFilas ?? []
       void tenantId
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** Fase 5 de mantenimiento de activos (D-92): "contratos que cubren este activo" — la relación
+   * es al revés de `cargarContrato` (que va de un contrato a sus activos vía
+   * `mant_contrato_activos.contrato_id`): aquí se parte del activo y se resuelve hacia sus
+   * contratos, join embebido en vez de dos consultas porque `mant_contrato_activos` no tiene
+   * más columnas que interesen aquí. */
+  async function cargarContratosPorActivo(tenantId: string, activoId: string): Promise<void> {
+    loading.value = true
+    try {
+      const cliente = useSupabaseClient<Database>()
+      const { data, error } = await cliente
+        .from('mant_contrato_activos')
+        .select('mant_contratos!inner(*)')
+        .eq('activo_id', activoId)
+        .eq('mant_contratos.tenant_id', tenantId)
+      if (error) throw error
+      contratosPorActivo.value = (data ?? []).map((f) => (f as unknown as { mant_contratos: ContratoRow }).mant_contratos)
     } finally {
       loading.value = false
     }
@@ -145,8 +167,9 @@ export const useMantenimientoContratosStore = defineStore('mantenimientoContrato
   }
 
   return {
-    contratos, estadosVisibles, contratoActual, ejecucion, activosCubiertos, clausulas, loading, guardando,
-    cargarContratos, cargarContrato, crearContrato, actualizarContrato,
+    contratos, estadosVisibles, contratoActual, ejecucion, activosCubiertos, clausulas,
+    contratosPorActivo, loading, guardando,
+    cargarContratos, cargarContrato, cargarContratosPorActivo, crearContrato, actualizarContrato,
     agregarActivoCubierto, quitarActivoCubierto, agregarClausula, limpiarActual,
   }
 })

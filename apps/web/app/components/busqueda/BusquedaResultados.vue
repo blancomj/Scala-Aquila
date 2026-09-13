@@ -25,6 +25,15 @@ const ETIQUETA_CATEGORIA: Record<CategoriaBusqueda, string> = {
   control: 'Controles',
   hallazgo: 'Hallazgos',
   evidencia: 'Evidencias',
+  anuncio: 'Anuncios',
+  vehiculo: 'Vehículos',
+  organo_gobierno: 'Órganos de gobierno',
+  reunion_gobierno: 'Reuniones',
+  decision_gobierno: 'Decisiones',
+  orden_trabajo: 'Órdenes de trabajo',
+  hallazgo_mantenimiento: 'Hallazgos (mantenimiento)',
+  accion_cobranza: 'Acciones de cobranza',
+  solicitud: 'Solicitudes',
 }
 
 // Orden fijo (no el de aparición) — mismo orden que el selector de
@@ -43,6 +52,15 @@ const ORDEN_CATEGORIAS: CategoriaBusqueda[] = [
   'control',
   'hallazgo',
   'evidencia',
+  'anuncio',
+  'vehiculo',
+  'organo_gobierno',
+  'reunion_gobierno',
+  'decision_gobierno',
+  'orden_trabajo',
+  'hallazgo_mantenimiento',
+  'accion_cobranza',
+  'solicitud',
 ]
 
 const grupos = computed(() => {
@@ -74,13 +92,22 @@ function irA(resultado: ResultadoBusqueda): void {
     control: '/auditoria',
     hallazgo: '/auditoria',
     evidencia: '/auditoria',
+    anuncio: `/anuncios/${resultado.entidadId}`,
+    vehiculo: `/movilidad?vehiculo=${resultado.entidadId}`,
+    organo_gobierno: '/gobierno/organos',
+    reunion_gobierno: `/gobierno/reuniones/${resultado.entidadId}`,
+    decision_gobierno: `/gobierno/decisiones/${resultado.entidadId}`,
+    orden_trabajo: `/mantenimiento/ordenes-trabajo/${resultado.entidadId}`,
+    hallazgo_mantenimiento: '/mantenimiento/inspecciones',
+    accion_cobranza: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera/acciones',
+    solicitud: `/atencion/${resultado.entidadId}`,
   }
   const ruta = primaria[resultado.categoria]
   if (ruta) emit('navegar', ruta)
 }
 
 const accesosRapidos = [
-  { label: 'Nuevo inmueble', to: '/inmuebles' },
+  { label: 'Crear novedad', to: '/novedades/nueva' },
   { label: 'Nuevo tercero', to: '/terceros' },
 ]
 </script>

@@ -77,12 +77,21 @@ function onEnter(): void {
     concepto: `/conceptos/${resultado.entidadId}`,
     cuenta_presupuestal: '/presupuesto',
     caso_juridico: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera',
-    agrupacion: '/configuracion/agrupacion',
+    agrupacion: '/configuracion/agrupaciones',
     zona_comun: '/configuracion/zonas-comunes',
     riesgo: '/auditoria',
     control: '/auditoria',
     hallazgo: '/auditoria',
     evidencia: '/auditoria',
+    anuncio: `/anuncios/${resultado.entidadId}`,
+    vehiculo: `/movilidad?vehiculo=${resultado.entidadId}`,
+    organo_gobierno: '/gobierno/organos',
+    reunion_gobierno: `/gobierno/reuniones/${resultado.entidadId}`,
+    decision_gobierno: `/gobierno/decisiones/${resultado.entidadId}`,
+    orden_trabajo: `/mantenimiento/ordenes-trabajo/${resultado.entidadId}`,
+    hallazgo_mantenimiento: '/mantenimiento/inspecciones',
+    accion_cobranza: resultado.inmuebleId ? `/inmuebles/${resultado.inmuebleId}` : '/cartera/acciones',
+    solicitud: `/atencion/${resultado.entidadId}`,
   }
   const ruta = rutas[resultado.categoria]
   if (ruta) navegar(ruta)
@@ -201,6 +210,15 @@ onUnmounted(() => {
             <option value="control">Controles (auditoría)</option>
             <option value="hallazgo">Hallazgos (auditoría)</option>
             <option value="evidencia">Evidencias (auditoría)</option>
+            <option value="anuncio">Anuncios</option>
+            <option value="vehiculo">Vehículos</option>
+            <option value="organo_gobierno">Órganos de gobierno</option>
+            <option value="reunion_gobierno">Reuniones</option>
+            <option value="decision_gobierno">Decisiones</option>
+            <option value="orden_trabajo">Órdenes de trabajo</option>
+            <option value="hallazgo_mantenimiento">Hallazgos (mantenimiento)</option>
+            <option value="accion_cobranza">Acciones de cobranza</option>
+            <option value="solicitud">Solicitudes (PQR)</option>
           </select>
         </div>
       </div>

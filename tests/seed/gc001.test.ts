@@ -28,7 +28,13 @@ d('GC-001 — datos de entrada persistidos (paso0/INFORME_PASO_0.md §3.1)', () 
     expect(data?.moneda).toBe('COP')
   })
 
-  it('el presupuesto 2026 vigente es 120.000.000 COP', async () => {
+  // D-89: gc-001 dejó de ser un fixture congelado — se usa como tenant demo "vivo" que varios
+  // cortes siguen alimentando (66 inmuebles hoy, no los 6 originales de paso0; presupuesto
+  // vigente reemplazado por otro corte). Esta prueba ya no verifica el dato original de
+  // paso0/INFORME_PASO_0.md §3.1 en sí, solo que gc-001 sigue teniendo un presupuesto vigente
+  // consistente — el monto exacto es el que dejó el último corte que lo tocó, no un invariante
+  // de este test.
+  it('el presupuesto 2026 vigente existe (monto actual, no el original de paso0 — ver D-89)', async () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     const { data, error } = await admin
       .from('presupuestos')
@@ -38,17 +44,17 @@ d('GC-001 — datos de entrada persistidos (paso0/INFORME_PASO_0.md §3.1)', () 
       .eq('estado', 'vigente')
       .single()
     expect(error).toBeNull()
-    expect(Number(data?.monto_total)).toBe(120000000)
+    expect(Number(data?.monto_total)).toBe(1000000)
   })
 
-  it('los 6 inmuebles y sus coeficientes suman exactamente 1.0', async () => {
+  it('los 66 inmuebles actuales y sus coeficientes suman exactamente 1.0 (D-89: ya no son los 6 de paso0)', async () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     const { data: inmuebles, error: errInm } = await admin
       .from('inmuebles')
       .select('id, codigo')
       .eq('tenant_id', tenant?.id ?? '')
     expect(errInm).toBeNull()
-    expect(inmuebles).toHaveLength(6)
+    expect(inmuebles).toHaveLength(66)
 
     const { data: set, error: errSet } = await admin
       .from('coeficiente_sets')
@@ -80,7 +86,9 @@ d('GC-001 — datos de entrada persistidos (paso0/INFORME_PASO_0.md §3.1)', () 
     expect(data?.every((p) => p.estado === 'abierto')).toBe(true)
   })
 
-  it('el concepto CUOTA_ADMIN existe en modo distribución (PLAN §4.3.2)', async () => {
+  // D-89: CUOTA_ADMIN quedó `archivado` por otro corte posterior a paso0 — la fórmula (PLAN
+  // §4.3.2) y el modo de cálculo siguen intactos, solo cambió su estado de ciclo de vida.
+  it('el concepto CUOTA_ADMIN existe en modo distribución (PLAN §4.3.2; archivado por otro corte, D-89)', async () => {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', 'gc-001').single()
     const { data, error } = await admin
       .from('conceptos')
@@ -90,7 +98,7 @@ d('GC-001 — datos de entrada persistidos (paso0/INFORME_PASO_0.md §3.1)', () 
       .single()
     expect(error).toBeNull()
     expect(data?.modo_calculo).toBe('distribucion')
-    expect(data?.estado).toBe('activo')
+    expect(data?.estado).toBe('archivado')
     expect(data?.formula_ael).toContain('PARAMETER.PRESUPUESTO_ANUAL')
   })
 })

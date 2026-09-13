@@ -626,4 +626,19 @@ d('GOB-5: decisión y compromisos', () => {
     const { data: compVistoDesdeB } = await b.cliente.from('gobierno_compromisos').select('id').eq('id', compromisoA)
     expect(compVistoDesdeB).toHaveLength(0)
   }, 30_000)
+
+  it('14. fn_buscar_global (categoría decision_gobierno, 20260934020000) encuentra la decisión por título', async () => {
+    const sello = String(Date.now())
+    const e = await prepararVotacionAprobada('t14')
+    const { data: decision } = await crearDecision(e.votacionId, `Aprobar presupuesto Zafiro${sello}`)
+
+    const { data: filas, error } = await admin.rpc('fn_buscar_global', {
+      p_tenant_id: e.tenantId, p_query: `Zafiro${sello}`, p_categoria: 'decision_gobierno', p_limite: 20,
+    })
+    expect(error).toBeNull()
+    const resultados = filas as { entidad_id: string; titulo: string; subtitulo: string }[]
+    expect(resultados).toHaveLength(1)
+    expect(resultados[0]?.entidad_id).toBe(decision!.id)
+    expect(resultados[0]?.subtitulo).toContain('Vigente')
+  }, 30_000)
 })

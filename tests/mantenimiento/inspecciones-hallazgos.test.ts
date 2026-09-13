@@ -711,6 +711,32 @@ d('MANT-7: inspecciones, hallazgos y acciones correctivas', () => {
     expect(error).not.toBeNull()
   }, 30_000)
 
+  it('19. fn_buscar_global (categoría hallazgo_mantenimiento, 20260934020000) encuentra el hallazgo por su descripción', async () => {
+    const sello = String(Date.now())
+    const { tenantId, cliente } = await crearTenantCompleto('busqueda-hallazgo')
+    const { formatoId, itemIds } = await crearFormatoVigente(tenantId, `fmt-bgd-${RUN_ID}`, [
+      { texto: `Fuga de agua Zafiro${sello}`, severidad: 'mayor' },
+    ])
+
+    const { data: inspeccion, error: errInsp } = await registrarInspeccion(cliente, {
+      tenantId, formatoId,
+      respuestas: [{ item_id: itemIds[0]!, valor: 'no_conforme', fecha_limite: '2026-03-01' }],
+    })
+    expect(errInsp).toBeNull()
+
+    const { data: hallazgo } = await admin
+      .from('mant_hallazgos').select('id').eq('inspeccion_id', inspeccion!.id).single<{ id: string }>()
+
+    const { data: filas, error } = await admin.rpc('fn_buscar_global', {
+      p_tenant_id: tenantId, p_query: `Zafiro${sello}`, p_categoria: 'hallazgo_mantenimiento', p_limite: 20,
+    })
+    expect(error).toBeNull()
+    const resultados = filas as { entidad_id: string; titulo: string; subtitulo: string }[]
+    expect(resultados).toHaveLength(1)
+    expect(resultados[0]?.entidad_id).toBe(hallazgo!.id)
+    expect(resultados[0]?.subtitulo).toBe('Mayor · Abierto')
+  }, 30_000)
+
   dPg('estructural: guard_mant_inspeccion_flag bloquea INSERT directo', () => {
     it('18. mant_inspecciones/mant_inspeccion_respuestas/mant_hallazgos no se pueden insertar directo', async () => {
       const client = new Client({ connectionString: dbUrl })

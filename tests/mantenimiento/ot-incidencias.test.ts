@@ -497,4 +497,28 @@ d('MANT-4: incidencias y órdenes de trabajo', () => {
       expect(contenidoOt).toMatch(new RegExp(`comment on type public\\.${enumNombre}`))
     }
   })
+
+  it('17. fn_buscar_global (categoría orden_trabajo, 20260934020000) encuentra la OT por título', async () => {
+    const sello = String(Date.now())
+    const { tenantId } = await crearTenantCompleto('busqueda-ot')
+    const tipoActivoId = await idListaTipos('TIPO_ACTIVO', 'extintor')
+    const categoriaId = await idListaTipos('CATEGORIA_ACTIVO', 'seguridad')
+    const activoId = await crearActivoMinimo(tenantId, `EXT-BGD-${RUN_ID}`, tipoActivoId, categoriaId)
+    const tipoMantId = await idListaTipos('TIPO_MANTENIMIENTO', 'correctivo')
+
+    const { data: ot, error: errOt } = await crearOt(admin, {
+      tenant_id: tenantId, activo_id: activoId, tipo_mantenimiento_id: tipoMantId,
+      titulo: `Cambiar extintor Zafiro${sello}`,
+    })
+    expect(errOt).toBeNull()
+
+    const { data: filas, error } = await admin.rpc('fn_buscar_global', {
+      p_tenant_id: tenantId, p_query: `Zafiro${sello}`, p_categoria: 'orden_trabajo', p_limite: 20,
+    })
+    expect(error).toBeNull()
+    const resultados = filas as { entidad_id: string; titulo: string; subtitulo: string }[]
+    expect(resultados).toHaveLength(1)
+    expect(resultados[0]?.entidad_id).toBe(ot!.id)
+    expect(resultados[0]?.subtitulo).toContain('Borrador')
+  }, 30_000)
 })

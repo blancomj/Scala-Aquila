@@ -66,6 +66,7 @@ export default {
     const publicacionIdRaw = form.get('publicacion_id')
     const anuncioIdRaw = form.get('anuncio_id')
     const terceroPerfilIdRaw = form.get('tercero_perfil_id')
+    const activoIdRaw = form.get('activo_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -149,6 +150,13 @@ export default {
         correlationId,
       )
     }
+    // activo_id — Fase 5 de mantenimiento de activos (D-92): la galería de
+    // fotos de un activo físico. Mismo criterio de resolución de tenant que
+    // los anteriores.
+    const activoId = typeof activoIdRaw === 'string' && activoIdRaw.length > 0 ? activoIdRaw : null
+    if (activoId !== null && !UUID_RE.test(activoId)) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'activo_id debe ser un uuid válido.', undefined, correlationId)
+    }
     if (
       inmuebleId === null &&
       casoJuridicoId === null &&
@@ -156,12 +164,13 @@ export default {
       publicacionId === null &&
       anuncioId === null &&
       terceroPerfilId === null &&
+      activoId === null &&
       (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
     ) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía ningún alcance (inmueble_id, caso_juridico_id, envio_id, publicacion_id, anuncio_id o tercero_perfil_id).',
+        'tenant_id debe ser un uuid válido cuando no se envía ningún alcance (inmueble_id, caso_juridico_id, envio_id, publicacion_id, anuncio_id, tercero_perfil_id o activo_id).',
         undefined,
         correlationId,
       )
@@ -374,6 +383,25 @@ export default {
         )
       }
       tenantId = perfil.tenant_id
+    } else if (activoId !== null) {
+      const { data: activo, error: errorActivo } = await ctx.supabase
+        .from('activos')
+        .select('id, tenant_id')
+        .eq('id', activoId)
+        .maybeSingle()
+      if (errorActivo) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorActivo.message, undefined, correlationId)
+      }
+      if (!activo) {
+        return errorResponse(
+          404,
+          'ACTIVO_NO_ENCONTRADO',
+          'El activo no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = activo.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -472,6 +500,8 @@ export default {
       terceroPerfilId === null
         ? consultaVigente.is('tercero_perfil_id', null)
         : consultaVigente.eq('tercero_perfil_id', terceroPerfilId)
+    consultaVigente =
+      activoId === null ? consultaVigente.is('activo_id', null) : consultaVigente.eq('activo_id', activoId)
 
     // EXS-6 · las fotos de un aviso NO se versionan entre sí.
     //
@@ -492,8 +522,12 @@ export default {
     //
     //  EXS-4 · y lo mismo para la ficha del directorio: el logo y la foto
     //  del local conviven, no se corrigen entre sí.
+    //
+    //  Fase 5 de activos (D-92) · igual para las fotos de un activo: se
+    //  pidió explícitamente poder capturar varias (al menos 5), no una que
+    //  se corrige.
     let vigente: { grupo_id: string; version: number } | null = null
-    if (publicacionId === null && anuncioId === null && terceroPerfilId === null) {
+    if (publicacionId === null && anuncioId === null && terceroPerfilId === null && activoId === null) {
       const { data, error: errorVigente } = await consultaVigente.maybeSingle()
       if (errorVigente) {
         return errorResponse(500, 'INTERNAL_ERROR', errorVigente.message, undefined, correlationId)
@@ -516,7 +550,9 @@ export default {
               ? `_anuncio/${anuncioId}`
               : terceroPerfilId !== null
                 ? `_directorio/${terceroPerfilId}`
-                : '_copropiedad')
+                : activoId !== null
+                  ? `_activo/${activoId}`
+                  : '_copropiedad')
     const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
@@ -549,6 +585,7 @@ export default {
         publicacion_id: publicacionId,
         anuncio_id: anuncioId,
         tercero_perfil_id: terceroPerfilId,
+        activo_id: activoId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

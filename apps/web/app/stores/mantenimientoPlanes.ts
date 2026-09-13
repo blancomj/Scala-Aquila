@@ -79,15 +79,18 @@ export const useMantenimientoPlanesStore = defineStore('mantenimientoPlanes', ()
   }
 
   /** Próximas programaciones de TODO el tenant, para el calendario del listado (§3.5). */
-  async function cargarProgramacionesTenant(tenantId: string): Promise<void> {
+  /** `activoId` — Fase 5 de mantenimiento de activos (D-92): la Ficha 360° necesita las
+   * programaciones de ESTE activo, no las del tenant completo. */
+  async function cargarProgramacionesTenant(tenantId: string, activoId?: string): Promise<void> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
-      const { data, error } = await cliente
+      let consulta = cliente
         .from('mant_programaciones')
         .select('*, mant_planes(nombre), activos(nombre, codigo)')
         .eq('tenant_id', tenantId)
-        .order('fecha_programada')
+      if (activoId) consulta = consulta.eq('activo_id', activoId)
+      const { data, error } = await consulta.order('fecha_programada')
       if (error) throw error
       programaciones.value = (data ?? []) as unknown as ProgramacionConNombres[]
     } finally {

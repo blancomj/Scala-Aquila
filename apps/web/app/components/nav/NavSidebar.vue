@@ -81,10 +81,31 @@ function puedeVer(item: NavItem): boolean {
   return tienePermiso && tieneModulo
 }
 
+/** Nodo de render dentro de un grupo: un ítem real, o un rótulo de sub-sección
+ * puramente visual (no acordeón, no agrega clics). Se arma acá y no en
+ * `navegacion.ts` porque depende de qué ítems quedaron visibles tras
+ * `puedeVer` — un sub-grupo cuyos ítems se ocultaron todos no debe dejar un
+ * rótulo huérfano. */
+type NavNodo = { tipo: 'subgrupo'; texto: string } | { tipo: 'item'; item: NavItem }
+
+function armarNodos(items: NavItem[]): NavNodo[] {
+  const nodos: NavNodo[] = []
+  let subgrupoActual: string | undefined
+  for (const item of items) {
+    if (item.subgrupo && item.subgrupo !== subgrupoActual) {
+      nodos.push({ tipo: 'subgrupo', texto: item.subgrupo })
+    }
+    subgrupoActual = item.subgrupo
+    nodos.push({ tipo: 'item', item })
+  }
+  return nodos
+}
+
 const gruposVisibles = computed(() =>
-  NAV_GRUPOS.map((grupo) => ({ ...grupo, items: grupo.items.filter(puedeVer) })).filter(
-    (grupo) => grupo.items.length > 0,
-  ),
+  NAV_GRUPOS.map((grupo) => {
+    const items = grupo.items.filter(puedeVer)
+    return { ...grupo, items, nodos: armarNodos(items) }
+  }).filter((grupo) => grupo.items.length > 0),
 )
 
 function activo(to: string): boolean {
@@ -98,12 +119,17 @@ function activo(to: string): boolean {
 // siempre pasa a blanco sobre el pill sólido, sin importar su color de
 // grupo (la coloración es solo para el estado inactivo).
 const COLOR_ICONO_GRUPO: Record<string, string> = {
+  Comunidad: 'text-cyan-400',
   Copropiedad: 'text-teal-400',
   Presupuesto: 'text-violet-400',
-  Fondos: 'text-pink-400',
-  Facturación: 'text-emerald-400',
-  'Recaudo y Cartera': 'text-blue-400',
+  'Facturación y Recaudo': 'text-emerald-400',
+  'Cartera y Cobranza': 'text-blue-400',
   Contabilidad: 'text-orange-400',
+  Finanzas: 'text-rose-400',
+  Fondos: 'text-pink-400',
+  Mantenimiento: 'text-lime-400',
+  Gobierno: 'text-fuchsia-400',
+  Comunicaciones: 'text-sky-400',
   Configuración: 'text-slate-400',
   Seguridad: 'text-amber-400',
 }
@@ -197,32 +223,42 @@ const COLOR_ICONO_PLATAFORMA = 'text-rose-400'
           v-if="colapsado || !gruposCerrados.includes(grupo.titulo)"
           class="space-y-0.5"
         >
-          <NuxtLink
-            v-for="item in grupo.items"
-            :key="item.to"
-            :to="item.to"
-            class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px]"
-            :class="
-              activo(item.to)
-                ? 'bg-indigo-600 text-white font-medium'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            "
-            :title="colapsado ? item.label : undefined"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="w-4 h-4 shrink-0"
-              :class="activo(item.to) ? 'text-white' : (COLOR_ICONO_GRUPO[grupo.titulo] ?? 'text-slate-400')"
+          <template v-for="nodo in grupo.nodos" :key="nodo.tipo === 'item' ? nodo.item.to : `sub-${nodo.texto}`">
+            <!-- Rótulo de sub-sección: solo texto, sin ícono ni acordeón propio —
+                 no cuenta como clic adicional, y no se pinta en modo colapsado
+                 porque ahí no cabe ninguna etiqueta. -->
+            <div
+              v-if="nodo.tipo === 'subgrupo' && !colapsado"
+              class="px-2 pt-2.5 pb-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 first:pt-0"
             >
-              <path :d="item.icono" />
-            </svg>
-            <span v-if="!colapsado" class="truncate">{{ item.label }}</span>
-          </NuxtLink>
+              {{ nodo.texto }}
+            </div>
+            <NuxtLink
+              v-else-if="nodo.tipo === 'item'"
+              :to="nodo.item.to"
+              class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px]"
+              :class="
+                activo(nodo.item.to)
+                  ? 'bg-indigo-600 text-white font-medium'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              "
+              :title="colapsado ? nodo.item.label : undefined"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="w-4 h-4 shrink-0"
+                :class="activo(nodo.item.to) ? 'text-white' : (COLOR_ICONO_GRUPO[grupo.titulo] ?? 'text-slate-400')"
+              >
+                <path :d="nodo.item.icono" />
+              </svg>
+              <span v-if="!colapsado" class="truncate">{{ nodo.item.label }}</span>
+            </NuxtLink>
+          </template>
         </div>
       </div>
 

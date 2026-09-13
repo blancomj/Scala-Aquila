@@ -27,12 +27,15 @@ export const useMantenimientoOrdenesTrabajoStore = defineStore('mantenimientoOrd
   const loading = ref(false)
   const guardando = ref(false)
 
-  async function cargarOrdenes(tenantId: string): Promise<void> {
+  /** `activoId` — Fase 5 de mantenimiento de activos (D-92): la Ficha 360° necesita las OT de
+   * ESTE activo, no las del tenant completo. */
+  async function cargarOrdenes(tenantId: string, activoId?: string): Promise<void> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
-      const { data, error } = await cliente
-        .from('mant_ordenes_trabajo').select('*').eq('tenant_id', tenantId)
+      let consulta = cliente.from('mant_ordenes_trabajo').select('*').eq('tenant_id', tenantId)
+      if (activoId) consulta = consulta.eq('activo_id', activoId)
+      const { data, error } = await consulta
         .order('anio', { ascending: false }).order('numero', { ascending: false })
       if (error) throw error
       ordenes.value = data ?? []

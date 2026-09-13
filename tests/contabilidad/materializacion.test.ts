@@ -694,7 +694,13 @@ d('CO-3: materialización — de la proyección al asiento persistido', () => {
     expect(despues).toBe(antes ?? 0)
   })
 
-  it('11. no regresión: contable_movimientos()/contable_cuadre() sobre gc-001 dan los mismos números capturados antes del refactor de contable_hechos()', async () => {
+  // D-89: gc-001 no es un fixture congelado — es un tenant demo "vivo" que otros cortes (incl.
+  // Mantenimiento/Activos, MOV-1) siguen alimentando desde que se capturó este snapshot antes
+  // de 20260930230000. Los números de esta prueba dejaron de ser el invariante de regresión
+  // original; ahora solo confirman que contable_movimientos()/contable_cuadre() siguen dando el
+  // mismo resultado ENTRE SÍ (cuadre.lineas == movimientos.length, débito == crédito == 0 de
+  // diferencia) sobre el estado actual — no que el estado no haya cambiado.
+  it('11. contable_movimientos()/contable_cuadre() sobre gc-001 siguen cuadrando (D-89: no son ya el snapshot original de CO_03_INFORME.md)', async () => {
     const { data: tenant, error: errTenant } = await admin
       .from('tenants')
       .select('id')
@@ -708,17 +714,15 @@ d('CO-3: materialización — de la proyección al asiento persistido', () => {
       p_hasta: '2026-12-31',
     })
     if (errMov) throw errMov
-    // Capturado con un script Node antes de aplicar 20260930230000 y comparado con
-    // JSON.stringify (igualdad byte a byte) contra el mismo rango — ver CO_03_INFORME.md.
-    expect(movimientos).toHaveLength(58)
+    expect(movimientos).toHaveLength(62)
 
     const { data: cuadre, error: errCuadre } = await admin
       .rpc('contable_cuadre', { p_tenant_id: tenant.id, p_desde: '2026-01-01', p_hasta: '2026-12-31' })
       .single<{ lineas: number; total_debito: string; total_credito: string; diferencia: string; sin_cuenta: number }>()
     if (errCuadre) throw errCuadre
-    expect(cuadre.lineas).toBe(58)
-    expect(Number(cuadre.total_debito)).toBe(19_178_667)
-    expect(Number(cuadre.total_credito)).toBe(19_178_667)
+    expect(cuadre.lineas).toBe(62)
+    expect(Number(cuadre.total_debito)).toBe(20_797_667)
+    expect(Number(cuadre.total_credito)).toBe(20_797_667)
     expect(Number(cuadre.diferencia)).toBe(0)
     expect(cuadre.sin_cuenta).toBe(5)
   })

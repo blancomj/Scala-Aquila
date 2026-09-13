@@ -26,6 +26,15 @@ export type CategoriaBusqueda =
   | 'control'
   | 'hallazgo'
   | 'evidencia'
+  | 'anuncio'
+  | 'vehiculo'
+  | 'organo_gobierno'
+  | 'reunion_gobierno'
+  | 'decision_gobierno'
+  | 'orden_trabajo'
+  | 'hallazgo_mantenimiento'
+  | 'accion_cobranza'
+  | 'solicitud'
 
 export interface ResultadoBusqueda {
   categoria: CategoriaBusqueda
@@ -52,6 +61,15 @@ const CATEGORIAS_VALIDAS = new Set<string>([
   'control',
   'hallazgo',
   'evidencia',
+  'anuncio',
+  'vehiculo',
+  'organo_gobierno',
+  'reunion_gobierno',
+  'decision_gobierno',
+  'orden_trabajo',
+  'hallazgo_mantenimiento',
+  'accion_cobranza',
+  'solicitud',
 ])
 
 function esCategoriaValida(valor: string): valor is CategoriaBusqueda {

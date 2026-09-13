@@ -228,4 +228,24 @@ d('acciones_cobranza — aprobación (CAR §9.4/§21.3, maker-checker sin Edge F
     expect(errReabrir).not.toBeNull()
     expect(errReabrir?.message).toMatch(/ACCION_COBRANZA_TRANSICION_INVALIDA/)
   })
+
+  it('fn_buscar_global (categoría accion_cobranza, 20260934020000) encuentra la acción por clasificación', async () => {
+    const sello = String(Date.now())
+    const clienteAgente = await clienteComo(env!, agente)
+    const { data: fila, error } = await clienteAgente
+      .from('acciones_cobranza')
+      .insert(payloadAccion({ clasificacion_codigo: `MORA_AVANZADA_ZAFIRO_${sello}` }))
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`insert accion: ${error.message}`)
+
+    const { data: filas, error: errBusqueda } = await admin.rpc('fn_buscar_global', {
+      p_tenant_id: tenant.id, p_query: `ZAFIRO_${sello}`, p_categoria: 'accion_cobranza', p_limite: 20,
+    })
+    expect(errBusqueda).toBeNull()
+    const resultados = filas as { entidad_id: string; titulo: string; subtitulo: string; inmueble_id: string | null }[]
+    expect(resultados).toHaveLength(1)
+    expect(resultados[0]?.entidad_id).toBe(fila.id)
+    expect(resultados[0]?.inmueble_id).toBe(inmuebleId)
+  })
 })

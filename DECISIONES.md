@@ -4731,3 +4731,713 @@ Verificado en navegador: intentar confirmar sin motivo no hace nada (el órgano 
 con motivo, el órgano pasa al historial con la fecha y el motivo correctos. Prueba nueva en
 `tests/gobierno/organos.test.ts` (13) cubre el CHECK: sin motivo falla, motivo en blanco falla,
 con motivo pasa.
+
+## D-86
+
+**Terminar un órgano cierra en cascada a sus miembros y atribuciones (complemento a D-85).**
+Migración `20260934010000`. Pregunta directa del usuario tras ver el mensaje de confirmación:
+"¿cómo van a ser miembros de un órgano que ya no existe?" — tenía razón. Antes, terminar el
+órgano dejaba `gobierno_miembros.hasta`/`gobierno_atribucion.vigente_hasta` intactos: ninguna
+alerta se equivocaba (todas filtran primero `vigente_hasta is null` del propio órgano), pero la
+pantalla seguía mostrando "vigentes" cosas que ya eran historia.
+
+`fn_gobierno_organo_terminar(p_organo_id, p_tenant_id, p_vigente_hasta, p_motivo)` agrupa las
+tres actualizaciones en una transacción: termina el órgano, y cierra (con la misma fecha) solo
+a los miembros y atribuciones que **seguían vigentes en ese momento** — a quien ya había salido
+antes no se le toca su fecha real, y a un miembro con `desde` futuro no se le cierra
+retroactivamente. `security invoker`, no `definer`: las tres tablas ya exigen rol auxiliar vía
+RLS: la función solo las agrupa, no se salta nada.
+
+El mensaje de confirmación ahora dice explícitamente que los miembros quedan cesantes.
+
+## D-87
+
+**La búsqueda general (Ctrl+K) ahora cubre nueve dominios más.** Migración `20260934020000`.
+Pedido del usuario: "ahora existen más dominios en la aplicación, necesito alimentar la barra de
+búsqueda general". Se preguntó qué dominios priorizar (AskUserQuestion) — el usuario eligió los
+cuatro grupos ofrecidos completos: anuncios, vehículos, solicitudes (PQR), gobierno (órganos,
+reuniones, decisiones), mantenimiento (órdenes de trabajo, hallazgos) y cartera (acciones de
+cobranza). Nueve categorías nuevas sobre `fn_buscar_global` (ya extendida dos veces:
+20260830410000, 20260919100000), mismo patrón exacto: tsvector generado + GIN por tabla.
+
+**Dos tablas sin nombre propio** (`gobierno_reuniones`, `acciones_cobranza`) resuelven el título
+con un join a `lista_tipos` en la propia consulta (igual que ya hacía la rama "documento"), no en
+la columna generada — un GENERATED no puede depender de otra tabla.
+
+**Un enum dentro de una columna GENERATED no pasa el chequeo de inmutabilidad de Postgres**,
+aunque el cast en sí lo sea (SQLSTATE 42P17) — `tipo_accion`/`canal` de `acciones_cobranza`
+quedaron fuera del tsv por eso, no hace falta que estén en el texto buscable porque ya se filtran
+por categoría.
+
+**`hallazgo_mantenimiento` es una categoría aparte de `hallazgo`** (auditoria_hallazgos,
+20260919100000): dos tablas, dos pantallas — fusionarlas habría sido inventar una equivalencia
+que el dominio no tiene.
+
+De paso, un bug real encontrado en el propio código que tocaba: `BusquedaGlobal.vue` enrutaba
+"agrupacion" a `/configuracion/agrupacion` (singular) cuando la ruta real es
+`/configuracion/agrupaciones` — `BusquedaResultadoFila.vue`/`BusquedaResultados.vue` ya lo tenían
+bien. Corregido de paso por estar en el mismo mapa que ya se estaba editando.
+
+**Triplicación existente, no nueva**: la categoría→ruta vive en tres sitios
+(`BusquedaGlobal.vue`, `BusquedaResultadoFila.vue`, `BusquedaResultados.vue`) — ya así antes de
+este corte. Se respetó la arquitectura existente en vez de refactorizarla sin que se pidiera;
+`Record<CategoriaBusqueda, …>` en los tres sitios hace que TypeScript falle si falta una entrada
+al añadir una categoría, así que no hay riesgo silencioso de olvido.
+
+Pruebas: `tests/rls/busqueda-global-dominios.test.ts` (nuevo) cubre anuncio/vehiculo/
+organo_gobierno/reunion_gobierno/solicitud con fixtures propias + aislamiento entre tenants. Las
+otras cuatro categorías (decision_gobierno, orden_trabajo, hallazgo_mantenimiento,
+accion_cobranza) se probaron con una prueba añadida a la suite dueña de cada entidad
+(decisiones.test.ts, ot-incidencias.test.ts, inspecciones-hallazgos.test.ts,
+cartera-cobranza-aprobacion.test.ts), reutilizando sus fixtures reales en vez de reconstruir
+cadenas de dependencias ya cubiertas en otro sitio.
+
+**Infraestructura, no código**: durante esta sesión el contenedor Kong y el de Edge Runtime
+quedaron en un estado colgado tras un reinicio de Docker Desktop ajeno a este trabajo (Docker
+los reportaba "healthy" pero no respondían ni a sí mismos) — se resolvió con `docker restart`
+puntual sobre cada uno, no con cambios de código. Una prueba estructural preexistente
+(inspecciones-hallazgos.test.ts #18, conexión `pg` directa al puerto 54322) quedó fallando por
+la misma familia de problema (el puerto crudo de Postgres, no REST/RPC) — no relacionado con
+este corte.
+
+## D-88
+
+**Mantenimiento de activos fijos, Fase 1 (Registro Maestro)** — el usuario suministró
+`Casos de uso/Activos fijos/PROMPT_IMPLEMENTACION_MANTENIMIENTO_ACTIVOS_AQUILA.md`, un prompt de
+1457 líneas/42 secciones, pidiendo explícitamente contrastarlo contra el código real antes de
+implementar nada ("necesito que contrastes, compares, validez, y analices la objetividad del
+prompt... proceder a implementarlo una vez lo autorice"). El contraste (agente Explore + lectura
+directa de migraciones) confirmó que casi todo lo que el prompt describe **ya existe**: tabla
+`public.activos` (33 columnas, MANT-0), guards `guard_activo_ficha`/`guard_activo_transicion`,
+`fn_mant_capitalizar_activo`/`fn_mant_dar_baja_activo`, PPE vía `mant_ppe_por_activo`, criticidad
+vía `mant_criticidad`/`mant_activo_criticidad` (MANT-1) — con algunas correcciones puntuales
+(roles reales `administrador|auxiliar|auditor`, no los 4 roles ficticios del prompt;
+`mant_activo_criticidad` es tabla, `mant_criticidad` es la RPC; PPE no se guarda en `activos`,
+se deriva). Lo único que genuinamente faltaba era la **UI de registro/mantenimiento** —
+`mantenimiento/activos/index.vue` era una lista mínima de 58 líneas sin filtros, KPIs, ni
+creación (MANT-1 §3.7: "MANT-0 no construyó esta pantalla").
+
+El usuario autorizó implementar por fases, empezando por **Fase 1 (Registro Maestro)**: nuevo
+diseño de lista con KPIs, búsqueda, filtros combinables, tabla y paginación — sin botón "Nuevo
+activo" (eso es Fase 2, un botón que hoy no llevaría a ningún lado es peor que no tenerlo, §27
+del prompt). Dos ambigüedades de diseño (estructura de tabs; qué KPIs/columnas mostrar) se
+resolvieron con el usuario vía `AskUserQuestion`: en ambos casos eligió seguir las imágenes de
+referencia que suministró por encima de lo que decía el prompt.
+
+**Una sola pieza de backend nueva**, justificada explícitamente contra la propia regla del
+prompt (§33, "solo crear backend nuevo cuando exista una necesidad funcional real que no pueda
+resolverse con lo existente"): `mant_activos_listado(p_tenant_id)` (migración `20260934030000`).
+Necesaria por dos razones concretas, no por preferencia:
+
+1. `mant_criticidad(activo_id)` es por-activo y **lanza excepción** (`CRITICIDAD_SIN_SET_VIGENTE`/
+   `CRITICIDAD_EVALUACION_INCOMPLETA`) cuando al activo le falta evaluar algún criterio del set
+   vigente — diseño deliberado de MANT-1 ("la criticidad sin desglose no sirve"). Llamarla una
+   vez por fila en una lista de 100+ activos no solo sería N+1: tumbaría el listado entero en
+   cuanto UNO no tuviera evaluación completa. La función nueva calcula la misma fórmula
+   (Σ peso×puntaje/100 contra el set vigente) en conjunto y devuelve `criticidad_banda = null`
+   para el que le falte algo, sin lanzar nunca.
+2. No existía ningún agregado de "último/próximo mantenimiento" por activo. Se agregan aquí,
+   sin reinventar nada más: `valor_neto` viene tal cual de `mant_ppe_por_activo` (MANT-0, no
+   recalculado), `ultimo_mantenimiento` = `MAX(cerrada_at)` de `mant_ordenes_trabajo`,
+   `proximo_mantenimiento` = `MIN(fecha_programada)` de `mant_programaciones` pendientes.
+
+`security invoker` explícito: la función no se salta ningún RLS, hereda el `_select_miembro` de
+cada tabla que toca — por eso un `auditor` ve exactamente lo mismo que un `administrador`
+(prueba 10 de `activos-listado.test.ts`), la autorización es de membresía, no de rol.
+
+**INSERT/UPDATE de activos no necesitó ninguna RPC nueva** — RLS + los guards de MANT-0/MANT-1
+ya existentes cubren casi todas las validaciones que el prompt pedía; eso queda para Fase 2
+(Crear/Editar), que el usuario no ha autorizado todavía.
+
+**El store `activos.ts`** gana `listado`/`cargandoListado`/`cargarListado` (RPC) sin tocar lo que
+ya existía (`activos`/`cargarActivos`/`cargarFicha` siguen siendo usados por la ficha 360° y por
+el selector de activo de `ordenes-trabajo/index.vue`). La página combina ambos orígenes por
+`id` (un `Map`) para tener en una sola fila tanto los campos resueltos por el RPC (nombres,
+criticidad, valor neto, fechas) como los crudos de `activos` (marca/modelo/serial/fabricante) —
+un cruce, no un cálculo nuevo en Vue.
+
+**Convención de tabla confirmada, no inventada**: este repo no usa `UTable` en ningún sitio
+(grep confirmado) — la tabla nueva sigue el patrón real de `contabilidad/libros.vue`
+(`<table class="w-full text-sm">`/`<thead class="bg-muted/30">`), y la paginación en cliente
+sigue el patrón de `asuntos/index.vue` (`POR_PAGINA`/`pagina`/`totalPaginas`), justificado por
+AD-24 (un tenant = una copropiedad, el dataset completo siempre está acotado al tamaño de un
+edificio real).
+
+Pruebas: `tests/mantenimiento/activos-listado.test.ts` (nuevo, 10 pruebas) — tenant vacío sin
+error; resolución de nombres/ubicación (con y sin agrupación·zona); `valor_neto` idéntico al de
+`mant_ppe_por_activo` sin recalcular; `criticidad_banda = null` con evaluación incompleta
+**mientras `mant_criticidad` sí lanza** para el mismo activo (prueba de control que confirma que
+el problema evitado es real); banda correcta con evaluación completa; `ultimo_mantenimiento`
+como `MAX(cerrada_at)` ignorando OT abiertas; `proximo_mantenimiento` desde un plan activado;
+aislamiento entre tenants; auditor ve lo mismo que administrador.
+
+**Hallazgo de esta sesión, no un bug**: `fn_mant_cerrar_ot`'s `p_fecha_cierre` alimenta
+`mant_cumplimiento`/el encadenamiento de `mant_programaciones`, pero `cerrada_at` siempre es
+`now()` — y una vez cerrada, la OT es inmutable (`OT_CERRADA_INMUTABLE` bloquea tocar
+`cerrada_at` después). La prueba 7 se ajustó para cerrar OTs de verdad y comparar contra
+`MAX(cerrada_at)` leído en vivo, en vez de forzar una fecha arbitraria.
+
+## D-89
+
+**Mantenimiento de activos fijos, Fase 2 (Crear/Editar)** — continuación de [[D-88]]. Igual que
+en Fase 1, **ninguna migración nueva**: crear/editar la ficha maestra ya estaba enteramente
+cubierto por RLS (`activos_insert_auxiliar`/`activos_update_auxiliar`, MANT-1) + los guards de
+MANT-0 (`guard_activo_ficha`), así que el store (`activos.ts`) solo agrega dos envoltorios de
+una línea, `crearActivo`/`actualizarActivo` (INSERT/UPDATE planos) — nada que ya no hiciera la
+base, tal como pide el prompt §11 ("la interfaz debe reflejar las validaciones existentes en
+PostgreSQL, nunca depender exclusivamente del frontend").
+
+**Un solo componente para crear y editar** (`ActivoFormDrawer.vue`, bajo
+`components/mantenimiento/activos/`): la única diferencia entre los dos modos es si la prop
+`activo` trae una fila o es `null`. Seis secciones (§10 del prompt): Identificación,
+Clasificación, Ubicación, Información técnica, Fechas, Información contable — con validación
+de cliente reducida a un solo chequeo (código duplicado, por UX, replicando el patrón ya usado
+en `ConceptosEditor.vue`), porque el resto de casos de §11 (categoría/tipo válidos, jerarquía sin
+ciclos, bloque contable completo, bien esencial no capitalizable...) ya los rechaza
+`guard_activo_ficha` con un mensaje en español listo para mostrar tal cual (`mensajeError`,
+`apps/web/app/utils/error-message.ts`) — no hacía falta traducir nada.
+
+**§12 del prompt aplicado literalmente**: una vez `capitalizado = true`, el bloque contable
+completo (cuenta, centro de costo, valor adquisición, valor residual, vida útil, método de
+depreciación, fecha inicio depreciación) y el propio interruptor `capitalizado` quedan de solo
+lectura en el formulario de edición — un `UPDATE` plano después de capitalizar podría descuadrar
+asientos ya contabilizados, y la vía correcta (`fn_mant_capitalizar_activo`/
+`fn_mant_dar_baja_activo`) es Fase 4, todavía sin UI. Verificado en navegador editando EXT-001
+(capitalizado, sembrado en Fase 1): 11 campos deshabilitados + aviso visible; editando un activo
+sin capitalizar (creado en esta misma verificación): 0 campos deshabilitados, guardado real
+confirmado por consulta directa a la base.
+
+**Selectores reutilizan stores/convenciones ya existentes, no se inventó ninguno**:
+`agrupacionesStore.arbolPlano` (ruta tipo "Torre A / Piso 3", ya resuelta), `zonasComunesStore`,
+`contabilidadStore.cuentasDeMovimiento` filtrado a clase 15 (guía visual hacia lo que el guard
+va a aceptar, sin reimplementar el chequeo — el guard sigue siendo la autoridad), catálogo
+`CENTRO_COSTO` vía `cargarListaTipos`. `UiSelectorBuscable` para catálogos largos/jerárquicos
+(agrupación, zona común, cuenta contable, activo padre), `USelect` para enumeraciones fijas
+(categoría/tipo del propio activo, naturaleza del bien, origen, método de depreciación) —
+criterio ya fijado en CLAUDE.md, no una decisión nueva de este corte.
+
+**Atributos técnicos dinámicos NO se editan en este drawer** (aunque §10.4 los lista dentro de
+"Información técnica"): el editor ya existe en la ficha (`[id].vue`, MANT-1 §3.7) y depende del
+`tipo_id` ya persistido — duplicar un segundo editor de atributos en el formulario de creación
+habría sido la misma experiencia dos veces por dos caminos distintos. El drawer deja una nota
+explícita señalando dónde editarlos.
+
+**Hallazgo de esta sesión, no un bug**: Nuxt resuelve un componente bajo
+`components/<carpeta>/<Archivo>.vue` con el nombre con PREFIJO de carpeta
+(`MantenimientoActivosActivoFormDrawer`, no `ActivoFormDrawer`) — el mismo patrón que ya usan
+`MantenimientoInspeccionesInspeccionDrawer`/`HallazgoDrawer` en `mantenimiento/inspecciones/
+index.vue`. Usar el nombre corto en la plantilla falla en silencio (`[Vue warn]: Failed to
+resolve component`, sin romper el resto de la página) — se detectó en la verificación de
+navegador, no en build/typecheck/lint (ninguno de los tres lo atrapa).
+
+**`USelect` no acepta `null` como `model-value`** (a diferencia de `UiSelectorBuscable`/
+`UInputNumber`, que sí) — los cuatro campos que lo usan con un valor opcional (`categoriaId`,
+`tipoId`, `centroCostoId`, `metodoDepreciacion`) se tipan `| undefined` en el estado del
+formulario, no `| null`, y se convierten a `null` solo al armar el payload hacia Supabase.
+`tsc` lo atrapó de inmediato (cuatro errores exactos, uno por campo) — no fue necesario
+descubrirlo en el navegador.
+
+Sin pruebas automatizadas nuevas: no hay migración ni RPC nuevos que probar (el guard que
+importa ya tiene sus 20+ pruebas en `tests/mantenimiento/activos-contable.test.ts`), y el
+patrón establecido en el resto del proyecto para un drawer de creación/edición puramente de
+frontend (`ordenes-trabajo/index.vue`, `PresupuestoCrearDrawer.vue`, etc.) tampoco tiene un
+archivo de test dedicado — se verificó en navegador: creación con código duplicado (rechazo de
+cliente), creación real (TEST-001, confirmada por consulta directa y luego borrada), edición de
+un activo sin capitalizar (cambio persistido, confirmado por consulta directa), y edición de uno
+capitalizado (bloque contable de solo lectura).
+
+Junto con este corte se cerraron dos fallas preexistentes de `pnpm verify`, ajenas a Activos
+pero encontradas en la misma sesión:
+
+**`ORGANO_INEXISTENTE` sin registrar** (`packages/shared/src/error-codes.ts`) — cabo suelto de
+D-85/D-86 (`fn_gobierno_organo_terminar`, migración `20260934010000`); una línea, sin más
+implicaciones.
+
+**`gc-001` ya no es un fixture congelado** — es el hallazgo real de esta revisión.
+`tests/seed/gc001.test.ts` y `tests/contabilidad/materializacion.test.ts` #11 fallaban con el
+`.env` apuntando a local, y la sospecha inicial (deriva solo local, gc-001 vs "P-01"/"P-02"
+sembrados por error en esta sesión) resultó ser incompleta: consultado el remoto
+(`hwjmlyzzvpmhadldavbq`) directamente, `gc-001` ("JARDINES DE BABILONIA") tiene hoy **66
+inmuebles** (60 agregados 2026-08-21, mucho después del seed original de 6 de paso0) y **62
+movimientos contables** (antes 58) — es decir, el tenant lleva usándose como demo "vivo" que
+varios cortes siguen alimentando desde que se congeló el snapshot original, no solo esta sesión.
+Más aún: el presupuesto 2026 vigente pasó de $120.000.000 a **$1.000.000** y el concepto
+`CUOTA_ADMIN` (el central del caso piloto) quedó **archivado** — cambios de otro corte posterior,
+no de esta sesión.
+
+Confirmado con el usuario (AskUserQuestion, dos rondas): actualizar las aserciones a los valores
+reales actuales en vez de perseguir el snapshot original o reescribir los tests contra un tenant
+efímero. `contable_cuadre`/`contable_movimientos` sobre gc-001 siguen cuadrando entre sí
+(débito = crédito, 0 de diferencia) — la prueba 11 ya no verifica "no hubo regresión desde el
+refactor de `contable_hechos()`" (ese invariante puntual ya no es verificable, el estado cambió
+por trabajo legítimo de otros cortes), sino que el motor sigue produciendo un resultado
+consistente sobre el estado actual.
+
+**Verificado contra remoto sin tocar el `.env` del repo**: se usó `.env.remoto` (ya existente,
+apunta a `hwjmlyzzvpmhadldavbq`) copiándolo temporalmente sobre `.env` solo para la corrida de
+`vitest run tests/seed/gc001.test.ts tests/contabilidad/materializacion.test.ts` (17/17 en
+verde), restaurando el `.env` local original inmediatamente después — ningún cambio de entorno
+quedó pendiente. Correr estos dos archivos con el `.env` local normal seguirá fallando (local no
+tiene los datos acumulados de gc-001-remoto, patrón ya conocido) — no es un regresión de este
+corte, es la naturaleza de un test que el propio encabezado de `gc001.test.ts` documenta como
+"verifica... en el proyecto remoto". El mismo patrón apareció en un tercer archivo,
+`tests/contabilidad/contable-movimientos.test.ts` (gc-001, `lineas > 0`) — confirmado 2/2 contra
+remoto, sin cambio de código necesario porque esa prueba nunca ancló un número mágico. Dos fallas
+adicionales en `libros-oficiales.test.ts` resultaron ser flakiness de infraestructura local (no
+reproducibles: pasaron limpio en tres corridas aisladas distintas), no regresiones.
+
+## D-90
+
+**Mantenimiento de activos fijos, Fase 3 (Ficha 360°)** — continuación de [[D-88]]/[[D-89]].
+Rediseño completo de `/mantenimiento/activos/[id]` (antes: MANT-1 §3.4, solo dos paneles —
+Técnico + Criticidad) en 6 pestañas: Resumen, General, Técnico, Mantenimiento, Contabilidad,
+Historial. Alcance recortado deliberadamente contra el propio desglose de fases del prompt
+(que separa "Ficha 360°" de "Operaciones de dominio" e "Integraciones" en fases distintas, Fase
+4 y Fase 5):
+
+- **Todo de solo lectura.** Cambiar estado, capitalizar, depreciar y dar de baja son Fase 4
+  ("Operaciones de dominio") — no hay ningún botón para eso aquí, la ficha solo muestra el
+  estado/las cifras actuales. "Editar" reutiliza tal cual el `ActivoFormDrawer` de Fase 2 (mismo
+  componente, mismo bloqueo de campos contables si `capitalizado = true`) — no se creó un
+  segundo formulario de edición.
+- **Sin integración profunda de OT/planes/incidencias/inspecciones/contratos/garantías/
+  cumplimiento** ("conectar visualmente" es literalmente el título de Fase 5). El tab
+  Mantenimiento trae lo que YA existía antes de este prompt (costos, MANT-6, `mant_costos()`)
+  más una fila de enlaces simples y sin filtrar a esas pantallas — incluyendo un enlace real a
+  `/mantenimiento/salud/[id]` (MANT-9, ya recibe el id del activo directamente, cero trabajo
+  extra) — con una nota explícita de que el filtrado por activo es Fase 5.
+- **"Documentos" no es una séptima pestaña.** `activos` solo tiene dos FK opcionales a un único
+  documento cada una (`documento_soporte_id`, `imagen_documento_id`) — se resuelven con
+  `documentosStore.documentoPorId`/`urlDescarga`, ya existentes (construidos para
+  `fondo_movimientos.documento_id`, mismo patrón de "referencia exacta a una versión, no la
+  última del grupo"). Se muestran al final de General; no ameritan pestaña propia ni el
+  componente de galería (`UiGaleriaDocumentos`, pensado para colecciones con upload, no para dos
+  referencias de solo lectura).
+- **"Ciclo de vida" (§17) + "Historial" (§18) se combinan en una sola pestaña.** El mismo
+  `activo_estado_historial` (append-only, ya existente desde MANT-0) cubre ambos — transición,
+  motivo, fecha — no hace falta separar la tabla en dos vistas.
+- **QR vive en el encabezado, no en una pestaña**, tal como lo pide §13. Reutiliza
+  `generar-qr-activo` (Edge Function de MANT-0, idempotente) tal cual — **sin renderizar un
+  código de barras**: ningún otro sitio del proyecto tiene esa dependencia (`mantenimiento/
+  acceso` también solo muestra el token como texto plano), así que no se introduce una librería
+  nueva solo para esta pantalla. La página pública que resuelve el QR escaneado
+  (`ver-activo` ya existe como Edge Function, pero ninguna página Nuxt la consume todavía) queda
+  fuera de alcance — es un flujo público/no-autenticado aparte, no parte de la ficha para
+  miembros.
+
+**Una sola pieza de backend nueva reutilizada, cero nueva**: `mant_ppe_por_activo` (MANT-0) se
+llama de nuevo (ya se llamaba desde `mant_activos_listado`, Fase 1) para traer
+`depreciacion_acumulada`/`cuenta_codigo`/`categoria_codigo` que el listado no expone — filtrado
+en el cliente al activo pedido en vez de agregarle un parámetro a la función para un solo
+consumidor. `activo_estado_historial` se lee tal cual (append-only, sin RPC nueva).
+
+**Deduplicación de paso**, encontrada al construir esta pantalla: `formatoMoneda` ya existe como
+único punto de verdad en `utils/formato.ts` (auditoría externa 2026-08-26, "estaba copiado 18
+veces") — Fase 1 había reintroducido una 19ª copia local en `activos/index.vue` sin darse
+cuenta. Corregido: se eliminó la copia local, se ajustó el único call site para el `null` que el
+util compartido no maneja. De paso, los mapas de etiquetas de enums (`ESTADO_LABEL`,
+`ESTADO_COLOR`, `NATURALEZA_LABEL`, `ORIGEN_LABEL`) se extrajeron a `utils/activos-labels.ts`
+(nuevo) para no triplicarlos entre Registro Maestro y Ficha 360° — se les sumó
+`METODO_DEPRECIACION_LABEL`, que Fase 1 no había necesitado.
+
+**Verificado en navegador** sobre dos activos reales del tenant demo: ASC-001 (no capitalizado —
+las 6 pestañas, edad calculada coincide con la vida útil consumida ya mostrada en Fase 1,
+historial vacío porque nunca tuvo una transición real tras el INSERT inicial) y EXT-001
+(capitalizado — Contabilidad muestra cuenta/valor/depreciación acumulada reales, refleja
+correctamente los `null` reales de `metodo_depreciacion`/`centro_costo_id` que Fase 1 dejó sin
+sembrar, no un bug de esta pantalla). "Generar QR" probado de punta a punta: llama la Edge
+Function real, el token queda persistido en `activos.qr_token` (confirmado por consulta directa
+a la base). "Editar" desde la ficha confirmado con los catálogos reales cargados (no los
+`[]` vacíos de un primer intento, corregido antes de dar el corte por terminado) y el bloqueo de
+campos contables activo para EXT-001.
+
+`pnpm build`/`typecheck`/`lint` limpios (0 errores, mismos 7 warnings preexistentes). Sin
+pruebas automatizadas nuevas — mismo criterio que Fase 2: no hay migración/RPC nueva que
+justifique un archivo de test, y el patrón del resto del proyecto para una ficha de solo lectura
+tampoco lo tiene.
+
+## D-91
+
+**Mantenimiento de activos fijos, Fase 4 (Operaciones de dominio)** — continuación de
+[[D-90]]. Se agregan a la Ficha 360° (`/mantenimiento/activos/[id]`) las cinco operaciones que
+Fase 3 dejó explícitamente fuera: cambio de estado, capitalización, reconocimiento de
+depreciación, baja/retiro y criticidad. **Cero funciones/migraciones nuevas** — cada botón
+invoca tal cual una función ya existente de MANT-0/MANT-9, esta fase es estrictamente capa UI:
+
+- **Cambiar estado**: `TRANSICIONES_VALIDAS` (mapa nuevo en `stores/activos.ts`, calcado del
+  enum `activo_estado_t` y de `guard_activo_transicion`) alimenta los botones de "próximos
+  estados" en el tab Historial; cada clic es un `UPDATE activos SET estado=...` plano — el
+  guard ya valida la transición y ya inserta su propia fila de `activo_estado_historial` (sin
+  motivo). No se inventó ningún mecanismo para capturar motivo en transiciones genéricas: se
+  confirmó leyendo `guard_activo_transicion` completo que ninguno existe hoy — solo
+  `fn_mant_dar_baja_activo` captura motivo, y solo para el retiro.
+- **Capitalizar**: llama `fn_mant_capitalizar_activo` tal cual; el checklist de requisitos
+  (bien no esencial, bloque contable completo) es solo para UX — la función es la única
+  autoridad y su mensaje de error se muestra tal cual si el usuario fuerza el botón por una
+  carrera de datos.
+- **Reconocer depreciación**: llama `fn_mant_reconocer_depreciacion` (tenant-wide, idempotente
+  por período) y busca la fila del activo propio en el resultado para mostrarla. Reutiliza
+  `useComprobantesStore().cargarPeriodos`/`.periodos` (ya existente) para el selector de
+  período, filtrado en cliente a `contable_estado === 'abierto'` — no se duplicó un fetcher.
+- **Dar de baja/retirar**: llama `fn_mant_dar_baja_activo`; el modal pide período contable solo
+  cuando el activo está capitalizado (la función lo ignora si no).
+- **Criticidad**: sin trabajo nuevo — ya cubierta por la UI de MANT-1 (`[id].vue` tab Técnico
+  reutilizado, no tocado en esta fase).
+
+**Un cast forzado documentado en línea**: `fn_mant_dar_baja_activo` recibe
+`p_periodo_id: string | null` en tiempo de ejecución (nulo cuando el activo no está
+capitalizado), pero el tipo generado por `db:types` lo marca `string` no-nulable — confirmado
+leyendo la función que retorna antes de tocar ese parámetro cuando `!capitalizado`. Se usa
+`as unknown as string` con un comentario explicando por qué es seguro, en vez de relajar el tipo
+generado a mano (prohibido por CLAUDE.md).
+
+**Dos hallazgos durante la verificación en navegador** (tenant demo, activo AACC-001 — bien
+propio sin bloque contable, completado vía "Editar" para poder capitalizarlo):
+
+1. Capitalizar exige que `fecha_adquisicion` caiga dentro del período contable elegido
+   (`COMPROBANTE_FECHA_FUERA_DE_PERIODO`, regla de `fn_mant_capitalizar_activo`/CO-3 ya
+   existente) — no es un requisito nuevo de esta fase, solo no estaba documentado en el
+   checklist de la UI; el error de la función se propaga tal cual, así que no hace falta
+   duplicarlo en el frontend.
+2. **Bug real, corregido en este corte**: el resultado de `fn_mant_reconocer_depreciacion` para
+   categoría `omitido` cubre dos causas muy distintas — "ya se corrió este período" (idempotencia
+   normal) y "activo sin `centro_costo_id`" (dato incompleto) — y ambas traían un `detalle` de
+   texto explicando cuál fue. El mapeo original en `[id].vue` ignoraba `detalle` y mostraba
+   siempre "Ya estaba reconocida para este período — no se duplicó.", ocultando la causa real
+   cuando era la segunda. Corregido: se muestra `propio.detalle` cuando la función lo envía, y
+   el color del `UAlert` ahora depende de la categoría (`creado` → success, `fallido` → error,
+   `omitido` → warning) en vez de ser siempre verde.
+
+**Confirmado, no corregido** (comportamiento preexistente, fuera de alcance de este corte): un
+retiro de un activo capitalizado deja DOS filas en `activo_estado_historial` para la misma
+transición — una sin motivo (la inserta el propio `guard_activo_transicion` al ver el `UPDATE`
+plano que hace `fn_mant_dar_baja_activo` internamente) y otra con motivo (la inserta la función
+explícitamente después). Verificado leyendo `fn_mant_dar_baja_activo` completa
+(`20260930320000_mant0_fix_baja_activo.sql`) y confirmado en los datos reales tras el retiro de
+prueba — no se introdujo en este corte y no está en el alcance de "usar funciones existentes"
+arreglarlo.
+
+**Verificado en navegador de punta a punta** sobre AACC-001: completado su bloque contable vía
+"Editar" (Fase 2) → capitalizado (comprobante 1525 débito / 3105 crédito visible en la
+evidencia) → depreciación reconocida (comprobante 5905 débito / 1592 crédito, cuota
+$48.611 = $3.500.000 / 72 meses) → retirado con motivo (comprobante de baja generado,
+`estado = 'retirado'`, transición "Dispuesto" ya disponible). Cambio de estado genérico
+verificado antes por separado sobre BOM-001 (`en_mantenimiento` → `en_servicio`). `pnpm
+--filter @aquila/web typecheck`/`lint`/`build` limpios (0 errores, mismos 7 warnings
+preexistentes de siempre). Sin pruebas automatizadas nuevas — mismo criterio que D-89/D-90: cada
+operación es una llamada directa a una función ya cubierta por sus propios tests de integración
+en `tests/mantenimiento/`; no hay lógica de negocio nueva que testear en el frontend.
+
+## D-92
+
+**Mantenimiento de activos fijos, Fase 5 (Integraciones)** — continuación de [[D-91]]. §25 del
+prompt pide "conectar visualmente" el activo hacia OT, planes, inspecciones, incidencias,
+contratos, garantías, costos (ya hecho en Fase 3, MANT-6), cumplimiento, inventario/consumos,
+salud (ya hecho, MANT-9) e indicadores. Además, dos pedidos explícitos del usuario en este
+corte: poder capturar al menos 5 imágenes del activo, y que el código QR se vea gráficamente
+(hasta ahora solo se mostraba `qr_token` como texto plano).
+
+**Alcance de "conectar visualmente" — real, no enlaces ciegos.** Cada sección del tab
+Mantenimiento de la Ficha 360° ahora trae SOLO los registros de ESE activo (filtro
+`activo_id` real en la consulta), no la lista del tenant completo recortada visualmente:
+
+- **OT** (`mant_ordenes_trabajo.cargarOrdenes(tenantId, activoId?)`), **incidencias**
+  (`mant_incidencias.cargarIncidencias(tenantId, activoId?)`) y **programaciones de planes**
+  (`mant_programaciones.cargarProgramacionesTenant(tenantId, activoId?)`) — un parámetro
+  opcional más en cada store existente, mismo patrón que ya traía
+  `mantenimientoInventario.cargarMovimientos(tenantId, filtro?)`. Cada fila enlaza a su propia
+  ficha (`ordenes-trabajo/[id]`, `incidencias/[id]`, `planes/[id]` vía `plan_id`).
+- **Inspecciones** (`cargarInspecciones(tenantId, formatoId?, activoId?)`) — mismo patrón; no
+  tiene ficha propia (solo índice), así que sus filas no enlazan a ningún sitio.
+- **Contratos**: la relación real es la tabla puente `mant_contrato_activos` (no
+  `mant_contratos` directo) — función nueva `cargarContratosPorActivo(tenantId, activoId)` en
+  `mantenimientoContratos.ts`, en la dirección contraria a `cargarContrato` (que ya iba de un
+  contrato a sus activos, nunca al revés).
+- **Garantías**: `mant_garantias` existía desde MANT-5 sin NINGÚN store ni página en el
+  frontend — la función `mant_activo_garantias_vigentes(p_activo_id, p_fecha)` ya filtraba por
+  activo y estaba sin usar. Store nuevo y mínimo, `mantenimientoGarantias.ts`, de solo lectura
+  (la función es "solo informa, nunca bloquea" por diseño de MANT-5) — no se construyó gestión
+  de garantías (crear/editar/reclamar) porque eso no es "conectar visualmente" lo existente,
+  sería construir un módulo nuevo entero fuera del alcance de este prompt.
+- **Cumplimiento**: `mant_estado_cumplimiento(p_tenant_id)` ya devuelve `activo_id` por fila —
+  se filtra en cliente igual que `costoActivo` ya hacía con `mant_costos()`, sin tocar la
+  función ni el store.
+- **Inventario/consumos**: decisión explícita de NO perseguir un cruce en dos pasos
+  (`mant_inventario_movimientos.orden_trabajo_id` → `mant_ordenes_trabajo.activo_id`, la tabla
+  no tiene `activo_id` propio) — el costo real ya se muestra arriba (MANT-6, Fase 3) y el cruce
+  no aporta información nueva que justifique el join adicional. El enlace queda genérico al
+  módulo, con una nota explicando por qué.
+- **Páginas de destino sin `?activo_id=`**: ningún índice de mantenimiento (OT/planes/
+  incidencias/inspecciones/contratos) soportaba filtrar por query param antes de este corte, y
+  se decidió NO añadírselo a los cinco — la ficha ya muestra los registros reales filtrados
+  in-situ (la parte que exige §25), y cada fila enlaza directo al registro cuando existe una
+  ficha propia; un query param redundaría con eso.
+
+**Fotos del activo (≥5, pedido explícito).** `documentos.activo_id` — quinta columna FK de
+dominio que se le añade a `documentos` (después de pago/caso jurídico, envío,
+anuncio/publicación, perfil de directorio), migración `20260934040000_mant_activos_imagenes.sql`
+con el mismo patrón exacto que `20260933810000` (EXS-4): columna + índice parcial +
+`v_documento_vigente` recreada EN LA MISMA migración (un `select *` no hereda columnas nuevas —
+iba a ser la quinta vez que este repositorio tropieza con eso) + `guard_documento_tipo_familia`
+extendido con el tenant del activo. Sin versionar entre fotos (como marketplace/anuncios/
+directorio): cada foto es un documento propio. `subir-documento` (Edge Function) gana un
+alcance más, `activo_id`, exactamente como ya tenía `anuncio_id`/`tercero_perfil_id`. No se creó
+ninguna tabla de media propia — `documentos` sigue siendo el único repositorio documental
+(§23 del prompt lo prohíbe explícitamente).
+
+`UiGaleriaDocumentos` (el componente que D-90 ya había señalado como "pensado para esto, no
+para las dos referencias de solo lectura de `activos`") gana `activo-id` como tercer alcance y
+un modo `solo-imagenes` opt-in: grilla de miniaturas en vez de lista de "Abrir", `accept="image/
+jpeg,image/png"` + `capture="environment"` (abre la cámara en un teléfono) en vez del selector
+genérico, tipo de documento fijo en 'fotografia' (sin selector), y un contador con aviso
+mientras haya menos de 5 fotos. Es opt-in (`solo-imagenes` por defecto `false`) para no
+cambiarle el aspecto a anuncios/directorio, que siguen usando el mismo componente para PDF+foto
+mezclados.
+
+**Hallazgo real, corregido en este corte** (no introducido por él): al conectar
+`UiGaleriaDocumentos` a activos sin pasar `:editable` explícito (como tampoco lo pasa
+`directorio/index.vue` desde EXS-4/D-83), el formulario de subida no aparecía — nunca. Causa:
+`editable?: boolean` declarado con `defineProps<T>()` puro, sin `withDefaults`; Vue castea un
+prop `boolean` opcional sin default explícito a `false` (no a `undefined`, como cualquier otro
+tipo), así que `props.editable !== false` era `false` para CUALQUIER consumidor que no pasara
+`:editable` — incluido el directorio, cuyo botón "Subir foto" de EXS-4 lleva oculto desde
+entonces sin que nadie lo notara (nunca se probó ese flujo en navegador en aquel corte). Se
+corrigió envolviendo el bloque en `withDefaults(defineProps<T>(), { editable: true, ... })` —
+beneficia a los tres consumidores por igual, no solo a activos.
+
+**QR gráfico (pedido explícito).** Antes: `activos.qr_token` se mostraba tal cual en un
+`UTextarea` de solo lectura. Se agrega `qrcode` (npm, nueva dependencia de `apps/web` — ningún
+otro sitio del proyecto generaba códigos QR, confirmado en D-90) para renderizarlo como imagen
+(`QRCode.toDataURL`, cliente, sin depender de un servicio externo) — el valor codificado sigue
+siendo el mismo `qr_token` de siempre, ninguna URL/destino público nuevo. Deliberadamente NO se
+construyó la página pública que consume `ver-activo` (el "gap" que D-90 ya había señalado como
+fuera de alcance) — "que se vea de manera gráfica" es sobre el renderizado, no sobre inventar un
+nuevo endpoint sin autenticación; queda como posible trabajo futuro si se pide. Se agrega un
+botón "Descargar imagen" (`<a :href :download>` sobre el data URL, sin red).
+
+**Verificado en navegador y de punta a punta (AACC-001, tenant demo local):**
+- Las siete secciones nuevas del tab Mantenimiento renderizan sus estados vacíos correctamente
+  (el tenant demo local no tiene ninguna fila con `activo_id` poblado en OT/incidencias/
+  programaciones/inspecciones/contratos/garantías — confirmado por consulta directa, y también
+  cierto en remoto para OT/incidencias, que sí tienen filas pero con `activo_id = null`). No se
+  sembraron filas nuevas para forzar el camino "con datos": es una simple lista `v-for` +
+  `NuxtLink`, mismo patrón ya usado en el resto de la ficha (activo padre, historial), y las
+  siete consultas en sí se confirmaron correctas por sus 200 OK con el filtro real en la URL de
+  la petición.
+- Fotos: subidas 5 imágenes reales de punta a punta invocando `subir-documento` directamente
+  (con un token de sesión real de `blancomj@gmail.com`, mismo mecanismo que
+  `scripts/dev-login.mjs`) — las 5 aparecen en la grilla de miniaturas, el contador pasa de
+  "0 fotos — se recomiendan al menos 5" a "5 fotos" sin aviso, y las 5 URLs firmadas de Storage
+  resuelven 200 OK. El formulario "Capturar o elegir foto" se confirmó visible tras el fix de
+  `editable`.
+- QR: "Generar QR" seguido de una imagen QR real y escaneable en pantalla (capturada), con el
+  token debajo y el botón "Descargar imagen".
+
+**Migración aplicada solo a LOCAL en este corte** (`pnpm db:push`, sin `--prod`) — el push al
+proyecto remoto compartido (`hwjmlyzzvpmhadldavbq`, el mismo de gc-001/D-08) y la regeneración
+de tipos (`pnpm db:types`, que solo sabe leer contra remoto vía Management API) quedan
+pendientes de la confirmación interactiva del usuario, nunca automática. Hasta entonces,
+`documentos.ts` tiene un error de `tsc` esperado y aislado (`.eq('activo_id', ...)` contra el
+tipo generado viejo de `v_documento_vigente`) — el resto de `pnpm --filter @aquila/web
+typecheck`/`lint` está limpio (0 errores, mismos 7 warnings de siempre).
+
+## D-93
+
+**Mantenimiento de activos fijos — ajustes visuales pedidos por el usuario tras revisar D-92**,
+con imágenes de referencia de otras pantallas ya existentes de AQUILA (KPIs de Cartera/
+Inmuebles, mockup de ficha con foto+QR):
+
+1. **KPIs del Registro Maestro con el estilo de `cartera/index.vue`** (ícono en círculo de
+   color + número grande + barra de progreso corta con el porcentaje del total), en vez de las
+   tarjetas de solo texto que traía desde D-88. Se reutiliza el patrón tal cual —
+   `flex items-start justify-between` + `span` circular con `UIcon` a la derecha, `UProgress
+   size="xs"` bajo el número — ningún componente nuevo. El porcentaje es siempre "% del total
+   de activos" (mismo criterio que Cartera con "% del total de la cartera"); no se inventó un
+   "vs. año anterior" para "Total de activos" como sugería la imagen de referencia porque no
+   existe ninguna fuente de datos histórica con la que compararlo — mostrarlo habría sido un
+   número fabricado.
+2. **KPIs colapsables**, mismo patrón exacto que `inmuebles/index.vue`/`cartera/index.vue`:
+   `useCookie<boolean>('activos-resumen-expandido', { default: () => true })` + botón con
+   chevron "Ver resumen"/"Cerrar resumen". Persistido por cookie (no por sesión), igual que las
+   otras dos pantallas — colapsar en Activos no debería comportarse distinto a colapsarlo en
+   Inmuebles.
+3. **Encabezado de la Ficha 360° rediseñado en tres secciones** (antes: título+badges en una
+   línea, y el QR grande en su propia sección aparte debajo): (1) foto de portada — la más
+   antigua de la galería de Fase 5/D-92 (`documentosStore.cargarImagenesActivo` + primera fila,
+   mismo criterio que `fn_directorio_listar` con el logo de una ficha del directorio) con un
+   botón superpuesto "Ver galería" que cambia `tabActiva` a `'general'` (donde ya vive la
+   galería, D-92) — no se construyó un modal nuevo para esto — más nombre/código/estado/tipo/
+   categoría/descripción/ubicación/marca-modelo/serial; (2) el código QR ahora pequeño (antes
+   ocupaba una sección completa con el token en un textarea) con el código del activo debajo en
+   vez del token crudo, y el botón de descarga; (3) "Datos importantes" — Criticidad (columna ya
+   existente en `mant_activos_listado`), **Salud del activo** (nuevo en la ficha:
+   `mant_salud(p_tenant_id, p_activo_id)`, MANT-9, que ya existía en el backend sin ningún
+   consumidor en esta pantalla — se muestra `—` cuando no hay `mant_salud_set` vigente para el
+   tenant, igual que Criticidad ya hacía con "Sin evaluar"), Vida útil restante y Próximo
+   mantenimiento (ambas ya en `mant_activos_listado`).
+
+**Verificado en navegador**: KPIs con íconos/porcentajes/barra renderizando igual que Cartera
+(capturado); colapsar/expandir funciona; encabezado de tres secciones verificado sobre AACC-001
+(foto de portada = la primera de las 5 fotos de prueba de D-92, QR pequeño con imagen real +
+código + descarga, Criticidad "Sin evaluar", Salud "—", Vida útil "Vencida", Próx. mantenimiento
+"—") y sobre ASC-001 (sin foto → placeholder de ícono, sin QR → botón "Generar QR" inline en la
+sección 2). "Ver galería" confirmado: cambia a General y esa pestaña muestra las 5 fotos.
+`pnpm --filter @aquila/web typecheck`/`lint`/`build` limpios (mismo único error de `tsc`
+pendiente de D-92 por el push a remoto, mismos 7 warnings preexistentes).
+
+## D-94
+
+**Mantenimiento de activos fijos — Fase 6 (Calidad) del prompt de implementación**, aplicada
+sobre `mantenimiento/activos/index.vue` y `mantenimiento/activos/[id].vue`:
+
+1. **Permisos**: se agregó `puedeEscribir = computed(() => tenantStore.puede('data:create'))` en
+   ambas páginas, mismo patrón ya usado en `FondosTabMovimientos.vue`. Se ocultó/gateó con
+   `v-if="puedeEscribir"` cada control que dispara una escritura: "Nuevo activo", "Editar" (botón
+   de la grilla y el de la cabecera de la ficha), el nombre-clicable-para-editar en la grilla
+   (cae a un `NuxtLink` de solo lectura si no hay permiso), "Generar QR" (cae a texto "Sin
+   generar"), la subida de fotos en `UiGaleriaDocumentos` (prop `:editable="puedeEscribir"` +
+   `motivo-bloqueo` explicando por qué), "Guardar atributos", "Capitalizar", "Reconocer
+   depreciación", el enlace "Editar" dentro del checklist de requisitos de capitalización, y todo
+   el bloque de transición de estado/Retirar del historial (cae a un mensaje de solo lectura). No
+   se tocaron los computeds de negocio `puedeCapitalizar`/`puedeRetirar` porque también alimentan
+   mensajes informativos no relacionados con permisos — el gateo se hizo solo en el punto donde
+   se renderiza cada botón, no en esa lógica.
+2. **Estados de carga**: skeletons (`USkeleton`) en ambas páginas para su primera carga — filas de
+   la grilla en el Registro Maestro, foto+líneas de la cabecera en la Ficha 360° — mismo patrón
+   que `cartera/index.vue`.
+3. **Manejo de errores**: `errorCarga` + try/catch alrededor de la carga inicial en ambas páginas
+   (en la ficha, `cargar()` se dividió en `cargar()`/`cargarInterno(tenantId)` para envolver el
+   `Promise.all`), con `mensajeError()` y un `<UAlert color="error" variant="soft">` — mismo
+   patrón que `cartera/index.vue`.
+4. **Responsive**: sin cambios — ambas páginas ya usan el envoltorio estándar `overflow-x-auto`
+   en sus tablas; no se encontró ningún elemento nuevo de D-88/D-92/D-93 que lo necesitara y no lo
+   tuviera.
+5. **Tenant isolation**: verificación (no requirió código nuevo) de las políticas RLS de las
+   funciones agregadas en D-92 — `mant_activo_garantias_vigentes` vía
+   `mant_garantias_select_miembro` y `mant_contrato_activos` vía sus políticas
+   `_select_miembro`/`_insert_auxiliar`/`_delete_auxiliar` — todas usan `is_member(tenant_id)` y
+   corren en modo `security invoker` (no `definer`), sin riesgo de fuga entre tenants.
+6. **Accesibilidad**: los botones "Ver ficha"/"Editar" de la grilla, ya icon-only por pedido del
+   usuario, llevan `aria-label` + `UTooltip` con el texto que antes era visible.
+7. **Auditoría**: no se agregó ningún mecanismo nuevo — el historial de cambios de estado del
+   activo (`activo_estado_historial`, ya existente desde D-90/D-91) ya cubre el rastro de
+   auditoría de este módulo; crear una tabla de auditoría paralela habría violado la decisión ya
+   tomada en esas fases de no duplicar ese mecanismo.
+
+**Verificado en navegador** (como Administrador, para confirmar que el gateo no rompe el flujo
+normal): "Editar"/"Generar QR" y los botones de transición/Retirar del Historial siguen
+renderizando con permisos de escritura. Registro Maestro re-verificado tras todos los cambios
+(6 KPIs y las 9 filas de activos renderizando correctamente). `pnpm --filter @aquila/web
+typecheck`/`lint`/`build` limpios (mismo único error de `tsc` pendiente de D-92 por el push a
+remoto, mismos 7 warnings preexistentes).
+
+## D-95
+
+**Reorganización completa del sidebar** (`apps/web/app/utils/navegacion.ts` +
+`NavSidebar.vue`), a pedido del usuario tras un análisis de los 13 grupos/85 ítems existentes que
+encontró: grupos que mezclaban contenido social con catálogos maestros con configuración
+("Copropiedad"), grupos planos de 13-17 ítems sin subdivisión interna que además reutilizaban el
+mismo ícono en la mayoría de sus filas ("Mantenimiento", "Recaudo y Cartera"), configuración
+repartida sin una regla reconocible entre un grupo central y los módulos, y "Comunicaciones"
+partido entre "Seguridad" (el histórico) y "Configuración" (las plantillas) sin relación visible
+entre ambos. Aprobado con tres ajustes del usuario sobre la propuesta inicial:
+
+1. **Grupos renombrados/reorganizados** (85 ítems, ninguno eliminado): `Comunidad` (Anuncios,
+   Directorio, Marketplace, Movilidad + Reservas de zonas comunes y Visitantes y acceso, movidos
+   desde Mantenimiento a pedido del usuario — de cara al residente son trámites de convivencia,
+   no mantenimiento de activos); `Copropiedad` reducido a los catálogos maestros (Inmuebles,
+   Terceros) más un ítem "Configuración" — "Datos de la copropiedad" renombrado y trasladado aquí
+   desde el grupo central "Configuración", también a pedido del usuario; `Facturación y Recaudo`
+   (fusiona la antigua "Facturación" con la operación diaria de "Recaudo y Cartera": Recaudo y
+   Transacciones de pasarela); `Cartera y Cobranza` (el resto de la antigua "Recaudo y Cartera" —
+   el módulo `cartera_cobranza` completo, operación + jurídico); `Fondos` reubicado junto a
+   `Finanzas` (misma familia de tesorería, ya no corta el pipeline Presupuesto→Facturación);
+   `Comunicaciones` (grupo nuevo: el histórico + las dos plantillas, antes separados); `Gobierno`,
+   `Presupuesto`, `Contabilidad`, `Finanzas`, `Configuración` y `Seguridad` sin cambios de
+   contenido (los dos últimos pierden los ítems que se fueron a Copropiedad/Comunicaciones).
+2. **Sub-encabezados dentro de "Mantenimiento"** (15 ítems tras sacar Reservas/Visitantes): se
+   agregó `subgrupo?: string` a `NavItem` — un rótulo puramente visual (texto plano, sin ícono, no
+   es un nivel de acordeón) que `NavSidebar.vue` arma en un computed (`armarNodos`) a partir de
+   los ítems ya filtrados por `puedeVer`, para no dejar un rótulo huérfano si todos los ítems de
+   un sub-grupo quedan ocultos por permisos. Cuatro sub-grupos: "Activos y salud" (Activos, Salud
+   de los activos, Escenarios, Mapa de riesgo, Configuración de salud), "Operación" (Planes,
+   Cumplimiento normativo, Incidencias, Órdenes de trabajo, Inspecciones), "Proveedores y
+   recursos" (Proveedores y contratistas, Contratos, Inventario), "Indicadores y configuración"
+   (Indicadores, Configuración de mantenimiento). Deliberadamente NO se convirtió en 4-5 grupos
+   de primer nivel (la alternativa "gratis" en código): el acordeón real solo deja un grupo
+   abierto a la vez, así que fragmentar Mantenimiento habría costado poder ver dos sub-secciones
+   juntas sin cerrar una para abrir la otra — el usuario evaluó la maqueta interactiva de ambas
+   opciones (antes de aprobar) y eligió la de sub-encabezados a pesar del costo de tocar
+   `NavSidebar.vue`.
+3. **Colores por grupo** (`COLOR_ICONO_GRUPO`) reasignados para los 13 grupos finales, sin
+   colisión de tono entre sí ni con el índigo del ítem activo — de paso se le dio color propio a
+   "Mantenimiento" y "Gobierno", que antes cayían al gris por defecto por no tener entrada en el
+   mapa (gap preexistente, no reportado hasta ahora).
+
+**No incluido en este corte** (fuera de lo pedido): renombrar/diferenciar "Dependencias"
+(`/conceptos/dependencias`, en Facturación y Recaudo) de "Agrupaciones"
+(`/configuracion/agrupaciones`, en Configuración) pese a compartir ícono y nombres parecidos —
+señalado al usuario, no se tocó sin su confirmación; ni distinguir los íconos repetidos dentro de
+"Cartera y Cobranza" (5 ítems comparten `carteraDashboard`) — el mismo problema que ya se corrigió
+para Mantenimiento pero que no fue parte de esta aprobación.
+
+**Verificado en navegador** como Administrador: los 13 grupos aparecen en el orden y con el
+contenido descritos arriba; "Comunidad" muestra Reservas de zonas comunes/Visitantes y acceso;
+"Copropiedad" muestra Inmuebles/Terceros/Configuración; "Mantenimiento" expandido muestra los
+rótulos "OPERACIÓN"/"PROVEEDORES Y RECURSOS" con sus ítems agrupados debajo, sin fragmentar el
+grupo; "Comunicaciones" muestra Comunicaciones/Plantillas de correo/Plantillas SMS;
+"Configuración" ya no tiene "Datos de la copropiedad" ni las plantillas; "Seguridad" ya no tiene
+"Comunicaciones". `pnpm --filter @aquila/web typecheck`/`lint` limpios (mismo único error de
+`tsc` pendiente del push a remoto de D-92, mismos 7 warnings preexistentes).
+
+## D-96
+
+**Íconos propios para los ítems de Mantenimiento y de "Cartera y Cobranza — Operación" que D-95
+había dejado compartiendo un solo ícono genérico** — la segunda de las dos deudas que D-95 dejó
+explícitamente señaladas y sin tocar por no estar en el pedido original; el usuario pidió resolver
+esta ahora (la otra, "Dependencias" vs "Agrupaciones", sigue pendiente).
+
+1. **Mantenimiento**: de los 13 ítems que usaban `NAV_ICONOS.mantenimiento` (la llave inglesa),
+   se le dieron 12 íconos nuevos y distintos entre sí — Salud de los activos (electrocardiograma),
+   Escenarios: reparar o reemplazar (flechas divergentes), Mapa de riesgo (pin con alerta), Planes
+   de mantenimiento (portapapeles), Cumplimiento normativo (medalla/certificado), Incidencias
+   (círculo con exclamación — distinto del triángulo ya usado en "Novedades"), Órdenes de trabajo
+   (talonario/boleta), Inspecciones (lupa con check — distinto de la lupa sola de "Auditoría"),
+   Proveedores y contratistas (camión de reparto), Contratos (documento con firma), Inventario
+   (caja 3D), Indicadores (gráfico de torta). "Activos" se dejó con la llave inglesa a propósito:
+   es el ítem insignia del grupo, igual que se hizo con "Dashboard de Cartera" abajo.
+2. **Cartera y Cobranza — Operación**: de los 5 ítems que usaban `NAV_ICONOS.carteraDashboard`
+   (las barras), se le dieron 4 íconos nuevos — Acciones de cobranza (auricular de teléfono),
+   Simulación de corrida (matraz), Centro de escalamiento (escalones ascendentes), Indicadores de
+   cobranza (diana). "Dashboard de Cartera" conserva las barras por ser el ítem insignia del
+   grupo. Los 5 ítems del bloque jurídico del mismo grupo (Certificaciones de deuda, Casos
+   jurídicos, Actos interruptivos de prescripción, Transferencias de propiedad, Promesas y
+   acuerdos de pago) siguen compartiendo `carteraDashboard` sin cambios — no fueron parte de este
+   pedido.
+3. Los 16 íconos nuevos se agregaron a `NAV_ICONOS` con un comentario de una línea cada uno
+   explicando la metáfora elegida, siguiendo la convención ya establecida en ese mapa (ver
+   comentarios de `fondos`, `mantenimiento`, `marketplace`, etc. en D-anteriores).
+
+**Verificado en navegador**: los 16 íconos nuevos renderizan sin paths rotos, cada uno
+visualmente distinto de sus vecinos dentro del mismo grupo/color, y los ítems no tocados
+(Activos, Dashboard de Cartera, el bloque jurídico de Cartera, Configuración de mantenimiento/
+salud) se ven exactamente igual que antes. `pnpm --filter @aquila/web typecheck`/`lint` limpios
+(mismo único error de `tsc` pendiente del push a remoto de D-92, mismos 7 warnings preexistentes).
+
+## D-97
+
+**Mismo tratamiento de D-96 aplicado a Contabilidad**, a pedido del usuario. De los 9 ítems que
+usaban `NAV_ICONOS.contabilidad` (la balanza), se le dieron 8 íconos nuevos y distintos entre
+sí: Mapeo contable (dos casillas conectadas por una flecha), Movimientos contables (flechas
+opuestas), Comprobantes (recibo de borde dentado), Libros oficiales (libro abierto), Deterioro de
+cartera (línea descendente — espejo de `flujoProyectado`, que sube), Estados financieros
+(documento con barras), Cierres contables (candado), Obligaciones tributarias (documento con
+signo de porcentaje), Rendición de cuentas (documento con flecha hacia arriba). "Plan de cuentas
+contable" conserva la balanza a propósito, por ser la base de todo el módulo — mismo criterio que
+"Activos" en Mantenimiento y "Dashboard de Cartera" en Cartera y Cobranza (D-96); "Configuración
+contable" ya tenía ícono propio (el engranaje) y no se tocó.
+
+**Verificado en navegador**: los 8 íconos nuevos renderizan sin paths rotos y distintos entre sí
+y de la balanza que conserva "Plan de cuentas contable". `pnpm --filter @aquila/web
+typecheck`/`lint` limpios (mismo único error de `tsc` pendiente del push a remoto de D-92, mismos
+7 warnings preexistentes).

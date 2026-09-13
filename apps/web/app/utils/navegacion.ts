@@ -11,6 +11,12 @@ export interface NavItem {
    * asignados y ninguno cubre este módulo (ver tenantStore.puedeVerModulo). */
   modulo?: string
   icono: string
+  /** Rótulo de sub-sección dentro del grupo (p. ej. separar "Activos y salud" de
+   * "Operación" dentro de Mantenimiento) — puramente visual, NO es un nivel de
+   * acordeón ni agrega un clic: NavSidebar.vue lo pinta como encabezado menor
+   * antes del primer ítem que lo declare, y no lo repite mientras los ítems
+   * siguientes compartan el mismo valor. Items sin `subgrupo` no muestran nada. */
+  subgrupo?: string
 }
 
 export interface NavGrupo {
@@ -111,6 +117,76 @@ export const NAV_ICONOS = {
   marketplace: 'M4 7h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM12 4v3M8 12h8M8 15h5',
   // Bandeja de entrada: lo que espera una decisión de quien mira (EXS-7).
   asuntos: 'M4 13h4l1.5 3h5L16 13h4M4 13l2.5-7.5a1 1 0 0 1 1-.5h9a1 1 0 0 1 1 .5L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z',
+
+  // --- D-96: íconos propios para los ítems de Mantenimiento y de la
+  // operación de Cartera y Cobranza que hasta ahora compartían un único
+  // ícono genérico (mantenimiento/carteraDashboard) — "Activos" y "Dashboard
+  // de Cartera" quedan como están por ser el ítem insignia de cada grupo; el
+  // resto de esta sección son íconos nuevos, uno por ítem.
+  // Electrocardiograma: salud del activo, no la llave inglesa genérica.
+  saludActivo: 'M3 12H7L9 5L13 19L15 12H21',
+  // Dos flechas divergiendo desde el centro: la bifurcación reparar-o-reemplazar.
+  escenariosMantenimiento: 'M9 12H3M6 8 3 12l3 4M15 12h6M18 8l3 4-3 4',
+  // Pin de mapa con signo de alerta: dónde está el riesgo, no qué se repara.
+  mapaRiesgo:
+    'M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12ZM12 6v5M12 14h.01',
+  // Portapapeles con lista: un plan es un documento con tareas, no una llave inglesa.
+  planesMantenimiento:
+    'M9 3h6a1 1 0 0 1 1 1v1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1V4a1 1 0 0 1 1-1ZM9 11h6M9 15h4',
+  // Medalla/certificado: cumplimiento normativo es una certificación, no una reparación.
+  cumplimientoNormativo: 'M12 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM8.5 13 7 21l5-3 5 3-1.5-8',
+  // Círculo con exclamación: una incidencia es un evento que alerta, distinto
+  // del triángulo ya usado en "Novedades" y del círculo con check de decisiones.
+  incidencias: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 8v5M12 16h.01',
+  // Boleta/talonario: una orden de trabajo es un documento de trabajo, no la herramienta.
+  ordenesTrabajo:
+    'M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8ZM9 8v8',
+  // Lupa con check: inspeccionar es verificar, distinto de la lupa sola de auditoría.
+  inspecciones: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM8.5 11l1.8 1.8L14.5 9M21 21l-4.3-4.3',
+  // Camión de reparto: proveedores y contratistas traen algo a la copropiedad.
+  proveedoresContratistas:
+    'M3 7h11v8H3zM14 10h4l3 3v2h-7v-5ZM6.5 18a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM17.5 18a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
+  // Documento con firma: un contrato se firma, no se repara.
+  contratos: 'M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM14 3v5h5M8 16c1-1.2 2-1.2 3 0s2 1.2 3 0',
+  // Caja 3D: inventario es lo que hay en existencia, no una reparación.
+  inventario: 'M12 2 3 7l9 5 9-5-9-5ZM3 7v10l9 5 9-5V7M12 12v10',
+  // Gráfico de torta: indicadores de mantenimiento, distinto de las barras de Cartera.
+  indicadoresMantenimiento: 'M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z',
+  // Auricular de teléfono: una acción de cobranza es una llamada/gestión, no el tablero.
+  accionesCobranza:
+    'M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2c1.1.4 2.3.6 3.6.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.6 3.6a1 1 0 0 1-.2 1L6.6 10.8Z',
+  // Matraz: una simulación es un experimento sobre datos, no el tablero real.
+  simulacionCorrida: 'M9 3h6M10 3v5.5L4.9 17.6A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.7-3.4L14 8.5V3',
+  // Escalones ascendentes: escalar un caso sube de nivel, no es una barra de dashboard.
+  centroEscalamiento: 'M3 21h4v-4h4v-4h4v-4h4V3M18 3h3v3',
+  // Diana: indicadores de cobranza son una meta que se persigue, no un dashboard genérico.
+  indicadoresCobranza: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 12h.01',
+
+  // --- D-97: mismo problema que D-96 pero en Contabilidad — 9 ítems
+  // compartían la balanza de `contabilidad`. "Plan de cuentas contable" la
+  // conserva por ser la base de todo el módulo (equivalente a "Activos" en
+  // Mantenimiento); el resto son íconos nuevos, uno por ítem.
+  // Dos casillas conectadas por una flecha: mapear una cuenta origen a una destino.
+  mapeoContable: 'M3 5h6v6H3zM15 5h6v6h-6zM9 8h6M13 6l2 2-2 2',
+  // Flechas opuestas: un movimiento contable mueve valor entre cuentas.
+  movimientosContables: 'M4 7h13l-3-3M20 17H7l3 3',
+  // Recibo con borde dentado: un comprobante es el papel, no la balanza.
+  comprobantes: 'M6 3h12v17l-2-1-2 1-2-1-2 1-2-1-2 1V3ZM9 8h6M9 12h6',
+  // Libro abierto: los libros oficiales son un registro encuadernado, no la balanza.
+  librosOficiales:
+    'M12 6c-1.5-1.3-3.5-2-6-2H4v14h2c2.5 0 4.5.7 6 2 1.5-1.3 3.5-2 6-2h2V4h-2c-2.5 0-4.5.7-6 2ZM12 6v14',
+  // Línea descendente: deterioro es una pérdida de valor, espejo de flujoProyectado (que sube).
+  deterioroCartera: 'M3 7l6 6 4-4 8 8M15 17h6v-6',
+  // Documento con barras: un estado financiero es un reporte con cifras, no la balanza sola.
+  estadosFinancieros: 'M5 3h14v18H5zM8 17v-4M12 17v-7M16 17v-2',
+  // Candado: cerrar un período contable es bloquearlo, no pesarlo en la balanza.
+  cierresContables: 'M6 11V7a6 6 0 0 1 12 0v4M5 11h14v10H5zM12 15v3',
+  // Documento con signo de porcentaje: la obligación tributaria es un impuesto sobre un valor.
+  obligacionesTributarias:
+    'M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM14 3v5h5M9 16l6-6M9.5 11a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1ZM14.5 16a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Z',
+  // Documento con flecha hacia arriba: rendir cuentas es entregar/someter un informe.
+  rendicionCuentas:
+    'M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM14 3v5h5M12 17v-5M9.5 14.5 12 12l2.5 2.5',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -138,11 +214,15 @@ export const NAV_AYUDA: NavItem = { label: 'Ayuda', to: '/ayuda', icono: NAV_ICO
 
 export const NAV_GRUPOS: NavGrupo[] = [
   {
-    titulo: 'Copropiedad',
+    // Contenido y vida social de la copropiedad — lo que un residente consulta
+    // día a día. Separado de "Copropiedad" (catálogos maestros) porque son
+    // audiencias/frecuencias de uso distintas, no la misma cosa repartida al
+    // azar. Reservas y Visitantes/acceso vienen de Mantenimiento: de cara al
+    // usuario son trámites de convivencia, no mantenimiento de activos.
+    titulo: 'Comunidad',
     items: [
       { label: 'Anuncios', to: '/anuncios', permiso: 'data:read', icono: NAV_ICONOS.anuncios },
       { label: 'Directorio', to: '/directorio', permiso: 'data:read', icono: NAV_ICONOS.directorio },
-      { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
       {
         label: 'Marketplace',
         to: '/marketplace',
@@ -150,24 +230,33 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.marketplace,
       },
       { label: 'Movilidad', to: '/movilidad', permiso: 'data:read', icono: NAV_ICONOS.movilidad },
+      {
+        label: 'Reservas de zonas comunes',
+        to: '/mantenimiento/reservas',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.periodosVigencia,
+      },
+      {
+        label: 'Visitantes y acceso',
+        to: '/mantenimiento/acceso',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.terceros,
+      },
+    ],
+  },
+  {
+    // Catálogos maestros de la propiedad física — se configuran una vez y se
+    // consultan seguido, a diferencia de "Configuración" (ajustes de todo el
+    // sistema) o de "Comunidad" (contenido social).
+    titulo: 'Copropiedad',
+    items: [
+      { label: 'Inmuebles', to: '/inmuebles', permiso: 'data:read', icono: NAV_ICONOS.inmuebles },
       { label: 'Terceros', to: '/terceros', permiso: 'data:read', icono: NAV_ICONOS.terceros },
       {
-        label: 'Zonas comunes',
-        to: '/configuracion/zonas-comunes',
+        label: 'Configuración',
+        to: '/configuracion',
         permiso: 'settings:manage',
-        icono: NAV_ICONOS.dependencias,
-      },
-      {
-        label: 'Agrupaciones',
-        to: '/configuracion/agrupaciones',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.dependencias,
-      },
-      {
-        label: 'Coeficientes',
-        to: '/coeficientes',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.coeficientes,
+        icono: NAV_ICONOS.configuracion,
       },
     ],
   },
@@ -205,19 +294,10 @@ export const NAV_GRUPOS: NavGrupo[] = [
     ],
   },
   {
-    titulo: 'Fondos',
-    items: [
-      {
-        label: 'Fondos',
-        to: '/fondos',
-        permiso: 'data:read',
-        modulo: 'financiero',
-        icono: NAV_ICONOS.fondos,
-      },
-    ],
-  },
-  {
-    titulo: 'Facturación',
+    // Facturación (antes su propio grupo) + Recaudo del día a día (antes
+    // mezclado con toda la cartera de mora) — es un mismo ciclo operativo:
+    // generar el cobro y recibirlo. La cartera en mora/jurídica queda aparte.
+    titulo: 'Facturación y Recaudo',
     items: [
       {
         label: 'Conceptos',
@@ -254,11 +334,6 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'estado_cuenta',
         icono: NAV_ICONOS.resumenCuenta,
       },
-    ],
-  },
-  {
-    titulo: 'Recaudo y Cartera',
-    items: [
       {
         label: 'Recaudo',
         to: '/recaudo',
@@ -266,6 +341,21 @@ export const NAV_GRUPOS: NavGrupo[] = [
         modulo: 'estado_cuenta',
         icono: NAV_ICONOS.pagos,
       },
+      {
+        label: 'Transacciones de pasarela',
+        to: '/pagos/transacciones',
+        permiso: 'data:read',
+        modulo: 'estado_cuenta',
+        icono: NAV_ICONOS.pagos,
+      },
+    ],
+  },
+  {
+    // Módulo cartera_cobranza completo: operación de cobranza + lo jurídico.
+    // Antes vivía junto con Recaudo (operación diaria de otro módulo), lo que
+    // hacía este grupo casi el doble de grande sin necesidad.
+    titulo: 'Cartera y Cobranza',
+    items: [
       {
         label: 'Dashboard de Cartera',
         to: '/cartera',
@@ -278,35 +368,28 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/cartera/acciones',
         permiso: 'data:read',
         modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.carteraDashboard,
+        icono: NAV_ICONOS.accionesCobranza,
       },
       {
         label: 'Simulación de corrida',
         to: '/cartera/simulacion',
         permiso: 'data:read',
         modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.carteraDashboard,
+        icono: NAV_ICONOS.simulacionCorrida,
       },
       {
         label: 'Centro de escalamiento',
         to: '/cartera/escalamiento',
         permiso: 'data:read',
         modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.carteraDashboard,
+        icono: NAV_ICONOS.centroEscalamiento,
       },
       {
         label: 'Indicadores de cobranza',
         to: '/cartera/indicadores',
         permiso: 'data:read',
         modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.carteraDashboard,
-      },
-      {
-        label: 'Configuración de cartera',
-        to: '/cartera/configuracion',
-        permiso: 'settings:manage',
-        modulo: 'cartera_cobranza',
-        icono: NAV_ICONOS.configuracion,
+        icono: NAV_ICONOS.indicadoresCobranza,
       },
       {
         label: 'Certificaciones de deuda',
@@ -344,11 +427,11 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.carteraDashboard,
       },
       {
-        label: 'Transacciones de pasarela',
-        to: '/pagos/transacciones',
-        permiso: 'data:read',
-        modulo: 'estado_cuenta',
-        icono: NAV_ICONOS.pagos,
+        label: 'Configuración de cartera',
+        to: '/cartera/configuracion',
+        permiso: 'settings:manage',
+        modulo: 'cartera_cobranza',
+        icono: NAV_ICONOS.configuracion,
       },
     ],
   },
@@ -374,63 +457,63 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/contabilidad/mapeo',
         permiso: 'data:create',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.mapeoContable,
       },
       {
         label: 'Movimientos contables',
         to: '/contabilidad/movimientos',
         permiso: 'data:create',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.movimientosContables,
       },
       {
         label: 'Comprobantes',
         to: '/contabilidad/comprobantes',
         permiso: 'data:create',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.comprobantes,
       },
       {
         label: 'Libros oficiales',
         to: '/contabilidad/libros',
         permiso: 'data:read',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.librosOficiales,
       },
       {
         label: 'Deterioro de cartera',
         to: '/contabilidad/deterioro',
         permiso: 'data:create',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.deterioroCartera,
       },
       {
         label: 'Estados financieros',
         to: '/contabilidad/estados-financieros',
         permiso: 'data:read',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.estadosFinancieros,
       },
       {
         label: 'Cierres contables',
         to: '/contabilidad/cierres',
         permiso: 'data:read',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.cierresContables,
       },
       {
         label: 'Obligaciones tributarias',
         to: '/contabilidad/tributario',
         permiso: 'data:read',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.obligacionesTributarias,
       },
       {
         label: 'Rendición de cuentas',
         to: '/contabilidad/rendicion',
         permiso: 'data:read',
         modulo: 'financiero',
-        icono: NAV_ICONOS.contabilidad,
+        icono: NAV_ICONOS.rendicionCuentas,
       },
     ],
   },
@@ -475,6 +558,24 @@ export const NAV_GRUPOS: NavGrupo[] = [
     ],
   },
   {
+    // Reubicado junto a Finanzas: efectivo restringido es parte de la misma
+    // familia de tesorería, no del ciclo Presupuesto→Facturación.
+    titulo: 'Fondos',
+    items: [
+      {
+        label: 'Fondos',
+        to: '/fondos',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.fondos,
+      },
+    ],
+  },
+  {
+    // Reservas y Visitantes/acceso se fueron a "Comunidad" (D-95) — de cara al
+    // residente son trámites, no mantenimiento de activos. `subgrupo` agrupa
+    // visualmente los 15 ítems restantes SIN fragmentar el menú en 5 grupos:
+    // sigue siendo un solo acordeón (ver NavSidebar.vue).
     titulo: 'Mantenimiento',
     items: [
       {
@@ -482,102 +583,105 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/mantenimiento/activos',
         permiso: 'data:read',
         icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Cumplimiento normativo',
-        to: '/mantenimiento/cumplimiento',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Planes de mantenimiento',
-        to: '/mantenimiento/planes',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Incidencias',
-        to: '/mantenimiento/incidencias',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Órdenes de trabajo',
-        to: '/mantenimiento/ordenes-trabajo',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Inspecciones',
-        to: '/mantenimiento/inspecciones',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Proveedores y contratistas',
-        to: '/mantenimiento/proveedores',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Contratos',
-        to: '/mantenimiento/contratos',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Inventario',
-        to: '/mantenimiento/inventario',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Reservas de zonas comunes',
-        to: '/mantenimiento/reservas',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Visitantes y acceso',
-        to: '/mantenimiento/acceso',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Indicadores',
-        to: '/mantenimiento/indicadores',
-        permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
+        subgrupo: 'Activos y salud',
       },
       {
         label: 'Salud de los activos',
         to: '/mantenimiento/salud',
         permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
+        icono: NAV_ICONOS.saludActivo,
+        subgrupo: 'Activos y salud',
       },
       {
         label: 'Escenarios: reparar o reemplazar',
         to: '/mantenimiento/salud/escenarios',
         permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
+        icono: NAV_ICONOS.escenariosMantenimiento,
+        subgrupo: 'Activos y salud',
       },
       {
         label: 'Mapa de riesgo',
         to: '/mantenimiento/salud/mapa-riesgo',
         permiso: 'data:read',
-        icono: NAV_ICONOS.mantenimiento,
-      },
-      {
-        label: 'Configuración de mantenimiento',
-        to: '/mantenimiento/configuracion',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.configuracion,
+        icono: NAV_ICONOS.mapaRiesgo,
+        subgrupo: 'Activos y salud',
       },
       {
         label: 'Configuración de salud',
         to: '/mantenimiento/salud/configuracion',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.configuracion,
+        subgrupo: 'Activos y salud',
+      },
+      {
+        label: 'Planes de mantenimiento',
+        to: '/mantenimiento/planes',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.planesMantenimiento,
+        subgrupo: 'Operación',
+      },
+      {
+        label: 'Cumplimiento normativo',
+        to: '/mantenimiento/cumplimiento',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.cumplimientoNormativo,
+        subgrupo: 'Operación',
+      },
+      {
+        label: 'Incidencias',
+        to: '/mantenimiento/incidencias',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.incidencias,
+        subgrupo: 'Operación',
+      },
+      {
+        label: 'Órdenes de trabajo',
+        to: '/mantenimiento/ordenes-trabajo',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.ordenesTrabajo,
+        subgrupo: 'Operación',
+      },
+      {
+        label: 'Inspecciones',
+        to: '/mantenimiento/inspecciones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.inspecciones,
+        subgrupo: 'Operación',
+      },
+      {
+        label: 'Proveedores y contratistas',
+        to: '/mantenimiento/proveedores',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.proveedoresContratistas,
+        subgrupo: 'Proveedores y recursos',
+      },
+      {
+        label: 'Contratos',
+        to: '/mantenimiento/contratos',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.contratos,
+        subgrupo: 'Proveedores y recursos',
+      },
+      {
+        label: 'Inventario',
+        to: '/mantenimiento/inventario',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.inventario,
+        subgrupo: 'Proveedores y recursos',
+      },
+      {
+        label: 'Indicadores',
+        to: '/mantenimiento/indicadores',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.indicadoresMantenimiento,
+        subgrupo: 'Indicadores y configuración',
+      },
+      {
+        label: 'Configuración de mantenimiento',
+        to: '/mantenimiento/configuracion',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.configuracion,
+        subgrupo: 'Indicadores y configuración',
       },
     ],
   },
@@ -635,14 +739,38 @@ export const NAV_GRUPOS: NavGrupo[] = [
     ],
   },
   {
-    titulo: 'Configuración',
+    // Consolida lo que antes estaba partido entre "Configuración" (las dos
+    // plantillas) y "Seguridad" (el histórico) sin relación visible — es un
+    // mismo tema: comunicación saliente de la copropiedad.
+    titulo: 'Comunicaciones',
     items: [
       {
-        label: 'Datos de la copropiedad',
-        to: '/configuracion',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.configuracion,
+        label: 'Comunicaciones',
+        to: '/comunicaciones',
+        permiso: 'audit:view',
+        icono: NAV_ICONOS.comunicaciones,
       },
+      {
+        label: 'Plantillas de correo',
+        to: '/configuracion/plantillas-email',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.plantillasEmail,
+      },
+      {
+        label: 'Plantillas SMS',
+        to: '/configuracion/plantillas-sms',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.plantillasSms,
+      },
+    ],
+  },
+  {
+    // "Datos de la copropiedad" se fue a Copropiedad como "Configuración".
+    // Lo que queda aquí es configuración transversal a todo el tenant, no de
+    // un módulo puntual (esos viven al final de su propio grupo: Configuración
+    // de cartera, de mantenimiento, de salud, contable).
+    titulo: 'Configuración',
+    items: [
       {
         label: 'Políticas financieras',
         to: '/politicas',
@@ -668,22 +796,28 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.pagos,
       },
       {
-        label: 'Plantillas de correo',
-        to: '/configuracion/plantillas-email',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.plantillasEmail,
-      },
-      {
-        label: 'Plantillas SMS',
-        to: '/configuracion/plantillas-sms',
-        permiso: 'settings:manage',
-        icono: NAV_ICONOS.plantillasSms,
-      },
-      {
         label: 'Pasarela de pago',
         to: '/configuracion/pasarela',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.pagos,
+      },
+      {
+        label: 'Zonas comunes',
+        to: '/configuracion/zonas-comunes',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Agrupaciones',
+        to: '/configuracion/agrupaciones',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Coeficientes',
+        to: '/coeficientes',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.coeficientes,
       },
     ],
   },
@@ -698,12 +832,6 @@ export const NAV_GRUPOS: NavGrupo[] = [
       },
       { label: 'Usuarios', to: '/usuarios', permiso: 'users:manage', icono: NAV_ICONOS.usuarios },
       { label: 'Auditoría', to: '/auditoria', permiso: 'audit:view', icono: NAV_ICONOS.auditoria },
-      {
-        label: 'Comunicaciones',
-        to: '/comunicaciones',
-        permiso: 'audit:view',
-        icono: NAV_ICONOS.comunicaciones,
-      },
     ],
   },
 ]

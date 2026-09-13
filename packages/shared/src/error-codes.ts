@@ -924,6 +924,10 @@ export const ERROR_CODES = {
   // guard_gobierno_organo: segundo asamblea_general/consejo_administracion/comite_convivencia/
   // revisoria_fiscal vigente a la vez para el mismo tenant.
   ORGANO_DUPLICADO_VIGENTE: 'ORGANO_DUPLICADO_VIGENTE',
+  // fn_gobierno_organo_terminar (D-85, 20260934010000): el organo_id/tenant_id no resuelve
+  // ninguna fila — cierra miembros/atribuciones vigentes en cascada, así que exige el órgano
+  // real antes de tocar nada.
+  ORGANO_INEXISTENTE: 'ORGANO_INEXISTENTE',
   // guard_gobierno_atribucion: atribucion_id no pertenece a la familia ATRIBUCION_ORGANO.
   ATRIBUCION_TIPO_INVALIDO: 'ATRIBUCION_TIPO_INVALIDO',
   // guard_gobierno_atribucion: organo_id no pertenece al tenant de la atribución.
