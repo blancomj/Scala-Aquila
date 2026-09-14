@@ -39,6 +39,14 @@ export default defineConfig({
     // Los tests RLS golpean un proyecto Supabase remoto (D-08): en serie,
     // para que dos runs paralelos no se pisen los fixtures.
     fileParallelism: false,
+    // Defaults de Vitest (5s test / 10s hook) alcanzan contra Docker local, pero no contra un
+    // proyecto remoto real bajo latencia normal — confirmado 2026-09-14 (D-123) corriendo "verify
+    // remoto": timeouts intermitentes en tests sin ninguna falla de negocio real (incluido un
+    // "Gateway Timeout" del propio gateway de Supabase en un SELECT trivial). 20s da margen sin
+    // ocultar un cuelgue real — los tests que de verdad necesitan más (crons, Edge Functions con
+    // varios pasos) ya declaran su propio timeout explícito, que sigue mandando sobre este default.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     // tests/e2e/**: specs de Playwright, no de Vitest — tienen su propio
     // test runner (pnpm test:e2e) y su propio config (playwright.config.ts).
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],

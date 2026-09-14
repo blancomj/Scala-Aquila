@@ -21,41 +21,61 @@ const cuentaStore = useCuentaCorrienteStore()
 const agrupacionesStore = useAgrupacionesStore()
 const coeficientesStore = useCoeficientesStore()
 
-const { data: tipos } = await useAsyncData('inmuebles-tipos', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return cargarListaTipos(tenantId, 'TIPO_INMUEBLE')
-})
+// `watch: [...]` en las llamadas gateadas por activeTenant?.id: en la carga
+// en frío, activeTenant puede no estar resuelto en el instante exacto de
+// este setup — la opción reintenta sola en cuanto el id esté disponible
+// (mismo espíritu que configuracion/ia.vue).
+const { data: tipos } = await useAsyncData(
+  'inmuebles-tipos',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return cargarListaTipos(tenantId, 'TIPO_INMUEBLE')
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 /** Uso del predio (USO_PREDIO) y estado físico/habitabilidad
  * (HABITABILIDAD_PREDIO) — mismos catálogos que ya usa la ficha
  * (InmuebleDatosBase.vue) para `uso_predio_id`/`habitabilidad_id`, ambos
  * columnas reales de `inmuebles`. Aquí solo sirven para filtrar el listado. */
-const { data: usosPredio } = await useAsyncData('inmuebles-usos-predio', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return cargarListaTipos(tenantId, 'USO_PREDIO')
-})
-const { data: habitabilidades } = await useAsyncData('inmuebles-habitabilidad', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO')
-})
+const { data: usosPredio } = await useAsyncData(
+  'inmuebles-usos-predio',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return cargarListaTipos(tenantId, 'USO_PREDIO')
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+const { data: habitabilidades } = await useAsyncData(
+  'inmuebles-habitabilidad',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO')
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
-await useAsyncData('inmuebles-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    cuentaStore.cargarInmuebles(tenantId),
-    cuentaStore.cargarPropietarios(tenantId),
-    cuentaStore.cargarCargosAbiertos(tenantId),
-    agrupacionesStore.cargarTiposAgrupacion(tenantId),
-    agrupacionesStore.cargarAgrupaciones(tenantId),
-    coeficientesStore.cargarCoeficienteSets(tenantId),
-  ])
-  await coeficientesStore.cargarValoresVigentes(tenantId)
-  return null
-})
+await useAsyncData(
+  'inmuebles-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      cuentaStore.cargarInmuebles(tenantId),
+      cuentaStore.cargarPropietarios(tenantId),
+      cuentaStore.cargarCargosAbiertos(tenantId),
+      agrupacionesStore.cargarTiposAgrupacion(tenantId),
+      agrupacionesStore.cargarAgrupaciones(tenantId),
+      coeficientesStore.cargarCoeficienteSets(tenantId),
+    ])
+    await coeficientesStore.cargarValoresVigentes(tenantId)
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 function nombreTipo(tipoId: number): string {
   return tipos.value?.find((t) => t.id === tipoId)?.nombre ?? '—'

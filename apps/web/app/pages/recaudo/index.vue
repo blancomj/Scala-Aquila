@@ -112,6 +112,11 @@ await useAsyncData('recaudo-base', async () => {
   return null
 })
 
+// activeTenant puede no estar resuelto en el instante exacto en que corre
+// `recaudo-base` en la carga en frío — este watch reintenta solo en cuanto
+// el id esté disponible, mismo patrón que cartera/acciones.vue.
+watch(() => tenantStore.activeTenant?.id, cargar)
+
 // Solo pagos reales (no reversas) cuentan en los totales — una reversa ya
 // está representada restando implícitamente cuando se lee "recaudo neto",
 // pero mostrarla como fila separada en la tabla es lo honesto (ver abajo).

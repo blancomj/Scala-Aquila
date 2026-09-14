@@ -1,6 +1,13 @@
 export type { Database, Json } from './database.generated.js'
 export { crearClienteAquila, type AquilaClient } from './client.js'
 export { ERROR_CODES, type ErrorCode } from './error-codes.js'
+export { mapearFilaSituacion, type FilaSituacion, type Situacion } from './situacion.js'
+export type { TipoCerteza, Evidencia, Afirmacion, Explicacion } from './explicacion.js'
+export {
+  explicarAlertaLiquidez,
+  type TipoAlertaLiquidez,
+  type AlertaLiquidezEmitida,
+} from './explicacion.js'
 export {
   SMS_FIELD_REGISTRY,
   SMS_ACTIVE_EVENT_TYPES,

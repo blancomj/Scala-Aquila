@@ -1518,6 +1518,114 @@ d('Dominio Fondos — soporte documental diferenciado (GAP-22, D-42, Modelo §36
       expect(m.documento_id).toBeNull()
     }
   })
+
+  /** FND-PR-09 (20260935080000): extracto_linea_id como soporte alternativo a documento_id —
+   * solo para aporte/rendimiento, el resto de tipos no lo acepta (Modelo §22/§46, el fondo no
+   * tiene motor de conciliación propio, solo consume el existente). */
+  describe('FND-PR-09: extracto_linea_id como soporte alternativo (aporte/rendimiento)', () => {
+    let lineaAId: string
+    let lineaBId: string
+
+    beforeAll(async () => {
+      const entidadFinanciera = await idCatalogo(admin, 'ENTIDAD_FINANCIERA', 'bancolombia')
+      const { data: cuentaBancaria, error: errCuenta } = await admin
+        .from('cuentas_bancarias')
+        .insert({
+          tenant_id: tenant.id,
+          entidad_financiera_id: entidadFinanciera,
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: `FND-PR-09-${String(Date.now())}`,
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (errCuenta) throw new Error(`fixture cuenta_bancaria: ${errCuenta.message}`)
+
+      const { data: extracto, error: errExtracto } = await admin
+        .from('extracto_bancario')
+        .insert({
+          tenant_id: tenant.id,
+          cuenta_bancaria_id: cuentaBancaria.id,
+          origen: 'banco',
+          nombre_archivo: 'extracto-fnd-pr-09.csv',
+          hash_archivo: `hash-fnd-pr-09-${String(Date.now())}`,
+          lineas_totales: 2,
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (errExtracto) throw new Error(`fixture extracto_bancario: ${errExtracto.message}`)
+
+      const { data: lineas, error: errLineas } = await admin
+        .from('extracto_linea')
+        .insert([
+          {
+            extracto_id: extracto.id,
+            tenant_id: tenant.id,
+            fecha_movimiento: '2027-05-01',
+            monto: 250_000,
+            descripcion_banco: 'TRANSFERENCIA EXTRAORDINARIA FND-PR-09',
+            hash_linea: `hashlinea-fnd-pr-09-a-${String(Date.now())}`,
+          },
+          {
+            extracto_id: extracto.id,
+            tenant_id: tenant.id,
+            fecha_movimiento: '2027-05-02',
+            monto: 5_000,
+            descripcion_banco: 'RENDIMIENTOS FINANCIEROS FND-PR-09',
+            hash_linea: `hashlinea-fnd-pr-09-b-${String(Date.now())}`,
+          },
+        ])
+        .select('id')
+      if (errLineas) throw new Error(`fixture extracto_linea: ${errLineas.message}`)
+      lineaAId = lineas[0]!.id
+      lineaBId = lineas[1]!.id
+    }, 60_000)
+
+    it('un aporte sin documento_id pasa con extracto_linea_id', async () => {
+      const { error } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: 'aporte',
+        monto: 250_000,
+        extracto_linea_id: lineaAId,
+      })
+      expect(error).toBeNull()
+    })
+
+    it('un rendimiento sin documento_id pasa con extracto_linea_id', async () => {
+      const { error } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: 'rendimiento',
+        monto: 5_000,
+        extracto_linea_id: lineaBId,
+      })
+      expect(error).toBeNull()
+    })
+
+    it('un ajuste no acepta extracto_linea_id como soporte — sigue exigiendo documento_id', async () => {
+      const { error } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: 'ajuste',
+        monto: -1,
+        motivo: 'ajuste de prueba FND-PR-09',
+        extracto_linea_id: lineaAId,
+      })
+      expect(error?.message).toMatch(/FONDO_SOPORTE_REQUERIDO/)
+    })
+
+    it('fondo_movimientos_extracto_linea_unica: la misma línea no respalda dos movimientos', async () => {
+      const { error } = await admin.from('fondo_movimientos').insert({
+        tenant_id: tenant.id,
+        fondo_id: fondo.id,
+        tipo: 'rendimiento',
+        monto: 1_000,
+        extracto_linea_id: lineaAId,
+      })
+      expect(error?.message).toMatch(/duplicate key value violates unique constraint/)
+      expect(error?.message).toMatch(/fondo_movimientos_extracto_linea_unica/)
+    })
+  })
 })
 
 d('Dominio Fondos — estado terminal bloquea autorizaciones y fuentes nuevas (GAP-22, D-43)', () => {

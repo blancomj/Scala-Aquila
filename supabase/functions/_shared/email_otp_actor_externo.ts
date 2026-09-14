@@ -16,28 +16,36 @@ export async function enviarEmailOtpActorExterno(params: {
     return { ok: false, error: 'Brevo no está configurado (faltan variables de entorno).' }
   }
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      sender: { email: senderEmail, name: senderName },
-      to: [{ email: params.email }],
-      subject: 'Tu código de verificación de Aquila PH',
-      htmlContent: `
-        <p>Tu código de verificación es:</p>
-        <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${params.codigo}</p>
-        <p>Vence en ${EXPIRACION_MINUTOS} minutos. Si no solicitaste este código, ignora este correo.</p>
-      `,
-    }),
-  })
+  // Un fetch que revienta por red/DNS/TLS no es un HTTP no-ok — sin este try/catch tumbaría la
+  // función con un 500 crudo en vez de degradar a ok:false (mismo criterio que
+  // email_cobranza_provider.ts/sms_provider.ts/email_invitation.ts).
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { email: senderEmail, name: senderName },
+        to: [{ email: params.email }],
+        subject: 'Tu código de verificación de Aquila PH',
+        htmlContent: `
+          <p>Tu código de verificación es:</p>
+          <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${params.codigo}</p>
+          <p>Vence en ${EXPIRACION_MINUTOS} minutos. Si no solicitaste este código, ignora este correo.</p>
+        `,
+      }),
+    })
 
-  if (!res.ok) {
-    const cuerpo = await res.text()
-    return { ok: false, error: `Brevo respondió ${res.status}: ${cuerpo}` }
+    if (!res.ok) {
+      const cuerpo = await res.text()
+      return { ok: false, error: `Brevo respondió ${res.status}: ${cuerpo}` }
+    }
+    return { ok: true }
+  } catch (excepcion) {
+    const detalle = excepcion instanceof Error ? excepcion.message : String(excepcion)
+    return { ok: false, error: `No se pudo contactar a Brevo: ${detalle}` }
   }
-  return { ok: true }
 }

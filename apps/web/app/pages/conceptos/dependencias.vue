@@ -11,11 +11,18 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const conceptoStore = useConceptoStore()
 
-await useAsyncData('conceptos-dependencias', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return conceptoStore.cargarConceptos(tenantId)
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'conceptos-dependencias',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return conceptoStore.cargarConceptos(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const grafo = computed(() => calcularGrafo(conceptoStore.conceptos))
 const impacto = computed(() => calcularImpacto(conceptoStore.conceptos))

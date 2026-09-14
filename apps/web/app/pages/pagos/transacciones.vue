@@ -9,12 +9,19 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const pasarelasStore = usePasarelasStore()
 
-await useAsyncData('pasarela-transacciones', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  await pasarelasStore.cargarIntenciones(tenantId)
-  return pasarelasStore.intenciones
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'pasarela-transacciones',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    await pasarelasStore.cargarIntenciones(tenantId)
+    return pasarelasStore.intenciones
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const ETIQUETA_ESTADO: Record<string, { texto: string; color: 'neutral' | 'info' | 'success' | 'error' | 'warning' }> = {
   creada: { texto: 'Creada', color: 'neutral' },

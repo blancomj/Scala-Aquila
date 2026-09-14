@@ -58,6 +58,28 @@ function fechaDesdeRecaudo(fechaCorteISO: string): string {
   return base.toISOString().slice(0, 10)
 }
 
+/**
+ * Corte de comparación para "¿qué cambió?": mismo día del mes anterior.
+ * Explícito y visible en la UI — el usuario debe saber contra qué se está
+ * comparando, no deducirlo (AD-32: nunca una fecha implícita).
+ *
+ * `setUTCMonth(-1)` sobre un día 31 cae al mes siguiente (31 de marzo →
+ * 3 de marzo si febrero tiene 28). Se corrige al último día real del mes
+ * anterior, que es la comparación que un administrador espera.
+ */
+function corteMesAnterior(fechaCorteISO: string): string {
+  const corte = new Date(`${fechaCorteISO}T00:00:00Z`)
+  const dia = corte.getUTCDate()
+  const anterior = new Date(Date.UTC(corte.getUTCFullYear(), corte.getUTCMonth() - 1, 1))
+  const ultimoDiaMesAnterior = new Date(
+    Date.UTC(anterior.getUTCFullYear(), anterior.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  anterior.setUTCDate(Math.min(dia, ultimoDiaMesAnterior))
+  return anterior.toISOString().slice(0, 10)
+}
+
+const fechaCorteAnterior = computed(() => corteMesAnterior(fechaCorte.value))
+
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return
@@ -69,6 +91,7 @@ async function cargar(): Promise<void> {
       carteraStore.cargarAlertas(tenantId, fechaCorte.value),
       carteraStore.cargarRecaudo(tenantId, fechaDesdeRecaudo(fechaCorte.value), fechaCorte.value),
       carteraStore.cargarActividadReciente(tenantId),
+      carteraStore.cargarVariacion(tenantId, fechaCorteAnterior.value, fechaCorte.value),
     ])
   } catch (e) {
     errorCarga.value = e instanceof Error ? e.message : 'No se pudo cargar el dashboard de cartera.'
@@ -81,6 +104,10 @@ await useAsyncData('cartera-dashboard-inicial', async () => {
 })
 
 watch(fechaCorte, cargar)
+// activeTenant puede no estar resuelto en el instante exacto en que corre
+// `cartera-dashboard-inicial` en la carga en frío — este watch reintenta
+// solo en cuanto el id esté disponible, mismo patrón que cartera/acciones.vue.
+watch(() => tenantStore.activeTenant?.id, cargar)
 
 
 function formatoPct(valor: number): string {
@@ -138,6 +165,79 @@ const bucketsAntiguedad = computed(() => {
     monto: b.codigos.reduce((acc, c) => acc + Number(porCodigo.get(c)?.monto ?? 0), 0),
     cantidad: b.codigos.reduce((acc, c) => acc + (porCodigo.get(c)?.cantidadInmuebles ?? 0), 0),
   }))
+})
+
+// ── "¿Qué cambió?" (ENFOQUE_CONSOLIDACION, paso 0) ─────────────────────
+// Todo lo que se muestra aquí viene de cartera-variacion; esta página no
+// calcula ninguna cifra monetaria propia. Las frases son plantillas con
+// valores del dominio — no hay texto generado (DI-03).
+
+const variacion = computed(() => carteraStore.variacion)
+const conceptos = computed(() => carteraStore.variacion?.conceptos ?? null)
+
+/** Signo del cambio para elegir color y verbo. 0 = sin cambio relevante. */
+function signo(valor: string | undefined): -1 | 0 | 1 {
+  if (valor === undefined) return 0
+  const n = Number(valor)
+  return n > 0 ? 1 : n < 0 ? -1 : 0
+}
+
+const signoVencida = computed(() => signo(conceptos.value?.vencida.delta))
+
+/**
+ * En cartera, subir es malo: el color sigue la semántica del negocio, no
+ * la del número. Un delta negativo (la cartera bajó) es buena noticia.
+ */
+const colorVencida = computed(() =>
+  signoVencida.value > 0 ? 'text-error-600 dark:text-error-400'
+  : signoVencida.value < 0 ? 'text-success-600 dark:text-success-400'
+  : 'text-neutral-500',
+)
+
+const tituloVariacion = computed(() => {
+  const v = conceptos.value?.vencida
+  if (!v) return 'Sin datos para comparar'
+  const monto = formatoMoneda(v.delta.replace('-', ''))
+  if (signoVencida.value > 0) return `La cartera vencida aumentó ${monto}`
+  if (signoVencida.value < 0) return `La cartera vencida se redujo ${monto}`
+  return 'La cartera vencida no cambió'
+})
+
+/** Valor absoluto para mostrar: el signo ya lo comunica el verbo y el color. */
+function montoAbsoluto(valor: string | undefined): string {
+  return valor === undefined ? '—' : formatoMoneda(valor.replace('-', ''))
+}
+
+/** null = sin base de comparación. Nunca "0%" (REC-CAR-004). */
+function pctCambioTexto(pct: number | null | undefined): string {
+  if (pct === null || pct === undefined) return 'sin base de comparación'
+  const signoTexto = pct > 0 ? '+' : ''
+  return `${signoTexto}${pct.toFixed(1)}%`
+}
+
+const LABEL_CLASE: Record<string, string> = {
+  nuevo: 'Entró en mora',
+  empeoro: 'Aumentó',
+  mejoro: 'Se redujo',
+  resuelto: 'Se puso al día',
+  sin_cambio: 'Sin cambio',
+}
+
+/** Desglose por concepto, en el orden en que un administrador lo lee. */
+const desgloseVariacion = computed(() => {
+  const c = conceptos.value
+  if (!c) return []
+  return [
+    { label: 'Deuda vencida', delta: c.vencida.delta, pct: c.vencida.pctCambio, destacado: true },
+    { label: 'Deuda corriente', delta: c.corriente.delta, pct: c.corriente.pctCambio, destacado: false },
+    { label: 'Interés causado', delta: c.interesCausado.delta, pct: c.interesCausado.pctCambio, destacado: false },
+    {
+      label: 'Sin fecha de vencimiento',
+      delta: c.sinVencimiento.delta,
+      pct: c.sinVencimiento.pctCambio,
+      destacado: false,
+    },
+  ]
 })
 
 const indicadoresClave = computed(() => [
@@ -391,6 +491,133 @@ const alertas = computed(() => {
           </span>
         </div>
       </div>
+
+      <!-- ¿Qué cambió? — ENFOQUE_CONSOLIDACION paso 0 -->
+      <section v-if="variacion" class="rounded-md border border-neutral-200 p-5 dark:border-neutral-800">
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 class="text-sm font-semibold">¿Qué cambió?</h2>
+          <p class="font-mono text-xs text-neutral-500">
+            {{ variacion.fechaCorteAnterior }} → {{ variacion.fechaCorteActual }}
+          </p>
+        </div>
+
+        <p v-if="!variacion.comparable" class="text-sm text-neutral-500">
+          No hay información de cartera en ninguno de los dos cortes, así que no hay nada que comparar.
+        </p>
+
+        <template v-else-if="conceptos">
+          <!-- 1 · Titular -->
+          <p class="text-2xl font-semibold" :class="colorVencida">{{ tituloVariacion }}</p>
+          <p class="mt-1 text-sm text-neutral-500">
+            {{ pctCambioTexto(conceptos.vencida.pctCambio) }} ·
+            de {{ formatoMoneda(conceptos.vencida.anterior) }} a {{ formatoMoneda(conceptos.vencida.actual) }}
+          </p>
+
+          <!-- 2 · Composición -->
+          <dl class="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+            <div v-for="d in desgloseVariacion" :key="d.label">
+              <dt class="text-xs text-neutral-500">{{ d.label }}</dt>
+              <dd class="text-sm font-semibold" :class="d.destacado ? colorVencida : ''">
+                {{ signo(d.delta) > 0 ? '+' : signo(d.delta) < 0 ? '−' : '' }}{{ montoAbsoluto(d.delta) }}
+              </dd>
+              <dd class="text-xs text-neutral-400">{{ pctCambioTexto(d.pct) }}</dd>
+            </div>
+          </dl>
+
+          <!-- Movimiento bruto: el neto esconde lo que realmente pasó -->
+          <p v-if="variacion.conteos" class="mt-4 text-sm text-neutral-500">
+            Subieron {{ formatoMoneda(variacion.incrementoBruto ?? '0') }} en
+            {{ variacion.conteos.empeoraron + variacion.conteos.nuevos }}
+            {{ variacion.conteos.empeoraron + variacion.conteos.nuevos === 1 ? 'inmueble' : 'inmuebles' }};
+            bajaron {{ formatoMoneda(variacion.reduccionBruta ?? '0') }} en
+            {{ variacion.conteos.mejoraron + variacion.conteos.resueltos }}.
+            <span v-if="variacion.conteos.resueltos > 0">
+              {{ variacion.conteos.resueltos }}
+              {{ variacion.conteos.resueltos === 1 ? 'se puso' : 'se pusieron' }} al día.
+            </span>
+          </p>
+
+          <!-- 3 · Concentración -->
+          <p
+            v-if="variacion.concentracion && variacion.concentracion.inmuebles > 0"
+            class="mt-2 text-sm text-neutral-500"
+          >
+            {{ variacion.concentracion.inmuebles }}
+            {{ variacion.concentracion.inmuebles === 1 ? 'inmueble concentra' : 'inmuebles concentran' }}
+            {{ variacion.concentracion.pctDelIncremento?.toFixed(0) }}% del aumento
+            ({{ formatoMoneda(variacion.concentracion.monto) }}).
+          </p>
+
+          <!-- Quiénes -->
+          <div v-if="variacion.contribuyentes?.length" class="mt-4 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-neutral-200 text-left text-xs text-neutral-500 dark:border-neutral-800">
+                  <th class="py-2 pr-4 font-medium">Inmueble</th>
+                  <th class="py-2 pr-4 font-medium">Antes</th>
+                  <th class="py-2 pr-4 font-medium">Ahora</th>
+                  <th class="py-2 pr-4 text-right font-medium">Cambio</th>
+                  <th class="py-2 pr-4 font-medium">Mora</th>
+                  <th class="py-2 font-medium">Situación</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="c in variacion.contribuyentes"
+                  :key="c.inmuebleId"
+                  class="border-b border-neutral-100 dark:border-neutral-900"
+                >
+                  <td class="py-2 pr-4">
+                    <NuxtLink :to="`/inmuebles/${c.inmuebleId}`" class="font-medium hover:underline">
+                      {{ c.codigo }}
+                    </NuxtLink>
+                  </td>
+                  <td class="py-2 pr-4 tabular-nums text-neutral-500">{{ formatoMoneda(c.vencidaAnterior) }}</td>
+                  <td class="py-2 pr-4 tabular-nums">{{ formatoMoneda(c.vencidaActual) }}</td>
+                  <td class="py-2 pr-4 text-right tabular-nums font-semibold text-error-600 dark:text-error-400">
+                    +{{ montoAbsoluto(c.delta) }}
+                  </td>
+                  <td class="py-2 pr-4 tabular-nums text-neutral-500">{{ c.diasMoraMaximo }} d</td>
+                  <td class="py-2 text-neutral-500">{{ LABEL_CLASE[c.clase] ?? c.clase }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 4 · Qué lo explica · 6 · Qué no se puede explicar -->
+          <div v-if="variacion.atribucion" class="mt-5 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <p class="text-sm text-neutral-600 dark:text-neutral-400">
+              <template v-if="variacion.atribucion.explicado.inmuebles > 0">
+                {{ formatoMoneda(variacion.atribucion.explicado.monto) }} del aumento ocurrió en inmuebles con
+                movimientos registrados en el período.
+              </template>
+              <template v-else>No hay movimientos registrados que acompañen el aumento.</template>
+            </p>
+
+            <ul v-if="variacion.atribucion.porTipo.length" class="mt-2 space-y-1 text-sm text-neutral-500">
+              <li v-for="g in variacion.atribucion.porTipo" :key="g.tipo" class="flex justify-between gap-4">
+                <span>{{ g.tipo.replaceAll('_', ' ').toLowerCase() }}</span>
+                <span class="tabular-nums">
+                  {{ g.cantidadEventos }} {{ g.cantidadEventos === 1 ? 'evento' : 'eventos' }} ·
+                  {{ g.cantidadInmuebles }} {{ g.cantidadInmuebles === 1 ? 'inmueble' : 'inmuebles' }}
+                </span>
+              </li>
+            </ul>
+
+            <!-- El residuo se muestra, no se reparte -->
+            <p
+              v-if="variacion.atribucion.sinExplicar.inmuebles > 0"
+              class="mt-3 rounded-md bg-warning-50 px-3 py-2 text-sm text-warning-800 dark:bg-warning-950 dark:text-warning-200"
+            >
+              {{ formatoMoneda(variacion.atribucion.sinExplicar.monto) }} del aumento está en
+              {{ variacion.atribucion.sinExplicar.inmuebles }}
+              {{ variacion.atribucion.sinExplicar.inmuebles === 1 ? 'inmueble' : 'inmuebles' }}
+              sin ningún movimiento registrado en el período. No se puede explicar con la información disponible.
+            </p>
+
+          </div>
+        </template>
+      </section>
 
       <!-- Antigüedad + indicadores -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">

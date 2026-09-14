@@ -171,12 +171,14 @@ d('CO-3: materialización — de la proyección al asiento persistido', () => {
 
     const { data: hojas, error } = await admin
       .from('presupuesto_cuenta')
-      .select('id')
+      .select('id, contable_cuenta:contable_cuenta_id!inner(requiere_fondo)')
       .eq('tenant_id', tenantId)
       .eq('naturaleza', 'ingreso')
       .eq('es_hoja', true)
       .eq('activa', true)
       .not('contable_cuenta_id', 'is', null)
+      .eq('contable_cuenta.requiere_fondo', false)
+      .order('id')
       .limit(20)
     if (error) throw new Error(`fixture hojas ingreso: ${error.message}`)
     const libre = hojas.find((h) => !idsUsados.has(h.id))

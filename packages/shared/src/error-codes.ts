@@ -478,6 +478,12 @@ export const ERROR_CODES = {
   CONCILIACION_LINEA_YA_RESUELTA: 'CONCILIACION_LINEA_YA_RESUELTA',
   CONCILIACION_DESCARTE_SIN_MOTIVO: 'CONCILIACION_DESCARTE_SIN_MOTIVO',
 
+  // ── Proveedor de IA por copropiedad (20260935000000, fase de estructura) ─
+  IA_NO_CONFIGURADA: 'IA_NO_CONFIGURADA',
+  IA_CREDENCIAL_INVALIDA: 'IA_CREDENCIAL_INVALIDA',
+  IA_CREDENCIAL_FALTANTE: 'IA_CREDENCIAL_FALTANTE',
+  IA_NO_VERIFICADA: 'IA_NO_VERIFICADA',
+
   // ── Cartera: cron diario, webhook de acuses, siembra de configuración
   //    (CAR §18/§34, bloques 1-2 y 4) ────────────────────────────────────
   CARTERA_CONFIGURACION_YA_EXISTE: 'CARTERA_CONFIGURACION_YA_EXISTE',
@@ -539,6 +545,9 @@ export const ERROR_CODES = {
   ACTIVO_RETIRADO_NO_DEPRECIA: 'ACTIVO_RETIRADO_NO_DEPRECIA',
   ACTIVO_MOTIVO_REQUERIDO: 'ACTIVO_MOTIVO_REQUERIDO',
   ACTIVO_INVALIDO: 'ACTIVO_INVALIDO',
+  // subir-documento/index.ts: p_activo_id apunta a un activo inexistente o de otro tenant
+  // (documentos.activo_id, D-92).
+  ACTIVO_NO_ENCONTRADO: 'ACTIVO_NO_ENCONTRADO',
 
   // ── CO-7: deterioro de cartera (20260930400000-20260930410000) ─────────
   DETERIORO_TRAMOS_INCOMPLETOS: 'DETERIORO_TRAMOS_INCOMPLETOS',
@@ -907,6 +916,31 @@ export const ERROR_CODES = {
   LOTE_APROBACION_ORGANO_INCOMPETENTE: 'LOTE_APROBACION_ORGANO_INCOMPETENTE',
   // fn_finanzas_aprobar_lote/ejecutar_lote/anular_lote/conciliar_lote: el lote no existe.
   LOTE_INEXISTENTE: 'LOTE_INEXISTENTE',
+  // guard_fondo_movimiento (BLOQUE H, D-112): lote_pago_id no pertenece al tenant.
+  LOTE_PAGO_INVALIDO: 'LOTE_PAGO_INVALIDO',
+
+  // ── Conciliación bancaria CONTABLE — Fase 3/5 (20260935060000+, D-115/D-117) ──
+  // guard_conciliacion_bancaria_transicion: 'certificada' es terminal (D-CB-3), no se reabre.
+  CONCILIACION_BANCARIA_YA_CERTIFICADA: 'CONCILIACION_BANCARIA_YA_CERTIFICADA',
+  // guard_conciliacion_bancaria_partida_coherencia: conciliacion_id no existe.
+  CONCILIACION_BANCARIA_INEXISTENTE: 'CONCILIACION_BANCARIA_INEXISTENTE',
+  // guard_conciliacion_bancaria_partida_coherencia: la partida y su cabecera son de tenants distintos.
+  CONCILIACION_BANCARIA_TENANT_INCONSISTENTE: 'CONCILIACION_BANCARIA_TENANT_INCONSISTENTE',
+  // guard_conciliacion_bancaria_partida_coherencia: origen banco/libro exige extracto_linea_id
+  // XOR contable_comprobante_detalle_id, nunca los dos ni ninguno.
+  PARTIDA_ORIGEN_INCONSISTENTE: 'PARTIDA_ORIGEN_INCONSISTENTE',
+  // guard_conciliacion_bancaria_partida_coherencia: contable_comprobante_detalle_id no pertenece al tenant.
+  COMPROBANTE_DETALLE_INVALIDO: 'COMPROBANTE_DETALLE_INVALIDO',
+  // guard_conciliacion_bancaria_partida_coherencia: tipo_id no es TIPO_PARTIDA_CONCILIACION visible.
+  TIPO_PARTIDA_INVALIDO: 'TIPO_PARTIDA_INVALIDO',
+  // generar-conciliacion-bancaria: la cuenta bancaria no tiene cuentas_bancarias.contable_cuenta_id
+  // (PC-3) — no es conciliable contablemente sin ese mapeo.
+  CUENTA_BANCARIA_SIN_CUENTA_CONTABLE: 'CUENTA_BANCARIA_SIN_CUENTA_CONTABLE',
+  // generar-conciliacion-bancaria: ya existe una conciliacion_bancaria para esa cuenta y período
+  // (conciliacion_bancaria_una_por_cuenta_periodo).
+  CONCILIACION_BANCARIA_YA_EXISTE: 'CONCILIACION_BANCARIA_YA_EXISTE',
+  // certificar-conciliacion-bancaria: el id no existe o no pertenece al tenant.
+  CONCILIACION_BANCARIA_NO_ENCONTRADA: 'CONCILIACION_BANCARIA_NO_ENCONTRADA',
 
   // ── GOB-0: prerrequisitos bloqueantes (20260931320000+) ──
   // generar-enlace-documento / ver-documento: el documento no existe (o no es accesible).
@@ -1569,6 +1603,12 @@ export const ERROR_CODES = {
   // guard_rate_limit_escritura: techo de escrituras por hora y por persona en tablas que se
   // escriben por PostgREST directo, sin Edge Function que llamara a enforceRateLimit.
   RATE_LIMIT_EXCEDIDO: 'RATE_LIMIT_EXCEDIDO',
+
+  // ── ENFOQUE_CONSOLIDACION, Ola 1 §2.2: cartera empieza a notificar (20260934110000) ──
+  // guard_cartera_alerta_emitida_tipo: tipo_id no pertenece a la familia TIPO_ALERTA_CARTERA.
+  // Mismo patrón que FINANZAS_ALERTA_TIPO_INVALIDO (FIN-4) — se escapó de este registro al
+  // cerrar Ola 1 (D-100/D-101) y lo encontró pnpm verify remoto al cerrarla de verdad.
+  CARTERA_ALERTA_TIPO_INVALIDO: 'CARTERA_ALERTA_TIPO_INVALIDO',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

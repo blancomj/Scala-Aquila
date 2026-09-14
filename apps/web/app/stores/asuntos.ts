@@ -2,46 +2,26 @@
  * Mis asuntos (EXS-7) — la bandeja de trabajo del miembro.
  *
  * Store deliberadamente delgado: toda la lógica está en `fn_mis_asuntos`,
- * que agrega siete ramas server-side. Replicar aquí el criterio de "qué es
+ * que agrega ocho ramas server-side. Replicar aquí el criterio de "qué es
  * un asunto" daría dos fuentes de verdad, y la del cliente sería la que
  * miente en cuanto alguien cambie una regla en la base.
  *
  * No hay acciones de escritura: un asunto no se marca como hecho — se
  * resuelve en su propio dominio y desaparece de la bandeja por sí solo.
+ *
+ * `Asunto` es `Situacion` (ENFOQUE_CONSOLIDACION, Ola 1 §2.1,
+ * `packages/shared/src/situacion.ts`) con su nombre de dominio: fue la
+ * forma que ese contrato formalizó, sin inventar una nueva ni renombrar
+ * sus campos. Alias, no una copia — un solo mapeo, no dos que puedan
+ * divergir en silencio.
  */
 import { defineStore } from 'pinia'
-import type { Database } from '@aquila/shared'
+import type { Database, FilaSituacion, Situacion } from '@aquila/shared'
+import { mapearFilaSituacion } from '@aquila/shared'
 import { mensajeError } from '~/utils/error-message'
 
-export interface Asunto {
-  origenModulo: string
-  origenEntidad: string
-  origenId: string
-  titulo: string
-  resumen: string | null
-  estado: string
-  accion: string
-  enlace: string
-  createdAt: string
-  venceAt: string | null
-  /** Solo la rama de Atención lo trae: es el único dominio del corte que asigna dueño. En las
-   *  demás es null, y eso significa "le toca a quien pueda", no "falta asignarlo". */
-  asignadoA: string | null
-}
-
-interface FilaAsunto {
-  origen_modulo: string
-  origen_entidad: string
-  origen_id: string
-  titulo: string
-  resumen: string | null
-  estado: string
-  accion: string
-  enlace: string
-  created_at: string
-  vence_at: string | null
-  asignado_a: string | null
-}
+export type Asunto = Situacion
+type FilaAsunto = FilaSituacion
 
 export const useAsuntosStore = defineStore('asuntos', () => {
   const asuntos = shallowRef<Asunto[]>([])
@@ -58,19 +38,7 @@ export const useAsuntosStore = defineStore('asuntos', () => {
         p_dias_anticipacion: diasAnticipacion ?? undefined,
       })
       if (err) throw err
-      asuntos.value = ((data ?? []) as unknown as FilaAsunto[]).map((a) => ({
-        origenModulo: a.origen_modulo,
-        origenEntidad: a.origen_entidad,
-        origenId: a.origen_id,
-        titulo: a.titulo,
-        resumen: a.resumen,
-        estado: a.estado,
-        accion: a.accion,
-        enlace: a.enlace,
-        createdAt: a.created_at,
-        venceAt: a.vence_at,
-        asignadoA: a.asignado_a,
-      }))
+      asuntos.value = ((data ?? []) as unknown as FilaAsunto[]).map(mapearFilaSituacion)
     } catch (e) {
       error.value = mensajeError(e, 'No se pudieron cargar los asuntos.')
     } finally {

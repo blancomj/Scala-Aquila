@@ -76,13 +76,20 @@ export default {
     }
     const tenantId = tenantIdRaw
 
-    let cuentaBancariaId: string | null = null
-    if (typeof cuentaBancariaIdRaw === 'string' && cuentaBancariaIdRaw.length > 0) {
-      if (!UUID_RE.test(cuentaBancariaIdRaw)) {
-        return errorResponse(400, 'INVALID_PAYLOAD', 'cuenta_bancaria_id inválido.', undefined, correlationId)
-      }
-      cuentaBancariaId = cuentaBancariaIdRaw
+    // Obligatoria desde D-CB-2 (Fase 3 de conciliación bancaria contable,
+    // 20260935060000): extracto_bancario.cuenta_bancaria_id ya es NOT NULL
+    // en el esquema — un extracto sin cuenta conocida no es conciliable
+    // contablemente por definición, mejor forzarlo aquí que descubrirlo tarde.
+    if (typeof cuentaBancariaIdRaw !== 'string' || !UUID_RE.test(cuentaBancariaIdRaw)) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'cuenta_bancaria_id es obligatorio y debe ser un UUID válido.',
+        undefined,
+        correlationId,
+      )
     }
+    const cuentaBancariaId = cuentaBancariaIdRaw
 
     if (!(archivo instanceof File)) {
       return errorResponse(400, 'INVALID_PAYLOAD', 'Falta el archivo.', undefined, correlationId)

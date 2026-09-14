@@ -143,6 +143,7 @@ d('conciliación bancaria (Edge Functions)', () => {
   let auditor: UsuarioPrueba
   let clienteAgent: Cliente
   let ctx: ContextoTenant
+  let cuentaBancariaId: string
 
   beforeAll(async () => {
     admin = clienteAdmin(env!)
@@ -216,6 +217,28 @@ d('conciliación bancaria (Edge Functions)', () => {
     if (eL) throw new Error(`fixture liquidacion: ${eL.message}`)
 
     ctx = { periodoId: periodo.id, conceptoId: concepto.id, liquidacionId: liq.id }
+
+    // D-CB-2 (Fase 3, 20260935060000): cuenta_bancaria_id ya es obligatoria al importar un
+    // extracto — extracto_bancario.cuenta_bancaria_id pasó a NOT NULL en el esquema.
+    const { data: entidad, error: eEnt } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', 'ENTIDAD_FINANCIERA')
+      .eq('codigo', 'bancolombia')
+      .is('tenant_id', null)
+      .single<{ id: number }>()
+    if (eEnt) throw new Error(`fixture entidad financiera: ${eEnt.message}`)
+
+    const { data: cuenta, error: eCuenta } = await admin
+      .from('cuentas_bancarias')
+      .insert({
+        tenant_id: tenant.id, entidad_financiera_id: entidad.id, tipo_cuenta: 'ahorros',
+        numero_cuenta: `CONC-${String(Date.now())}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (eCuenta) throw new Error(`fixture cuenta_bancaria: ${eCuenta.message}`)
+    cuentaBancariaId = cuenta.id
   }, 90_000)
 
   afterAll(async () => {
@@ -229,6 +252,7 @@ d('conciliación bancaria (Edge Functions)', () => {
     const clienteAuditorLocal = await clienteComo(env!, auditor)
     const form = new FormData()
     form.set('tenant_id', tenant.id)
+    form.set('cuenta_bancaria_id', cuentaBancariaId)
     form.set('archivo', csvBancolombia([{ fecha: fechaCsv(1), descripcion: 'X', valor: 1000 }]))
     const { response } = await clienteAuditorLocal.functions.invoke('importar-extracto-bancario', { body: form })
     expect(response?.status).toBe(403)
@@ -240,6 +264,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const form = new FormData()
     form.set('tenant_id', tenant.id)
+    form.set('cuenta_bancaria_id', cuentaBancariaId)
     form.set(
       'archivo',
       csvBancolombia([{ fecha: fechaCsv(1), descripcion: 'TRANSFERENCIA RESIDENTE', valor: monto }]),
@@ -284,6 +309,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const form1 = new FormData()
     form1.set('tenant_id', tenant.id)
+    form1.set('cuenta_bancaria_id', cuentaBancariaId)
     form1.set('archivo', archivo)
     const primera = await clienteAgent.functions.invoke<RespuestaImportacion>('importar-extracto-bancario', {
       body: form1,
@@ -295,6 +321,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const form2 = new FormData()
     form2.set('tenant_id', tenant.id)
+    form2.set('cuenta_bancaria_id', cuentaBancariaId)
     form2.set('archivo', archivo)
     const segunda = await clienteAgent.functions.invoke<RespuestaImportacion>('importar-extracto-bancario', {
       body: form2,
@@ -317,6 +344,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const formA = new FormData()
     formA.set('tenant_id', tenant.id)
+    formA.set('cuenta_bancaria_id', cuentaBancariaId)
     formA.set('archivo', csvBancolombia([filaComun]))
     const respA = await clienteAgent.functions.invoke<RespuestaImportacion>('importar-extracto-bancario', {
       body: formA,
@@ -325,6 +353,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const formB = new FormData()
     formB.set('tenant_id', tenant.id)
+    formB.set('cuenta_bancaria_id', cuentaBancariaId)
     formB.set('archivo', csvBancolombia([filaComun, filaNueva]))
     const respB = await clienteAgent.functions.invoke<RespuestaImportacion>('importar-extracto-bancario', {
       body: formB,
@@ -397,6 +426,7 @@ d('conciliación bancaria (Edge Functions)', () => {
 
     const form = new FormData()
     form.set('tenant_id', tenant.id)
+    form.set('cuenta_bancaria_id', cuentaBancariaId)
     form.set(
       'archivo',
       csvBancolombia([{ fecha: fechaCsv(5), descripcion: 'TRANSF RODRIGO VALDERRAMA', valor: monto }]),
@@ -429,6 +459,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         origen: 'banco',
         nombre_archivo: 'manual.csv',
         hash_archivo: `manual-${String(Date.now())}`,
@@ -486,6 +517,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         origen: 'banco',
         nombre_archivo: 'sobrepago.csv',
         hash_archivo: `sobrepago-${String(Date.now())}`,
@@ -548,6 +580,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         origen: 'banco',
         nombre_archivo: 'saldofavor.csv',
         hash_archivo: `saldofavor-${String(Date.now())}`,
@@ -597,6 +630,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         origen: 'banco',
         nombre_archivo: 'descarte.csv',
         hash_archivo: `descarte-${String(Date.now())}`,
@@ -641,6 +675,7 @@ d('conciliación bancaria (Edge Functions)', () => {
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         origen: 'banco',
         nombre_archivo: 'doble.csv',
         hash_archivo: `doble-${String(Date.now())}`,

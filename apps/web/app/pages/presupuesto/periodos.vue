@@ -8,11 +8,18 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 
-await useAsyncData('presupuesto-periodos', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return presupuestoStore.cargarPresupuestos(tenantId)
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'presupuesto-periodos',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return presupuestoStore.cargarPresupuestos(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const presupuestoSeleccionadoId = useSeleccionPresupuesto()
 const presupuestoSeleccionado = computed(

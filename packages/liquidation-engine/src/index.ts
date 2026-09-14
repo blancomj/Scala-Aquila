@@ -179,6 +179,28 @@ export {
 export { obtenerFilasDashboardCartera } from './cartera-dashboard-supabase.js'
 
 export {
+  calcularVariacionCartera,
+  explicarVariacionCartera,
+  type FilaVariacionCartera,
+  type DeltaMonetario,
+  type ClaseContribuyente,
+  type ContribuyenteVariacion,
+  type ConcentracionVariacion,
+  type ConteosVariacion,
+  type AtribucionEventos,
+  type VariacionCartera,
+  type TipoCertezaLocal,
+  type EvidenciaLocal,
+  type AfirmacionLocal,
+} from './cartera-variacion.js'
+
+export {
+  obtenerFilasVariacionCartera,
+  obtenerEventosVariacionPorTipo,
+  type GrupoEventosVariacion,
+} from './cartera-variacion-supabase.js'
+
+export {
   calcularOverduePortfolioPct,
   calcularCureRate,
   calcularRollRatePorTramo,

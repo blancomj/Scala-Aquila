@@ -8,21 +8,30 @@
  * Vía `--project-id` + SUPABASE_ACCESS_TOKEN (Management API): no requiere
  * Docker/Podman, a diferencia de `--db-url` que levanta un contenedor de
  * introspección (D-11). El token es de la CUENTA, no del proyecto — se lee
- * de .env y se pasa por variable de entorno al proceso hijo, nunca como
- * argumento de línea de comandos.
+ * del archivo de entorno correspondiente y se pasa por variable de entorno
+ * al proceso hijo, nunca como argumento de línea de comandos.
+ *
+ * SUPABASE_URL solo resuelve a project ref cuando es un host
+ * "https://<ref>.supabase.co" — por eso, igual que db-push.mjs (D-25), por
+ * defecto lee .env (development) y con --prod lee .env.production: contra
+ * un SUPABASE_URL local (http://127.0.0.1:...) esto siempre falla, porque
+ * ahí no hay project ref que extraer.
  */
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { config } from 'dotenv'
 
-config()
+const esProd = process.argv.slice(2).includes('--prod')
+const archivoEnv = esProd ? '.env.production' : '.env'
+
+config({ path: archivoEnv })
 
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN
 const supabaseUrl = process.env.SUPABASE_URL
 
 if (!accessToken) {
   console.error(`
-  Falta SUPABASE_ACCESS_TOKEN en .env
+  Falta SUPABASE_ACCESS_TOKEN en ${archivoEnv}
 
   Es un token de tu CUENTA Supabase, no del proyecto. Generarlo en:
     https://supabase.com/dashboard/account/tokens
@@ -34,7 +43,7 @@ if (!accessToken) {
 }
 
 if (!supabaseUrl) {
-  console.error('Falta SUPABASE_URL en .env')
+  console.error(`Falta SUPABASE_URL en ${archivoEnv}`)
   process.exit(1)
 }
 

@@ -62,6 +62,11 @@ await useAsyncData('cartera-indicadores-inicial', async () => {
   return null
 })
 
+// activeTenant puede no estar resuelto en el instante exacto en que corre
+// `cartera-indicadores-inicial` en la carga en frío — este watch reintenta
+// solo en cuanto el id esté disponible, mismo patrón que cartera/acciones.vue.
+watch(() => tenantStore.activeTenant?.id, cargar)
+
 function formatoPctONull(valor: number | null | undefined): string {
   return valor === null || valor === undefined ? '—' : `${valor.toFixed(1)}%`
 }

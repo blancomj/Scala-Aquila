@@ -13,15 +13,22 @@ const presupuestoStore = usePresupuestoStore()
 // (checkRubros) — sin cargarla, cuentaPorId queda vacío, cuentaPorId.get(rubro.cuenta_id) da
 // undefined para cada rubro, y "Rubros de egreso = Monto total" muestra $0 siempre, sin importar
 // cuánto se haya asignado. Bug real, no de timing — confirmado en vivo contra datos reales.
-await useAsyncData('presupuesto-control', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  const [presupuestos] = await Promise.all([
-    presupuestoStore.cargarPresupuestos(tenantId),
-    presupuestoStore.cargarCuentas(tenantId),
-  ])
-  return presupuestos
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'presupuesto-control',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    const [presupuestos] = await Promise.all([
+      presupuestoStore.cargarPresupuestos(tenantId),
+      presupuestoStore.cargarCuentas(tenantId),
+    ])
+    return presupuestos
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const presupuestoSeleccionadoId = useSeleccionPresupuesto()
 const presupuestoSeleccionado = computed(

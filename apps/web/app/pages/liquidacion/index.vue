@@ -27,15 +27,22 @@ const nuevaFechaVencimiento = ref('')
 const creandoPeriodo = ref(false)
 const errorPeriodo = ref<string | null>(null)
 
-await useAsyncData('liquidacion-periodos', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  const [periodos] = await Promise.all([
-    liquidacionStore.cargarPeriodos(tenantId),
-    liquidacionStore.cargarLiquidaciones(tenantId),
-  ])
-  return periodos
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'liquidacion-periodos',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    const [periodos] = await Promise.all([
+      liquidacionStore.cargarPeriodos(tenantId),
+      liquidacionStore.cargarLiquidaciones(tenantId),
+    ])
+    return periodos
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 /** La liquidación VIVA de cada periodo. Las descartadas y anuladas quedan
  * fuera: son historia, y mostrarlas en la lista haría parecer que un periodo

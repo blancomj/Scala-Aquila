@@ -5441,3 +5441,1768 @@ contable" ya tenía ícono propio (el engranaje) y no se tocó.
 y de la balanza que conserva "Plan de cuentas contable". `pnpm --filter @aquila/web
 typecheck`/`lint` limpios (mismo único error de `tsc` pendiente del push a remoto de D-92, mismos
 7 warnings preexistentes).
+
+---
+
+## D-98
+
+**Paso 0 del enfoque de consolidación: la sección «¿Qué cambió?» de cartera.** Primer entregable
+de `Casos de uso/FACTOR DIFERENCIADOR/ENFOQUE_CONSOLIDACION/`, que replantea el corpus original
+de la capa de inteligencia después de verificar el repositorio: la capa de situaciones no hay que
+construirla, ya emergió en cuatro dominios; lo que falta es contrato común. El paso 0 es un spike
+con entregable real que responde «¿por qué cambió la cartera entre dos cortes?» **sin modelo de
+lenguaje, sin tablas nuevas y sin abstracciones reutilizables** (DI-02).
+
+**Qué se agregó**, sin una sola tabla nueva y sin persistencia:
+
+```text
+supabase/migrations/20260934050000_cartera_variacion_fn.sql
+  fn_variacion_cartera           comparación entre cortes, FULL OUTER JOIN por inmueble
+  fn_variacion_cartera_eventos   desglose de eventos por tipo (solo conteos)
+supabase/functions/cartera-variacion/     Edge Function (patrón de cartera-dashboard)
+packages/liquidation-engine/src/cartera-variacion.ts           puro: suma · clasifica · ordena
+packages/liquidation-engine/src/cartera-variacion-supabase.ts  I/O: numeric → Money
+apps/web/app/stores/cartera.ts            cargarVariacion + DTOs
+apps/web/app/pages/cartera/index.vue      sección «¿Qué cambió?»
+```
+
+**La corrección de rumbo, registrada porque importa.** La primera versión hacía el FULL OUTER
+JOIN entre los dos cortes **en TypeScript**, con dos `Map`, y traía hasta 2.000 eventos al Edge
+para agruparlos allí. El usuario lo detuvo con una frase: «no olvidar la premisa principal del
+proyecto: DB-First». Se rehízo entero. La comparación vive ahora en `fn_variacion_cartera`, que
+**llama dos veces a `fn_dashboard_cartera`** en vez de reescribir su SQL — si cambia la definición
+de «deuda vencida», cambia en un solo sitio. El TypeScript quedó reducido a sumar totales de
+presentación, clasificar, ordenar y redactar. Quedó como `DI-04b` en el enfoque: el corpus
+original **sí** enunciaba DB-First (prompt 12 §5) y la carpeta nueva no lo había recogido; fue un
+hueco propio, no del corpus.
+
+**Tres reglas de honestidad que la sección respeta y conviene no perder:**
+
+- **`total = vencida + corriente + sinVencimiento`.** Los cargos sin fecha de vencimiento efectiva
+  son *indeterminados* y viajan en `deuda_sin_vencimiento`; nunca se pliegan sobre
+  `deuda_corriente` (GAP-CAR-001).
+- **Denominador cero → «sin base de comparación»**, jamás «0%» (REC-CAR-004). Verificado en
+  navegador con el caso real de $0 → $1.000.000.
+- **El desglose por tipo de evento devuelve solo conteos, nunca montos.** Los eventos dicen *qué
+  clase de hecho* tocó un inmueble, no *cuánto* de su aumento corresponde a cada hecho; atribuir
+  monto exigiría un ledger por cargo que hoy no existe en esa forma. Repartirlo sería inventar
+  precisión. La UI advierte que los tipos no se suman entre sí porque un inmueble puede aparecer
+  bajo varios.
+
+Y la pieza que resultó más valiosa del diseño y no estaba prevista con ese peso: **el residuo
+inexplicado se muestra**. «$500.000 del aumento está en 2 inmuebles sin ningún movimiento
+registrado en el período. No se puede explicar con la información disponible.» Un residuo grande
+es en sí mismo un hallazgo sobre la calidad de los datos, no algo que esconder.
+
+**Verificado**: 10 pruebas de cálculo puro (identidad suma-de-deltas, incremento bruto separado de
+reducción bruta, concentración sobre el bruto y no sobre el neto, variación negativa, residuo);
+5 pruebas de aislamiento en `tests/rls/cartera-variacion.test.ts` — las dos funciones son
+`security invoker` a propósito y la quinta prueba afirma que el propio tenant **sí** responde, sin
+la cual las otras cuatro pasarían igual con una función rota. 48 pruebas verdes en conjunto con
+las suites existentes de cartera. En navegador, la narrativa completa renderiza con cifras reales.
+
+**La puerta — actualización 2026-09-13, la distinción que decide el proyecto:** el paso 0 exigía
+que *un administrador real, sobre datos reales, confirme que la explicación es correcta y le
+ahorra trabajo*. **Cumplida.** `db:push:prod` + `db:types` ya se hicieron (arrastrando además
+`documentos.activo_id`, pendiente desde D-92). Con datos reales de producción, un administrador
+real confirmó con sus propias palabras por qué cambió su cartera —coincidió exactamente con lo
+que la sección afirmaba— y dijo explícitamente que le ahorra trabajo frente a la pantalla actual.
+Sin captura ni cita textual: la validación quedó registrada solo en la sesión de esa fecha, y se
+deja constancia de ese nivel de evidencia en vez de presentarlo como mejor documentado de lo que
+está. Detalle completo en `ENFOQUE_CONSOLIDACION/10_INFORME_SPIKE_P0.md` §7.
+
+**Consecuencia (DI-14):** con la puerta cumplida, la Ola 1 — Consolidación tiene fundamento para
+evaluarse. Sigue siendo una decisión aparte, no un arranque automático.
+
+El informe completo del spike — incluida la lista de cinco tentaciones de abstracción que
+aparecieron y se rechazaron, que es el insumo con el que la ola 1 decidirá qué construir de
+verdad — está en `ENFOQUE_CONSOLIDACION/10_INFORME_SPIKE_P0.md`.
+
+---
+
+## D-99
+
+**`fn_resetear_copropiedad` estaba rota para cualquier tenant con datos reales**, y se corrigió
+parcialmente — con límite explícito, no completo. Hallada al buscar dónde había quedado "la
+opción para dejar un tenant limpio solo con la configuración" (existía, migración
+`20260928120000`, nunca funcionó contra datos reales).
+
+**Causa raíz múltiple, encontrada probando en vivo contra dos tenants reales** (el del
+smoke-test de [[D-98]] y un tenant demo con datos de contabilidad/gobierno), no por lectura
+estática — cada arreglo se verificó ejecutando el RPC de verdad, como administrador autenticado,
+nunca con `service_role` directo (la función exige `auth.uid()` + rol):
+
+1. **SEC-14 nunca reconocía el reset.** La función encendía `aquila.reset_context` desde su
+   primera línea, con la intención evidente de que el guard append-only la reconociera — pero
+   `forbid_mutation_salvo_tenant_borrado()` nunca leía esa variable. Código muerto desde que se
+   escribió. Corregido (`20260934060000`): el guard ahora deja pasar el DELETE también bajo ese
+   contexto, acotado a la transacción (`set_config(..., true)` = local), sin abrir nada para
+   otro código — verificado que ninguna otra función del repo toca esa variable.
+2. **La lista de tablas quedó desactualizada.** 57 tablas cubiertas; 171 tablas con `tenant_id`
+   existen hoy (contabilidad, gobierno, mantenimiento, finanzas, fondos, movilidad, solicitudes
+   externas — todo construido después del 28 de septiembre). Ampliada a 76 (`20260934070000`)
+   con las 19 que un tenant real efectivamente puebla, clasificadas dato-operativo (se borra) vs.
+   configuración (se preserva, mismo criterio que la función ya aplicaba a `fondos`). El orden de
+   borrado se calculó por dependencias de FK reales (no a mano), verificado sin ciclos en el
+   subconjunto usado. Las 95 tablas restantes **no se cubrieron** — quedan como config
+   (correctamente, en su mayoría) o como deuda pendiente de un audit propio, no de esta sesión.
+3. **Inmutabilidad contable (CO-2 §3.6).** Un comprobante contabilizado no admite tocar su
+   detalle, ni para borrarlo — corregido con la misma excepción acotada a DELETE
+   (`20260934080000`), sin tocar la prohibición de UPDATE, que sigue absoluta siempre.
+4. **`forbid_mutation()` es más estricta que su hermana.** 21 tablas (incluida
+   `activo_estado_historial`) usan esta variante, que ni siquiera tiene la excepción de "el
+   tenant ya no existe" — ni una eliminación completa del tenant las libera. Corregida la misma
+   excepción puntual (`20260934090000`). **No se tocó** la diferencia de fondo con
+   `forbid_mutation_salvo_tenant_borrado()` (si esa ausencia de excepción es deliberada o un
+   descuido de copia es pregunta aparte).
+
+**Dónde se detuvo, deliberadamente.** Un quinto guard —`IMMUTABLE_COEFFICIENT_SET` (coeficientes
+de copropiedad, legalmente significativos, "16 §111")— bloqueó el reset del tenant demo. A esa
+altura ya eran cinco tipos de protección distintos encontrados uno por uno, cada uno con su
+propia razón legítima de existir. Seguir abriendo excepciones al ritmo en que aparecen deja de
+ser prudente y pasa a ser adivinar cuántas más hay — se decidió parar y dejarlo para un audit
+propio de todas las guardias que el reset podría tocar, no otro parche suelto.
+
+**Estado**: el reset funciona completo y verificado para un tenant que solo tiene datos de
+cartera (probado end-to-end). Para un tenant con contabilidad + gobierno + coeficientes reales,
+sigue bloqueado en coeficientes. El tenant demo local (`fdb1998c-2285-4736-a898-2687abf1817b`)
+queda sin limpiar — es dato de prueba, no crítico.
+
+**Pendiente explícito para cuando se retome**: auditar de una vez todas las funciones guard que
+`fn_resetear_copropiedad` puede tocar (no una por una), y decidir en bloque cuáles aceptan la
+excepción de `aquila.reset_context` y cuáles necesitan una vía distinta (ej. des-vigenciar un
+coeficiente antes de borrarlo, en vez de forzar el guard).
+
+**No pusheado a remoto.** Las cuatro migraciones (`20260934060000`–`20260934090000`) están
+aplicadas y verificadas solo en local.
+
+---
+
+## D-100
+
+**Ola 1 arrancó — §2.2, "cartera empieza a notificar" (el hueco más barato y de mayor valor
+inmediato, per `06_PROMPT_O1_CONSOLIDACION.md`).** Cartera era el único de los cuatro detectores
+que detectaba (`fn_alertas_cartera`) y no avisaba. Ya no.
+
+**Diferencia de diseño frente a los tres que ya notificaban, y por qué:** finanzas/mantenimiento/
+gobierno tienen una tabla de detección propia donde colgar un trigger `AFTER INSERT`
+(`finanzas_alerta_emitida`, `mant_inventario_alertas`, `gobierno_vencimiento_notificaciones`).
+`fn_alertas_cartera` es una función de lectura pura, sin tabla de emisión — mismo problema que ya
+resolvió FIN-4 con su propia función pura (`fn_evolucion_cartera_vencida`). Se replicó exactamente
+ese patrón (`finanzas_alertas_evaluar` + `cron_finanzas_flujo_alertas_diario`,
+`20260932580000`/`20260932620000`), no uno nuevo:
+
+```text
+supabase/migrations/20260934100000_ola1_cartera_alertas_vocabulario.sql
+  TIPO_ALERTA_CARTERA (lista_tipos)   4 códigos = los 4 conteos que fn_alertas_cartera ya devuelve
+  TIPO_NOTIFICACION.alerta_cartera    el tipo de aviso, uno solo para las cuatro condiciones
+
+supabase/migrations/20260934110000_ola1_cartera_alerta_emitida.sql
+  cartera_alerta_emitida              append-only, idempotente por (tenant, tipo, día)
+  tg_notificar_alerta_cartera         puente AFTER INSERT → fn_notificar, exception-wrapped
+                                       (un fallo al notificar nunca tumba la alerta detectada)
+
+supabase/migrations/20260934120000_ola1_cartera_alertas_evaluar_cron.sql
+  cartera_alertas_evaluar(tenant,fecha)   llama fn_alertas_cartera, compara 4 conteos contra 0
+  cron_cartera_alertas_diario()           todo tenant activo, un tenant que falla no tumba a los
+                                           demás; guarda por cartera_corridas_diarias (ya existía,
+                                           origen='alertas', distinto de origen='cron' del
+                                           recálculo diario existente — no se pisan)
+  cron job 'cartera-alertas-diario'       15 11 * * *, justo después de cartera-recalcular-diario
+```
+
+**Sin tabla de reglas configurable por tenant, a propósito** — a diferencia de
+`finanzas_alerta_regla`: `02_ESTADO_VERIFICADO.md` §2 ya documentaba que cartera usa umbral fijo
+(90 días), no política por tenant. Las 4 condiciones son un dispatch fijo, no un catálogo a
+evaluar — más simple porque el dominio real es más simple, no por atajo.
+
+**No se tocó `cron_cartera_recalcular_diario()`/`cartera-cron-diario`.** Ese cron tiene un alcance
+restringido por decisión de producto (2026-08-29, comentario en el propio Edge Function): "SOLO
+CALCULA... ningún mensaje sale hasta que una persona lo apruebe". Es sobre despacho **externo** a
+deudores (`acciones_cobranza`) — un asunto distinto de la notificación **interna** al
+administrador (`fn_notificar`/campana) que implementa este corte. Se dejó un cron nuevo e
+independiente en vez de tocar el existente, precisamente para no rozar esa decisión.
+
+**Verificado:**
+- Extremo a extremo con datos reales en una transacción `rollback` (sin sembrar nada persistente):
+  `fn_alertas_cartera` detecta 1 obligación >90 días → `cartera_alertas_evaluar` emite 1 fila →
+  el puente crea 1 notificación con módulo/título/enlace correctos → segunda corrida el mismo día
+  emite 0 (idempotente) → `cron_cartera_alertas_diario()` corrió sobre los 3025 tenants de la base
+  local sin caerse.
+- `tests/rls/cartera-alertas-notificacion.test.ts`, 5 pruebas verdes: emisión correcta, no
+  duplica en una segunda corrida, un tenant sin cartera vencida no emite nada, aislamiento RLS
+  (un miembro de A no ve alertas ni notificaciones de B), y el cron no duplica sobre un tenant ya
+  corrido ese día.
+
+**DB-First respetado sin fricción esta vez** (a diferencia del paso 0): las tres migraciones son
+100% SQL — `cartera_alertas_evaluar()` llama a `fn_alertas_cartera` (que ya agrega en la base) y
+solo compara contra cero; ningún conteo se recalcula en TypeScript.
+
+**Pendiente de este mismo §2.2, antes de dar la pieza por cerrada:** `pnpm db:types` (las tablas
+nuevas no están en los tipos generados, aunque nada del frontend las consulta todavía — fluye
+entera por `notificaciones`, que la app ya sabe leer) y push a producción. Solo aplicado y
+verificado en LOCAL.
+
+**Lo que falta del resto de Ola 1** (no empezado en este corte): §2.1 contrato común de situación,
+§2.3 el resto del catálogo `TIPO_SITUACION` (esto solo sembró `TIPO_ALERTA_CARTERA`, que es un
+vocabulario distinto — el de qué condición dispara una alerta, no el del contrato de situación),
+§2.4 superficie (ya cumplida de facto: la notificación aparece en la campana existente), §2.5
+decisión de persistencia (ya tomada aquí, de hecho: `cartera_alerta_emitida` es exactamente el
+patrón append-only que DI-05 preveía para el caso "sí hace falta deduplicar entre corridas").
+
+---
+
+## D-101
+
+**Ola 1 — §2.1, contrato común de situación.** No se inventó un tipo nuevo: ya existía, con
+otro nombre, en `apps/web/app/stores/asuntos.ts` (`Asunto`/`FilaAsunto`, el mapeo manual de la
+forma que `fn_mis_asuntos` devuelve). Se formalizó exactamente ese contrato, no uno distinto.
+
+```text
+packages/shared/src/situacion.ts
+  FilaSituacion          fila cruda snake_case, tal como llega de un RPC
+  Situacion              forma tipada camelCase — el contrato
+  mapearFilaSituacion()  único mapeo snake_case → camelCase, antes duplicable por consumidor
+
+apps/web/app/stores/asuntos.ts
+  export type Asunto = Situacion       -- alias, no copia
+  cargar() ahora usa mapearFilaSituacion() en vez de mapear a mano
+```
+
+**Los 11 campos base son exactamente los que `fn_mis_asuntos` ya devuelve hoy**, incluido
+`asignado_a` — el corpus original (`06_PROMPT_O1_CONSOLIDACION.md`, escrito 2026-09-12) solo
+listaba 10, sin ese campo; se corrigió el prompt el mismo día que se implementó (ver nota en el
+propio documento §2.1) antes de escribir este código, para no repetir el contrato incompleto.
+
+**`tipo`/`severidad`/`as_of` quedaron OPCIONALES, deliberadamente sin resolver del todo.**
+`fn_mis_asuntos` no selecciona ninguno de los tres en ninguna de sus ocho ramas hoy. Extenderla
+para que lo haga es una decisión aparte —tocar una función SQL en producción, con sus propias
+implicaciones— que este corte no tomó. El contrato los admite (para que un futuro productor, por
+ejemplo un puente desde `cartera_alerta_emitida` de D-100, pueda declararlos) sin obligar a las
+ocho ramas existentes a inventarlos. Es honesto sobre lo que decide y lo que deja abierto, en vez
+de forzar una resolución completa donde no había evidencia para tomarla bien.
+
+**Regla del prompt respetada al pie de la letra:** ningún campo de `fn_mis_asuntos` se renombró
+ni se tocó su SQL. El cambio en `apps/web` es un alias de tipo + reemplazar un mapeo manual por
+uno compartido — mismo comportamiento en runtime, cero riesgo funcional.
+
+**Verificado:** `pnpm --filter @aquila/shared build` limpio. `pnpm build` completo corriendo al
+cierre de este corte (resultado pendiente de confirmar antes del commit).
+
+**No cubierto en esta pieza, para más claridad de alcance:** integrar los cuatro detectores de
+alerta (incluida la cartera de D-100) como productores reales de `Situacion` en la bandeja de
+`fn_mis_asuntos` — hoy siguen siendo notificaciones (`notificaciones`/campana), no asuntos
+(`fn_mis_asuntos`/bandeja). Esa integración toca `fn_mis_asuntos` con una novena rama y es
+alcance de §2.4 (superficie) que no se acometió en este corte — el prompt exige derivarla del
+estado vivo, no persistirla aparte.
+
+---
+
+## D-102
+
+**Ola 1 — §2.3, catálogo `TIPO_SITUACION` con emisor real.** `fn_mis_asuntos` (EXS-7) no
+seleccionaba ningún `tipo` en ninguna de sus ocho ramas — sembrar el catálogo antes de esto
+habría sido exactamente "vocabulario sin emisor" (DI-11 lo prohíbe explícitamente). Se agregó la
+columna primero, se sembró el catálogo después, en la misma migración
+(`20260934130000_ola1_mis_asuntos_tipo.sql`).
+
+**`DROP FUNCTION` + `CREATE`, no `CREATE OR REPLACE`** — Postgres no permite cambiar las columnas
+de `RETURNS TABLE` de una función existente con `REPLACE`. Verificado sin dependientes (ninguna
+vista ni función llama a `fn_mis_asuntos`) antes de dropear. Grants re-otorgados idénticos a los
+originales.
+
+**`tipo` se agregó como columna 12, al final** — mismo criterio que ya se usó para `asignado_a`
+(EXS-7, 20260933800000): el `order by 10 asc nulls last, 9 asc` del final es posicional; tocar
+cualquier posición antes de la 9 lo habría roto en silencio. Añadir al final dos veces seguidas
+no lo toca.
+
+**Ocho códigos, uno por rama, con los nombres que el negocio usa** (no se copió el catálogo
+`CART-001…008` del corpus original — esa prohibición del prompt §2.3 ni aplicaba aquí, esas ramas
+son de anuncios/marketplace/movilidad/atención, no de cartera):
+
+```text
+anuncio_pendiente_aprobacion · publicacion_pendiente_aprobacion ·
+publicacion_interes_sin_atender · publicacion_reporte_sin_resolver ·
+vehiculo_permiso_por_vencer · publicacion_por_expirar ·
+solicitud_atencion_sin_cerrar · visitante_tiempo_excedido
+```
+
+**Por qué `tipo` y no reutilizar `origen_entidad`:** dos ramas comparten
+`origen_entidad='publicacion'` con semánticas completamente distintas — pendiente de aprobar vs.
+por expirar. Es la prueba concreta de por qué el contrato de §2.1 necesitaba `tipo` como campo
+aparte.
+
+**`packages/shared/src/situacion.ts` no necesitó ningún cambio**: `tipo` ya era opcional en el
+contrato desde D-101, precisamente para este momento — `mapearFilaSituacion()` ya lo recoge sin
+tocar una línea.
+
+**Verificado:** `pnpm db:push` limpio en local. Las 4 suites existentes que ejercitan
+`fn_mis_asuntos` — `tests/rls/mis-asuntos.test.ts`, `exs8-golden-journey.test.ts`,
+`exs8-hardening.test.ts`, `movilidad-bitacora.test.ts` — **60/60 pruebas verdes, sin
+regresión**, confirmando que el `order by` posicional y las ocho ramas siguen devolviendo
+exactamente lo mismo que antes, más el tipo nuevo.
+
+**Solo en local.** Como toda esta ola, pendiente de `pnpm db:types` + push a producción antes de
+cerrar.
+
+---
+
+## D-103
+
+**Ola 1 — §2.4, superficie: cartera llega a "Mis asuntos".** Novena rama en `fn_mis_asuntos`
+(`20260934140000_ola1_cartera_asuntos.sql`). Sin pantalla nueva — el prompt lo prohíbe
+explícitamente y no hacía falta: la bandeja ya existe.
+
+**Decisión de diseño, la que más pesa de esta pieza:** deriva EN VIVO de `fn_alertas_cartera`, no
+de `cartera_alerta_emitida` (D-100). Razón: la regla #1 de `fn_mis_asuntos` es que el asunto
+desaparece del `where` cuando el trabajo se resuelve, nunca porque algo lo recuerde. El log de
+emisión es exactamente lo contrario — append-only, nunca se resuelve por sí solo — así que
+serviría para clasificar una notificación pero no para alimentar una bandeja de trabajo vivo.
+Dos fuentes, dos propósitos: notificar (evento pasado) vs. bandeja (estado presente).
+
+**Granularidad por tenant, no por inmueble** — mismo razonamiento que D-100: `fn_alertas_cartera`
+agrega, y cartera ya tiene sus propias pantallas (dashboard, escalamiento) para el detalle. Una
+fila por condición activa (hasta 4), no una por obligación.
+
+**Una sola llamada a `fn_alertas_cartera`, desempaquetada con `VALUES` lateral** — evita
+repetirla cuatro veces dentro de la misma corrida.
+
+**`TIPO_SITUACION` reutiliza los mismos 4 códigos que `TIPO_ALERTA_CARTERA` (D-100)** — misma
+condición real, dos catálogos con propósito distinto (uno clasifica notificaciones, el otro
+asuntos); sin colisión posible porque la unicidad de `lista_tipos` incluye `tipo`.
+
+**Limitación documentada, no descuido:** `created_at` de estas filas es `now()` — no hay una
+fecha real de "cuándo empezó" sin persistir algo, y persistir está prohibido salvo necesidad
+probada (DI-05). Consecuencia: siempre ordenan al final de su grupo sin vencimiento, nunca "más
+antiguas" que un anuncio o solicitud real. Aceptable para una primera versión; se revisita si
+algún día se decide que sí hace falta un `as_of` real (el campo ya existe en el contrato de
+D-101, sin usar todavía aquí).
+
+**Esta vez `CREATE OR REPLACE`, no `DROP` + `CREATE`** — a diferencia de D-102, las columnas de
+`RETURNS TABLE` no cambiaron frente a `20260934130000` (solo se agregó una rama al cuerpo), así
+que Postgres sí permite reemplazar directo.
+
+**Verificado:**
+- Las 4 suites existentes de `fn_mis_asuntos` — 60/60 verdes, sin regresión.
+- Extremo a extremo con un administrador autenticado real (no `service_role` directo): tenant
+  con un cargo vencido desde enero, `fn_mis_asuntos` devuelve exactamente 1 asunto de cartera,
+  título "Obligaciones con mora mayor a 90 días (1)", monto formateado "$500,000", `tipo`
+  correcto. Tenant borrado por completo al final — sin residuo.
+
+**Solo en local**, como el resto de esta ola.
+
+Con esto, **Ola 1 §2.1–§2.5 están completos**: contrato común, cartera notifica, catálogo con
+emisor real, superficie en la bandeja existente, y persistencia decidida con evidencia (D-100).
+Lo que falta antes de dar la ola por cerrada: `pnpm db:types`, `pnpm verify` completo, y decidir
+push a producción — nada de eso se ha hecho todavía.
+
+---
+
+## D-104
+
+**Hallazgo: la Edge Function `cartera-variacion` nunca estuvo desplegada en producción —
+desplegada hoy, 2026-09-13.** Mientras se esperaba el `pnpm db:push:prod` de Ola 1 (D-100 a
+D-103), se revisó qué faltaba de Paso 0 (D-98) y se consultó `list_edge_functions` sobre el
+proyecto remoto `hwjmlyzzvpmhadldavbq`: la migración SQL de Paso 0 (`fn_variacion_cartera`,
+`20260934050000`) sí estaba en producción, pero la Edge Function `supabase/functions/cartera-variacion/`
+que la sirve **no aparecía en el listado**. Confirmado desplegándola:
+
+```bash
+pnpm exec supabase functions deploy cartera-variacion --project-ref hwjmlyzzvpmhadldavbq
+```
+
+Resultado: `slug: cartera-variacion, version: 1, verify_jwt: true,
+id: 4b97aea3-76f4-4b17-8d03-0e6d2363a166`. Verificado con una llamada real (sin JWT válido):
+`POST /functions/v1/cartera-variacion` → `401` (no `404` ni `503`) — la función arranca, enruta y
+exige auth como se espera; confirmado también en `function_edge_logs`. No se hizo una prueba
+funcional con JWT de administrador real: pedirla habría requerido credenciales reales de
+producción en el chat, prohibido por regla estándar de la sesión.
+
+**Por qué importa, y qué NO se afirma.** El store `apps/web/app/stores/cartera.ts` llama a esta
+función vía `supabase.functions.invoke(...)`, que siempre resuelve contra la URL de Edge
+Functions del proyecto — remota, nunca local — sin importar si el frontend que la invoca corre en
+`localhost` o desplegado. Si la función no estaba en producción antes de hoy, cualquier llamada
+desde un cliente apuntando a `SUPABASE_URL` de producción debía fallar con `404`. Eso choca con lo
+registrado en **D-98** y en `10_INFORME_SPIKE_P0.md` §7: la puerta del paso 0 se dio por cumplida
+el mismo 2026-09-13 con un administrador real confirmando la sección "¿Qué cambió?" **"con datos
+reales de producción"**.
+
+No hay forma de reconstruir, solo con lo que queda registrado en esta conversación, cómo se le
+mostró la sección a ese administrador — pudo ser contra un entorno local apuntando a Postgres de
+producción pero sirviendo la Edge Function localmente (`supabase functions serve`, que si corría
+en ese momento sí ejecuta el código sin necesitar el `deploy` remoto), o pudo haber una discrepancia
+real. Lo único verificable hoy es el hecho objetivo: la función no figuraba en `list_edge_functions`
+de producción antes de este despliegue. Se anota como amendment a D-98/§7 en vez de silenciarlo,
+siguiendo el mismo estándar de honestidad que el resto de esta serie — "declarar algo cumplido sin
+evidencia es exactamente lo que no se debe hacer" ya se citó en D-98 y aplica igual aquí, en
+sentido contrario: no declarar resuelta una duda que no se puede cerrar con la evidencia
+disponible.
+
+**Evidencia adicional (2026-09-13, misma sesión, después de escribir lo anterior):** se consultó
+`list_migrations` y los logs de Postgres del proyecto remoto. `fn_variacion_cartera`
+(`20260934050000`, Paso 0) y **todas** las migraciones de Ola 1 (`20260934060000` a
+`20260934140000`) están aplicadas en producción, en un solo lote. El log de Postgres muestra el
+`create or replace function public.fn_variacion_cartera` ejecutándose **hoy a las 12:32:17 UTC**
+— sin rastro de una aplicación anterior — y ninguna llamada real (`select ... fn_variacion_cartera(...)`)
+antes de esa hora en todo el día. Es decir: el `db:push:prod` único que cerró Paso 0 + Ola 1 en
+un solo lote (el que el usuario confirmó con su "sí" y cerró con "termino") **es la primera vez
+que la función SQL existió en producción** — y eso ocurrió después de que la validación del
+administrador ya se había reportado en esta conversación. Mecánicamente, esa validación no pudo
+apoyarse en el pipeline de producción tal como está descrito.
+
+Se le preguntó directamente al usuario cómo se hizo esa validación (local contra prod, local
+contra local, u otra explicación) para cerrar la duda con certeza. **Respuesta: aplazado** — el
+usuario pidió no resolver esto ahora. Queda como pregunta abierta, no como hallazgo cerrado; quien
+retome esto puede repetir la pregunta o, más simple, repetir la validación ahora que la función sí
+está confirmada en producción de punta a punta.
+
+**Estado actual:** la función está desplegada y responde correctamente. Si se quiere cerrar la
+duda sobre cómo se hizo la validación original, hace falta preguntarle directamente al
+administrador o repetir la validación ahora que la función sí está confirmada en producción — no
+se hizo ninguna de las dos cosas en esta sesión.
+
+---
+
+## D-105
+
+**Ola 2 — §2, contrato de explicación estructurada (primera rebanada).** Arranque de
+`07_PROMPT_O2_EXPLICACION_ACCION.md`, con la puerta de Ola 1 dada por cumplida por decisión
+explícita del usuario ("hagamos Ola 2") — no automática, como exige `04_HOJA_DE_RUTA.md`.
+
+**Qué se agregó:**
+
+```text
+packages/shared/src/explicacion.ts
+  TipoCerteza    hecho · calculo · inferencia · hipotesis · informacion_insuficiente
+  Evidencia      entidad · id · fuente · fechaCorte — puntero, nunca copia del dato
+  Afirmacion     tipo + texto (plantilla) + evidencia
+  Explicacion    origenModulo · origenEntidad · origenId · afirmaciones[]
+
+packages/liquidation-engine/src/cartera-variacion.ts
+  explicarVariacionCartera(variacion, contexto) → AfirmacionLocal[]
+  (tipos LOCALES, espejo — ver "por qué dos copias del contrato" abajo)
+
+supabase/functions/cartera-variacion/index.ts
+  ensambla Explicacion real (sí puede importar @aquila/shared) y la agrega
+  al response bajo `explicacion`
+
+apps/web/app/stores/cartera.ts
+  VariacionCarteraDTO.explicacion?: Explicacion — aditivo, passthrough directo
+```
+
+**El contrato se derivó de lo que el paso 0 ya necesitó, no del corpus (DI-02).** Cinco
+afirmaciones posibles, ninguna inventada: titular (`calculo`), composición por concepto
+(`calculo`, una por corriente/sin-vencimiento/interés — nunca se pliegan, GAP-CAR-001),
+concentración (`inferencia` — se deriva de hechos, no se observa directo), atribución
+explicada por eventos (`hecho`) y el residuo sin evento (`informacion_insuficiente` — se
+declara, no se reparte ni se esconde, mismo principio que `atribucion.sinExplicar` desde
+Paso 0). "Lo que ya se sabía" (`fn_alertas_cartera`) **no** entra en esta función porque
+`VariacionCartera` no la trae — queda como productor de afirmaciones aparte, para no forzar
+una dependencia que el spike no tenía.
+
+**Por qué dos copias del contrato (`Afirmacion` en shared, `AfirmacionLocal` en
+liquidation-engine).** `packages/liquidation-engine/**` tiene prohibido importar
+`@aquila/shared` (D-14, eslint.config.js) — el núcleo debe seguir puro. Mismo patrón ya
+usado en la propia Edge Function para `ContribuyenteLocal`/`DeltaLocal`: un tipo espejo,
+estructuralmente idéntico, sin import. La Edge Function (que sí puede importar
+`@aquila/shared`) es el único lugar que ensambla el objeto `Explicacion` real.
+
+**Sin formateo de moneda con separadores.** `texto` usa `amount.toString()`, igual que
+`dinero()` en la Edge Function — la plantilla lleva valores reales, no prosa generada
+(DI-03), pero el "vestido" con separadores de miles es una decisión de presentación que ya
+vive en `apps/web` (`formatoMoneda`) y no se duplica aquí para no crear una segunda fuente
+que pueda divergir.
+
+**No se tocó la UI todavía.** El campo `explicacion` viaja en el DTO y compila limpio
+(`nuxt typecheck` verde), pero la página de cartera sigue mostrando la narrativa con sus
+plantillas Vue existentes, sin consumir `Afirmacion[]` — eso es trabajo de una rebanada
+siguiente, no de esta. DI-02 aplica también acá: no se construye consumo antes de que haga
+falta.
+
+**Verificado:**
+- `packages/shared` y `packages/liquidation-engine` compilan (`tsc -p tsconfig.build.json`).
+- `pnpm exec eslint` limpio en los tres archivos TS tocados (boundary D-14 incluido).
+- `deno check` sobre la Edge Function: mismos 2-3 errores preexistentes que ya tenía
+  `cartera-dashboard` sin tocar (implicit-any de `withSupabase`/`zod`, ambiente de `deno
+  check` directo, no del código) — cero errores nuevos atribuibles a este cambio.
+- `nuxt typecheck` (`apps/web`) verde.
+- 402/402 pruebas de `packages/liquidation-engine` + `packages/shared`, incluidas 9 pruebas
+  nuevas de `explicarVariacionCartera`: taxonomía correcta por caso (aumento/reducción/sin
+  cambio/concentración/residuo/explicado), evidencia siempre resuelta a entidad+fuente
+  reales, y ausencia de JSON crudo o claves internas en el texto.
+
+**Solo en local**, como el resto de esta ola — el `pnpm verify` remoto de cierre de Ola 1
+seguía corriendo cuando se escribió esto (tarea `b89grdcei`), y no se pushea nada de Ola 2
+hasta que Ola 1 esté confirmada.
+
+**Falta de Ola 2 §2:** segundo dominio explicando (finanzas — alertas de liquidez, elegido
+explícitamente por el usuario sobre mantenimiento/gobierno). Y de la ola completa: §3
+(propuesta de acción vía `acciones_cobranza`), §4 (verificación de resultado), y la entrada
+final de decisión sobre Capability Registry que exige el entregable 4 del prompt.
+
+---
+
+## D-106
+
+**Ola 2 — §2, segundo dominio explicando: finanzas (alertas de liquidez).** Cierra el
+entregable 2 del prompt ("al menos dos dominios explicando con ese contrato — cartera y uno
+más"), elegido explícitamente por el usuario entre finanzas/mantenimiento/gobierno.
+
+**Forma distinta a cartera, a propósito.** FIN-4 ya decidió (cabecera de
+`apps/web/app/stores/finanzasFlujo.ts`) que `finanzas_alerta_regla`/`finanzas_alerta_emitida`
+se leen directo por RLS, sin Edge Function ni módulo de `liquidation-engine` — a diferencia
+de cartera, que sí tiene ese pipeline completo. El mapper de este dominio sigue esa misma
+convención en vez de forzar la de cartera:
+
+```text
+packages/shared/src/explicacion.ts
+  explicarAlertaLiquidez(alerta) → Afirmacion[]
+  (vive en shared, no en liquidation-engine — aquí no hay boundary D-14 que cruzar)
+
+apps/web/app/stores/finanzasFlujo.ts
+  cargarAlertasEmitidas(): select ahora embebe
+    finanzas_alerta_regla(nombre, lista_tipos(codigo)) — una sola consulta,
+    sin segunda ida a la base
+  alertasExplicadas: computed que arma una Explicacion por alerta emitida
+```
+
+**Qué explica y por qué esos tipos de certeza.** `finanzas_alertas_evaluar()`
+(`20260932620000`) ya decide, por `tipo_codigo`, qué significa cada una de las 5 reglas y arma
+`detalle` jsonb — este mapper NO reinterpreta el disparo (DI-04, DI-09): lee las claves que esa
+función ya escribió y las redacta con plantilla.
+
+```text
+saldo_30d_bajo_umbral            calculo      — resultado de finanzas_flujo_proyectado()
+saldo_30d_negativo               calculo      — idem
+flujo_neto_negativo_n_semanas    inferencia   — se deriva de contar semanas, no es un dato solo
+cxp_vencida_sin_lote             calculo      — SUM de finanzas_facturas_pagables()
+cartera_vencida_deteriorando     inferencia   — compara dos meses, mismo criterio que el
+                                                 titular de cartera-variacion (delta), pero acá
+                                                 el propio nombre del tipo ("deteriorando") ya
+                                                 es un juicio derivado de la comparación, no el
+                                                 dato en sí
+```
+
+**Nunca lanza.** `detalle` con una clave faltante o un `tipo_codigo` desconocido no revientan:
+se declara `informacion_insuficiente` — "la regla se disparó, pero no se puede explicar con el
+detalle disponible" — mismo principio que el residuo de cartera (D-105): no se inventa un valor
+que no está, y un tipo nuevo que la SQL agregue el día de mañana no rompe el mapper, solo deja
+de tener plantilla hasta que se le agregue una.
+
+**Verificado:**
+- `packages/shared` compila y lintea limpio.
+- `nuxt typecheck` (`apps/web`) verde tras reconstruir el `dist/` de `@aquila/shared` —
+  quedó registrado como recordatorio: cualquier cambio en `packages/shared/src/index.ts`
+  exige rebuild antes de que `apps/web` (que consume por `dist/`, no por `src/`) lo vea.
+- 9 pruebas nuevas en `packages/shared/src/explicacion.test.ts`: evidencia siempre resuelta,
+  taxonomía correcta por cada uno de los 5 tipos, detalle incompleto y tipo desconocido sin
+  lanzar excepción, sin JSON crudo en el texto. 82/82 en el resto de `packages/shared`.
+
+**No se tocó la UI todavía**, mismo criterio que D-105: `alertasExplicadas` existe en el store,
+listo para consumirse, pero la pantalla de finanzas sigue mostrando `detalle` como hoy.
+
+Con esto, el entregable 2 de Ola 2 §2 queda cerrado: dos dominios (cartera, finanzas)
+explicando con el mismo contrato `Explicacion`/`Afirmacion`. Falta §3 (acción vía
+`acciones_cobranza`), §4 (verificación de resultado) y la decisión de Capability Registry.
+
+---
+
+## D-107
+
+**Ola 2 — §3, propuesta de acción: situación → recomendación → confirmación humana →
+`acciones_cobranza`.** Antes de escribir una sola línea se investigó qué de esto ya existía
+(agente `Explore`, solo lectura) porque el nombre de la carpeta sugería que faltaba mucho más
+de lo que faltaba en realidad. Hallazgo central: **el ciclo de vida completo ya está
+construido** — aprobar/rechazar (`apps/web/app/stores/cobranza.ts`, maker-checker real),
+despacho con evidencia (`ejecutar-accion-cobranza`, `acciones_cobranza_envios`/`_acuses`),
+verificación de resultado (columna "Prueba" derivada de acuses). El comentario "GAP-CAR-005"
+que el código citaba como bloqueante estaba **desactualizado**: el worker de envío existe y
+funciona para `email`/`sms`.
+
+**El hueco real, una vez descontado todo eso, era angosto:** nada permitía CREAR una acción
+manualmente. `registrarAccionCobranza()` (la única función de escritura que existe, y sigue
+siendo la única) solo la llamaba el job automático. Y más importante: **`cartera-recalcular`
+—la Edge Function que corre `evaluarJobCarteraInmueble()` y ya soporta `modo: 'simulacion' |
+'ejecucion'` con `alcance_inmuebles` opcional— no tenía ningún botón en toda la interfaz.**
+Existía, pasaba `deno check`, pero era código muerto desde el punto de vista de un usuario.
+
+**Decisión de diseño, la que evita crear una segunda ruta de escritura (prohibición explícita
+del prompt):** no se construyó ningún INSERT nuevo. La "confirmación humana" es literalmente
+volver a invocar `cartera-recalcular`, esta vez en `modo: 'ejecucion'` y acotada a un solo
+inmueble (`alcance_inmuebles: [inmuebleId]`) — la MISMA función, el mismo código de creación
+de filas, que ya usa el cron. Eso resuelve dos cosas a la vez sin código adicional:
+
+- **§3.1 (RECOMENDAR ≠ EJECUTAR):** nada se escribe hasta el clic de "Confirmar".
+- **§3.4 (contexto obsoleto):** confirmar vuelve a evaluar el inmueble desde cero en el
+  momento del clic — no reaplica lo que la simulación mostró antes. Si algo cambió (un pago,
+  un acuerdo), `accionesCreadas` puede salir en 0, y la UI lo informa como resultado legítimo,
+  no como error silencioso.
+
+**Qué se tocó, mínimo y quirúrgico:**
+
+```text
+supabase/functions/cartera-recalcular/index.ts
+  - modo 'simulacion' ahora expone accionesPropuestas/accionesOmitidas/accionesBloqueadas
+    por plan — ya se calculaban, solo faltaban en la respuesta (sin cálculo nuevo, DI-04).
+  - fix real: creada_por era SIEMPRE 'job', incluso cuando un administrador disparaba esta
+    función a mano desde la interfaz (esJob ya distinguía los dos casos, solo no se usaba
+    en el INSERT). Ahora: esJob ? 'job' : 'manual'. acciones.vue ya mostraba este campo como
+    "Origen: Creada a mano" — quedaba mal etiquetado desde antes de esta ola.
+
+apps/web/app/stores/cobranza.ts
+  simularRecomendaciones() / confirmarRecomendacion() — invocan cartera-recalcular en modo
+  simulacion/ejecucion respectivamente. Cero INSERTs propios.
+
+apps/web/app/pages/cartera/acciones.vue
+  Sección "Recomendadas", colapsable, solo para administrador (mismo rol que aprobar) —
+  fecha de corte + botón Calcular (nunca automático: el propio cartera-recalcular ya
+  documentaba "un humano aprieta el botón", aquí se mantiene igual) → lista de inmuebles con
+  su acción propuesta (tipo, canal, si pide aprobación) y botón Confirmar por inmueble.
+  Bloqueadas (falta destinatario) se muestran aparte, sin botón de confirmar, con el motivo —
+  no se ofrece una acción que no tiene a quién dirigirse.
+```
+
+**No se creó:** `intelligence_action`, `action_proposal`, segunda máquina de estados,
+segundo dispatcher, ni ninguna función SQL nueva — todo lo prohibido en §3/§5 del prompt
+sigue sin existir.
+
+**Verificado:**
+- `nuxt typecheck` y `eslint` limpios en los tres archivos.
+- `deno check` sobre la Edge Function: mismos errores preexistentes de siempre (implicit-any
+  de `withSupabase`/`.filter`), cero nuevos.
+- **En navegador, con sesión real** (magic link de `pnpm dev:login` contra Supabase local —
+  nunca contra producción, D-25), en dos escenarios:
+  1. Sin política vigente (estado real de todo el ambiente local — ningún tenant local tenía
+     una): la UI captura y muestra correctamente el error del dominio (`BLOCKED — el tenant
+     no tiene una política de clasificación de cartera vigente, CAR §8, PH-C26`).
+  2. Con una política/tramo/estrategia temporal sembrada a mano en `GC-001` (solo local,
+     vía REST con service_role, nunca migración — creada como `borrador`, tramos insertados,
+     activada a `vigente`; **borrada por completo al terminar la prueba, cascada confirmada
+     sobre `politica_clasificacion_tramos`/`estrategias_cobranza`, cero residuo**): el motor
+     completo corrió de punta a punta — clasificó los 3 inmuebles en mora real (44 días) en
+     el tramo correcto, la estrategia matcheó, `evaluarAccionesAplicables` propuso la acción,
+     y `resolverDestinatarios` bloqueó los 3 por un motivo real y correcto: estos inmuebles no
+     tienen ninguna fila en `inmueble_persona_rol` en el tenant demo. La sección "Correspondería
+     actuar, pero falta un dato" de `acciones.vue` mostró exactamente eso, con el código de
+     cada inmueble y el motivo legible.
+  
+  El único tramo que quedó sin probar en vivo es el clic de "Confirmar" en sí (el INSERT real)
+  — habría exigido sembrar además un tercero completo con relación persona-predio vigente y
+  contacto, un tercer nivel de datos sintéticos que se consideró desproporcionado para esta
+  verificación. Riesgo residual bajo: ese código es 100% el mismo `modo: 'ejecucion'` que el
+  job automático ya ejecuta hace tiempo — lo único nuevo ahí es la etiqueta `creada_por` y el
+  parámetro `alcance_inmuebles`, que la función ya soportaba antes de esta ola.
+- 411/411 pruebas de `packages/liquidation-engine` + `packages/shared` (sin regresión —
+  ninguna función pura se tocó en esta pieza).
+
+**Pendiente de Ola 2:** §4 (verificación de resultado — ya cubierta en los hechos por el
+sistema de acuses existente, falta solo confirmarlo explícitamente contra el prompt), la
+decisión final sobre Capability Registry (entregable 4), y la prueba en navegador del camino
+feliz mencionada arriba.
+
+---
+
+## D-108
+
+**Ola 2 — §4, verificación del resultado: el hueco real detrás de "ya cubierta en los
+hechos".** D-107 cerró anotando que §4 probablemente ya estaba resuelta por el sistema de
+acuses existente — al revisarlo con cuidado contra el marco `qué se esperaba · qué ocurrió ·
+qué evidencia lo demuestra · qué falló si falló` del prompt, tres de los cuatro sí lo estaban,
+pero uno no:
+
+```text
+qué se esperaba      → el contexto congelado de acciones_cobranza (ya existía)
+qué evidencia         → acciones_cobranza_envios/_acuses (ya existía, ya en UI)
+qué falló si falló    → ResultadoDespacho.errorMessage (ya existía, ya en UI)
+qué ocurrió           → FALTABA — nadie escribía nunca la columna `resultado`
+```
+
+`acciones_cobranza.resultado` (`resultado_accion_cobranza_t`: sin_respuesta, contacto_efectivo,
+contacto_no_efectivo, promesa_de_pago, acuerdo_solicitado, pago_recibido, rechazo_deudor,
+datos_incorrectos, no_aplica) existe desde F4 (`20260822270000`) — el enum completo, la
+columna, hasta el comentario de `aprobada_por` que ya la menciona ("El resultado real está en
+estado" — errata que confunde despacho con gestión, no se corrigió, no era el objetivo de esta
+pieza). Grep contra todo el repo: cero escrituras, en ningún store ni Edge Function. El
+despacho responde «¿salió el mensaje y llegó?»; nada respondía «¿la gestión sirvió de algo?
+¿qué contestó el deudor?» — que es exactamente la pregunta que "qué ocurrió" exige poder
+cerrar.
+
+**Qué se tocó:**
+
+```text
+supabase/migrations/20260934150000_ola2_bandeja_cobranza_resultado.sql
+  fn_bandeja_cobranza: DROP + CREATE (cambia RETURNS TABLE, mismo motivo que D-102) —
+  agrega `resultado` al final. Ningún guard nuevo: `resultado` ya no estaba en la lista de
+  columnas congeladas (guard_accion_cobranza_contexto_inmutable) ni la vigila
+  guard_accion_cobranza_transicion (solo mira `estado`) — un UPDATE que solo toca
+  `resultado` ya pasaba limpio antes de esta migración. Se documenta, no se construye.
+
+apps/web/app/stores/cobranza.ts
+  registrarResultado(accionId, resultado, notas?) — UPDATE directo por RLS, mismo patrón
+  que decidirAccion/cancelarAccion. También escribe resultado_fecha (columna que ya
+  existía y que la primera versión de esta pieza olvidó — se detectó al sembrar una fila
+  de prueba real y ver la columna en la respuesta, no por lectura del esquema).
+
+apps/web/app/pages/cartera/acciones.vue
+  Bloque "Resultado de la gestión" en el modal de detalle — editable solo si
+  estado === 'ejecutada' (antes no hay nada que reportar; en 'fallida' el desenlace ya es
+  el fallo mismo). 9 opciones en escala (de "sin respuesta" a "pago recibido"), select +
+  botón Guardar deshabilitado si no cambió nada.
+```
+
+**No se creó** ninguna tabla, ningún guard nuevo, ningún segundo lugar donde reportar un
+resultado — la columna y su vocabulario ya estaban completos, solo sin puerta de entrada.
+
+**Verificado, con datos reales, de punta a punta (no solo tipos):**
+- `nuxt typecheck`/`eslint` limpios (un ajuste real: `USelect` exige `undefined`, no `null`,
+  para "sin selección" — `resultadoSeleccionado` se tipó `ResultadoGestion | undefined`).
+- `pnpm db:push` local aplicó la migración limpio.
+- `tests/tenancy/cartera-bandeja.test.ts` (7/7) contra la función ya modificada — sin
+  regresión, sin necesidad de tocar el test.
+- **En navegador, sesión real (local, D-25):** se sembró una fila de `acciones_cobranza`
+  mínima a mano (`estado: 'ejecutada'`, `creada_por: 'manual'`) — necesitó además una
+  política de clasificación temporal solo para satisfacer el FK `politica_clasificacion_id`
+  (`not null`, no había ninguna en el ambiente local). Se abrió el detalle, el bloque
+  "Resultado de la gestión" mostró el select correcto, se eligió "Promesa de pago", se
+  guardó, y **se confirmó por consulta directa a la base** que `resultado` y
+  `resultado_fecha` quedaron escritos. El botón Guardar se deshabilitó solo después,
+  correctamente (nada que guardar dos veces). Todo lo sembrado —la fila y la política— se
+  borró al terminar; verificado con consulta después del borrado: 0 filas en ambas tablas.
+- 411/411 pruebas de `packages/liquidation-engine` + `packages/shared` sin regresión.
+
+Con esto, Ola 2 §4 queda cerrada con evidencia real, no solo con lectura de código. Falta
+únicamente el entregable 4 completo: la entrada de decisión sobre Capability Registry
+(§5 del prompt — "salvo que aparezca un caso concreto que el trío DI-06 no pueda expresar").
+
+---
+
+## D-109
+
+**Ola 2 — decisión sobre Capability Registry (entregable 4) y cierre de la ola completa.**
+
+**No se necesitó.** La prohibición del prompt (§5) es condicional: se construye "salvo que
+aquí aparezca un caso concreto que el trío DI-06 no pueda expresar — en cuyo caso se
+documenta el caso y se evalúa, no se asume". El trío de DI-06 (`02_ESTADO_VERIFICADO.md` §6):
+el tipo `Permission` (`apps/web/app/types/permissions.ts`, coarse — `data:read`, etc.),
+`puede_ver_modulo(tenant, modulo)` (gate de RLS por módulo) y los guards de transición por
+dominio. A eso se suma `has_role(tenant, roles[])`, la primitiva de rol que ya gobierna todo
+`acciones_cobranza` desde F4 — no es parte de la lista original de DI-06, pero es la misma
+familia de mecanismo (autorización ya existente, no inventada aquí).
+
+Cada pieza de Ola 2 necesitó expresar autorización en algún punto, y en los tres casos bastó
+con reutilizar lo que ya existía, sin ninguna necesidad de un registro nuevo que cruzara
+rol × recurso × acción:
+
+```text
+§2 explicación (cartera, finanzas)
+  Ninguna autorización nueva: cartera-variacion ya exige is_member (lectura); las alertas de
+  finanzas ya están detrás de puede_ver_modulo(tenant, 'financiero'). explicarAlertaLiquidez/
+  explicarVariacionCartera son funciones puras sin opinión de quién puede verlas — la
+  autorización vive donde ya vivía, en el productor de los datos que explican.
+
+§3 recomendación → confirmación
+  La sección "Recomendadas" se gatea con esAdministrador (has_role 'administrador') en la UI,
+  espejo del mismo chequeo que cartera-recalcular ya hacía server-side desde antes de esta
+  ola. Confirmar una recomendación no es una acción nueva: es la MISMA función (modo
+  'ejecucion') que el job automático, con el mismo control de acceso que ya tenía.
+
+§4 resultado de gestión
+  registrarResultado() pasa por la policy de UPDATE que ya cubre acciones_cobranza
+  (has_role 'agent', que administrador hereda) — no se necesitó un permiso "puede registrar
+  resultado" distinto de "puede tocar esta acción", porque el prompt no pide separar esos dos
+  niveles y el dominio no lo exige (a diferencia de aprobar, que sí es un nivel de riesgo
+  distinto y por eso guard_accion_cobranza_transicion exige administrador explícito ahí).
+```
+
+En ningún punto apareció una pregunta de autorización que `Permission` + `puede_ver_modulo` +
+`has_role` + guards no pudieran responder ya. Construir un registro de capacidades sin ese
+caso habría sido exactamente lo que DI-06 y esta prohibición advierten: una abstracción para
+un problema que no se presentó.
+
+---
+
+**Cierre de Ola 2 — Consolidación: Explicación y acción.** Los 4 entregables del prompt,
+completos:
+
+```text
+1. Contrato de explicación (taxonomía de certeza + evidencia)     D-105
+2. Dos dominios explicando (cartera, finanzas)                     D-105, D-106
+3. Situación → recomendación → confirmación → acciones_cobranza    D-107
+   → resultado verificado                                          D-108
+4. Entrada D-xx con la decisión de Capability Registry              D-109 (esta)
+```
+
+Puerta de Ola 2 (`04_HOJA_DE_RUTA.md`): *"Una recomendación se convierte en acción ejecutada
+por el servicio de dominio existente, con evidencia y sin una segunda ruta de escritura. Y una
+acción de alto impacto queda bloqueada sin aprobación humana, demostrado con una prueba
+automatizada."* Las dos condiciones se cumplen y están verificadas con evidencia real, no solo
+con lectura de código: cero rutas de escritura nuevas en todo `acciones_cobranza` (D-107), y
+la prueba automatizada del bloqueo por aprobación ya existía antes de esta ola
+(`guard_accion_cobranza_transicion`, exigencia de rol administrador + prohibición de
+autoaprobación) — no hizo falta escribir una nueva porque el mecanismo nunca fue tocado.
+
+**Todo lo de esta ola sigue solo en local.** Por la cadencia acordada esta misma sesión
+(`04_HOJA_DE_RUTA.md`, ajustada tras la pregunta del usuario sobre por qué `pnpm verify`
+remoto era necesario): el `db:push:prod` de esta migración (`20260934150000`) y el
+`pnpm verify` remoto de cierre quedan pendientes de una corrida explícita, no automática.
+
+---
+
+## D-110
+
+**Hallazgo real del `pnpm verify` remoto de cierre de Ola 1 (tarea lanzada horas antes,
+terminó después de escribir D-109): un código de error de Ola 1 nunca se registró.**
+`CARTERA_ALERTA_TIPO_INVALIDO` (`guard_cartera_alerta_emitida_tipo()`,
+`20260934110000_ola1_cartera_alerta_emitida.sql`, §2.2 de Ola 1 — D-100) se escapó del
+registro de `packages/shared/src/error-codes.ts`. Corregido: entrada agregada, mismo patrón
+que `FINANZAS_ALERTA_TIPO_INVALIDO` (FIN-4). `tests/governance/error-codes-coverage.test.ts`
+verde tras el fix; `tsc`/`eslint` de `packages/shared` limpios.
+
+**Es la tercera vez que pasa** (antes EXS-6, EXS-7 — ver
+`feedback_registrar_error_codes_al_escribir_el_raise` en memoria) y la primera bajo la nueva
+cadencia de esta sesión (verify remoto solo al cierre de ola, no de cada sección) — confirma
+la razón por la que ese registro hay que escribirlo al momento del `raise`, no confiar en que
+el verify de cierre lo va a agarrar a tiempo para corregirlo barato: aquí tardó desde D-100
+hasta D-109, dos olas de distancia.
+
+**El resto de los 34 fallos del run (34 failed / 2129 passed, ~100 min) es ruido de entorno,
+no regresión de código — triage explícito, no una afirmación sin evidencia:**
+
+```text
+Gateway Timeout (la mayoría)   fixtures básicos (create_tenant, login, lista_tipos,
+                                inmueble_persona_rol) fallando en decenas de tests no
+                                relacionados entre sí → carga/latencia del proyecto remoto
+                                en ese momento, no un bug — el patrón (fixtures triviales,
+                                no lógica de negocio) es la firma característica.
+57014 statement timeout         mismo origen: el proyecto remoto bajo carga.
+Sendinblue/Brevo 402            "sin créditos de SMS en la cuenta" — falla de facturación
+                                externa, cascada a 3 tests que dependen de ese envío.
+cartera-cron-diario (546),      Edge Functions que esta sesión NUNCA desplegó a remoto —
+cartera-ejecutar-lote,          solo se editaron archivos locales (D-105 a D-108); lo que
+cartera-envio-evidencia,        corrió en remoto es el código YA desplegado antes de esta
+compositor-correo (500)         sesión. No pueden ser regresión de Ola 2.
+adc1-avisos-alcance (422)       dominio ADC-1, no tocado en esta sesión ni en Ola 1/2.
+```
+
+**Ninguno de los 34 fallos es atribuible al trabajo de Ola 2** — nada de Ola 2 se ha pusheado
+a producción todavía (sigue en local, por la cadencia acordada). El único fallo real
+(`CARTERA_ALERTA_TIPO_INVALIDO`) es de Ola 1, ya cerrada y ya en producción, y ya está
+corregido. No se volvió a correr el `pnpm verify` completo tras este fix — decisión pendiente
+del usuario, dado el costo (~100 min) y que la mayoría de los fallos parecen transitorios.
+
+## D-111
+
+**CO-3 (`project_co3_materializacion_4115_fondo` en memoria, abierto desde 2026-09-12): causa
+raíz confirmada y corregida — bug de fixture de prueba, no del motor contable.**
+
+`unaHojaIngresoLibre()` (duplicada en 4 archivos: `tests/contabilidad/materializacion.test.ts`,
+`libros-oficiales.test.ts`, `estados-financieros.test.ts`, `deterioro.test.ts`) elegía la
+primera hoja presupuestal de ingreso "libre" sin excluir las que exigen fondo (`requiere_fondo`),
+a diferencia de su hermana `unaHojaEgreso()`, que sí filtra `requiere_tercero=false`. La hoja
+`ing_fondo_imprevistos` (sembrada en todo tenant, mapeada a la cuenta **4115**, que exige fondo)
+queda libre porque ningún concepto de fábrica la usa — cuando el fixture la tomaba por azar
+(sin `ORDER BY`, dependiente del plan de Postgres sobre una tabla sin garantía de orden de
+empate), vinculaba un concepto ordinario a 4115 sin `fondo_id`, y el guard de dimensiones
+(`20260930210000_co2_comprobante_funciones.sql`) rechazaba correctamente la línea con
+`COMPROBANTE_DIMENSION_REQUERIDA`.
+
+**Verificado con evidencia, no solo inferido:** se reprodujo el error exacto
+(`"COMPROBANTE_DIMENSION_REQUERIDA: línea 2 exige fondo (cuenta 4115)"`) insertando un
+`console.log` temporal sobre `escenario.resumen` en `materializacion.test.ts` caso 1, confirmando
+la hipótesis antes de tocar el fixture (log retirado después).
+
+**Fix aplicado** (mismo patrón en los 4 archivos): añadir `contable_cuenta:contable_cuenta_id!inner(requiere_fondo)`
+al `select`, `.eq('contable_cuenta.requiere_fondo', false)`, y `.order('id')` para no depender de
+orden implícito — igual que ya hacía `unaHojaEgreso()` con `requiere_tercero`.
+
+**Resultado:** de los 7 fallos originales reportados en la memoria, **6 quedaron resueltos**
+(casos 1/2/3/6 de `materializacion.test.ts`, caso 7 de `libros-oficiales.test.ts`,
+`contable-movimientos.test.ts` — este último ya pasaba aislado, confirmando que era ruido
+cruzado de la corrida completa, no relacionado). `tests/contabilidad` completo: 112/113 verde,
+`eslint` limpio sobre los 4 archivos tocados.
+
+**El séptimo (caso 11, `materializacion.test.ts:705`, sobre el tenant demo `gc-001`) NO era
+parte de CO-3 — resultó ser el comportamiento ya decidido y correcto, no un bug pendiente.**
+Al principio parecía contradecir su propio comentario (D-89, línea 699, dice que `gc-001` es un
+tenant "vivo" cuyos números ya no son el invariante original, pero el `it` sigue afirmando
+literales: `toHaveLength(62)`, `total_debito === 20_797_667`, `sin_cuenta === 5`). Releyendo
+D-89 completo (línea 4956 en adelante): el propio D-89 ya había actualizado esos literales a los
+valores reales de `gc-001` en el proyecto REMOTO (`hwjmlyzzvpmhadldavbq`), confirmado en su
+momento con el usuario (dos rondas de `AskUserQuestion`) — y documentó explícitamente que correr
+este archivo contra el `.env` LOCAL seguiría fallando, por diseño, porque local no tiene los
+datos acumulados de `gc-001`-remoto. **Se reverificó hoy** copiando temporalmente `.env.remoto`
+sobre `.env` (mismo mecanismo que D-89, restaurado inmediatamente después): 12/12 en verde
+contra remoto, incluyendo el caso 11. El fallo contra local no es una regresión ni un asunto
+pendiente — es el comportamiento esperado y ya decidido, coincide con
+`feedback_diagnosticar_datos_faltantes_local_antes_de_bug`. No se necesita ninguna acción más.
+
+**No se aplicó `db:push` ni se tocó ninguna migración** — el fix es enteramente en archivos de
+test (`tests/contabilidad/*.test.ts`), no hay cambio de esquema ni de código de producción.
+
+## D-112
+
+**BLOQUE H de Fondos implementado: ejecutar un lote de pago con `fondo_id` ahora registra un uso
+en `fondo_movimientos`** (`ANALISIS_FONDOS_BLOQUE_A.md` §6/§11 punto 4 — bloqueado hasta hoy por
+"no hay CxP ni pagos salientes"; FIN-2/FIN-3 ya lo construyeron, así que era ejecutable y solo
+faltaba conectar los dos). Continuación de la sesión `78da96cd-451e-4605-af6b-2b57da2c4567`
+interrumpida por límite de uso justo al empezar a leer las migraciones de Fondos/FIN-3 para este
+mismo corte; retomado en sesión nueva con el plan confirmado explícitamente por el usuario.
+
+**Migración `20260935050000_fondo_bloque_h_uso_lote_pago.sql`:**
+- Columna nueva `fondo_movimientos.lote_pago_id` (FK a `finanzas_lotes_pago`) — origen automático
+  del lado saliente, simétrico a `pago_id` (BLOQUE K, lado entrante). Es una columna real y
+  consultable, no una bandera de sesión de exención: el histórico de un fondo puede reconstruir
+  qué lote generó cada `uso` sin depender de que una bandera estuviera activa en el momento exacto
+  del insert (a diferencia del `traslado_entrada` que genera `fn_fondo_cerrar`, que sí usa bandera
+  porque no hay una fila natural que lo enlace).
+- `guard_fondo_movimiento`: `uso` pasa a aceptar `documento_id` (manual) **o** `lote_pago_id`
+  (automático) — mismo patrón dual que ya tenía `aporte` con `pago_id`/`documento_id` (D-42). Los
+  otros cuatro tipos sin ruta automática (`rendimiento`/`ajuste`/`traslado_entrada`/
+  `traslado_salida`) siguen exigiendo `documento_id` sin cambios.
+- `fn_finanzas_ejecutar_lote`: si `v_lote.fondo_id is not null`, inserta un único movimiento
+  `uso` por `monto_total` del lote (todos sus ítems pagan contra el mismo fondo por construcción —
+  `fondo_id` vive en la cabecera, no por ítem), después de procesar los ítems y antes de marcar el
+  lote `ejecutado`, en la misma transacción.
+
+**Sin compromiso/autorización previa, a propósito — no se inventó una regla nueva.** Igual que el
+aporte automático de BLOQUE K no exige una `fondo_autorizacion` previa, este `uso` tampoco:
+`compromiso_id`/`autorizacion_id` siguen nullable y opcionales para cualquier `uso`. Si el fondo
+queda en negativo, `fn_fondo_saldo_derivado` lo refleja como cualquier otro movimiento — el corte
+original de Fondos no cerró una guardia de saldo mínimo para `uso` y esta migración no le agrega
+una; conectar lo que ya existía, no ampliar el alcance.
+
+**Verificado:** 3 pruebas nuevas en `tests/finanzas/lotes-pago.test.ts` (17: ejecutar con
+`fondo_id` crea el movimiento correcto y reduce el saldo derivado; 18: sin `fondo_id` no crea
+nada, regresión; 19: un `uso` manual sin `documento_id` ni `lote_pago_id` sigue rechazado con
+`FONDO_SOPORTE_REQUERIDO`) — 19/19 verde. Regresión completa: `tests/finanzas/lotes-pago.test.ts`
+(19), `tests/tenancy/fondos-modelo-general.test.ts` (45), `fondos-solicitud-decision`,
+`fondos-dimension`, `domain-isolation`, `schema-forced-rls`, `fondo-imprevistos-cuota` — todo
+verde. `tests/contabilidad/materializacion.test.ts` solo falla en el caso 11 ya conocido (D-111,
+`gc-001` requiere remoto) — no es una regresión de este corte. `supabase db lint` limpio sobre
+`guard_fondo_movimiento`; el único warning en `fn_finanzas_ejecutar_lote` (cast de
+`v_estado_factura`) ya existía antes de este cambio. `eslint` limpio.
+
+**Aplicado a desarrollo local** (`pnpm db:push`). **Pendiente de decisión del usuario:** push a
+producción (`pnpm db:push:prod`, exige confirmación interactiva "si" — no se puede automatizar
+por diseño del propio script) y `pnpm db:types` (falla contra `SUPABASE_URL` local — solo
+funciona contra un proyecto remoto) para que `database.types.ts` incluya `lote_pago_id`. Hasta
+entonces, `pnpm typecheck`/`pnpm verify` completos no reflejarán la columna nueva — las pruebas
+nuevas evitan el problema tipando el resultado ad hoc (mismo patrón ya usado en el archivo para
+otras columnas), no dependen de `Database['public']['Tables']['fondo_movimientos']`.
+
+**Conciliación bancaria** (la otra mitad de lo que el usuario aprobó retomar) queda sin empezar —
+es un frente distinto y más grande: no hay UI que enlace `extracto_bancario`/
+`conciliacion_propuesta` con ningún dominio de AQUILA todavía, ni siquiera fuera de Fondos
+(memoria `project-fondos-pendiente`, punto 2). Se planteará por separado.
+
+## D-113
+
+**Conciliación bancaria contable (banco↔libro) — decisiones D-CB-1..6 cerradas con el usuario,
+plan de `Docs/Conciliacion Bancaria/PROMPT_CONCILIACION_BANCARIA_CONTABLE.md` verificado contra
+el código vigente y aprobado como base de implementación.**
+
+Ese documento (escrito el 2026-09-13 por la sesión `6314ceb8-08a2-4397-884b-35775b00f2f7`, a
+petición explícita del usuario: *"instrumento de validación y comparación bancaria contra los
+movimientos contables"*) diagnostica que existen 4 cosas llamadas "conciliación" en el repo y
+solo una — la bancaria contable, banco↔libro — no existe todavía; las otras tres (recaudo,
+`contable_conciliacion_cartera`, `fn_finanzas_conciliar_lote`) quedan intactas. Verificado de
+nuevo hoy en sesión aparte (re-lectura de §3 contra código vigente, como el propio documento
+exige antes de ejecutarlo) — sigue vigente sin cambios, más una verificación en vivo que el
+documento no había hecho: `tenant_role_t` real (consultado contra Postgres local, no asumido) es
+`{auxiliar, auditor, administrador}` — tres roles, no dos.
+
+**Decisiones cerradas (`AskUserQuestion`, todas la opción recomendada por el prompt):**
+- **D-CB-1 — Fuente del lado "libros": `contable_comprobante_detalle` con
+  `estado='contabilizado'`**, no `contable_movimientos()` (proyección legacy). Es el libro
+  persistido y real que ya alimenta libro mayor/balance/estados financieros.
+- **D-CB-2 — `extracto_linea` exige `cuenta_bancaria_id` confiable: se vuelve NOT NULL al
+  importar** (columna vive hoy en `extracto_bancario.cuenta_bancaria_id`, nullable — pasa a
+  exigirse en el punto de importación para extractos nuevos). No rompe nada retroactivo: nadie
+  usa el motor de recaudo en producción todavía.
+- **D-CB-3 (parcial, la pieza de negocio) — una conciliación `certificada` nunca se reabre.**
+  Terminal, igual que un comprobante contabilizado — un error se corrige con un ajuste en la
+  conciliación del período siguiente, mismo criterio append-only de todo el repo. El resto de
+  D-CB-3 (forma exacta de las dos tablas nuevas, `conciliacion_bancaria`/
+  `conciliacion_bancaria_partida`) queda como diseño técnico a implementar tal como lo describe
+  el prompt §6, sujeto a ajuste normal de implementación (no es una decisión de negocio que
+  necesite cerrarse aparte).
+- **D-CB-4 — Rol para certificar: `administrador`, distinto de quien prepara (`auxiliar`).**
+  Confirmado contra el enum real (arriba) — mismo patrón maker-checker que FIN-3
+  (`aprobar_lote`/`ejecutar_lote`) y el art. 48 de cartera.
+  **D-CB-5 — Notas débito/crédito bancarias sin registrar:** botón "crear comprobante contable"
+  desde la partida no cruzada, que pre-arma un borrador en el módulo de comprobantes ya existente
+  (CO-2) — la conciliación nunca contabiliza sola. Adoptado tal como lo propone el prompt, sin
+  objeción — es diseño técnico, no una decisión de negocio con alternativas reales.
+- **D-CB-6 — Ubicación en el menú: `finanzas/conciliacion`**, junto a `cuentas_bancarias` y
+  `finanzas_lotes_pago`, que ya viven ahí.
+
+**Investigación externa que corrobora el diseño** (WebSearch, sesión de hoy, independiente de la
+que ya cita el prompt en su §1): estándar de la industria (Xero/QuickBooks/NetSuite) — pantalla
+única línea-por-línea con tres acciones (match/aceptar sugerencia/crear nuevo), cascada de
+matching por capas (exacto→difuso→detección de reversos), excepciones clasificadas por tipo, meta
+~95%+ auto-match. Y, específico de PH en Colombia (NIIF-PYMES Sección 35, obligatoria para
+copropiedades): **prohibido "forzar" la igualdad libros↔extracto con reclasificaciones** — las
+diferencias se explican, nunca se maquillan (coincide exactamente con la "regla de oro" del
+prompt: la conciliación nunca edita el ledger, solo pre-arma). Consignaciones sin identificar
+deben reconocerse primero en una cuenta transitoria de naturaleza pasiva antes de reclasificarse
+— insumo concreto para el catálogo `lista_tipos` de `conciliacion_bancaria_partida` (D-CB-3):
+confirma que el tratamiento contable de una partida "en banco, no en libros" positiva y no
+identificada debe ir a un pasivo transitorio, no directo a una cuenta de ingreso o cartera.
+
+**Siguiente paso:** Fase 1 del prompt (§7) — Entregable A: UI del motor de recaudo ya construido
+(`finanzas/conciliacion/`), prerrequisito barato del Entregable B. Sin backend nuevo.
+
+## D-114
+
+**Entregable A cerrado — UI del motor de recaudo (banco↔residente) ya construido, cero backend
+nuevo.** Fase 1 de `Docs/Conciliacion Bancaria/PROMPT_CONCILIACION_BANCARIA_CONTABLE.md` §7.
+
+**Qué se construyó** (solo frontend — `extracto_bancario`/`extracto_linea`/
+`conciliacion_propuesta`, `importar-extracto-bancario`, `conciliar-linea` ya existían desde Fase 3,
+20260904170000+, sin ninguna UI hasta ahora):
+- `apps/web/app/stores/conciliacion.ts` — `cargarLineas` (con filtro estado/cuenta/fecha,
+  `conciliacion_propuesta` embebida con el inmueble candidato), `medirKpi` (mismo cálculo que
+  `medirAutoConciliacion()` de `liquidation-engine`, replicado porque ese módulo no está en el
+  barrel del paquete — `exports` de su `package.json` no lo expone, importarlo rompería el build
+  del cliente), `importarExtracto` (multipart a la Edge Function) y `resolverLinea` (las tres
+  acciones de `conciliar-linea`).
+- `apps/web/app/pages/finanzas/conciliacion/index.vue` — bandeja con KPI, filtros y lista.
+- `apps/web/app/components/finanzas/ConciliacionImportarModal.vue` y
+  `ConciliacionResolverDrawer.vue` — el heurístico se muestra como candidato preseleccionable,
+  nunca se auto-aplica (el usuario siempre confirma el inmueble antes de que el botón se habilite).
+- Entrada de menú `Finanzas → Conciliación bancaria`, ícono propio (edificio de banco, distinto de
+  la billetera de `tesoreria`).
+
+**Verificado en navegador de punta a punta** (regla del repo para cambios de UI — no basta con que
+compile): con datos sembrados directo en Postgres local (el importador CSV en sí ya está probado
+por `tests/tenancy/conciliacion.test.ts`, no hace falta repetirlo aquí) se probaron los tres
+caminos reales contra las Edge Functions: aplicar a inmueble con un candidato heurístico
+preseleccionado (pasó, quedó `conciliada_manual`), descartar con motivo (pasó, quedó
+`descartada`), y el filtro por estado. El KPI se mantuvo en 0% tras la resolución manual —
+correcto: mide auto-conciliación, no resolución total.
+
+**Dos bugs de integración reales encontrados y corregidos durante la verificación** (no solo
+estilo): (1) los componentes nuevos en `components/finanzas/` se referenciaban en la página sin el
+prefijo `Finanzas` que Nuxt les asigna automáticamente (`<FinanzasConciliacionImportarModal>`, no
+`<ConciliacionImportarModal>` — mismo patrón ya usado en el repo, ver
+`FondosFondoMovimientoDrawer` en `FondosTabMovimientos.vue`); sin el prefijo, Nuxt no resolvía el
+componente y fallaba en silencio (advertencia de hidratación en consola, ningún error visible en
+pantalla). (2) el filtro de rango de fechas desbordaba horizontalmente el layout en una grilla de
+4 columnas — se corrigió a 5 columnas con el rango de fechas ocupando 2.
+
+**Efecto colateral de la propia verificación, corregido correctamente:** al probar "aplicar a
+inmueble" contra INM-101 del tenant demo compartido (`GC-001`, `fdb1998c-...`) se creó un pago real
+de $180.000 — `pago_aplicaciones` es append-only (SEC-14, ver
+`project-sec14-append-only-sin-marcha-atras`), así que no se pudo borrar. Se corrigió con el
+mecanismo real del repo para esto, `fn_anular_pago()` (RC-2, `20260903130000_anulacion_pago.sql`):
+una reversa de -$180.000 con motivo explícito, no una eliminación. Efecto neto sobre el tenant
+demo: cero, y queda auditable en vez de ser un borrado silencioso. El resto de la siembra
+(`extracto_bancario`/`extracto_linea`/`conciliacion_propuesta`, sin protección append-only) sí se
+eliminó limpiamente.
+
+**No se corrió `pnpm verify` completo** — cadencia del repo (`feedback-cadencia-push-prod-hoja-de-
+ruta`): un verify remoto completo se reserva al cierre de ola, no a cada corte. Sí se corrieron
+`pnpm --filter @aquila/web typecheck` y `lint` (limpios) más la verificación real en navegador de
+arriba.
+
+**Siguiente paso:** Fase 3 en adelante del prompt §7 — Entregable B (conciliación bancaria
+CONTABLE, banco↔libro), con D-CB-1..6 ya cerrados (D-113).
+
+## D-115
+
+**Fase 3 (esquema) del Entregable B cerrada** — migración
+`20260935060000_conciliacion_bancaria_contable_esquema.sql`, aplicada a desarrollo local. Solo
+esquema: el motor de cruce (Fase 4) y las Edge Functions que lo invocan (Fase 5) siguen sin
+construir.
+
+**Qué se creó:**
+- **D-CB-2 aplicado**: `extracto_bancario.cuenta_bancaria_id` pasa a `NOT NULL` — verificado antes
+  de alterar (0 filas con la columna nula en desarrollo). `importar-extracto-bancario/index.ts`
+  pasa a exigir el parámetro (antes opcional) con el mismo mensaje `INVALID_PAYLOAD`.
+- Catálogo `TIPO_PARTIDA_CONCILIACION` en `lista_tipos` (6 valores: depósito en tránsito, nota
+  débito/crédito del banco, cheque pendiente, salida pendiente, otro) — registrado primero en
+  `public.tipos` (la migración falló en el primer intento por saltarse este paso — el guard
+  `lista_tipos_tipo_fkey` lo detectó correctamente antes de escribir nada, transacción revertida
+  limpia, sin necesidad de rollback manual).
+- `conciliacion_bancaria` (cabecera, D-CB-3): una por `(tenant_id, cuenta_bancaria_id, periodo_id)`,
+  estado `borrador|certificada` (enum nativo, D-24 — gatilla terminalidad), certificación
+  terminal (`guard_conciliacion_bancaria_transicion`, D-CB-3: nunca se reabre, corrección vía la
+  conciliación del período siguiente). RLS `ENABLE+FORCE`, solo `SELECT` para `authenticated`.
+- `conciliacion_bancaria_partida` (líneas no cruzadas): `origen` `banco|libro` (enum nativo —
+  decide qué FK exige `guard_conciliacion_bancaria_partida_coherencia`: `extracto_linea_id` o
+  `contable_comprobante_detalle_id`, nunca ambas ni ninguna), `tipo_id` contra el catálogo nuevo,
+  `resuelta` boolean (única columna que puede cambiar después de certificar la cabecera — p. ej.
+  un cheque que se cobra el mes siguiente). Misma RLS solo-lectura.
+
+**Verificado:** `pnpm db:push:dry` + `pnpm db:push` en desarrollo; `supabase db lint` limpio sobre
+las dos funciones nuevas. **Regresión real encontrada y corregida**: el `NOT NULL` de
+`cuenta_bancaria_id` rompía 6 fixtures de `tests/tenancy/conciliacion.test.ts` (la "cola manual" —
+5 bloques que insertan `extracto_bancario` directo, sin pasar por la Edge Function) y 1 de
+`tests/rls/conciliacion.test.ts` — todos corregidos agregando una cuenta bancaria de fixture
+(`ENTIDAD_FINANCIERA` = bancolombia). `tests/finanzas/lotes-pago.test.ts` ya la traía, sin cambios.
+Regresión completa tras el fix: `tests/tenancy/conciliacion.test.ts` (11), `tests/rls/conciliacion.test.ts`
+(8), `tests/finanzas/lotes-pago.test.ts` (19), `tests/rls/schema-forced-rls.test.ts` (2) — todo
+verde. `pnpm --filter @aquila/web typecheck`/`lint` limpios (el store/modal de Entregable A
+pasan a exigir la cuenta bancaria en vez de dejarla opcional, coherente con el nuevo `NOT NULL`).
+
+**No se corrió `pnpm verify` completo** (misma cadencia de D-114 — se reserva al cierre de ola).
+`pnpm db:types`/`db:push:prod` siguen pendientes de la decisión del usuario (igual que D-112/D-114:
+el script exige confirmación interactiva "si", no automatizable).
+
+**Siguiente paso:** Fase 4 — motor puro de cruce banco↔libro (sin Supabase, fixtures
+determinísticos, mismo nivel de pureza que `conciliacion-matching.ts`), destino
+`packages/liquidation-engine/src/**` o `financial-kernel` para heredar el umbral de cobertura
+100%.
+
+## D-116
+
+**Fase 4 (motor puro de cruce) cerrada** —
+`packages/liquidation-engine/src/conciliacion-bancaria-cruce.ts` (+ su test), 100% de cobertura
+(statements/branches/funcs/lines), 15/15 pruebas verdes.
+
+**Corrección a una afirmación del plan, verificada contra el código real, no asumida:** el prompt
+(§7 fase 4) dice que `vitest.config.ts` "ya exige 100%" en `packages/liquidation-engine/src/**` —
+verificado: **falso**. El umbral 100% solo aplica a `packages/financial-kernel/src/**`,
+`packages/ael-runtime/src/**` y `apps/web/app/types/permissions.ts`; `liquidation-engine` cae en
+el general (80%). Se llegó a 100% igual, por rigor propio en código financiero — no porque el
+gate lo exigiera. No se corrigió el prompt (es un documento de encargo histórico, no una fuente
+de verdad viva) — se deja esta nota como la corrección real.
+
+**Diseño del motor:**
+- Convención de signo única: positivo = entra dinero (abono banco / débito de la cuenta contable
+  de bancos, que es de naturaleza débito por ser grupo 11). `MovimientoLibro.monto` es siempre
+  `debito - credito` — la resta la hace quien arme el adaptador (Fase 5), no este módulo.
+- Cascada de cruce, mismo espíritu que `conciliacion-matching.ts`: (1) referencia exacta
+  normalizada, (2) monto exacto + ventana de 3 días **solo si hay un único candidato** a cada
+  lado (ambigüedad real → ninguno cruza, ambos quedan visibles como partidas), (3) lo que sobra
+  se clasifica.
+- Clasificación de lo no cruzado sigue literalmente el vocabulario que ya cerró D-CB-3: banco
+  positivo+reciente (≤3 días del corte) → `deposito_transito`; banco positivo+lejano →
+  `nota_credito_banco`; banco negativo → `nota_debito_banco`; libro negativo (salida) →
+  `cheque_pendiente` (el adaptador de Fase 5 puede refinarlo a `partida_salida_pendiente` si
+  logra trazar un `finanzas_lotes_pago` concreto — el motor puro no tiene esa información); libro
+  positivo sin cruzar → `otro` (caso atípico, no se inventó vocabulario nuevo fuera del catálogo).
+- **Nota de diseño explícita, no un hueco**: "depósito en tránsito" aquí se asigna a movimientos
+  del lado BANCO sin cruzar (no de libros, como en el ejemplo de texto clásico de contabilidad)
+  porque en AQUILA la causalidad real va al revés — `extracto_linea` (recaudo) suele adelantarse
+  a `contable_comprobante` (CO-3 materializa por lotes, no en el momento). Es la clasificación que
+  ya proponía el prompt §5-B; aquí se deja explícito el porqué para que la próxima sesión no lo
+  lea como un error de dirección.
+
+**No se tocó ningún Edge Function ni tabla** — Fase 4 es 100% TypeScript puro, sin `pnpm db:push`
+ni cambios de esquema.
+
+**Siguiente paso:** Fase 5 — adaptador Supabase + Edge Functions nuevas
+(`generar-conciliacion-bancaria`, `certificar-conciliacion-bancaria`) que arman
+`MovimientoBanco[]`/`MovimientoLibro[]` desde `extracto_linea` y `contable_comprobante_detalle`,
+llaman este motor, y escriben `conciliacion_bancaria`/`conciliacion_bancaria_partida`.
+
+---
+
+## D-117
+
+**Fase 5 (adaptador Supabase + Edge Functions) cerrada** —
+`packages/liquidation-engine/src/conciliacion-bancaria-supabase.ts` (`generarConciliacionBancaria`,
+`certificarConciliacionBancaria`) + `supabase/functions/generar-conciliacion-bancaria/index.ts` +
+`supabase/functions/certificar-conciliacion-bancaria/index.ts`. `tsc --noEmit` y `eslint` en cero,
+`supabase db lint` sin hallazgos nuevos, `tests/finanzas/conciliacion-bancaria-contable.test.ts`
+8/8 verdes contra los dos Edge Functions reales (HTTP, no el adaptador por import directo — no hay
+precedente en el repo de probar un `*-supabase.ts` importándolo desde `dist/` en un test; el patrón
+establecido, igual que `tests/tenancy/conciliacion.test.ts`, es `cliente.functions.invoke(...)`).
+
+**D-14 respetado, no una excepción nueva:** `conciliacion-bancaria-supabase.ts` habla con Supabase
+(`@aquila/shared`), así que necesitaba entrar a la whitelist de `eslint.config.js` junto a su
+hermano `conciliacion-supabase.ts` — se agregó ahí, no se relajó la regla general.
+
+**Dos gaps de entorno reales, no de código, encontrados y corregidos antes de poder cerrar el
+corte (ninguno inventado — verificados en vivo contra prod/local):**
+
+1. **`db:types` nunca podía apuntar a producción.** A diferencia de `db-push.mjs` (que ya tenía
+   `--prod` → lee `.env.production`, D-25), `db-types.mjs` siempre leía `.env` — que en este
+   entorno apunta a local (`http://127.0.0.1:...`), y el project ref solo se puede extraer de un
+   host `https://<ref>.supabase.co`. `pnpm db:types` era, en la práctica, irrealizable desde este
+   `.env`. Se agregó `--prod`/`pnpm db:types:prod` a `scripts/db-types.mjs`, mismo criterio que
+   `db-push.mjs` — sin este fix, la Fase 5 no podía typecheckear nunca (las tablas nuevas de la
+   Fase 3 no existían en `database.generated.ts` hasta regenerar contra el proyecto real).
+
+2. **El primer intento de `pnpm db:push:prod` de la Fase 3 falló en producción**:
+   `extracto_bancario.cuenta_bancaria_id` no podía ser `NOT NULL` — 190 filas (20 tenants, ninguno
+   con `cuentas_bancarias` configurada: extractos de antes de que ese catálogo existiera) ya eran
+   `NULL` en prod, invisibles desde local porque ahí nunca hubo esos datos heredados (mismo patrón
+   de [[feedback_diagnosticar_datos_faltantes_local_antes_de_bug]]). D-CB-2 seguía cerrada en su
+   intención (todo extracto **nuevo** exige cuenta bancaria) pero no en su mecanismo: se cambió
+   `alter column ... set not null` por `add constraint ... check (cuenta_bancaria_id is not null)
+   not valid` (decisión del usuario, no mía — se le presentaron 3 opciones vía `AskUserQuestion` y
+   eligió esta) — exige la columna en todo INSERT/UPDATE nuevo sin tocar ni validar las 190 filas
+   heredadas. Nada se inventó ni se borró.
+
+**Motor de cruce en producción real, no solo en el test puro de Fase 4:** el test de integración
+verificó extremo a extremo — un movimiento que cruza (monto+fecha, paso 2), uno de banco sin
+cruzar (`deposito_transito`, por estar dentro de la ventana de 3 días de la fecha de corte), uno de
+libros sin cruzar (`cheque_pendiente`, monto negativo) — y reafirmó el invariante contable
+(`saldoBancoAjustado === saldoLibrosAjustado`) contra datos realmente persistidos, no solo
+calculados en memoria.
+
+**D-CB-4 (segregación de funciones) verificado con HTTP real:** un usuario sin membership recibe
+403 al generar; un auxiliar (sin ser administrador) recibe 403 al certificar; un administrador sí
+puede certificar. `CONCILIACION_BANCARIA_YA_EXISTE`, `CUENTA_BANCARIA_SIN_CUENTA_CONTABLE`,
+`CONCILIACION_BANCARIA_YA_CERTIFICADA` y `CONCILIACION_BANCARIA_NO_ENCONTRADA` — los cuatro
+códigos de error nuevos de este corte — se ejercitaron con el código HTTP real, no solo leídos del
+código fuente.
+
+**`deno check` no es un gate real para Edge Functions en este repo** (hallazgo, no regresión de
+esta fase): falla igual sobre `importar-extracto-bancario/index.ts`, ya verificado y desplegado
+hace semanas — `withSupabase<Database>` no infiere sus genéricos en `deno check` a través del
+límite npm/JSR. Coherente con que `test:edge` en `package.json` ya corre con `--no-check`. No se
+intentó "arreglar" esto — es deuda preexistente, fuera de alcance de este corte.
+
+**Gap retroactivo cerrado de paso:** `LOTE_PAGO_INVALIDO` (usado desde el guard de Bloque H, D-112)
+nunca se había registrado en `error-codes.ts` — se registró ahora, exactamente el error que
+[[feedback_registrar_error_codes_al_escribir_el_raise]] advierte evitar.
+
+**No probado en este corte (fuera de alcance, no un hueco silencioso):** el ajuste correctivo de
+un período ya certificado (mencionado en el docstring del adaptador como "fuera de alcance de este
+corte") y la UI del acta de conciliación.
+
+**Siguiente paso:** Fase 6 — UI del acta de conciliación (dos columnas banco/libros, partidas,
+botón certificar), pendiente de que el usuario indique continuar.
+
+---
+
+## D-118
+
+**Fase 6 (UI del acta de conciliación) cerrada — última del alcance obligatorio del plan (§7.6);
+solo queda el control de auditoría opcional §7.7.**
+
+- `apps/web/app/stores/conciliacionBancaria.ts` (nuevo): `buscar`/`generar`/`certificar` — generar
+  y certificar solo vía Edge Function (`extraerErrorFuncion`, mismo patrón que
+  `stores/conciliacion.ts`); las dos tablas no tienen INSERT/UPDATE para `authenticated`, este
+  store solo lee directo.
+- `apps/web/app/pages/finanzas/conciliacion-bancaria/index.vue` (nuevo): selectores cuenta
+  bancaria + período, cabecera con saldos y estado, dos columnas banco/libros con sus partidas,
+  botón certificar.
+- `apps/web/app/components/finanzas/ConciliacionBancariaCrearComprobanteDrawer.vue` (nuevo):
+  D-CB-5 — solo para partidas `nota_debito_banco`/`nota_credito_banco` (las únicas donde "el
+  banco hizo algo que libros no sabe"; `deposito_transito`/`cheque_pendiente` se resuelven solos
+  el período siguiente). Pre-arma fecha/monto/cuenta banco (signo ya resuelto por el tipo) y deja
+  que el auxiliar elija la contrapartida — reutiliza `comprobantesStore.crearComprobante()`, el
+  mismo código que usa la captura manual de CO-2, nunca un INSERT propio. Nunca contabiliza sola.
+- `apps/web/app/utils/navegacion.ts`: nueva entrada "Conciliación bancaria contable" en
+  `/finanzas/conciliacion-bancaria` — **deliberadamente distinta** de "Conciliación bancaria"
+  (`/finanzas/conciliacion`, Entregable A, recaudo) para no repetir el mismo rótulo sobre dos
+  pantallas distintas (D-CB-6 solo cerró "bajo finanzas/", no el sub-path exacto — la colisión con
+  Entregable A no existía cuando se cerró D-CB-6, se resolvió aquí).
+
+**D-CB-4 verificado con roles reales, no solo leído del código**: `has_role(['auxiliar'])` en
+`conciliar-linea`/`importar-extracto-bancario`/`generar-conciliacion-bancaria` es literal — un
+`administrador` NO pasa ese umbral (sin fallback de jerarquía salvo el pseudo-rol `agent`, que no
+aplica aquí). La UI gatea `puedeGenerar`/`puedeCertificar` por rol exacto
+(`tenantStore.role === 'auxiliar'` / `'administrador'`), mismo patrón que `cierres.vue`
+(`puedeReabrir`). Verificado en navegador con dos usuarios reales: un auxiliar generó (un
+administrador no pudo — botón deshabilitado); un administrador certificó (el auxiliar no pudo).
+
+**Verificado en navegador de punta a punta contra Supabase local real (no solo `pnpm verify`)**:
+cuenta bancaria sin `contable_cuenta_id` → aviso correcto y selector vacío; generar con datos
+reales (un movimiento bancario sin registrar, clasificado `nota_debito_banco`) → acta con saldo
+banco `0 → -15000`, partida visible con botón "Crear comprobante"; comprobante creado desde el
+drawer → confirmado en Contabilidad → Comprobantes con las dos líneas exactas (111005 crédito
+15.000 / 5820 débito 15.000, balanceado), en estado borrador (nunca auto-contabilizado); certificar
+→ estado pasa a `certificada`, botón desaparece (terminal). Efecto de la verificación revertido
+por completo: comprobante borrador eliminado, `conciliacion_bancaria`/`_partida` y el
+`extracto_bancario`/`extracto_linea` de prueba borrados, usuario auxiliar desechable eliminado. El
+único cambio permanente es `cuentas_bancarias.contable_cuenta_id` de la cuenta demo de GC-001
+(antes nula) — no un artefacto de prueba, sino una configuración real que faltaba (PC-3) para que
+esta pantalla fuera usable con el tenant demo.
+
+`tsc --noEmit`/`nuxt typecheck` y `eslint` (`pnpm --filter @aquila/web lint`) en cero — los únicos
+7 warnings preexistentes del lint de `apps/web` son de archivos que este corte no tocó.
+
+**No construido en este corte (§7.7, opcional, no bloqueante):** control de auditoría hermano de
+`BANCOS_CONCILIACION_PENDIENTE` sobre conciliaciones sin certificar / partidas envejecidas. Con
+esto, el plan de
+`Docs/Conciliacion Bancaria/PROMPT_CONCILIACION_BANCARIA_CONTABLE.md` queda con su alcance
+obligatorio (Entregable A + Entregable B completo, D-113 a D-118) cerrado.
+
+---
+
+## D-119
+
+**Fase 7 (opcional, §7.7/§3.8) construida a pedido del usuario tras cerrar D-118** — control de
+auditoría `BANCOS_CONCILIACION_CONTABLE_PENDIENTE`, hermano de `BANCOS_CONCILIACION_PENDIENTE`
+(`20260917100000`, conciliación #1 recaudo) pero de la conciliación #4 (contable, banco↔libro).
+
+- `supabase/migrations/20260935070000_conciliacion_bancaria_contable_auditoria.sql`: agrega el
+  código al `CHECK` de `auditoria_controles.codigo_automatico` y reproduce completo (Postgres no
+  permite parchear un solo branch) `auditoria_control_ejecutar()` con el nuevo `elsif`. Detecta dos
+  señales, sumadas en un solo conteo (mismo criterio que `CONTABILIDAD_DESCUADRE`): (a)
+  `conciliacion_bancaria` en `borrador` con `preparado_at` de más de 15 días (nunca certificada), y
+  (b) `conciliacion_bancaria_partida` con `resuelta = false` de más de 15 días (una nota
+  débito/crédito nunca llevada a comprobante, o un cheque/depósito en tránsito nunca aclarado).
+  Nivel `MEDIO`, mismo umbral de 15 días que su hermano.
+- `apps/web/app/stores/auditoria.ts`: entrada nueva en `CONTROLES_AUTOMATICOS` (lista espejo del
+  `CHECK`, sin test de paridad automatizado — se mantiene sincronizada a mano, igual que las 12
+  anteriores).
+- `tests/rls/auditoria-controles-automaticos.test.ts`: 2 pruebas nuevas (detecta la excepción con
+  conteo 2; una conciliación certificada + partida resuelta no cuentan). 18/18 verdes.
+
+**Regresión real encontrada y corregida de paso, no de este corte pero descubierta al tocar este
+archivo**: el fixture de `BANCOS_CONCILIACION_PENDIENTE` (preexistente, anterior a D-115) insertaba
+`extracto_bancario` sin `cuenta_bancaria_id` — roto desde que D-CB-2 (Fase 3, `20260935060000`)
+volvió esa columna exigible en todo INSERT nuevo (`CHECK ... NOT VALID`). Se me había escapado al
+corregir los otros 6 sitios en D-115 (solo revisé `tests/tenancy/conciliacion.test.ts` y
+`tests/rls/conciliacion.test.ts`, no toda la suite). Corregido aquí con el mismo patrón
+(`crearCuentaBancariaFixture`). Grep de todo `tests/` confirma que ya no quedan sitios sueltos.
+
+**Verificado en navegador, no solo con el test**: creado un riesgo → un control (seleccionando la
+nueva opción del desplegable, que aparece con su etiqueta completa) → una auditoría → "Ejecutar
+ahora" → `PASS · 0 excepción(es)` sobre el estado real (limpio) de GC-001. Todo el fixture de la
+verificación (riesgo, control, auditoría) borrado después — confirmado que las 4 tablas volvieron
+a 0 filas para el tenant.
+
+`tsc`/eslint (`apps/web` y raíz) y `supabase db lint` en cero — ningún hallazgo nuevo.
+
+## D-120
+
+**FND-PR-09 (`ANALISIS_FONDOS_BLOQUE_A.md` §11/582) — `fondo_movimientos.extracto_linea_id` deja
+de ser una FK inerte.** Pedido explícito del usuario tras verificar el gap: la columna existe desde
+`20260929110000` ("línea de extracto bancario conciliada que respalda el movimiento") pero nunca
+fue exigida ni aceptada por `guard_fondo_movimiento`, y cero pantallas la llenaban (confirmado por
+grep en `apps/web/app/{stores,components,pages}/fondos` antes de tocar nada). Modelo §36 "sin
+movimientos no conciliados" seguía sin cumplirse a nivel de fondo aunque la conciliación bancaria
+contable (D-113..119) ya lo resolviera a nivel de libro mayor.
+
+**Alcance deliberadamente acotado a `aporte`/`rendimiento`** — los únicos dos tipos que pueden
+nacer de un movimiento bancario real sin pasar por `pago_id`/`lote_pago_id`: una contribución
+extraordinaria que entra por transferencia directa (sin cargo de propietario detrás — si viniera
+de un propietario ya tiene `pago_id`, BLOQUE K), o intereses que el banco acredita (el caso citado
+literalmente en el diagnóstico del prompt de conciliación bancaria contable). `uso` queda fuera: ya
+tiene su origen automático (`lote_pago_id`) y el manual pasa por `fondo_solicitudes_uso` (D-37) —
+no se abre un tercer camino. `ajuste`/`traslado_entrada`/`traslado_salida` quedan fuera: son
+reasignaciones contables internas a la misma cuenta operativa — verificado que `fondos` no tiene ni
+tendrá cuenta bancaria propia (cero FK fondos↔cuentas_bancarias), así que no hay una línea de
+extracto distinta que las respalde.
+
+- `supabase/migrations/20260935080000_fondo_soporte_extracto_linea.sql`: reproduce completo
+  `guard_fondo_movimiento` (Postgres no permite parchear un solo branch) agregando
+  `extracto_linea_id` como soporte alternativo a `documento_id` para `aporte`/`rendimiento`; agrega
+  `fondo_movimientos_extracto_linea_unica` (índice único parcial, mismo patrón que
+  `extracto_linea_pago_unico` / `finanzas_lotes_pago_extracto_linea_unica`) para que una línea no
+  respalde dos movimientos. No se construye ningún motor de conciliación nuevo — se reutiliza
+  `extracto_linea` tal cual, mismo criterio que `finanzas_lotes_pago.extracto_linea_id`
+  (`20260931290000`): "el fondo no tiene ni tendrá un motor de conciliación propio".
+- `apps/web/app/stores/fondos.ts`: `registrarMovimiento` acepta `extractoLineaId` opcional; nueva
+  `cargarExtractoLineasDisponibles(tenantId)` — líneas del tenant sin `pago_id` (una línea ya
+  resuelta como recaudo tiene su propio camino contable) y que ningún otro movimiento de fondo ya
+  tomó (filtro de UX; la garantía real es el índice único).
+- `apps/web/app/components/fondos/FondoMovimientoDrawer.vue`: para aporte/rendimiento, un
+  `URadioGroup` deja elegir "Documento" (flujo existente) o "Línea de extracto bancario ya
+  conciliada" (nuevo `UiSelectorBuscable` sobre las líneas disponibles) — mutuamente excluyentes,
+  nunca ambos.
+- `tests/tenancy/fondos-modelo-general.test.ts`: 4 pruebas nuevas (aporte/rendimiento con
+  `extracto_linea_id` sin documento pasan; ajuste con `extracto_linea_id` sigue exigiendo
+  documento; la misma línea no respalda dos movimientos — `23505` sobre el índice único). 49/49
+  verdes en ese archivo.
+
+**Verificado en navegador contra el tenant demo local (GC-001), no solo con el test**: sembrada una
+`extracto_linea` real (interina, vía script directo — no hay UI de importar extracto en este flujo
+de prueba), abierto "Registrar movimiento" → tipo Aporte → radio "Línea de extracto" → la línea
+aparece con fecha/descripción/monto formateados → registrado → saldo del fondo sube a $75.000 sin
+ningún documento adjunto → confirmado en BD `documento_id: null, extracto_linea_id: <uuid>` →
+reabierto el drawer: la misma línea ya NO aparece en el selector (tomada). Como
+`fondo_movimientos` es append-only (SEC-14, no admite DELETE), el movimiento de prueba se limpió
+con una `reversion` explícita (motivo declarado como prueba) en vez de borrarlo — saldo del fondo
+demo verificado de vuelta en $0.
+
+`tsc`/eslint (`apps/web` y raíz) y `supabase db lint` en cero — ningún hallazgo nuevo. Aplicado
+solo a desarrollo local — `db:push:prod` queda pendiente de que el usuario lo autorice y lo corra
+él mismo.
+
+## D-121
+
+**IA-01: estructura genérica de proveedor de IA por copropiedad, con OpenRouter como gateway.**
+Documentación retroactiva — el trabajo ya estaba hecho y en producción (5 migraciones,
+`20260935000000`–`20260935040000`, 2026-09-13) pero sin entrada en este archivo. Mismo alcance y
+mismo patrón que `pasarela_config`/`pasarela_credencial` (`20260904100000`): esquema, configuración
+por tenant y activación — **sin ningún consumo real de un servicio de IA todavía**. Eso lo construye
+cada módulo que lo necesite (ejemplo citado en el propio código: extracción asistida de extractos
+bancarios en PDF), leyendo esta configuración cuando le haga falta.
+
+- **Por qué por copropiedad y no una clave de plataforma** (decisión del usuario): cada tenant trae
+  y paga su propio proveedor/modelo/API key — autonomía y costo son decisión de cada copropiedad,
+  no de Aquila, mismo criterio práctico que `pasarela_config` aunque aquí no aplique la razón
+  regulatoria de "la copropiedad es el comercio".
+- `20260935000000_ia_proveedor_estructura.sql`: enum `ia_proveedor_t` (`anthropic`/`openai`/
+  `google`, nativo y no `lista_tipos` porque el valor selecciona en tiempo de ejecución qué
+  credenciales exigir y contra qué API hablar — mismo criterio que `pasarela_proveedor_t`, D-24);
+  `ia_config` (proveedor + modelo texto libre + `activa`, RLS normal para miembros/`auxiliar`, un
+  proveedor activo por tenant vía índice único parcial); `ia_credencial` (**sin ninguna policy para
+  `authenticated`, deliberado** — solo guarda `vault_secret_id`, nunca el valor); `fn_activar_ia_
+  proveedor` (swap atómico + auditoría, exige `verificada_at` no nulo).
+- `20260935010000_ia_credencial_vault.sql`: `fn_guardar_credencial_ia` (guarda/reemplaza en Supabase
+  Vault, devuelve el uuid del secreto — nunca el valor; invalida `verificada_at` y desactiva el
+  proveedor al reemplazar una credencial) y `fn_credenciales_ia_descifrables` (cuenta cuántas se
+  pueden descifrar, nunca las muestra). Ambas `SECURITY DEFINER`, revocadas para `authenticated`,
+  solo `service_role`.
+- `20260935020000_ia_credenciales_presentes.sql`: `fn_ia_credenciales_presentes` — solo nombres, para
+  que la UI muestre "ya capturada" + botón reemplazar sin poder leer el valor.
+- `20260935030000_fn_leer_credenciales_ia.sql`: `fn_leer_credenciales_ia` — **la única** función que
+  devuelve el valor descifrado; revocada para `authenticated`/`anon`, pensada para que la use, con
+  `service_role`, el primer módulo real que necesite hablar con el proveedor (todavía no existe
+  ninguno).
+- `20260935040000_ia_proveedor_openrouter.sql`: agrega `'openrouter'` al enum (`ALTER TYPE ... ADD
+  VALUE` en migración propia — no se puede usar el valor nuevo en la misma transacción que lo
+  agrega). Decisión del usuario: OpenRouter no es "un proveedor más" sino un gateway (Bearer token +
+  payload compatible con OpenAI) que expone 500+ modelos de 60+ proveedores reales sin que Aquila
+  tenga que escribir un descriptor por cada uno.
+- **Código de aplicación** (no son migraciones, pero cierran el mismo corte): `packages/ai-providers`
+  (`descriptores.ts` con metadata pura por proveedor — capacidades, modelos sugeridos, credenciales
+  requeridas; `modelosSoportados` de OpenAI/Google marcados explícitamente como no verificados contra
+  documentación vigente, mismo criterio de honestidad que `parserBancolombia`); Edge Function
+  `configurar-ia` (acciones `guardar_credenciales`/`probar_conexion`/`activar`, mismo patrón que
+  `configurar-pasarela` — el valor de una credencial nunca sale en respuesta HTTP, log ni
+  `audit_log`); `apps/web/app/pages/configuracion/ia.vue` + `stores/proveedoresIa.ts` +
+  `composables/useOpenRouterModelos.ts` (catálogo EN VIVO de modelos de OpenRouter vía
+  `server/api/openrouter-modelos.get.ts` — un proxy Nitro server-side porque el CSP de la app
+  bloquea `connect-src` a dominios externos desde el navegador). Tests: `tests/rls/ia-activacion.
+  test.ts` (7), `tests/rls/proveedores-ia.test.ts` (9), `tests/tenancy/configurar-ia.test.ts` (6),
+  `packages/ai-providers/src/descriptores.test.ts` (2) — 24 pruebas en total.
+
+**Hallazgo real al documentar este corte, no inventado**: `supabase functions list` contra el
+proyecto de producción (`hwjmlyzzvpmhadldavbq`) confirmó que **`configurar-ia` NO estaba
+desplegada** — el esquema (tablas, funciones, enum) sí había llegado a producción vía
+`db:push:prod`, pero la Edge Function nunca se desplegó ahí. Mismo patrón que
+`feedback_corte_cerrado_no_implica_desplegado.md`. De paso, el mismo listado mostró que
+**`generar-conciliacion-bancaria` y `certificar-conciliacion-bancaria` (D-117, Fase 5 de
+conciliación bancaria contable) TAMPOCO estaban desplegadas** en este proyecto — contradecía lo que
+D-117 reportó como "desplegadas y verificadas 8/8 real"; lo más probable es que esa verificación se
+hiciera contra un entorno distinto (`.env` apuntando a otro proyecto en ese momento, problema ya
+documentado en `feedback_verificar_env_antes_de_asumir_entorno.md`).
+
+**Corregido el mismo día, a pedido del usuario**: las tres desplegadas con `pnpm exec supabase
+functions deploy <nombre> --project-ref hwjmlyzzvpmhadldavbq` (se recompiló `packages/ai-providers`
+primero, ya que `configurar-ia` importa su `dist/` por ruta relativa). Verificado con dos evidencias,
+no solo con el mensaje de éxito del CLI: `supabase functions list` las muestra `ACTIVE v1`, y una
+llamada `POST` real sin token a cada una responde `401` (rechazo de autenticación — confirma que el
+gateway ya las encuentra, a diferencia del 404/CORS que da una función inexistente).
+
+**Cómo aplicar:** si se retoma IA-01 para construir un consumidor real (ej. extracción de extractos
+bancarios), el punto de entrada es `ia_config` (RLS ya autoriza `SELECT` a cualquier miembro) +
+`fn_leer_credenciales_ia` desde una Edge Function con `service_role` — nunca antes. Las tres
+funciones de este hallazgo ya están desplegadas; para cualquier Edge Function futura, no asumir que
+"cerrado en código" implica "desplegado en producción" — confirmar siempre con `supabase functions
+list` antes de darlo por hecho.
+
+## D-122
+
+**Se retomó y se cerró el audit de guardias de `fn_resetear_copropiedad` que D-99 dejó
+deliberadamente a medias.** D-99 corrigió 4 guardias encontradas una por una (SEC-14/
+`forbid_mutation*`, cobertura de tablas, CO-2) y se detuvo en una quinta —
+`guard_coeficiente_set_padre_inmutable` (`IMMUTABLE_COEFFICIENT_SET`, coeficientes de un set
+vigente/histórico, Ley 675 art. 111) — con la instrucción explícita de "auditar de una vez TODAS
+las guardias que el reset puede tocar", no seguir parchando una por una.
+
+**Auditoría completa, esta vez contra el catálogo real (`pg_trigger`/`pg_proc` de la base local),
+no releyendo migraciones a ojo**: de los 76 tablas que `fn_resetear_copropiedad` borra
+explícitamente, solo **19 tienen un trigger que dispara en `DELETE`**. De esas 19, **18 ya leían
+`aquila.reset_context`** (las correcciones de D-99 fueron correctas y completas para
+`forbid_mutation`/`forbid_mutation_salvo_tenant_borrado`/`guard_contable_comprobante_detalle_
+inmutable`). La única que faltaba era exactamente la que D-99 ya había identificado:
+`guard_coeficiente_set_padre_inmutable` sobre `coeficientes`. `guard_coeficiente_set_inmutable`
+(la guardia hermana, sobre `coeficiente_sets`) no necesitaba tocarse — confirmado contra
+`pg_trigger` que solo dispara en `UPDATE`, nunca en `DELETE`.
+
+**Se revisó también el borrado en cascada** (`ON DELETE CASCADE` desde tablas fuera de las 76,
+hacia una de las 76): 16 tablas cascadean, de las cuales 2 (`mant_proveedor_evaluacion`,
+`solicitud_encuesta`) tienen guardia de `DELETE` — ambas ya usan `forbid_mutation`, ya cubierta.
+
+- `supabase/migrations/20260935090000_fn_resetear_copropiedad_guardia_coeficientes.sql`: mismo
+  patrón exacto que `guard_contable_comprobante_detalle_inmutable` (D-99 punto 3) — la excepción se
+  acota a `tg_op = 'DELETE' and current_setting('aquila.reset_context', true) = 'true'`, nunca a
+  INSERT/UPDATE. Un coeficiente de un set vigente/histórico sigue siendo inmutable para cualquier
+  edición fuera de un reset.
+- `tests/rls/fn-resetear-copropiedad-coeficientes.test.ts` (2 pruebas nuevas, no existía ningún test
+  de esta función hasta ahora — D-99 la había verificado solo con RPCs manuales en vivo): (1)
+  regresión — un coeficiente de un set vigente sigue rechazando `DELETE` directo fuera de reset con
+  `IMMUTABLE_COEFFICIENT_SET`; (2) `fn_resetear_copropiedad` borra coeficientes de un set `vigente`
+  Y de un set `historica` (las dos ramas del guard) sin bloquearse, dejando 0 filas en
+  `coeficientes`/`coeficiente_sets` para el tenant. `tsc`/eslint/`supabase db lint` en cero.
+
+**Con esto, el audit de guardias queda genuinamente cerrado** — no había "más guardias sin
+descubrir" (el miedo que motivó parar en D-99): eran exactamente 5, las mismas 5, y ya están las 5
+corregidas.
+
+**Hallazgo aparte, NO corregido en este corte** (fuera del alcance de "guardias" — es un problema de
+integridad referencial, no de trigger): al mapear los FKs hacia las 76 tablas, **118 FKs con
+`ON DELETE NO ACTION`** apuntan desde tablas que el reset NUNCA borra (mayormente Mantenimiento —
+`mant_ordenes_trabajo`, `mant_inspecciones`, `mant_contratos`, etc. — y Gobierno — `gobierno_
+miembros`, `gobierno_reuniones`, etc. — hacia `activos`/`terceros`/`inmuebles`/`documentos`/
+`gobierno_organos`). D-99 punto 2 ya sabía que ~95 tablas quedaban sin cubrir y asumió que
+"correctamente, en su mayoría" eran config — esta cuenta corrige esa suposición: una parte real de
+esas 118 referencias son datos operativos de Mantenimiento/Gobierno, no config, y un tenant con
+datos poblados en esos módulos haría fallar el reset con una violación de FK (23503) al intentar
+borrar `activos`/`terceros`/`inmuebles`, igual que ya pasó una vez con `contable_comprobante` en
+D-99. Queda como deuda cuantificada, no como sorpresa vaga — pendiente de que el usuario decida si
+se amplía la cobertura de `fn_resetear_copropiedad` a esas tablas.
+
+**Aplicado solo a desarrollo local** — `db:push:prod`/`db:types:prod` pendientes de que el usuario
+los autorice y los corra él mismo.
+
+**Addendum 2026-09-14 — ya en producción.** El usuario corrió `pnpm db:push:prod` (confirmación
+"si" tecleada por él mismo); `20260935090000` quedó aplicada en `hwjmlyzzvpmhadldavbq` (verificado
+con `supabase migration list --project-ref`, `local`/`remote` iguales). `pnpm db:types:prod`
+regenerado. Ver D-124 para el resto de la verificación post-push.
+
+## D-123
+
+**Diagnóstico del `pnpm verify` remoto que falló al cierre de Ola 2** (27 archivos/37 tests en
+rojo, dominios dispersos: create-tenant, cartera, gobierno, mantenimiento, conciliación bancaria,
+fondos) — y las dos correcciones que salieron de ese diagnóstico. `pnpm build`/`typecheck`/`lint`
+del mismo run habían pasado limpios; solo `pnpm test` falló, lo que ya apuntaba a infraestructura/
+red, no a un defecto de código.
+
+**Método**: en vez de releer el log de 4111 líneas y adivinar, se re-corrieron ~15 de los 37 tests
+fallidos de forma aislada, en vivo, contra el mismo proyecto de producción (mismo mecanismo de
+`pnpm verify` remoto: variables `SUPABASE_*` exportadas por encima de `.env`). Tres causas
+independientes, confirmadas por evidencia directa, no inferidas:
+
+1. **Timeouts de Vitest calibrados para Docker local, no para producción real (la mayoría de las
+   37 fallas).** `vitest.config.ts` no fijaba `testTimeout`/`hookTimeout` — corría con los defaults
+   (5s test / 10s hook). Contra un proyecto remoto real eso alcanza casi siempre, pero no bajo la
+   menor latencia o carga: se reprodujo en vivo un **"Gateway Timeout" del propio gateway de
+   Supabase** en un `SELECT` trivial a `lista_tipos` (`tests/gobierno/atencion.test.ts`) y un
+   timeout de test genérico en otro archivo distinto (`tests/rls/politica-financiera-tope-legal.
+   test.ts`) — dos archivos que ni siquiera habían fallado en el run original, confirmando que es
+   ruido de infraestructura no determinista, no un defecto reproducible. Se confirmó además que
+   `create-tenant`, `cartera-etapas`, `concepto-maker-checker`, `fondos-solicitud-decision`,
+   `mantenimiento/cumplimiento`, `tenant-predeterminado`, `acuerdos-pago` — todos fallidos en el run
+   original — **pasan limpio** al re-correrlos aislados. Corregido: `testTimeout`/`hookTimeout` a
+   20s en `vitest.config.ts` (los tests que ya declaraban su propio timeout explícito, como los de
+   30-60s, siguen mandando sobre este default).
+2. **3 Edge Functions no desplegadas en el momento en que corrió el verify (ya resuelto por
+   D-121/D-122, mismo día).** Las 6 fallas de `tests/finanzas/conciliacion-bancaria-contable.test.ts`
+   se explican por eso — re-corrido ahora: 8/8 verdes.
+3. **Un problema real, activo y reproducible en Brevo (SMS y correo) — corregido en código, la
+   cuenta de Brevo en sí sigue siendo decisión del usuario.** `tests/tenancy/compositor-correo-
+   envio.test.ts` seguía fallando de forma consistente: `enviar-correo-compositor` respondía `500`
+   en vez del `502 BREVO_ERROR` que el propio código intenta devolver. Causa real: el `fetch()` a
+   Brevo (`/v3/smtp/email` y `/v3/transactionalSMS/sms`) solo envolvía en try/catch el *parseo del
+   cuerpo de error* — ni la llamada `fetch()` en sí (puede reventar por red/DNS/TLS) ni el parseo
+   del cuerpo de ÉXITO (`res.json()` revienta si Brevo responde 200 con un cuerpo no-JSON) estaban
+   protegidos. El propio diseño ya declaraba la intención ("un despacho que falla por configuración
+   tiene que poder leerse en la bandeja, no en los logs del servidor") pero tenía esta grieta. Mismo
+   patrón exacto, repetido en 4 archivos (ninguno se había escrito pensando en el otro, es
+   coincidencia de estilo, no un helper compartido):
+   - `supabase/functions/_shared/email_cobranza_provider.ts` (`enviarEmailCobranza`)
+   - `supabase/functions/_shared/sms_provider.ts` (`sendSms`)
+   - `supabase/functions/_shared/email_invitation.ts` (`enviarEmailInvitacion`)
+   - `supabase/functions/_shared/email_otp_actor_externo.ts` (`enviarEmailOtpActorExterno`)
+
+   Fix idéntico en los 4: todo el bloque `fetch` + manejo de respuesta queda dentro de un único
+   try/catch que degrada a la forma de fallo que la función ya declaraba (`{success:false,
+   errorMessage}` o `{ok:false, error}`), nunca deja escapar la excepción. 2 tests nuevos en
+   `email_cobranza_provider.test.ts` (el único de los 4 con suite propia — `sms_provider.ts`/
+   `email_invitation.ts`/`email_otp_actor_externo.ts` seguían sin ningún test antes de este fix,
+   deuda preexistente no resuelta aquí): fetch que revienta por red, y 200 con cuerpo no-JSON.
+   `email_cobranza_provider.ts` queda en 100% líneas/funciones (`pnpm test:edge`); la cobertura
+   insuficiente que ese comando reporta en `email_estado_cuenta.ts`/`http.ts`/`link_token.ts` es
+   deuda preexistente, no tocada por este corte.
+
+   **9 Edge Functions consumen estos 4 archivos y necesitan redesplegarse para que el fix tome
+   efecto en producción** (el `_shared/` no se versiona por sí solo, solo al desplegar la función
+   que lo importa): `enviar-anuncio`, `enviar-correo-compositor`, `webhook-brevo`
+   (`email_cobranza_provider`); `actor-externo-solicitar-otp`, `probar-plantilla-sms`,
+   `registrar-pago`, `webhook-pasarela` (`sms_provider`); `invite-user`, `resend-invitation`
+   (`email_invitation`); `actor-externo-solicitar-otp` también usa `email_otp_actor_externo`.
+
+**Desplegado y verificado el mismo día, a pedido explícito del usuario** ("¿Brevo aún puede mandar
+correos?"): se desplegó primero solo `enviar-correo-compositor` con el único propósito de obtener
+una respuesta real y no ambigua (con el bug viejo, un 500 no permite distinguir "Brevo rechazó" de
+"nuestra función se cayó antes de preguntarle"). Con el fix activo, `tests/tenancy/
+compositor-correo-envio.test.ts` corrido en vivo contra producción **pasó limpio (200, ok:true,
+envío registrado en `acciones_cobranza_envios`)** — confirma que Brevo SÍ puede enviar correo hoy;
+el 500 que se veía antes era el bug de este mismo corte, no un bloqueo real de la cuenta. Con esa
+confirmación, se desplegaron las 8 funciones restantes. Las 9 quedaron `ACTIVE` con versión
+incrementada (verificado con `supabase functions list`): `enviar-correo-compositor` v2,
+`enviar-anuncio` v2, `webhook-brevo` v9, `actor-externo-solicitar-otp` v2, `probar-plantilla-sms`
+v5, `registrar-pago` v15, `webhook-pasarela` v4, `invite-user` v17, `resend-invitation` v4.
+
+**La cuenta de Brevo para SMS sigue siendo un problema real y separado, no de código** (`402 -
+insufficient credits`, confirmado en la corrida local) — queda para que el usuario recargue saldo
+en su dashboard de Brevo. El lado correo, en cambio, ya está confirmado funcionando.
+
+**Addendum — `forgot-password` (recuperar contraseña) verificado end-to-end, correo real
+recibido.** A pedido del usuario, se probó `apps/web/app/pages/forgot-password.vue` contra
+producción (`apps/web/.env` apuntado temporalmente a `apps/web/.env.remoto`, restaurado después).
+`cliente.auth.resetPasswordForEmail()` llama a `POST /auth/v1/recover` de **Supabase Auth
+(GoTrue)** — un sistema de correo distinto de las Edge Functions con Brevo de este mismo corte, no
+relacionado con el fix de arriba. Verificado con dos evidencias: (1) `auth_logs` del proyecto
+registra `user_recovery_requested` para la cuenta correcta con `status: 200`; (2) **el usuario
+confirmó que el correo de recuperación llegó realmente a su bandeja**. Flujo de recuperación de
+contraseña confirmado funcional de punta a punta en producción.
+
+## D-124
+
+**Resumen general de pendientes across-módulos, a pedido del usuario ("necesito evacuar todos los
+pendientes que estén por resolver en cualquier módulo").** Se compiló un inventario cruzando
+memoria de sesiones anteriores con verificación en vivo (no solo lo recordado), agrupado en:
+verificados ahora mismo (acción inmediata), pendientes de decisión de negocio (no requieren
+código), y trabajo de tamaño medio/grande. El detalle completo del inventario vive en la
+conversación con el usuario, no se duplica aquí — este decision-log solo registra lo que se CERRÓ
+como parte de esa auditoría.
+
+**Hallazgo en vivo, mismo patrón que D-121 ("corte cerrado ≠ desplegado"), esta vez sin que
+mediara ningún corte reciente que lo explicara**: diffeando `supabase functions list
+--project-ref hwjmlyzzvpmhadldavbq` (85 ACTIVE) contra las 86 carpetas de
+`supabase/functions/` (excluyendo `_shared`), 2 funciones con código en el repo nunca habían
+llegado a producción:
+- `cartera-posicion` (CAR-F1, expone `fn_posicion_cartera()` + `clasificarCartera()` para
+  consumo de agente/auditor externo — sin consumidor en `apps/web`, por eso el gap pasó
+  desapercibido en todo QA manual de la app).
+- `enviar-estados-cuenta-pendientes` (envío batch por cron, gatillo externo aún sin programar
+  — ver hallazgo ya conocido en el corte de estados de cuenta).
+
+Ambas desplegadas con `supabase functions deploy cartera-posicion
+enviar-estados-cuenta-pendientes --project-ref hwjmlyzzvpmhadldavbq` (autorizado explícitamente
+por el usuario), confirmadas `ACTIVE v1` contra `functions list`.
+
+**Hallazgo menor, sin corregir**: `resetear-copropiedad` aparece `ACTIVE` en remoto sin ninguna
+carpeta local con ese nombre exacto — probablemente una función vieja/renombrada. No se tocó;
+pendiente de que el usuario confirme si sigue en uso o se puede retirar.
+
+**Cierre de D-122**: `20260935090000` (guardia de coeficientes) pusheada a producción por el
+usuario (`pnpm db:push:prod`, confirmación interactiva suya) y `pnpm db:types:prod` regenerado.
+Reverificación completa post-push: `pnpm build` / `pnpm typecheck` (raíz + 10 paquetes + `nuxt
+typecheck`) / `pnpm lint` (raíz + `apps/web`) — todo limpio (lint: 0 errores, 7 warnings de
+estilo Vue preexistentes en `apps/web`, ninguno nuevo).
+
+## D-125
+
+**Ampliación de cobertura de `fn_resetear_copropiedad` hacia Mantenimiento y Fondos** (a pedido
+explícito del usuario, tras el resumen general de pendientes de D-124 — la deuda de 118 FKs
+`ON DELETE NO ACTION` cuantificada en D-122). Migración `20260935100000`.
+
+**Alcance real, auditado en vivo (`pg_constraint`, no releído de memoria)**: 75 tablas fuera de las
+76 ya cubiertas por D-99/D-122 referencian, con `NO ACTION`, alguna de las cubiertas. De esas 75,
+se agregaron **63** al arreglo `v_tablas` (todas las que tienen `tenant_id` y cuyo grafo de
+dependencias admite un orden). Quedaron **deliberadamente fuera** de este corte, para una revisión
+propia posterior:
+- `gobierno_decisiones` / `gobierno_reuniones` / `gobierno_miembros` / `gobierno_actas`: ciclo real
+  de 4 tablas entre sí (dominio de actas y decisiones de asamblea) — el usuario pidió explícitamente
+  dejarlo para después de cerrar Mantenimiento/Fondos.
+- `mant_reservas`: forma un ciclo real con `cargos` (`cargos.reserva_id` / `mant_reservas.cargo_id`)
+  — `cargos` es una tabla núcleo de Cartera/Cobranza ajena a Mantenimiento, así que se agrupó con el
+  punto anterior (ambos exigen tocar deferrabilidad de tablas "core", no solo de Mantenimiento/
+  Fondos).
+
+**Hallazgo técnico central**: verificado contra `pg_constraint` que **979 de 980 FKs del esquema NO
+son `DEFERRABLE`** — el `SET CONSTRAINTS ALL DEFERRED` que la función ya ejecutaba desde D-99 no
+hacía nada hasta ahora. Un ciclo real de 2 tablas resueltas en 2 `DELETE` statements SEPARADOS (uno
+por tabla, patrón ya usado por la función) no se resuelve con ningún orden posible — hace falta que
+el FK en cuestión sea `DEFERRABLE`. Se marcaron **6 constraints puntuales** como
+`DEFERRABLE INITIAL IMMEDIATE` (comportamiento normal de la app sin cambios — sigue validando al
+instante fuera de esta función; solo el reset, que ya difiere constraints, ahora sí puede
+aprovecharlo):
+- `mant_ordenes_trabajo.incidencia_id` ↔ `mant_incidencias.orden_trabajo_id`
+- `mant_ordenes_trabajo.programacion_id` ↔ `mant_programaciones.orden_trabajo_id`
+- `fondo_solicitudes_uso.compromiso_id` ↔ `fondo_compromisos.solicitud_id`
+
+**Las auto-referencias NO necesitan este tratamiento** (`mant_contratos`, `mant_incidencias`,
+`mant_inventario_movimientos`, y las ya existentes en `cargos`/`terceros`/`pagos`/`activos`/
+`contable_comprobante`/`fondo_movimientos`/`pago_aplicaciones`/`presupuesto_ejecucion`): verificado
+que un solo `DELETE FROM t WHERE tenant_id = $1` que borra TODAS las filas propias a la vez —
+incluidas las que se auto-referencian — funciona sin `DEFERRABLE`, porque el chequeo de un FK NOT
+DEFERRABLE en Postgres ocurre al final del STATEMENT (no fila por fila); las auto-referencias
+existentes llevan meses en producción sin este problema, lo que lo confirma empíricamente.
+
+**Hallazgo colateral, corregido de paso — un bug real, no solo teórico**: `cargos.novedad_id ->
+novedades` tenía **330 filas pobladas** en tenants de prueba (tenants disponibles de la suite, no
+datos de un cliente real, pero SÍ un enlace vivo y ejercitado) — el arreglo anterior de `v_tablas`
+borraba `novedades` ANTES que `cargos`, lo cual habría fallado con un cargo real originado de una
+novedad (ej. un recargo por mora). El nuevo orden, recalculado desde cero por un topological sort
+sobre `pg_constraint` real (no a mano — se intentó a mano primero y se detectaron contradicciones,
+ver más abajo), corrige esto: `cargos` ahora va antes que `novedades`.
+
+**Dos ciclos PREEXISTENTES, distintos y no relacionados con Mantenimiento/Fondos, quedan
+documentados sin tocar** (siguen dormidos: 0 filas pobladas en toda la base de desarrollo para las
+columnas que los completarían):
+1. `pagos.intencion_pago_id` ↔ `intenciones_pago.pago_id`.
+2. El resto del ciclo de 6 que involucra a `cargos`/`novedades` además del enlace ya corregido:
+   `novedades.acuerdo_pago_id -> acuerdos_pago.documento_id -> documentos.envio_id ->
+   acciones_cobranza_envios.accion_id -> acciones_cobranza.cargo_id -> cargos` (y de vuelta a
+   `cargos.novedad_id -> novedades`, ya resuelto). Ningún orden lineal puede satisfacer un ciclo
+   completo — se deja para cuando alguno de esos otros 5 enlaces deje de estar dormido.
+
+**Hallazgo aparte, sin riesgo hoy**: 6 catálogos sin `tenant_id` propio (`contable_plan_cuenta`,
+`contable_nota_plantilla`, `contable_estado_linea`, `contable_codigo_retirado`,
+`gobierno_clase_sancion`, `gobierno_materia_decision`) referencian `fundamento_normativo` con
+`NO ACTION` — verificado que las 112 filas de `fundamento_normativo` en este entorno son 100%
+globales (`tenant_id is null`), así que el reset nunca borra ninguna fila que ellos referencien.
+Fragilidad latente si algún día se crea un `fundamento_normativo` específico de un tenant; no se
+toca en este corte.
+
+**Metodología, para la próxima vez que se retome esto (Gobierno + mant_reservas)**: intentar
+calcular el orden "a mano" (insertar el bloque nuevo antes de tal tabla) llevó a contradicciones
+reales no detectadas hasta que se verificaron en vivo — se descubrieron así los 2 ciclos
+preexistentes de arriba. La única forma confiable fue: (1) enumerar TODAS las FKs `ON DELETE NO
+ACTION` reales vía `pg_constraint` entre el conjunto completo de tablas candidatas, (2) excluir los
+pares ya resueltos por `DEFERRABLE`, (3) correr un topological sort (Kahn) real sobre ese grafo, (4)
+verificar el resultado contra CADA edge real (no solo confiar en que el algoritmo no reportó
+ciclo) para confirmar que las únicas violaciones remanentes son exactamente las ya conocidas como
+dormidas. No repetir el intento manual.
+
+**Pruebas nuevas** (`tests/rls/fn-resetear-copropiedad-mant-fondos.test.ts`, 3/3): un tenant
+desechable por escenario, sembrando datos reales que cierran cada ciclo (OT↔incidencia,
+OT↔programación, solicitud↔compromiso) y el enlace vivo `cargos.novedad_id`, confirmando que
+`fn_resetear_copropiedad` ya no se bloquea y deja las tablas involucradas en 0 filas. Regresión
+verificada sin atribuibles: `fn-resetear-copropiedad-coeficientes` (2/2), `fondos-modelo-general`
+(49/49), `fondos-solicitud-decision` (7/7), `ot-incidencias` (17/17), `planes-programacion`
+(13/13) — 88/88 en total. `pnpm build`/`typecheck` en verde.
+
+## D-126
+
+**Cierre total de la deuda de 118 FKs (D-122)** — última tanda, a pedido explícito del usuario
+("Sigamos con Gobierno y mant_reservas ahora"), deliberadamente dejada fuera de D-125. Migración
+`20260935110000`.
+
+**Ciclo real de 4 tablas de Gobierno**: `gobierno_decisiones` → `gobierno_actas` →
+`gobierno_miembros` → `gobierno_decisiones`, y `gobierno_decisiones` → `gobierno_reuniones` →
+`gobierno_miembros` → `gobierno_decisiones` (dos ciclos de 3 que comparten el tramo
+`gobierno_miembros.decision_id -> gobierno_decisiones`). Verificado que **diferir únicamente ese
+constraint** (`gobierno_miembros_decision_id_fkey`, `DEFERRABLE INITIAL IMMEDIATE`) alcanza para
+romper ambos ciclos a la vez — es el único arco que participa en los dos, no hacía falta tocar más
+de un constraint en todo el dominio de Gobierno.
+
+**Tabla nueva descubierta al auditar el ciclo**: `gobierno_votaciones` (referenciada por
+`gobierno_decisiones.votacion_id`) — no aparecía en el conteo original de D-122 porque solo se
+descubre al mapear las FKs reales de `gobierno_decisiones`; tiene `tenant_id` propio y se agregó a
+`v_tablas` junto con las 4 del ciclo.
+
+**Ciclo `cargos`/`mant_reservas`**: `cargos.reserva_id` ↔ `mant_reservas.cargo_id` — un cargo por
+reservar una zona común, y la reserva sabe qué cargo generó. Mismo tratamiento que los 3 pares de
+D-125: ambos lados `DEFERRABLE INITIAL IMMEDIATE`.
+
+**Metodología**: se recalculó el orden completo de las 146 tablas resultantes desde cero
+(topological sort sobre `pg_constraint` real, incluyendo TODAS las FKs de las 140 tablas ya
+existentes, no solo las que tocan las 6 nuevas — un primer intento que solo re-consultó FKs
+"relacionadas con lo nuevo" dejó pasar 2 violaciones reales sobre pares de tablas antiguas
+(`documentos`→`casos_juridicos`, `documentos`→`pagos`) que el reordenamiento había desplazado sin
+querer; corregido re-consultando el grafo completo). Verificado edge por edge contra el resultado:
+0 violaciones fuera de los 6 constraints `DEFERRABLE` (los 3 de D-125 + los 3 de este corte) y los 2
+ciclos preexistentes ya documentados en D-125 (`pagos`↔`intenciones_pago`; el ciclo de 6 vía
+`cargos`/`novedades`/`acuerdos_pago`/`documentos`/`acciones_cobranza_envios`/`acciones_cobranza`),
+ambos sin relación con este corte y sin tocar.
+
+**Pruebas nuevas** (`tests/rls/fn-resetear-copropiedad-gobierno.test.ts`, 2/2): un tenant desechable
+por escenario, sembrando un ciclo real completo con datos válidos (organo→miembro→reunión instalada
+→quórum con dos propietarios distintos, art. 45→votación→decisión→acta, cerrando el ciclo con
+`decision.acta_id` y `miembro.decision_id`; y por separado zona común con regla vigente→reserva→
+cargo con `origen_tipo='reserva'`→cierre del ciclo con `reserva.cargo_id`), confirmando que
+`fn_resetear_copropiedad` ya no se bloquea y deja las tablas en 0 filas. Regresión sin atribuibles:
+94/94 (incluye `fn-resetear-copropiedad-coeficientes`, `fn-resetear-copropiedad-mant-fondos`,
+`gobierno/{acta,reuniones,decisiones,organos,quorum-votacion}`, `mantenimiento/reservas-zonas-
+comunes`). `pnpm build`/`typecheck`/`lint` en verde.
+
+**Con esto, D-122 (118 FKs `ON DELETE NO ACTION` sin cubrir) queda 100% cerrado** — no queda
+ninguna tabla operativa fuera del alcance de `fn_resetear_copropiedad`, salvo los 2 ciclos
+preexistentes dormidos (documentados, sin datos reales que los activen) y los 6 catálogos sin
+`tenant_id` que referencian `fundamento_normativo` (dormidos mientras esa tabla sea 100% global).

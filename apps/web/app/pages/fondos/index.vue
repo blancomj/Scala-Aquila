@@ -10,11 +10,18 @@ const fondosStore = useFondosStore()
 const route = useRoute()
 const router = useRouter()
 
-await useAsyncData('fondos', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return fondosStore.cargarFondos(tenantId)
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'fondos',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return fondosStore.cargarFondos(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 // ── resumen (tarjetas, plegable) ─────────────────────────────────────────
 // Mismo criterio que inmuebles/index.vue: cookie (no localStorage, para evitar el hydration

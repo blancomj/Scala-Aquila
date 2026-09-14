@@ -109,6 +109,9 @@ importers:
       '@aquila/ael-runtime':
         specifier: workspace:*
         version: link:../../packages/ael-runtime
+      '@aquila/ai-providers':
+        specifier: workspace:*
+        version: link:../../packages/ai-providers
       '@aquila/financial-kernel':
         specifier: workspace:*
         version: link:../../packages/financial-kernel
@@ -223,6 +226,12 @@ importers:
       '@aquila/financial-kernel':
         specifier: workspace:*
         version: link:../financial-kernel
+
+  packages/ai-providers:
+    dependencies:
+      '@aquila/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/financial-kernel:
     dependencies:

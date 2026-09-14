@@ -24,6 +24,10 @@ import { mensajeError } from '~/utils/error-message'
 
 type EstadoAccion = Database['public']['Enums']['estado_accion_cobranza_t']
 type EstadoAcuse = Database['public']['Enums']['estado_acuse_t']
+/** Ola 2 §4 — el desenlace de la GESTIÓN (¿sirvió de algo?), distinto del
+ *  estado de DESPACHO (¿salió y llegó?). Existe en el esquema desde F4
+ *  (20260822270000); hasta esta ola nada lo escribía ni lo mostraba. */
+export type ResultadoGestion = Database['public']['Enums']['resultado_accion_cobranza_t']
 
 export interface AccionBandeja {
   accionId: string
@@ -50,6 +54,7 @@ export interface AccionBandeja {
   ultimoEstadoAcuse: EstadoAcuse | null
   acreditada: boolean
   notas: string | null
+  resultado: ResultadoGestion | null
 }
 
 /** Un envío con sus acuses — el detalle probatorio de una acción (§34.3). */
@@ -93,6 +98,7 @@ interface FilaBandejaDb {
   ultimo_estado_acuse: EstadoAcuse | null
   acreditada: boolean
   notas: string | null
+  resultado: ResultadoGestion | null
 }
 
 /** Una línea de la corrida por lotes: qué pasaría (o pasó) con una acción. */
@@ -127,6 +133,67 @@ export interface ResultadoDespacho {
   envioId: string | null
   evidenciaRegistrada: boolean
   errorMessage?: string | null
+}
+
+// ── Ola 2 §3 (ENFOQUE_CONSOLIDACION) — situación → recomendación →
+// confirmación → acciones_cobranza. Reutiliza cartera-recalcular tal cual:
+// modo 'simulacion' (nunca escribe) calcula la recomendación, modo
+// 'ejecucion' con alcance_inmuebles crea la fila — es la misma inserción
+// que ya hace el job diario, sin una segunda ruta de escritura. La
+// revalidación de "contexto obsoleto" (§3.4) es automática: confirmar
+// vuelve a evaluar todo desde cero en el momento del clic, no reaplica lo
+// que se vio en la simulación.
+
+export interface DestinatarioPropuesto {
+  terceroId: string
+  rolCodigo: string
+  contacto: string
+}
+
+export interface AccionPropuestaLote {
+  estrategiaId: string
+  tipoAccion: string
+  canal: string
+  intentoNumero: number
+  requiereAprobacion: boolean
+  destinatarios: DestinatarioPropuesto[]
+}
+
+export interface AccionBloqueadaLote {
+  estrategiaId: string
+  tipoAccion: string
+  canal: string
+  causa: 'sin_destinatario' | 'contacto_faltante' | 'no_aplica'
+  motivo: string
+}
+
+export interface AccionOmitidaLote {
+  estrategiaId: string
+  motivo: string
+}
+
+/** Un inmueble evaluado — solo la parte que la recomendación necesita mostrar. */
+export interface PlanRecomendacion {
+  inmuebleId: string
+  clasificacionCodigo: string
+  accionesPropuestas: AccionPropuestaLote[]
+  accionesOmitidas: AccionOmitidaLote[]
+  accionesBloqueadas: AccionBloqueadaLote[]
+}
+
+export interface ResultadoSimulacionRecomendaciones {
+  ejecucionId: string
+  fechaCorte: string
+  inmueblesEvaluados: number
+  planes: PlanRecomendacion[]
+}
+
+export interface ResultadoConfirmarRecomendacion {
+  ejecucionId: string
+  accionesCreadas: number
+  accionesOmitidas: number
+  accionesBloqueadas: number
+  errores?: string[]
 }
 
 export const useCobranzaStore = defineStore('cobranza', () => {
@@ -170,6 +237,7 @@ export const useCobranzaStore = defineStore('cobranza', () => {
         ultimoEstadoAcuse: f.ultimo_estado_acuse,
         acreditada: f.acreditada,
         notas: f.notas,
+        resultado: f.resultado,
       }))
       return acciones.value
     } finally {
@@ -189,6 +257,30 @@ export const useCobranzaStore = defineStore('cobranza', () => {
     if (error) {
       throw new Error(mensajeError(error, `No se pudo ${decision === 'aprobada' ? 'aprobar' : 'rechazar'} la acción.`))
     }
+  }
+
+  /**
+   * Ola 2 §4 — cerrar el ciclo: qué pasó DESPUÉS de despachar. No es un
+   * cambio de estado (guard_accion_cobranza_transicion no vigila esta
+   * columna) ni toca el contexto congelado — un UPDATE directo por RLS,
+   * mismo criterio que decidirAccion/cancelarAccion. Sin evidencia
+   * suficiente, la opción correcta es 'sin_respuesta', no dejarlo vacío:
+   * un silencio también es un desenlace, y "nunca se afirma que se
+   * realizó sin evidencia" corta en los dos sentidos.
+   */
+  async function registrarResultado(
+    accionId: string,
+    resultado: ResultadoGestion,
+    notas?: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const cambios: { resultado: ResultadoGestion; resultado_fecha: string; notas?: string } = {
+      resultado,
+      resultado_fecha: new Date().toISOString(),
+    }
+    if (notas !== undefined) cambios.notas = notas
+    const { error } = await cliente.from('acciones_cobranza').update(cambios).eq('id', accionId)
+    if (error) throw new Error(mensajeError(error, 'No se pudo registrar el resultado de la gestión.'))
   }
 
   /** Cancelar — sale de la cola sin ejecutarse y sin decidir sobre el fondo. */
@@ -306,15 +398,79 @@ export const useCobranzaStore = defineStore('cobranza', () => {
     }))
   }
 
+  /**
+   * Recomendación (Ola 2 §3): corre el mismo motor que el job diario, en
+   * modo simulación — no escribe nada. Devuelve solo los inmuebles con algo
+   * que mostrar (una acción propuesta u bloqueada); un inmueble sin novedad
+   * no aporta a la bandeja de recomendaciones.
+   */
+  async function simularRecomendaciones(
+    tenantId: string,
+    fechaCorte: string,
+  ): Promise<ResultadoSimulacionRecomendaciones> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente.functions.invoke<{
+      ejecucionId: string
+      fechaCorte: string
+      inmueblesEvaluados: number
+      planes: PlanRecomendacion[]
+    }>('cartera-recalcular', {
+      body: { tenant_id: tenantId, fecha_corte: fechaCorte, modo: 'simulacion' },
+    })
+    if (error) throw await extraerErrorFuncion(error)
+    if (!data) throw new Error('No se pudo calcular la recomendación.')
+    return {
+      ejecucionId: data.ejecucionId,
+      fechaCorte: data.fechaCorte,
+      inmueblesEvaluados: data.inmueblesEvaluados,
+      planes: data.planes.filter(
+        (p) => p.accionesPropuestas.length > 0 || p.accionesBloqueadas.length > 0,
+      ),
+    }
+  }
+
+  /**
+   * Confirmación humana explícita (§3.1: RECOMENDAR ≠ EJECUTAR): crea la(s)
+   * fila(s) de acciones_cobranza para UN inmueble, llamando la misma
+   * función que usa el job diario — nunca un INSERT propio. Si el estado
+   * del inmueble cambió desde que se mostró la recomendación,
+   * accionesCreadas puede salir en 0: eso es correcto, no un error (§3.4,
+   * contexto obsoleto — no se ejecuta en silencio sobre una foto vieja).
+   */
+  async function confirmarRecomendacion(
+    tenantId: string,
+    fechaCorte: string,
+    inmuebleId: string,
+  ): Promise<ResultadoConfirmarRecomendacion> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error } = await cliente.functions.invoke<ResultadoConfirmarRecomendacion>(
+      'cartera-recalcular',
+      {
+        body: {
+          tenant_id: tenantId,
+          fecha_corte: fechaCorte,
+          modo: 'ejecucion',
+          alcance_inmuebles: [inmuebleId],
+        },
+      },
+    )
+    if (error) throw await extraerErrorFuncion(error)
+    if (!data) throw new Error('No se pudo confirmar la recomendación.')
+    return data
+  }
+
   return {
     acciones,
     loading,
     cargarBandeja,
     decidirAccion,
+    registrarResultado,
     cancelarAccion,
     despacharAccion,
     correrLote,
     compilarExpediente,
     cargarEnvios,
+    simularRecomendaciones,
+    confirmarRecomendacion,
   }
 })

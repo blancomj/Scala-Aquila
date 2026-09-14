@@ -67,14 +67,25 @@ const reenviandoId = ref<string | null>(null)
 const drawerAbierto = ref(false)
 const membresiaEditando = ref<string | undefined>(undefined)
 
-await useAsyncData('invitaciones-pendientes', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? invitationsStore.cargarPendientes(tenantId) : Promise.resolve([])
-})
-await useAsyncData('miembros-activos', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'invitaciones-pendientes',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? invitationsStore.cargarPendientes(tenantId) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+await useAsyncData(
+  'miembros-activos',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 function abrirInvitar(): void {
   membresiaEditando.value = undefined

@@ -62,35 +62,43 @@ export async function enviarEmailCobranza(params: {
     }
   }
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      sender: { email: senderEmail, name: senderName },
-      to: [params.destinatarioNombre ? { email: params.to, name: params.destinatarioNombre } : { email: params.to }],
-      subject: params.subject,
-      htmlContent: params.html,
-      tags: params.tags ?? ['cobranza', params.reference],
-    }),
-  })
+  // Todo lo que sigue puede fallar de formas que no son un HTTP no-ok (fetch que revienta por
+  // red/DNS/TLS, o un 200 con cuerpo no-JSON) — un despacho que falla tiene que poder leerse en
+  // la bandeja (success:false), nunca tumbar la función con un 500 crudo.
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        sender: { email: senderEmail, name: senderName },
+        to: [params.destinatarioNombre ? { email: params.to, name: params.destinatarioNombre } : { email: params.to }],
+        subject: params.subject,
+        htmlContent: params.html,
+        tags: params.tags ?? ['cobranza', params.reference],
+      }),
+    })
 
-  if (!res.ok) {
-    let mensaje = `HTTP ${String(res.status)}`
-    try {
-      const cuerpo = (await res.json()) as BrevoErrorBody
-      if (cuerpo.message) mensaje = cuerpo.message
-    } catch {
-      // el cuerpo no era JSON — se usa el mensaje genérico de arriba
+    if (!res.ok) {
+      let mensaje = `HTTP ${String(res.status)}`
+      try {
+        const cuerpo = (await res.json()) as BrevoErrorBody
+        if (cuerpo.message) mensaje = cuerpo.message
+      } catch {
+        // el cuerpo no era JSON — se usa el mensaje genérico de arriba
+      }
+      return { success: false, errorMessage: `${mensaje} (HTTP ${String(res.status)})` }
     }
-    return { success: false, errorMessage: `${mensaje} (HTTP ${String(res.status)})` }
-  }
 
-  const cuerpo = (await res.json()) as { messageId?: string };
-  if (!cuerpo.messageId) {
-    // Brevo aceptó pero no identificó el mensaje. El correo salió, así que
-    // no es un fallo; pero sin id ningún acuse podrá resolverse contra este
-    // envío y hay que poder verlo en la evidencia.
-    return { success: true, errorMessage: 'Brevo aceptó el correo sin devolver messageId — no habrá acuses.' }
+    const cuerpo = (await res.json()) as { messageId?: string }
+    if (!cuerpo.messageId) {
+      // Brevo aceptó pero no identificó el mensaje. El correo salió, así que
+      // no es un fallo; pero sin id ningún acuse podrá resolverse contra este
+      // envío y hay que poder verlo en la evidencia.
+      return { success: true, errorMessage: 'Brevo aceptó el correo sin devolver messageId — no habrá acuses.' }
+    }
+    return { success: true, providerMessageId: normalizarMessageId(cuerpo.messageId) }
+  } catch (excepcion) {
+    const detalle = excepcion instanceof Error ? excepcion.message : String(excepcion)
+    return { success: false, errorMessage: `No se pudo contactar a Brevo: ${detalle}` }
   }
-  return { success: true, providerMessageId: normalizarMessageId(cuerpo.messageId) }
 }

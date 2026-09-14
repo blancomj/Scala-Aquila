@@ -349,6 +349,14 @@ export default {
             promesasIncumplidas: p.promesasIncumplidas,
             cuotasVencidas: p.cuotasVencidas,
             acuerdoIncumplido: p.acuerdoIncumplido,
+            // Ola 2 §3 (ENFOQUE_CONSOLIDACION): ya se calculaban, solo
+            // faltaban en la respuesta — es la "recomendación" que un
+            // administrador ve antes de confirmar (modo: 'ejecucion' con
+            // alcance_inmuebles). No es un cálculo nuevo (DI-04): sale tal
+            // cual de evaluarJobCarteraInmueble()/evaluarAccionesAplicables().
+            accionesPropuestas: p.accionesPropuestas,
+            accionesOmitidas: p.accionesOmitidas,
+            accionesBloqueadas: p.accionesBloqueadas,
           })),
           resultadoHash,
         },
@@ -603,7 +611,12 @@ export default {
           // Maker-checker (20260822280000): lo de alto impacto nace esperando
           // aprobación humana, nunca listo para disparar.
           estado: propuesta.requiereAprobacion ? 'pendiente_aprobacion' : 'programada',
-          creada_por: 'job' as const,
+          // Ola 2 §3: antes era siempre 'job', incluso cuando un
+          // administrador disparaba esta misma función a mano desde la
+          // interfaz (esJob = actorId === null ya distinguía los dos casos,
+          // solo faltaba usarlo aquí). acciones.vue muestra este campo como
+          // "Origen: Creada a mano" — quedaba mal etiquetado.
+          creada_por: esJob ? ('job' as const) : ('manual' as const),
         }))
 
         const { error: errorAcciones } = await ctx.supabaseAdmin

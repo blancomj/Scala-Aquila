@@ -90,6 +90,23 @@ async function crearRiesgoYControl(
   return control.id
 }
 
+/** D-CB-2 (Fase 3 de conciliación bancaria contable, 20260935060000):
+ * extracto_bancario.cuenta_bancaria_id es obligatoria para todo INSERT nuevo (CHECK ... NOT
+ * VALID) — sin esta cuenta el fixture de BANCOS_CONCILIACION_PENDIENTE ya no inserta. */
+async function crearCuentaBancariaFixture(admin: Cliente, tenantId: string): Promise<string> {
+  const entidadFinanciera = await listaTipoId(admin, 'ENTIDAD_FINANCIERA', 'bancolombia')
+  const { data, error } = await admin
+    .from('cuentas_bancarias')
+    .insert({
+      tenant_id: tenantId, entidad_financiera_id: entidadFinanciera, tipo_cuenta: 'ahorros',
+      numero_cuenta: `CCM-${String(Date.now())}`,
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (error) throw new Error(`fixture cuenta_bancaria: ${error.message}`)
+  return data.id
+}
+
 async function crearEngagementFixture(admin: Cliente, tenantId: string, creadoPor: string) {
   const { data, error } = await admin
     .from('auditoria_engagements')
@@ -490,11 +507,13 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'BANCOS_CONCILIACION_PENDIENTE')
     const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
 
+    const cuentaBancariaId = await crearCuentaBancariaFixture(admin, tenant.id)
     const sello = String(Date.now())
     const { data: extracto, error: errorExtracto } = await admin
       .from('extracto_bancario')
       .insert({
         tenant_id: tenant.id,
+        cuenta_bancaria_id: cuentaBancariaId,
         nombre_archivo: 'extracto-prueba.csv',
         hash_archivo: `hash-extracto-${sello}`,
       })
@@ -793,6 +812,147 @@ d('Controles automáticos — Continuous Control Monitoring', () => {
     if (errorCompromiso) throw new Error(`fixture compromiso: ${errorCompromiso.message}`)
 
     const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'FONDO_COMPROMISO_EXCEDE_DISPONIBLE')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('PASS')
+    expect(resultado.conteo).toBe(0)
+    expect(resultado.hallazgo_id).toBeNull()
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('BANCOS_CONCILIACION_CONTABLE_PENDIENTE: detecta un borrador sin certificar y una partida sin resolver, ambos de hace más de 15 días', async () => {
+    // Hermano de BANCOS_CONCILIACION_PENDIENTE (arriba) pero de la conciliación #4
+    // (contable, banco↔libro) — D-119/§3.8 del prompt de conciliación bancaria contable.
+    const auditor = await crearUsuario(admin, 'ccm-conc-contable')
+    const tenant = await crearTenant(admin, 'ccm-conc-contable', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+
+    const cuentaBancariaId = await crearCuentaBancariaFixture(admin, tenant.id)
+    const { data: periodo, error: errorPeriodo } = await admin
+      .from('periodos')
+      .insert({ tenant_id: tenant.id, anio: 2039, mes: 1 })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorPeriodo) throw new Error(`fixture periodo: ${errorPeriodo.message}`)
+
+    const haceVeinteDias = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: conciliacion, error: errorConciliacion } = await admin
+      .from('conciliacion_bancaria')
+      .insert({
+        tenant_id: tenant.id, cuenta_bancaria_id: cuentaBancariaId, periodo_id: periodo.id,
+        saldo_inicial_banco: 0, saldo_final_banco: 0, saldo_inicial_libros: 0, saldo_final_libros: 0,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorConciliacion) throw new Error(`fixture conciliacion_bancaria: ${errorConciliacion.message}`)
+    const { error: errorPreparadoAt } = await admin
+      .from('conciliacion_bancaria')
+      .update({ preparado_at: haceVeinteDias })
+      .eq('id', conciliacion.id)
+    if (errorPreparadoAt) throw new Error(`fixture preparado_at: ${errorPreparadoAt.message}`)
+
+    const sello = String(Date.now())
+    const { data: extracto, error: errorExtracto } = await admin
+      .from('extracto_bancario')
+      .insert({
+        tenant_id: tenant.id, cuenta_bancaria_id: cuentaBancariaId,
+        nombre_archivo: 'extracto-partida.csv', hash_archivo: `hash-extracto-partida-${sello}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorExtracto) throw new Error(`fixture extracto: ${errorExtracto.message}`)
+    const { data: linea, error: errorLinea } = await admin
+      .from('extracto_linea')
+      .insert({
+        extracto_id: extracto.id, tenant_id: tenant.id, fecha_movimiento: '2039-01-15',
+        monto: -15_000, descripcion_banco: 'Comisión sin registrar', hash_linea: `hash-linea-partida-${sello}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorLinea) throw new Error(`fixture linea: ${errorLinea.message}`)
+
+    const tipoPartidaId = await listaTipoId(admin, 'TIPO_PARTIDA_CONCILIACION', 'nota_debito_banco')
+    const { data: partida, error: errorPartida } = await admin
+      .from('conciliacion_bancaria_partida')
+      .insert({
+        tenant_id: tenant.id, conciliacion_id: conciliacion.id, origen: 'banco',
+        tipo_id: tipoPartidaId, extracto_linea_id: linea.id, monto: 15_000,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorPartida) throw new Error(`fixture partida: ${errorPartida.message}`)
+    const { error: errorPartidaFecha } = await admin
+      .from('conciliacion_bancaria_partida')
+      .update({ created_at: haceVeinteDias })
+      .eq('id', partida.id)
+    if (errorPartidaFecha) throw new Error(`fixture partida created_at: ${errorPartidaFecha.message}`)
+
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'BANCOS_CONCILIACION_CONTABLE_PENDIENTE')
+    const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
+
+    const clienteAuditor = await clienteComo(env!, auditor)
+    const { data, error } = await clienteAuditor.rpc('auditoria_control_ejecutar', {
+      p_control_id: controlId,
+      p_engagement_id: engagementId,
+    })
+
+    expect(error).toBeNull()
+    const resultado = data![0]!
+    expect(resultado.resultado).toBe('FAIL')
+    expect(resultado.conteo).toBe(2)
+
+    const { data: hallazgo } = await admin
+      .from('auditoria_hallazgos')
+      .select('nivel')
+      .eq('id', resultado.hallazgo_id)
+      .single()
+    expect(hallazgo?.nivel).toBe('MEDIO')
+
+    await eliminarTenant(admin, tenant.id)
+    await eliminarUsuario(admin, auditor.id)
+  }, 30_000)
+
+  it('BANCOS_CONCILIACION_CONTABLE_PENDIENTE: una conciliación certificada y una partida resuelta no cuentan como excepción', async () => {
+    const auditor = await crearUsuario(admin, 'ccm-conc-contable-ok')
+    const tenant = await crearTenant(admin, 'ccm-conc-contable-ok', auditor.id)
+    await crearMembership(admin, tenant.id, auditor.id, 'auditor')
+
+    const cuentaBancariaId = await crearCuentaBancariaFixture(admin, tenant.id)
+    const { data: periodo, error: errorPeriodo } = await admin
+      .from('periodos')
+      .insert({ tenant_id: tenant.id, anio: 2039, mes: 2 })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorPeriodo) throw new Error(`fixture periodo: ${errorPeriodo.message}`)
+
+    const haceVeinteDias = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: conciliacion, error: errorConciliacion } = await admin
+      .from('conciliacion_bancaria')
+      .insert({
+        tenant_id: tenant.id, cuenta_bancaria_id: cuentaBancariaId, periodo_id: periodo.id,
+        saldo_inicial_banco: 0, saldo_final_banco: 0, saldo_inicial_libros: 0, saldo_final_libros: 0,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errorConciliacion) throw new Error(`fixture conciliacion_bancaria: ${errorConciliacion.message}`)
+    // Certificada y vieja: no cuenta (solo 'borrador' cuenta como sin certificar).
+    const { error: errorCertificar } = await admin
+      .from('conciliacion_bancaria')
+      .update({ estado: 'certificada', certificado_por: auditor.id, preparado_at: haceVeinteDias })
+      .eq('id', conciliacion.id)
+    if (errorCertificar) throw new Error(`fixture certificar: ${errorCertificar.message}`)
+
+    const controlId = await crearRiesgoYControl(admin, tenant.id, auditor.id, 'BANCOS_CONCILIACION_CONTABLE_PENDIENTE')
     const engagementId = await crearEngagementFixture(admin, tenant.id, auditor.id)
 
     const clienteAuditor = await clienteComo(env!, auditor)

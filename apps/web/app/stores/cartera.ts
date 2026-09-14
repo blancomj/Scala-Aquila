@@ -10,13 +10,15 @@
  * Recaudo del mes reutiliza fn_indicadores_gestion directo (sin ese
  * gate), no cartera-indicadores completa.
  *
- * Piezas sin backend hoy (cobertura de provisión, deltas "vs. mes
- * anterior") quedan documentadas como pendientes en la página. Cobertura
- * de provisión queda "próximamente" definitivo (no existe concepto de
- * provisión contable en el esquema — decisión explícita del usuario).
+ * Cobertura de provisión queda "próximamente" definitivo (no existe
+ * concepto de provisión contable en el esquema — decisión explícita del
+ * usuario). Los deltas "vs. mes anterior", que esta cabecera listaba como
+ * pieza sin backend, los cubre cartera-variacion desde el paso 0 del
+ * ENFOQUE_CONSOLIDACION: dos cortes de fn_dashboard_cartera restados, sin
+ * función SQL nueva.
  */
 import { defineStore } from 'pinia'
-import type { Database } from '@aquila/shared'
+import type { Database, Explicacion } from '@aquila/shared'
 import { extraerErrorFuncion } from '~/utils/edge-function-error'
 
 export interface TarjetasCarteraDTO {
@@ -129,6 +131,88 @@ export interface EventoActividadDTO {
   monto: string
 }
 
+// ── Variación entre dos cortes (ENFOQUE_CONSOLIDACION, paso 0) ──────────
+// Cierra el "vs. mes anterior" que esta cabecera listaba como pieza sin
+// backend. cartera-variacion no crea función SQL nueva: llama dos veces a
+// fn_dashboard_cartera y resta.
+
+export interface DeltaMonetarioDTO {
+  anterior: string
+  actual: string
+  delta: string
+  /** null = sin base de comparación (corte anterior en cero), no "0%". */
+  pctCambio: number | null
+}
+
+export type ClaseContribuyenteDTO = 'nuevo' | 'empeoro' | 'mejoro' | 'resuelto' | 'sin_cambio'
+
+export interface ContribuyenteVariacionDTO {
+  inmuebleId: string
+  codigo: string
+  vencidaAnterior: string
+  vencidaActual: string
+  delta: string
+  clase: ClaseContribuyenteDTO
+  diasMoraMaximo: number
+  etapaCobranza: string
+  /** 0 = el saldo cambió sin evento registrado que lo explique. */
+  eventosEnPeriodo: number
+}
+
+/**
+ * Solo conteos, nunca montos: un inmueble puede aparecer bajo varios
+ * tipos y sumar sus montos entre tipos daría un total inexistente.
+ */
+export interface GrupoEventosDTO {
+  tipo: string
+  cantidadEventos: number
+  cantidadInmuebles: number
+}
+
+export interface VariacionCarteraDTO {
+  comparable: boolean
+  /** Presente solo si comparable es false. */
+  motivo?: string
+  fechaCorteAnterior: string
+  fechaCorteActual: string
+  moneda?: string
+  conceptos?: {
+    total: DeltaMonetarioDTO
+    vencida: DeltaMonetarioDTO
+    corriente: DeltaMonetarioDTO
+    sinVencimiento: DeltaMonetarioDTO
+    interesCausado: DeltaMonetarioDTO
+  }
+  incrementoBruto?: string
+  reduccionBruta?: string
+  concentracion?: {
+    inmuebles: number
+    monto: string
+    pctDelIncremento: number | null
+    umbralPct: number
+  }
+  conteos?: {
+    inmueblesComparados: number
+    nuevos: number
+    empeoraron: number
+    mejoraron: number
+    resueltos: number
+    sinCambio: number
+  }
+  /** Solo los que subieron, de mayor a menor aporte. */
+  contribuyentes?: ContribuyenteVariacionDTO[]
+  atribucion?: {
+    explicado: { inmuebles: number; monto: string }
+    /** El residuo: subió y no hay evento que lo explique. Se muestra, no se reparte. */
+    sinExplicar: { inmuebles: number; monto: string }
+    porTipo: GrupoEventosDTO[]
+  }
+  /** Ola 2 §2 — misma narrativa que `conceptos`/`concentracion`/`atribucion`,
+   *  tipada por certeza y con evidencia rastreable. Aditivo: no reemplaza
+   *  los campos existentes, que la UI del paso 0 ya consume. */
+  explicacion?: Explicacion
+}
+
 export const useCarteraStore = defineStore('cartera', () => {
   const dashboard = shallowRef<DashboardCarteraDTO | null>(null)
   const evolucion = shallowRef<PuntoEvolucionDTO[]>([])
@@ -136,6 +220,7 @@ export const useCarteraStore = defineStore('cartera', () => {
   const alertas = shallowRef<AlertasDTO | null>(null)
   const actividadReciente = shallowRef<EventoActividadDTO[]>([])
   const indicadores = shallowRef<IndicadoresCarteraDTO | null>(null)
+  const variacion = shallowRef<VariacionCarteraDTO | null>(null)
   const loading = ref(false)
 
   async function cargarDashboard(
@@ -213,6 +298,35 @@ export const useCarteraStore = defineStore('cartera', () => {
     return data.eventos
   }
 
+  /**
+   * Variación entre dos cortes. `comparable: false` es una respuesta
+   * legítima (no hay base de comparación), no un error — la página debe
+   * decirlo en vez de mostrar ceros.
+   */
+  async function cargarVariacion(
+    tenantId: string,
+    fechaCorteAnterior: string,
+    fechaCorteActual: string,
+    topN = 10,
+  ): Promise<VariacionCarteraDTO> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<VariacionCarteraDTO>(
+      'cartera-variacion',
+      {
+        body: {
+          tenant_id: tenantId,
+          fecha_corte_anterior: fechaCorteAnterior,
+          fecha_corte_actual: fechaCorteActual,
+          top_n: topN,
+        },
+      },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('cartera-variacion no devolvió datos.')
+    variacion.value = data
+    return data
+  }
+
   async function cargarIndicadores(
     tenantId: string,
     fechaDesde: string,
@@ -239,6 +353,7 @@ export const useCarteraStore = defineStore('cartera', () => {
     alertas.value = null
     actividadReciente.value = []
     indicadores.value = null
+    variacion.value = null
   }
 
   return {
@@ -248,6 +363,7 @@ export const useCarteraStore = defineStore('cartera', () => {
     alertas,
     actividadReciente,
     indicadores,
+    variacion,
     loading,
     cargarDashboard,
     cargarEvolucion,
@@ -255,6 +371,7 @@ export const useCarteraStore = defineStore('cartera', () => {
     cargarAlertas,
     cargarActividadReciente,
     cargarIndicadores,
+    cargarVariacion,
     limpiar,
   }
 })

@@ -191,6 +191,8 @@ export default tseslint.config(
       'packages/liquidation-engine/src/cartera-actividad-reciente-supabase.ts',
       'packages/liquidation-engine/src/cartera-destinatarios-supabase.ts',
       'packages/liquidation-engine/src/conciliacion-supabase.ts',
+      'packages/liquidation-engine/src/cartera-variacion-supabase.ts',
+      'packages/liquidation-engine/src/conciliacion-bancaria-supabase.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

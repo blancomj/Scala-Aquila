@@ -31,17 +31,24 @@ const colapsados = ref(new Set<string>())
 // como el árbol de cuentas deben verse cerrados al entrar a la pantalla.
 const resumenExpandido = useCookie<boolean>('contable-plan-resumen-expandido', { default: () => false })
 
-await useAsyncData('contable-plan', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    contabilidadStore.cargarPlan(tenantId),
-    contabilidadStore.cargarCuentasPresupuestales(tenantId),
-    contabilidadStore.cargarPlantilla(),
-    fundamentoStore.cargarFundamentos(),
-  ])
-  return true
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'contable-plan',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      contabilidadStore.cargarPlan(tenantId),
+      contabilidadStore.cargarCuentasPresupuestales(tenantId),
+      contabilidadStore.cargarPlantilla(),
+      fundamentoStore.cargarFundamentos(),
+    ])
+    return true
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 // El árbol también arranca contraído — misma lógica que el botón "Contraer todo" (colapsarTodo,
 // abajo), aplicada una vez al cargar en vez de dejar el primer render con todo expandido.

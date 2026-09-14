@@ -31,16 +31,23 @@ const fundamentoStore = useFundamentoNormativoStore()
 const route = useRoute()
 const router = useRouter()
 
-await useAsyncData('presupuestos', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  const [presupuestos] = await Promise.all([
-    presupuestoStore.cargarPresupuestos(tenantId),
-    presupuestoStore.cargarCuentas(tenantId),
-    fundamentoStore.cargarFundamentos(),
-  ])
-  return presupuestos
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'presupuestos',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    const [presupuestos] = await Promise.all([
+      presupuestoStore.cargarPresupuestos(tenantId),
+      presupuestoStore.cargarCuentas(tenantId),
+      fundamentoStore.cargarFundamentos(),
+    ])
+    return presupuestos
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const presupuestoSeleccionadoId = useSeleccionPresupuesto()
 

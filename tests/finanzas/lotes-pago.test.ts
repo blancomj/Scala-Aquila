@@ -576,4 +576,87 @@ d('FIN-3: programación y ejecución de pagos por lote', () => {
     expect(contenido).toMatch(/create type public\.lote_estado_t as enum/)
     expect(contenido).toMatch(/comment on type public\.lote_estado_t/)
   })
+
+  // ── BLOQUE H (Fondos, 20260935050000): uso de fondo al ejecutar un lote ──
+
+  /** Fondo activo listo para recibir movimientos — mismo atajo de fixture (UPDATE directo de
+   * estado) que tests/tenancy/fondos-modelo-general.test.ts, no la ruta de autorización real. */
+  async function crearFondoActivo(e: Escenario, codigo: string): Promise<{ id: string }> {
+    const tipoId = await idListaTipos('TIPO_FONDO', 'proyecto')
+    const { data, error } = await admin
+      .from('fondos')
+      .insert({ tenant_id: e.tenantId, codigo, nombre: `Fondo ${codigo}`, naturaleza: 'destinacion_especifica', tipo_id: tipoId })
+      .select('id').single<{ id: string }>()
+    if (error) throw new Error(`fixture fondo ${codigo}: ${error.message}`)
+    for (const estado of ['pendiente_autorizacion', 'activo'] as const) {
+      const { error: errEstado } = await admin.from('fondos').update({ estado }).eq('id', data.id)
+      if (errEstado) throw new Error(`fixture fondo -> ${estado}: ${errEstado.message}`)
+    }
+    return data
+  }
+
+  /** Saldo inicial vía aporte manual (documento_id) — mismo patrón de soporte diferenciado (D-42)
+   * que fondos-modelo-general.test.ts, para no depender de BLOQUE K (recaudo) en esta suite. */
+  async function darSaldoFondo(e: Escenario, fondoId: string, monto: number): Promise<void> {
+    const documentoId = await crearDocumento(e.tenantId, `saldo-fondo-${RUN_ID}`, 'soporte_movimiento_fondo')
+    const { error } = await admin.from('fondo_movimientos').insert({
+      tenant_id: e.tenantId, fondo_id: fondoId, tipo: 'aporte', monto, documento_id: documentoId,
+    })
+    if (error) throw new Error(`fixture aporte fondo: ${error.message}`)
+  }
+
+  it('17. BLOQUE H: ejecutar un lote con fondo_id registra un uso en fondo_movimientos (lote_pago_id) y reduce el saldo del fondo', async () => {
+    const e = await prepararEscenario('bloque-h', 5_000_000)
+    const fondo = await crearFondoActivo(e, `FON-H-${RUN_ID}`)
+    await darSaldoFondo(e, fondo.id, 2_000_000)
+
+    const factura = await crearFacturaAprobada(e)
+    const lote = await crearLote(e, { fondo_id: fondo.id })
+    await agregarItem(e, lote.id, factura.id, 1_000_000)
+    await admin.from('finanzas_lotes_pago').update({ estado: 'programado' }).eq('id', lote.id)
+    await e.cliente.rpc('fn_finanzas_aprobar_lote', { p_lote_id: lote.id })
+
+    const { data: ejecutado, error } = await e.cliente
+      .rpc('fn_finanzas_ejecutar_lote', { p_lote_id: lote.id, p_fecha_ejecucion: FECHA })
+      .single<Database['public']['Tables']['finanzas_lotes_pago']['Row']>()
+    expect(error).toBeNull()
+    expect(ejecutado!.estado).toBe('ejecutado')
+
+    const { data: movimiento, error: errMov } = await admin
+      .from('fondo_movimientos').select('*').eq('fondo_id', fondo.id).eq('tipo', 'uso')
+      .single<{ monto: number; lote_pago_id: string | null; fecha: string; documento_id: string | null }>()
+    expect(errMov).toBeNull()
+    expect(movimiento?.monto).toBe(ejecutado!.monto_total)
+    expect(movimiento?.lote_pago_id).toBe(lote.id)
+    expect(movimiento?.documento_id).toBeNull()
+    expect(movimiento?.fecha).toBe(FECHA)
+
+    const { data: saldo } = await admin.rpc('fn_fondo_saldo_derivado', { p_fondo_id: fondo.id })
+    expect(saldo).toBe(2_000_000 - ejecutado!.monto_total)
+  }, 30_000)
+
+  it('18. ejecutar un lote SIN fondo_id no crea ningún fondo_movimientos (regresión)', async () => {
+    const e = await prepararEscenario('bloque-h-sin-fondo', 5_000_000)
+    const factura = await crearFacturaAprobada(e)
+    const lote = await crearLote(e)
+    await agregarItem(e, lote.id, factura.id, 1_000_000)
+    await admin.from('finanzas_lotes_pago').update({ estado: 'programado' }).eq('id', lote.id)
+    await e.cliente.rpc('fn_finanzas_aprobar_lote', { p_lote_id: lote.id })
+    await e.cliente.rpc('fn_finanzas_ejecutar_lote', { p_lote_id: lote.id, p_fecha_ejecucion: FECHA })
+
+    const { count } = await admin
+      .from('fondo_movimientos').select('id', { count: 'exact', head: true }).eq('tenant_id', e.tenantId)
+    expect(count).toBe(0)
+  }, 30_000)
+
+  it('19. un uso manual sin documento_id ni lote_pago_id sigue rechazado → FONDO_SOPORTE_REQUERIDO', async () => {
+    const e = await prepararEscenario('bloque-h-soporte', 5_000_000)
+    const fondo = await crearFondoActivo(e, `FON-H-SOP-${RUN_ID}`)
+    await darSaldoFondo(e, fondo.id, 1_000_000)
+
+    const { error } = await admin.from('fondo_movimientos').insert({
+      tenant_id: e.tenantId, fondo_id: fondo.id, tipo: 'uso', monto: 100_000,
+    })
+    expect(error?.message).toContain('FONDO_SOPORTE_REQUERIDO')
+  }, 30_000)
 })

@@ -17,6 +17,7 @@
     "@aquila/ael-core": "workspace:*",
     "@aquila/ael-language": "workspace:*",
     "@aquila/ael-runtime": "workspace:*",
+    "@aquila/ai-providers": "workspace:*",
     "@aquila/financial-kernel": "workspace:*",
     "@aquila/liquidation-engine": "workspace:*",
     "@aquila/payment-gateways": "workspace:*",

@@ -25,7 +25,12 @@ const filtroPeriodo = ref<string | null>(null)
 const filtroTipo = ref<number | null>(null)
 const filtroEstado = ref<EstadoComprobante | null>(null)
 
-await useAsyncData('contable-comprobantes', async () => {
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'contable-comprobantes',
+  async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
   await Promise.all([
@@ -35,7 +40,9 @@ await useAsyncData('contable-comprobantes', async () => {
     contabilidadStore.cargarPlan(tenantId),
   ])
   return true
-})
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 async function refrescar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id

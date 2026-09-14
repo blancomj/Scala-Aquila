@@ -24,19 +24,37 @@ const auditoriaStore = useAuditoriaStore()
 
 await useAsyncData('perfil', () => authStore.cargarPerfil())
 await useAsyncData('memberships', () => tenantStore.cargarMemberships())
-await useAsyncData('miembros-activos', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
-})
-await useAsyncData('auditoria-reciente', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? auditStore.cargarEventos(tenantId, 5) : Promise.resolve([])
-})
-await useAsyncData('onboarding-checklist', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (tenantId) await onboardingStore.cargarEstado(tenantId)
-  return null
-})
+// `watch: [...]` en las tres llamadas gateadas por activeTenant?.id: en la
+// carga en frío de la página, tenantStore.activeTenant puede seguir sin
+// resolver en el instante exacto en que corre este setup — sin esa opción,
+// la lectura fallida del id se queda así para siempre. La opción reintenta
+// sola en cuanto el id esté disponible, sin importar cuándo (mismo espíritu
+// que feedback_useasyncdata_ref_pagina_no_hidrata / configuracion/ia.vue).
+await useAsyncData(
+  'miembros-activos',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+await useAsyncData(
+  'auditoria-reciente',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? auditStore.cargarEventos(tenantId, 5) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+await useAsyncData(
+  'onboarding-checklist',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (tenantId) await onboardingStore.cargarEstado(tenantId)
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const resumenExpandido = useCookie<boolean>('dashboard-resumen-expandido', { default: () => true })
 
@@ -59,9 +77,12 @@ const cantidadFondos = ref<number | null>(null)
 const hallazgosAbiertos = ref<number | null>(null)
 const accionesVencidas = ref<number | null>(null)
 
-await useAsyncData('dashboard-resumen-gerencial', async () => {
+// Fase 1 de Gobierno: estas 8 refs son estado de página, no de un store Pinia — solo
+// `onMounted` + `watch` hidratan correctamente refs de página (useAsyncData que las muta como
+// efecto secundario produce mismatch de hidratación, ver feedback_useasyncdata_ref_pagina_no_hidrata).
+async function cargarResumenGerencial(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
+  if (!tenantId) return
   const hoy = new Date().toISOString().slice(0, 10)
 
   const [carteraR, presupuestoR, fondosR, auditoriaR] = await Promise.allSettled([
@@ -107,9 +128,12 @@ await useAsyncData('dashboard-resumen-gerencial', async () => {
     hallazgosAbiertos.value = auditoriaR.value.hallazgosAbiertos
     accionesVencidas.value = auditoriaR.value.accionesVencidas
   }
-
-  return null
-})
+}
+onMounted(cargarResumenGerencial)
+// activeTenant puede no estar resuelto en el instante exacto en que corre `onMounted` en la
+// carga en frío — este watch reintenta sola en cuanto el id esté disponible, mismo patrón que
+// cartera/index.vue.
+watch(() => tenantStore.activeTenant?.id, cargarResumenGerencial)
 </script>
 
 <template>

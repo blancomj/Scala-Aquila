@@ -20,7 +20,12 @@ const presupuestoStore = usePresupuestoStore()
 const guardandoTipoId = ref<number | null>(null)
 const error = ref<string | null>(null)
 
-await useAsyncData('motivos-novedad-base', async () => {
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'motivos-novedad-base',
+  async () => {
   const tenantId = tenantStore.activeTenant?.id
   if (!tenantId) return null
   await Promise.all([
@@ -29,7 +34,9 @@ await useAsyncData('motivos-novedad-base', async () => {
     presupuestoStore.cargarCuentas(tenantId),
   ])
   return null
-})
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const opcionesCuenta = computed(() =>
   presupuestoStore.cuentas

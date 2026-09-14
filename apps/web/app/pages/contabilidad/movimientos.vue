@@ -130,8 +130,11 @@ const { data, pending, refresh } = await useAsyncData(
     }
   },
   // El rango de fechas es parte de la consulta: cambiarlo debe recargar, no solo refiltrar en
-  // memoria — la función SQL ya acota por fecha y no tiene sentido traerlo todo.
-  { watch: [desde, hasta] },
+  // memoria — la función SQL ya acota por fecha y no tiene sentido traerlo todo. activeTenant?.id
+  // también entra al watch: en la carga en frío puede no estar resuelto en el instante exacto de
+  // este setup, y sin eso la lectura fallida del id se queda así para siempre (mismo espíritu que
+  // configuracion/ia.vue).
+  { watch: [desde, hasta, () => tenantStore.activeTenant?.id] },
 )
 
 const movimientos = computed(() => data.value?.movimientos ?? [])

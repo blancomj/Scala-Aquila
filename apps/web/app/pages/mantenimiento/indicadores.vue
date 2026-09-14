@@ -51,17 +51,24 @@ async function cargarResumen(): Promise<void> {
   }
 }
 
-await useAsyncData('mant8-indicadores-inicial', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    activosStore.cargarActivos(tenantId),
-    presupuestoStore.cargarPresupuestos(tenantId),
-    presupuestoStore.cargarCuentas(tenantId),
-    cargarResumen(),
-  ])
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'mant8-indicadores-inicial',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      activosStore.cargarActivos(tenantId),
+      presupuestoStore.cargarPresupuestos(tenantId),
+      presupuestoStore.cargarCuentas(tenantId),
+      cargarResumen(),
+    ])
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 // ── Pestañas ─────────────────────────────────────────────────────────
 type Tab = 'resumen' | 'operacion' | 'mantenimiento' | 'financieros' | 'sla'

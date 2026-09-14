@@ -75,6 +75,15 @@ export const NAV_ICONOS = {
   // Varias tarjetas apiladas con una flecha de salida: lote de pago agrupando facturas (FIN-3).
   lotesPago:
     'M4 7h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM7 4h13a1 1 0 0 1 1 1v2M15 12l4 4-4 4',
+  // Edificio de banco (columnas + base): conciliación de RECAUDO (banco↔residente) — icono propio
+  // y distinto de `tesoreria` (billetera) porque esta pantalla enlaza EL EXTRACTO del banco, no
+  // el saldo/posición de la cuenta.
+  conciliacionBancaria:
+    'M3 21h18M4 21V10M20 21V10M4 10l8-6 8 6M8 10v11M12 10v11M16 10v11',
+  // Balanza: conciliación bancaria CONTABLE (banco↔libro) — comparación/validación, no el edificio
+  // de banco de arriba (esa es la de recaudo, banco↔residente). Glosario §2.
+  conciliacionBancariaContable:
+    'M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1ZM2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1ZM7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2',
   // Línea ascendente con puntos: flujo de caja proyectado (FIN-4).
   flujoProyectado: 'M3 17l5-5 4 4 8-8M14 8h6v6',
   // Velocímetro: tablero de finanzas, una sola pantalla con todo (FIN-4).
@@ -187,6 +196,11 @@ export const NAV_ICONOS = {
   // Documento con flecha hacia arriba: rendir cuentas es entregar/someter un informe.
   rendicionCuentas:
     'M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM14 3v5h5M12 17v-5M9.5 14.5 12 12l2.5 2.5',
+  // Chispa de cuatro puntas con dos destellos pequeños: proveedor de IA, no
+  // un robot — esta pantalla configura de dónde sale la inteligencia, no
+  // una funcionalidad de IA en sí misma.
+  proveedorIa:
+    'M11 2 9.3 7.3 4 9l5.3 1.7L11 16l1.7-5.3L18 9l-5.3-1.7ZM19 3v3.5M17.3 4.8h3.4M5 16v2.5M3.8 17.3h2.4',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -542,6 +556,21 @@ export const NAV_GRUPOS: NavGrupo[] = [
         icono: NAV_ICONOS.lotesPago,
       },
       {
+        label: 'Conciliación de Recaudo',
+        to: '/finanzas/conciliacion',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.conciliacionBancaria,
+      },
+      {
+        // Contable (banco↔libro) — distinta de la de arriba (recaudo, banco↔residente). D-CB-6.
+        label: 'Conciliación Contable',
+        to: '/finanzas/conciliacion-bancaria',
+        permiso: 'data:read',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.conciliacionBancariaContable,
+      },
+      {
         label: 'Flujo de caja proyectado',
         to: '/finanzas/flujo-proyectado',
         permiso: 'data:read',
@@ -800,6 +829,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/configuracion/pasarela',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.pagos,
+      },
+      {
+        label: 'Proveedor de IA',
+        to: '/configuracion/ia',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.proveedorIa,
       },
       {
         label: 'Zonas comunes',

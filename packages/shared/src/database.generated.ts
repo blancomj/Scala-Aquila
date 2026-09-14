@@ -11,6 +11,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -2819,6 +2824,55 @@ export type Database = {
           },
         ]
       }
+      cartera_alerta_emitida: {
+        Row: {
+          created_at: string
+          detalle: Json
+          fecha_emision: string
+          id: string
+          tenant_id: string
+          tipo_id: number
+        }
+        Insert: {
+          created_at?: string
+          detalle: Json
+          fecha_emision: string
+          id?: string
+          tenant_id: string
+          tipo_id: number
+        }
+        Update: {
+          created_at?: string
+          detalle?: Json
+          fecha_emision?: string
+          id?: string
+          tenant_id?: string
+          tipo_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_alerta_emitida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_alerta_emitida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartera_alerta_emitida_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartera_corridas_diarias: {
         Row: {
           disparado_at: string
@@ -3808,6 +3862,188 @@ export type Database = {
           valor_fijo?: number | null
         }
         Relationships: []
+      }
+      conciliacion_bancaria: {
+        Row: {
+          certificado_at: string | null
+          certificado_por: string | null
+          created_at: string
+          cuenta_bancaria_id: string
+          estado: Database["public"]["Enums"]["conciliacion_bancaria_estado_t"]
+          id: string
+          periodo_id: string
+          preparado_at: string
+          preparado_por: string | null
+          saldo_final_banco: number
+          saldo_final_libros: number
+          saldo_inicial_banco: number
+          saldo_inicial_libros: number
+          tenant_id: string
+        }
+        Insert: {
+          certificado_at?: string | null
+          certificado_por?: string | null
+          created_at?: string
+          cuenta_bancaria_id: string
+          estado?: Database["public"]["Enums"]["conciliacion_bancaria_estado_t"]
+          id?: string
+          periodo_id: string
+          preparado_at?: string
+          preparado_por?: string | null
+          saldo_final_banco: number
+          saldo_final_libros: number
+          saldo_inicial_banco: number
+          saldo_inicial_libros: number
+          tenant_id: string
+        }
+        Update: {
+          certificado_at?: string | null
+          certificado_por?: string | null
+          created_at?: string
+          cuenta_bancaria_id?: string
+          estado?: Database["public"]["Enums"]["conciliacion_bancaria_estado_t"]
+          id?: string
+          periodo_id?: string
+          preparado_at?: string
+          preparado_por?: string | null
+          saldo_final_banco?: number
+          saldo_final_libros?: number
+          saldo_inicial_banco?: number
+          saldo_inicial_libros?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacion_bancaria_certificado_por_fkey"
+            columns: ["certificado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_preparado_por_fkey"
+            columns: ["preparado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacion_bancaria_partida: {
+        Row: {
+          conciliacion_id: string
+          contable_comprobante_detalle_id: string | null
+          created_at: string
+          descripcion: string | null
+          extracto_linea_id: string | null
+          id: string
+          monto: number
+          origen: Database["public"]["Enums"]["conciliacion_bancaria_partida_origen_t"]
+          resuelta: boolean
+          resuelta_at: string | null
+          tenant_id: string
+          tipo_id: number
+        }
+        Insert: {
+          conciliacion_id: string
+          contable_comprobante_detalle_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          extracto_linea_id?: string | null
+          id?: string
+          monto: number
+          origen: Database["public"]["Enums"]["conciliacion_bancaria_partida_origen_t"]
+          resuelta?: boolean
+          resuelta_at?: string | null
+          tenant_id: string
+          tipo_id: number
+        }
+        Update: {
+          conciliacion_id?: string
+          contable_comprobante_detalle_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          extracto_linea_id?: string | null
+          id?: string
+          monto?: number
+          origen?: Database["public"]["Enums"]["conciliacion_bancaria_partida_origen_t"]
+          resuelta?: boolean
+          resuelta_at?: string | null
+          tenant_id?: string
+          tipo_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_conciliacion_id_fkey"
+            columns: ["conciliacion_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacion_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_contable_comprobante_detalle_fkey"
+            columns: ["contable_comprobante_detalle_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_extracto_linea_id_fkey"
+            columns: ["extracto_linea_id"]
+            isOneToOne: false
+            referencedRelation: "extracto_linea"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_bancaria_partida_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conciliacion_propuesta: {
         Row: {
@@ -5727,6 +5963,7 @@ export type Database = {
       }
       documentos: {
         Row: {
+          activo_id: string | null
           anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
@@ -5749,6 +5986,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          activo_id?: string | null
           anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
@@ -5771,6 +6009,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          activo_id?: string | null
           anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
@@ -5793,6 +6032,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "documentos_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_anuncio_id_fkey"
             columns: ["anuncio_id"]
@@ -7892,6 +8138,7 @@ export type Database = {
           fondo_id: string
           id: string
           liquidacion_id: string | null
+          lote_pago_id: string | null
           monto: number
           motivo: string | null
           pago_id: string | null
@@ -7914,6 +8161,7 @@ export type Database = {
           fondo_id: string
           id?: string
           liquidacion_id?: string | null
+          lote_pago_id?: string | null
           monto: number
           motivo?: string | null
           pago_id?: string | null
@@ -7936,6 +8184,7 @@ export type Database = {
           fondo_id?: string
           id?: string
           liquidacion_id?: string | null
+          lote_pago_id?: string | null
           monto?: number
           motivo?: string | null
           pago_id?: string | null
@@ -8001,6 +8250,13 @@ export type Database = {
             columns: ["liquidacion_id"]
             isOneToOne: false
             referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fondo_movimientos_lote_pago_id_fkey"
+            columns: ["lote_pago_id"]
+            isOneToOne: false
+            referencedRelation: "finanzas_lotes_pago"
             referencedColumns: ["id"]
           },
           {
@@ -11518,6 +11774,113 @@ export type Database = {
             columns: ["votacion_id"]
             isOneToOne: false
             referencedRelation: "gobierno_votaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_config: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id: string
+          modelo: string
+          proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
+          tenant_id: string
+          updated_at: string | null
+          verificada_at: string | null
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          modelo: string
+          proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
+          tenant_id: string
+          updated_at?: string | null
+          verificada_at?: string | null
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          modelo?: string
+          proveedor?: Database["public"]["Enums"]["ia_proveedor_t"]
+          tenant_id?: string
+          updated_at?: string | null
+          verificada_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_credencial: {
+        Row: {
+          config_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string
+          tenant_id: string
+          vault_secret_id: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre: string
+          tenant_id: string
+          vault_secret_id: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          vault_secret_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_credencial_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "ia_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_credencial_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_credencial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_credencial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -21235,6 +21598,7 @@ export type Database = {
       }
       v_documento_vigente: {
         Row: {
+          activo_id: string | null
           anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
@@ -21257,6 +21621,13 @@ export type Database = {
           version: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documentos_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documentos_anuncio_id_fkey"
             columns: ["anuncio_id"]
@@ -21483,6 +21854,10 @@ export type Database = {
       auditoria_ejecutar_controles_automaticos_diario: {
         Args: never
         Returns: undefined
+      }
+      cartera_alertas_evaluar: {
+        Args: { p_fecha?: string; p_tenant_id: string }
+        Returns: number
       }
       cartera_etapa_requiere_aprobacion: {
         Args: {
@@ -21778,6 +22153,7 @@ export type Database = {
         }
       }
       cron_anuncios_publicar_programados: { Args: never; Returns: undefined }
+      cron_cartera_alertas_diario: { Args: never; Returns: undefined }
       cron_cartera_recalcular_diario: { Args: never; Returns: undefined }
       cron_finanzas_flujo_alertas_diario: { Args: never; Returns: undefined }
       cron_gobierno_vencimientos_diario: { Args: never; Returns: undefined }
@@ -21883,6 +22259,25 @@ export type Database = {
           ultimo_acuse_at: string
           ultimo_estado: Database["public"]["Enums"]["estado_acuse_t"]
         }[]
+      }
+      fn_activar_ia_proveedor: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: {
+          activa: boolean
+          created_at: string
+          id: string
+          modelo: string
+          proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
+          tenant_id: string
+          updated_at: string | null
+          verificada_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ia_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_activar_legal_hold: {
         Args: {
@@ -22241,6 +22636,7 @@ export type Database = {
           inmueble_id: string
           notas: string
           propuesta_por: string
+          resultado: Database["public"]["Enums"]["resultado_accion_cobranza_t"]
           tipo_accion: Database["public"]["Enums"]["tipo_accion_cobranza_t"]
           ultimo_estado_acuse: Database["public"]["Enums"]["estado_acuse_t"]
         }[]
@@ -22686,6 +23082,10 @@ export type Database = {
       fn_crear_version_politica_clasificacion: {
         Args: { p_politica_id: string }
         Returns: string
+      }
+      fn_credenciales_ia_descifrables: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: number
       }
       fn_credenciales_pasarela_descifrables: {
         Args: { p_config_id: string; p_tenant_id: string }
@@ -23218,6 +23618,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_guardar_credencial_ia: {
+        Args: {
+          p_actor_id: string
+          p_config_id: string
+          p_nombre: string
+          p_tenant_id: string
+          p_valor: string
+        }
+        Returns: string
+      }
       fn_guardar_credencial_pasarela: {
         Args: {
           p_actor_id: string
@@ -23275,6 +23685,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fn_ia_credenciales_presentes: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          config_id: string
+          nombre: string
+        }[]
       }
       fn_indicadores_gestion: {
         Args: {
@@ -23425,6 +23842,13 @@ export type Database = {
       fn_instanciar_salud_factores_default: {
         Args: { p_tenant_id: string }
         Returns: undefined
+      }
+      fn_leer_credenciales_ia: {
+        Args: { p_config_id: string; p_tenant_id: string }
+        Returns: {
+          nombre: string
+          valor: string
+        }[]
       }
       fn_leer_credenciales_pasarela: {
         Args: { p_config_id: string; p_tenant_id: string }
@@ -24010,6 +24434,7 @@ export type Database = {
           origen_id: string
           origen_modulo: string
           resumen: string
+          tipo: string
           titulo: string
           vence_at: string
         }[]
@@ -24625,6 +25050,43 @@ export type Database = {
           descripcion: string
           fundamento: string
           patron: string
+        }[]
+      }
+      fn_variacion_cartera: {
+        Args: {
+          p_fecha_corte_actual: string
+          p_fecha_corte_anterior: string
+          p_tenant_id: string
+        }
+        Returns: {
+          codigo: string
+          corriente_actual: number
+          corriente_anterior: number
+          delta_vencida: number
+          dias_mora_maximo: number
+          etapa_cobranza: string
+          eventos_en_periodo: number
+          inmueble_id: string
+          interes_actual: number
+          interes_anterior: number
+          sin_vencimiento_actual: number
+          sin_vencimiento_anterior: number
+          total_actual: number
+          total_anterior: number
+          vencida_actual: number
+          vencida_anterior: number
+        }[]
+      }
+      fn_variacion_cartera_eventos: {
+        Args: {
+          p_fecha_corte_actual: string
+          p_fecha_corte_anterior: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cantidad_eventos: number
+          cantidad_inmuebles: number
+          tipo: string
         }[]
       }
       fn_vehiculo_por_placa: {
@@ -26139,6 +26601,8 @@ export type Database = {
         | "unico"
         | "por_periodo"
         | "novedad"
+      conciliacion_bancaria_estado_t: "borrador" | "certificada"
+      conciliacion_bancaria_partida_origen_t: "banco" | "libro"
       conciliacion_estado_t:
         | "pendiente"
         | "conciliada_auto"
@@ -26309,6 +26773,7 @@ export type Database = {
         | "solicitud"
         | "acta_disposicion"
       hallazgo_estado_t: "abierto" | "en_tratamiento" | "aceptado" | "cerrado"
+      ia_proveedor_t: "anthropic" | "openai" | "google" | "openrouter"
       impugnacion_estado_t:
         | "presentada"
         | "en_tramite"
@@ -26544,12 +27009,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26573,11 +27038,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26598,11 +27063,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26623,11 +27088,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26640,11 +27105,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -26747,6 +27212,8 @@ export const Constants = {
         "por_periodo",
         "novedad",
       ],
+      conciliacion_bancaria_estado_t: ["borrador", "certificada"],
+      conciliacion_bancaria_partida_origen_t: ["banco", "libro"],
       conciliacion_estado_t: [
         "pendiente",
         "conciliada_auto",
@@ -26937,6 +27404,7 @@ export const Constants = {
         "acta_disposicion",
       ],
       hallazgo_estado_t: ["abierto", "en_tratamiento", "aceptado", "cerrado"],
+      ia_proveedor_t: ["anthropic", "openai", "google", "openrouter"],
       impugnacion_estado_t: [
         "presentada",
         "en_tramite",
@@ -27181,4 +27649,3 @@ export const Constants = {
     },
   },
 } as const
-

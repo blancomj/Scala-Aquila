@@ -69,10 +69,23 @@ d('RLS de conciliación bancaria', () => {
     if (errInmueble) throw new Error(`fixture inmueble: ${errInmueble.message}`)
     inmuebleAId = inmueble.id
 
+    // D-CB-2 (Fase 3, 20260935060000): extracto_bancario.cuenta_bancaria_id ya es NOT NULL.
+    const entidadFinanciera = await listaTipoId(admin, 'ENTIDAD_FINANCIERA', 'bancolombia')
+    const { data: cuentaBancaria, error: errCuenta } = await admin
+      .from('cuentas_bancarias')
+      .insert({
+        tenant_id: tenantA.id, entidad_financiera_id: entidadFinanciera, tipo_cuenta: 'ahorros',
+        numero_cuenta: `CONC-RLS-${String(Date.now())}`,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (errCuenta) throw new Error(`fixture cuenta_bancaria: ${errCuenta.message}`)
+
     const { data: extracto, error: errExtracto } = await admin
       .from('extracto_bancario')
       .insert({
         tenant_id: tenantA.id,
+        cuenta_bancaria_id: cuentaBancaria.id,
         origen: 'banco',
         nombre_archivo: 'extracto-test.csv',
         hash_archivo: `hash-fixture-${String(Date.now())}`,

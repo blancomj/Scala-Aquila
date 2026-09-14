@@ -36,6 +36,13 @@ type FondoMovimientoTipo = Database['public']['Enums']['fondo_movimiento_tipo_t'
 type FondoCompromisoEstado = Database['public']['Enums']['fondo_compromiso_estado_t']
 type FondoSolicitudUsoEstado = Database['public']['Enums']['fondo_solicitud_uso_estado_t']
 
+export interface ExtractoLineaDisponible {
+  id: string
+  fecha_movimiento: string
+  descripcion_banco: string
+  monto: number
+}
+
 export interface FondoSaldos {
   saldo: number
   comprometido: number
@@ -168,7 +175,9 @@ export const useFondosStore = defineStore('fondos', () => {
 
   /** Registra un movimiento manual (aporte/rendimiento/traslado/ajuste — nunca uso ni
    * cierre_remanente desde aquí, ver TIPOS_MOVIMIENTO_MANUAL). guard_fondo_movimiento valida
-   * estado del fondo, signo del monto y motivo obligatorio para ajuste; el error llega tal cual. */
+   * estado del fondo, signo del monto y motivo obligatorio para ajuste; el error llega tal cual.
+   * extractoLineaId (FND-PR-09): soporte alternativo a documentoId, solo válido en BD para
+   * aporte/rendimiento — un movimiento bancario ya conciliado en vez de un documento subido. */
   async function registrarMovimiento(params: {
     tenantId: string
     fondoId: string
@@ -178,6 +187,7 @@ export const useFondosStore = defineStore('fondos', () => {
     descripcion?: string
     motivo?: string
     documentoId?: string
+    extractoLineaId?: string
   }): Promise<FondoMovimientoRow> {
     const cliente = useSupabaseClient<Database>()
     const { data, error: errorInsert } = await cliente
@@ -191,6 +201,7 @@ export const useFondosStore = defineStore('fondos', () => {
         descripcion: params.descripcion,
         motivo: params.motivo,
         documento_id: params.documentoId,
+        extracto_linea_id: params.extractoLineaId,
       })
       .select('*')
       .single()
@@ -198,6 +209,33 @@ export const useFondosStore = defineStore('fondos', () => {
 
     await Promise.all([cargarMovimientos(params.fondoId), cargarFondos(params.tenantId)])
     return data
+  }
+
+  /** Líneas de extracto candidatas a respaldar un aporte/rendimiento manual (FND-PR-09): del
+   * tenant, sin pago_id (una línea ya resuelta como recaudo tiene su propio camino contable) y
+   * que ningún otro movimiento de fondo haya tomado ya (fondo_movimientos_extracto_linea_unica
+   * es la garantía real; este filtro es solo para no ofrecerlas en la UI). */
+  async function cargarExtractoLineasDisponibles(tenantId: string): Promise<ExtractoLineaDisponible[]> {
+    const cliente = useSupabaseClient<Database>()
+    const [{ data: lineas, error: errorLineas }, { data: usadas, error: errorUsadas }] = await Promise.all([
+      cliente
+        .from('extracto_linea')
+        .select('id, fecha_movimiento, descripcion_banco, monto')
+        .eq('tenant_id', tenantId)
+        .is('pago_id', null)
+        .order('fecha_movimiento', { ascending: false })
+        .limit(200),
+      cliente
+        .from('fondo_movimientos')
+        .select('extracto_linea_id')
+        .eq('tenant_id', tenantId)
+        .not('extracto_linea_id', 'is', null),
+    ])
+    if (errorLineas) throw errorLineas
+    if (errorUsadas) throw errorUsadas
+
+    const idsUsados = new Set((usadas ?? []).map((m) => m.extracto_linea_id))
+    return (lineas ?? []).filter((l) => !idsUsados.has(l.id))
   }
 
   async function cargarAutorizaciones(fondoId: string): Promise<FondoAutorizacionRow[]> {
@@ -526,6 +564,7 @@ export const useFondosStore = defineStore('fondos', () => {
     cambiarEstadoFondo,
     cargarMovimientos,
     registrarMovimiento,
+    cargarExtractoLineasDisponibles,
     cargarAutorizaciones,
     registrarAutorizacion,
     cargarFuentes,

@@ -11,10 +11,17 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'us
 const tenantStore = useTenantStore()
 const membersStore = useMembersStore()
 
-const { status: statusMiembros, error: errorMiembros } = await useAsyncData('seguridad-miembros', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+const { status: statusMiembros, error: errorMiembros } = await useAsyncData(
+  'seguridad-miembros',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? membersStore.cargarMiembros(tenantId) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 const { status: statusCatalogo, error: errorCatalogo } = await useAsyncData('seguridad-catalogo', () => membersStore.cargarCatalogoRolesFuncionalesConModulos())
 
 const cargando = computed(() => statusMiembros.value === 'pending' || statusCatalogo.value === 'pending')

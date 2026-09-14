@@ -20,11 +20,18 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'se
 const tenantStore = useTenantStore()
 const plantillasStore = usePlantillasSmsStore()
 
-await useAsyncData('plantillas-sms', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return plantillasStore.cargarPlantillas(tenantId)
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'plantillas-sms',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return plantillasStore.cargarPlantillas(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const eventos = computed(() => Object.keys(SMS_FIELD_REGISTRY))
 const eventoSeleccionado = ref<string>(eventos.value[0] ?? '')

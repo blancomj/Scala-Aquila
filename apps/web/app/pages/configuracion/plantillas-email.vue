@@ -22,17 +22,28 @@ const toast = useToast()
 
 const pestanaActiva = ref<'brevo' | 'compositor'>('brevo')
 
-await useAsyncData('plantillas-email', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return plantillasStore.cargarPlantillas(tenantId)
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'plantillas-email',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return plantillasStore.cargarPlantillas(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
-await useAsyncData('plantillas-compositor', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return compositorStore.cargarPlantillas(tenantId)
-})
+await useAsyncData(
+  'plantillas-compositor',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return compositorStore.cargarPlantillas(tenantId)
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const eventos = computed(() => plantillasStore.plantillas.map((p) => p.eventType))
 const eventoSeleccionado = ref<string>(eventos.value[0] ?? '')

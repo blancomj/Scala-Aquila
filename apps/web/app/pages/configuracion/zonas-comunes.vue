@@ -17,16 +17,23 @@ const toast = useToast()
 
 const error = ref<string | null>(null)
 
-await useAsyncData('zonas-comunes-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    zonasStore.cargarTiposZonaComun(tenantId),
-    zonasStore.cargarZonasComunes(tenantId),
-    cuentaStore.cargarInmuebles(tenantId),
-  ])
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'zonas-comunes-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      zonasStore.cargarTiposZonaComun(tenantId),
+      zonasStore.cargarZonasComunes(tenantId),
+      cuentaStore.cargarInmuebles(tenantId),
+    ])
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
 

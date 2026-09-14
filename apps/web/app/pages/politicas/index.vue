@@ -23,10 +23,17 @@ const drawerAbierto = ref(false)
 const politicaIdAbierta = ref<string | undefined>(undefined)
 const confirmandoId = ref<string | null>(null)
 
-await useAsyncData('politicas-financieras', () => {
-  const tenantId = tenantStore.activeTenant?.id
-  return tenantId ? politicaStore.cargarPoliticas(tenantId) : Promise.resolve([])
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'politicas-financieras',
+  () => {
+    const tenantId = tenantStore.activeTenant?.id
+    return tenantId ? politicaStore.cargarPoliticas(tenantId) : Promise.resolve([])
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const politicaVigente = computed(() => politicaStore.politicas.find((p) => p.estado === 'vigente'))
 const politicaConfirmando = computed(() =>

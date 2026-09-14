@@ -22,7 +22,7 @@
 // es peor que un error.
 import type { Database } from '@aquila/shared'
 import { formatoMoneda } from '~/utils/formato'
-import type { AccionBandeja, EnvioDetalle } from '~/stores/cobranza'
+import type { AccionBandeja, EnvioDetalle, PlanRecomendacion, ResultadoGestion } from '~/stores/cobranza'
 import { CANALES_AUTOMATICOS, ETIQUETA_CANAL, textoLegible } from '~/utils/mensaje-cobranza'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
@@ -33,6 +33,7 @@ type DocumentoRow = Database['public']['Views']['v_documento_vigente']['Row']
 const tenantStore = useTenantStore()
 const cobranzaStore = useCobranzaStore()
 const documentosStore = useDocumentosStore()
+const cuentaStore = useCuentaCorrienteStore()
 const toast = useToast()
 const authStore = useAuthStore()
 
@@ -47,6 +48,12 @@ const detalleAbierto = ref(false)
 const accionDetalle = ref<AccionBandeja | null>(null)
 const enviosDetalle = ref<EnvioDetalle[]>([])
 const cargandoDetalle = ref(false)
+
+// ── resultado de la gestión (Ola 2 §4) — qué pasó después del despacho,
+// no si el despacho salió. Editable solo desde 'ejecutada': antes no hay
+// nada que reportar, y en 'fallida' el desenlace ya es el propio fallo.
+const resultadoSeleccionado = ref<ResultadoGestion | undefined>(undefined)
+const guardandoResultado = ref(false)
 
 // ── confirmación de despacho (impeccable critique P0) — despachar pone un
 // mensaje en manos de un deudor real y no se puede deshacer; a diferencia
@@ -125,6 +132,24 @@ const ETIQUETA_ACUSE: Record<string, string> = {
   fallido: 'Fallido',
   no_entregable: 'No entregable',
 }
+
+// Ola 2 §4 — el desenlace de la GESTIÓN, no del despacho. Orden deliberado:
+// de "no pasó nada" a "se resolvió", para que el select se lea como una
+// escala, no como una lista sin criterio.
+const OPCIONES_RESULTADO: { valor: ResultadoGestion; etiqueta: string }[] = [
+  { valor: 'sin_respuesta', etiqueta: 'Sin respuesta' },
+  { valor: 'contacto_no_efectivo', etiqueta: 'Contacto no efectivo' },
+  { valor: 'contacto_efectivo', etiqueta: 'Contacto efectivo' },
+  { valor: 'datos_incorrectos', etiqueta: 'Datos de contacto incorrectos' },
+  { valor: 'rechazo_deudor', etiqueta: 'El deudor rechazó la gestión' },
+  { valor: 'promesa_de_pago', etiqueta: 'Promesa de pago' },
+  { valor: 'acuerdo_solicitado', etiqueta: 'Solicitó un acuerdo de pago' },
+  { valor: 'pago_recibido', etiqueta: 'Pago recibido' },
+  { valor: 'no_aplica', etiqueta: 'No aplica' },
+]
+const ETIQUETA_RESULTADO: Record<string, string> = Object.fromEntries(
+  OPCIONES_RESULTADO.map((o) => [o.valor, o.etiqueta]),
+)
 
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -279,6 +304,7 @@ async function despachar(accion: AccionBandeja): Promise<void> {
 
 async function verDetalle(accion: AccionBandeja): Promise<void> {
   accionDetalle.value = accion
+  resultadoSeleccionado.value = accion.resultado ?? undefined
   detalleAbierto.value = true
   enviosDetalle.value = []
   documentosPorEnvio.value = {}
@@ -376,6 +402,28 @@ async function subirEvidencia(envioId: string): Promise<void> {
   }
 }
 
+/** Ola 2 §4 — cerrar el ciclo: registra qué pasó después de despachar. */
+async function guardarResultado(): Promise<void> {
+  const accion = accionDetalle.value
+  const resultado = resultadoSeleccionado.value
+  if (!accion || !resultado) return
+  guardandoResultado.value = true
+  try {
+    await cobranzaStore.registrarResultado(accion.accionId, resultado)
+    accion.resultado = resultado
+    toast.add({ title: 'Resultado registrado', color: 'success' })
+    await cargar()
+  } catch (excepcion) {
+    toast.add({
+      title: 'No se pudo registrar el resultado',
+      description: excepcion instanceof Error ? excepcion.message : 'Error inesperado.',
+      color: 'error',
+    })
+  } finally {
+    guardandoResultado.value = false
+  }
+}
+
 async function descargarEvidencia(storagePath: string | null): Promise<void> {
   if (!storagePath) return
   descargandoEvidencia.value = storagePath
@@ -397,6 +445,106 @@ function fechaCorta(iso: string | null): string {
 function fechaHora(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+// ── Recomendadas (Ola 2 §3, ENFOQUE_CONSOLIDACION) ─────────────────────
+// situación → recomendación → confirmación humana → acciones_cobranza.
+// Corre el mismo motor que el job diario (cartera-recalcular), en modo
+// simulación primero — nadie ve nada que no haya sido calculado en vivo, y
+// nada se escribe hasta que un administrador confirma un inmueble a la
+// vez. No hay botón "confirmar todo": cada fila es una decisión propia.
+function hoyISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const recomendadasAbierto = ref(false)
+const fechaCorteRecomendaciones = ref(hoyISO())
+const calculandoRecomendaciones = ref(false)
+const errorRecomendaciones = ref<string | null>(null)
+const recomendaciones = ref<PlanRecomendacion[]>([])
+const inmueblesEvaluados = ref(0)
+const confirmandoInmuebleId = ref<string | null>(null)
+
+const recomendacionesConfirmables = computed(() =>
+  recomendaciones.value.filter((p) => p.accionesPropuestas.length > 0),
+)
+const recomendacionesBloqueadas = computed(() =>
+  recomendaciones.value.filter((p) => p.accionesPropuestas.length === 0 && p.accionesBloqueadas.length > 0),
+)
+
+/** codigoUnidad() ya existe en simulacion.vue para el mismo problema: el
+ *  motor devuelve inmuebleId, no el código legible. Aquí, a diferencia de
+ *  esa pantalla, un inmueble recomendado puede no tener todavía ninguna
+ *  fila en acciones_cobranza (es justo el caso que motiva la
+ *  recomendación) — no se puede resolver el código desde la bandeja. */
+const inmueblePorId = computed(() => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.codigo])))
+function codigoInmueble(inmuebleId: string): string {
+  return inmueblePorId.value.get(inmuebleId) ?? inmuebleId
+}
+
+async function calcularRecomendaciones(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  calculandoRecomendaciones.value = true
+  errorRecomendaciones.value = null
+  try {
+    if (cuentaStore.inmuebles.length === 0) await cuentaStore.cargarInmuebles(tenantId)
+    const resultado = await cobranzaStore.simularRecomendaciones(tenantId, fechaCorteRecomendaciones.value)
+    recomendaciones.value = resultado.planes
+    inmueblesEvaluados.value = resultado.inmueblesEvaluados
+  } catch (excepcion) {
+    errorRecomendaciones.value =
+      excepcion instanceof Error ? excepcion.message : 'No se pudo calcular la recomendación.'
+    recomendaciones.value = []
+  } finally {
+    calculandoRecomendaciones.value = false
+  }
+}
+
+/**
+ * Confirmar es volver a evaluar este inmueble en el momento del clic y
+ * recién entonces escribir (§3.4, contexto obsoleto): si algo cambió desde
+ * que se calculó la recomendación — un pago, un acuerdo nuevo—,
+ * accionesCreadas puede salir en 0. Eso se informa, nunca se ejecuta en
+ * silencio sobre una foto vieja.
+ */
+async function confirmarRecomendacion(plan: PlanRecomendacion): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  confirmandoInmuebleId.value = plan.inmuebleId
+  try {
+    const resultado = await cobranzaStore.confirmarRecomendacion(
+      tenantId,
+      fechaCorteRecomendaciones.value,
+      plan.inmuebleId,
+    )
+    if (resultado.accionesCreadas > 0) {
+      toast.add({
+        title: `${String(resultado.accionesCreadas)} acción(es) creada(s)`,
+        description: 'Quedó en la cola, esperando aprobación o programada según el riesgo de la estrategia.',
+        color: 'success',
+      })
+    } else {
+      toast.add({
+        title: 'No se creó ninguna acción',
+        description:
+          'El inmueble ya no cumple las condiciones que motivaron la recomendación — probablemente cambió desde que se calculó.',
+        color: 'warning',
+      })
+    }
+    // Saca este inmueble de la lista de recomendadas y refresca la cola
+    // principal, donde debería aparecer la acción recién creada.
+    recomendaciones.value = recomendaciones.value.filter((p) => p.inmuebleId !== plan.inmuebleId)
+    await cargar()
+  } catch (excepcion) {
+    toast.add({
+      title: 'No se pudo confirmar',
+      description: excepcion instanceof Error ? excepcion.message : 'Error inesperado.',
+      color: 'error',
+    })
+  } finally {
+    confirmandoInmuebleId.value = null
+  }
 }
 </script>
 
@@ -504,6 +652,127 @@ function fechaHora(iso: string | null): string {
         <p class="text-3xl font-bold tabular-nums mt-1 text-error-600 dark:text-error-400">
           {{ resumen.fallidas }}
         </p>
+      </div>
+    </div>
+
+    <!-- ── recomendadas (Ola 2 §3, ENFOQUE_CONSOLIDACION) ──────────────
+         situación → recomendación → confirmación. Solo para quien puede
+         confirmar (mismo rol que aprobar): mostrarle esto a quien no puede
+         actuar sería una promesa vacía. -->
+    <div
+      v-if="esAdministrador"
+      class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 mb-6"
+    >
+      <button
+        type="button"
+        class="w-full flex items-center justify-between gap-4 p-4 text-left"
+        @click="recomendadasAbierto = !recomendadasAbierto"
+      >
+        <div>
+          <p class="text-sm font-semibold flex items-center gap-1.5">
+            <UIcon name="i-lucide-sparkles" class="size-4 text-primary-500" />
+            Recomendadas
+          </p>
+          <p class="text-xs text-neutral-500 mt-0.5">
+            Qué acción de cobranza correspondería crear hoy, calculado en vivo — nada se escribe
+            hasta que confirmas una por una.
+          </p>
+        </div>
+        <UIcon
+          :name="recomendadasAbierto ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          class="size-4 text-neutral-400 shrink-0"
+        />
+      </button>
+
+      <div v-if="recomendadasAbierto" class="px-4 pb-4 space-y-4 border-t border-neutral-100 dark:border-neutral-800 pt-4">
+        <div class="flex flex-wrap items-end gap-3">
+          <UFormField label="Fecha de corte" name="fechaCorteRecomendaciones" class="w-48">
+            <UInput v-model="fechaCorteRecomendaciones" type="date" size="sm" />
+          </UFormField>
+          <UButton
+            icon="i-lucide-play"
+            size="sm"
+            :loading="calculandoRecomendaciones"
+            @click="calcularRecomendaciones"
+          >
+            Calcular
+          </UButton>
+        </div>
+
+        <UAlert
+          v-if="errorRecomendaciones"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="No se pudo calcular"
+          :description="errorRecomendaciones"
+        />
+
+        <template v-if="!calculandoRecomendaciones && !errorRecomendaciones && inmueblesEvaluados > 0">
+          <p
+            v-if="recomendacionesConfirmables.length === 0 && recomendacionesBloqueadas.length === 0"
+            class="text-sm text-neutral-500"
+          >
+            {{ inmueblesEvaluados }} inmueble(s) evaluados — ninguno tiene una acción de cobranza
+            pendiente de crear en esta fecha de corte.
+          </p>
+
+          <div v-if="recomendacionesConfirmables.length > 0" class="space-y-2">
+            <div
+              v-for="plan in recomendacionesConfirmables"
+              :key="plan.inmuebleId"
+              class="rounded-md border border-neutral-200 dark:border-neutral-800 p-3 flex flex-wrap items-center justify-between gap-3"
+            >
+              <div>
+                <p class="text-sm font-medium">
+                  {{ codigoInmueble(plan.inmuebleId) }}
+                  <span class="text-xs text-neutral-400 font-normal ml-1">{{ plan.clasificacionCodigo }}</span>
+                </p>
+                <div class="flex flex-wrap gap-1.5 mt-1">
+                  <UBadge
+                    v-for="(propuesta, indice) in plan.accionesPropuestas"
+                    :key="indice"
+                    size="sm"
+                    variant="subtle"
+                    :color="propuesta.requiereAprobacion ? 'warning' : 'neutral'"
+                  >
+                    {{ ETIQUETA_ACCION[propuesta.tipoAccion] ?? propuesta.tipoAccion }} ·
+                    {{ ETIQUETA_CANAL[propuesta.canal] ?? propuesta.canal }}
+                    <span v-if="propuesta.requiereAprobacion"> · pide aprobación</span>
+                  </UBadge>
+                </div>
+              </div>
+              <UButton
+                size="xs"
+                color="primary"
+                :loading="confirmandoInmuebleId === plan.inmuebleId"
+                title="Crear esta acción — vuelve a evaluar el inmueble en este momento antes de escribir"
+                @click="confirmarRecomendacion(plan)"
+              >
+                Confirmar
+              </UButton>
+            </div>
+          </div>
+
+          <!-- Bloqueadas: correspondería actuar pero falta un dato (casi
+               siempre contacto del destinatario). No se ofrece "confirmar"
+               porque no hay a quién dirigir la acción — se dice la causa
+               para que alguien arregle el dato, no para que se ignore. -->
+          <div v-if="recomendacionesBloqueadas.length > 0" class="space-y-1.5">
+            <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+              Correspondería actuar, pero falta un dato
+            </p>
+            <div
+              v-for="plan in recomendacionesBloqueadas"
+              :key="plan.inmuebleId"
+              class="text-xs text-neutral-500 flex items-center gap-1.5"
+            >
+              <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0 text-warning-500" />
+              <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ codigoInmueble(plan.inmuebleId) }}</span>
+              <span>— {{ plan.accionesBloqueadas[0]?.motivo ?? 'Falta un destinatario válido.' }}</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -866,6 +1135,48 @@ function fechaHora(iso: string | null): string {
             >
               Esta unidad tiene varios copropietarios: se notificó a cada uno por separado, y cada
               notificación conserva su propia prueba.
+            </p>
+          </div>
+
+          <!-- resultado de la gestión (Ola 2 §4) — qué pasó DESPUÉS de
+               despachar, distinto de si el despacho salió (eso lo dice la
+               evidencia de abajo). Editable solo cuando ya se despachó:
+               antes no hay nada todavía que reportar. -->
+          <div
+            v-if="accionDetalle.estado === 'ejecutada' || accionDetalle.resultado"
+            class="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800"
+          >
+            <h3
+              class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3 flex items-center gap-2"
+            >
+              <UIcon name="i-lucide-message-circle-question" class="size-3" />
+              Resultado de la gestión
+            </h3>
+            <p class="text-xs text-neutral-500 mb-3">
+              Se despachó el mensaje; esto es qué pasó después — no se afirma que la gestión sirvió
+              de algo sin registrar qué contestó el deudor.
+            </p>
+            <div v-if="accionDetalle.estado === 'ejecutada'" class="flex flex-wrap items-end gap-2">
+              <UFormField label="Qué pasó" name="resultadoGestion" class="w-56">
+                <USelect
+                  v-model="resultadoSeleccionado"
+                  :items="OPCIONES_RESULTADO.map((o) => ({ label: o.etiqueta, value: o.valor }))"
+                  value-key="value"
+                  placeholder="Sin registrar todavía"
+                  class="w-full"
+                />
+              </UFormField>
+              <UButton
+                size="sm"
+                :disabled="!resultadoSeleccionado || resultadoSeleccionado === accionDetalle.resultado"
+                :loading="guardandoResultado"
+                @click="guardarResultado"
+              >
+                Guardar
+              </UButton>
+            </div>
+            <p v-else-if="accionDetalle.resultado" class="text-sm font-medium">
+              {{ ETIQUETA_RESULTADO[accionDetalle.resultado] ?? accionDetalle.resultado }}
             </p>
           </div>
 

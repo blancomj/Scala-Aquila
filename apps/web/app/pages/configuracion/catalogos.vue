@@ -21,16 +21,23 @@ const toast = useToast()
 const error = ref<string | null>(null)
 const guardando = ref(false)
 
-await useAsyncData('catalogos-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    catalogosStore.cargarFamilias(),
-    catalogosStore.cargarValores(tenantId),
-    catalogosStore.cargarOcultos(tenantId),
-  ])
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'catalogos-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      catalogosStore.cargarFamilias(),
+      catalogosStore.cargarValores(tenantId),
+      catalogosStore.cargarOcultos(tenantId),
+    ])
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 const familiaActivaCodigo = ref<string | null>(null)
 
@@ -159,7 +166,7 @@ async function alternarOculto(valor: (typeof catalogosStore.valores)[number]): P
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div class="max-w-xs w-64">
+      <div class="w-full max-w-lg">
         <label class="block text-xs font-medium uppercase tracking-wide text-neutral-400 mb-1.5" for="familia-selector">
           Familia
         </label>

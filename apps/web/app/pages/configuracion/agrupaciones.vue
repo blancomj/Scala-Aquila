@@ -25,18 +25,25 @@ const coeficientesStore = useCoeficientesStore()
 const error = ref<string | null>(null)
 const guardando = ref(false)
 
-await useAsyncData('agrupaciones-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    agrupacionesStore.cargarTiposAgrupacion(tenantId),
-    agrupacionesStore.cargarAgrupaciones(tenantId),
-    cuentaStore.cargarInmuebles(tenantId),
-    coeficientesStore.cargarCoeficienteSets(tenantId),
-  ])
-  await coeficientesStore.cargarValoresVigentes(tenantId)
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'agrupaciones-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      agrupacionesStore.cargarTiposAgrupacion(tenantId),
+      agrupacionesStore.cargarAgrupaciones(tenantId),
+      cuentaStore.cargarInmuebles(tenantId),
+      coeficientesStore.cargarCoeficienteSets(tenantId),
+    ])
+    await coeficientesStore.cargarValoresVigentes(tenantId)
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 type Nodo = (typeof agrupacionesStore.arbolPlano)[number]
 

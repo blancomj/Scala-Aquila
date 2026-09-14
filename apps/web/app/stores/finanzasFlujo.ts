@@ -14,7 +14,8 @@
  * de su propio push. Migrar a los tipos generados cuando se regeneren.
  */
 import { defineStore } from 'pinia'
-import type { Database, Json } from '@aquila/shared'
+import type { Database, Explicacion, Json } from '@aquila/shared'
+import { explicarAlertaLiquidez } from '@aquila/shared'
 
 export type FlujoEscenario = 'base' | 'conservador' | 'optimista'
 
@@ -63,6 +64,9 @@ export interface AlertaEmitidaRow {
   fecha_emision: string
   detalle: Json
   created_at: string
+  /** Embed de solo lectura (regla_id → finanzas_alerta_regla → lista_tipos)
+   *  para armar la explicación (Ola 2 §2) sin una segunda consulta. */
+  finanzas_alerta_regla?: { nombre: string; lista_tipos: { codigo: string } | null } | null
 }
 
 export interface FlujoSnapshotRow {
@@ -97,6 +101,28 @@ export const useFinanzasFlujoStore = defineStore('finanzasFlujo', () => {
 
   const parametrosConservadorVigente = computed(
     () => escenarioParametros.value.find((p) => p.escenario === 'conservador' && p.estado === 'vigente') ?? null,
+  )
+
+  /** Ola 2 §2, segundo dominio explicando (finanzas): una Explicacion por
+   *  alerta emitida, misma forma que la de cartera-variacion. detalle
+   *  llega como Json de Supabase — se acota a Record<string, unknown>
+   *  aquí, en el borde, no dentro de explicarAlertaLiquidez (que se queda
+   *  pura y sin saber de dónde viene el dato). */
+  const alertasExplicadas = computed<{ alerta: AlertaEmitidaRow; explicacion: Explicacion }[]>(() =>
+    alertasEmitidas.value.map((row) => ({
+      alerta: row,
+      explicacion: {
+        origenModulo: 'financiero',
+        origenEntidad: 'finanzas_alerta_emitida',
+        origenId: row.id,
+        afirmaciones: explicarAlertaLiquidez({
+          tipoCodigo: row.finanzas_alerta_regla?.lista_tipos?.codigo ?? '',
+          nombreRegla: row.finanzas_alerta_regla?.nombre ?? 'Regla desconocida',
+          fechaEmision: row.fecha_emision,
+          detalle: (row.detalle ?? {}) as Record<string, unknown>,
+        }),
+      },
+    })),
   )
 
   async function cargarFlujo(
@@ -191,7 +217,10 @@ export const useFinanzasFlujoStore = defineStore('finanzasFlujo', () => {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente
       .from('finanzas_alerta_emitida')
-      .select('*')
+      // Embed de solo lectura: trae el nombre de la regla y el código real
+      // (TIPO_ALERTA_LIQUIDEZ) en la misma consulta — lo que
+      // explicarAlertaLiquidez() necesita para redactar (Ola 2 §2).
+      .select('*, finanzas_alerta_regla(nombre, lista_tipos(codigo))')
       .eq('tenant_id', tenantId)
       .order('fecha_emision', { ascending: false })
       .limit(limite)
@@ -249,7 +278,7 @@ export const useFinanzasFlujoStore = defineStore('finanzasFlujo', () => {
 
   return {
     filas, escenarioParametros, alertaReglas, alertasEmitidas, snapshots, loading, guardandoSnapshot,
-    parametrosConservadorVigente,
+    parametrosConservadorVigente, alertasExplicadas,
     cargarFlujo, cargarEscenarioParametros, guardarConservador,
     cargarAlertaReglas, actualizarAlertaRegla, cargarAlertasEmitidas,
     cargarSnapshots, guardarSnapshot, cargarProyeccionVsReal, limpiar,

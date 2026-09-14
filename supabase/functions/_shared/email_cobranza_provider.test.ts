@@ -131,6 +131,30 @@ Deno.test('enviarEmailCobranza: tags explícitos (GOB-9) sobreescriben el defaul
     ),
   ))
 
+Deno.test('enviarEmailCobranza: fetch revienta por red/DNS/TLS → success:false, no propaga la excepción', () =>
+  conEnvBrevo(ENV_BREVO_OK, () =>
+    conFetchMock(
+      () => Promise.reject(new TypeError('error sending request for url (fetch failed)')),
+      async () => {
+        const resultado = await enviarEmailCobranza(PARAMS_BASE)
+        assertEquals(resultado.success, false)
+        assertEquals(resultado.errorMessage?.includes('No se pudo contactar a Brevo'), true)
+      },
+    ),
+  ))
+
+Deno.test('enviarEmailCobranza: 200 con cuerpo no-JSON → success:false, no revienta con SyntaxError', () =>
+  conEnvBrevo(ENV_BREVO_OK, () =>
+    conFetchMock(
+      () => Promise.resolve(new Response('<html>ok</html>', { status: 200 })),
+      async () => {
+        const resultado = await enviarEmailCobranza(PARAMS_BASE)
+        assertEquals(resultado.success, false)
+        assertEquals(resultado.errorMessage?.includes('No se pudo contactar a Brevo'), true)
+      },
+    ),
+  ))
+
 Deno.test('enviarEmailCobranza: sin destinatarioNombre, el "to" viaja solo con email', () =>
   conEnvBrevo(ENV_BREVO_OK, () =>
     conFetchMock(

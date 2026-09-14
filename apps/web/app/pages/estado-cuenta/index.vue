@@ -38,17 +38,24 @@ const opcionesInmueble = computed(() =>
   cuentaStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
 )
 
-const { pending: cargandoBase } = await useAsyncData('cuenta-corriente-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    cuentaStore.cargarInmuebles(tenantId),
-    cuentaStore.cargarPropietarios(tenantId),
-    conceptoStore.cargarConceptos(tenantId),
-    liquidacionStore.cargarPeriodos(tenantId),
-  ])
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+const { pending: cargandoBase } = await useAsyncData(
+  'cuenta-corriente-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      cuentaStore.cargarInmuebles(tenantId),
+      cuentaStore.cargarPropietarios(tenantId),
+      conceptoStore.cargarConceptos(tenantId),
+      liquidacionStore.cargarPeriodos(tenantId),
+    ])
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 watch(
   () => cuentaStore.inmuebles,

@@ -80,12 +80,13 @@ export const CONTROLES_AUTOMATICOS = [
   { value: 'CONTABILIDAD_DESCUADRE', label: 'Descuadre / parametrización contable pendiente' },
   { value: 'SEGURIDAD_CAMBIOS_PRIVILEGIOS', label: 'Cambios de rol o privilegio (informativo)' },
   { value: 'CARTERA_ANTICIPOS_SIN_APLICAR', label: 'Anticipos de cartera sin aplicar (+30 días)' },
-  { value: 'BANCOS_CONCILIACION_PENDIENTE', label: 'Conciliación bancaria pendiente (+15 días)' },
+  { value: 'BANCOS_CONCILIACION_PENDIENTE', label: 'Conciliación de recaudo pendiente (+15 días)' },
   { value: 'TERCEROS_PROVEEDOR_DUPLICADO', label: 'Proveedor con documento duplicado (informativo)' },
   { value: 'GUARDAS_INMUTABILIDAD_DESHABILITADAS', label: 'Guardas de inmutabilidad deshabilitadas' },
   { value: 'FONDO_SIN_AUTORIZACION', label: 'Fondo sin autorización registrada' },
   { value: 'FONDO_COMPROMISO_EXCEDE_DISPONIBLE', label: 'Compromiso de fondo superior al disponible' },
   { value: 'FONDO_CERRADO_CON_SALDO', label: 'Fondo cerrado con saldo o comprometido pendiente' },
+  { value: 'BANCOS_CONCILIACION_CONTABLE_PENDIENTE', label: 'Conciliación contable sin certificar o con partidas sin resolver (+15 días)' },
 ] as const
 
 export interface ResultadoEjecucionControl {

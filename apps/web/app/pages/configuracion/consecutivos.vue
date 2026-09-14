@@ -14,12 +14,19 @@ const toast = useToast()
 const error = ref<string | null>(null)
 const guardando = ref(false)
 
-await useAsyncData('consecutivos-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await consecutivosStore.cargarConsecutivos(tenantId)
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'consecutivos-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await consecutivosStore.cargarConsecutivos(tenantId)
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 // Tipos de documento conocidos hoy — se muestran aunque la copropiedad
 // nunca haya emitido uno (siguiente_numero=1, prefijo vacío por defecto):

@@ -27,11 +27,20 @@ const tenantStore = useTenantStore()
 const pasarelasStore = usePasarelasStore()
 const toast = useToast()
 
-await useAsyncData('pasarelas', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return []
-  return pasarelasStore.cargar(tenantId)
-})
+// `watch` con `immediate` en vez de `useAsyncData` a secas: en la carga en
+// frío de la página, `tenantStore.activeTenant` puede seguir sin resolver
+// en el instante exacto en que corre este setup (la resolución real ocurre
+// en el middleware `tenant`, en otro store) — un useAsyncData que solo lee
+// el id UNA vez se queda con `[]` para siempre si esa lectura llega antes.
+// El watch reintenta solo en cuanto el id esté disponible, sin importar
+// cuándo — mismo espíritu que feedback_useasyncdata_ref_pagina_no_hidrata.
+watch(
+  () => tenantStore.activeTenant?.id,
+  (tenantId) => {
+    if (tenantId) void pasarelasStore.cargar(tenantId)
+  },
+  { immediate: true },
+)
 
 const proveedores = LISTA_DESCRIPTORES
 

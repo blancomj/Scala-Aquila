@@ -40,20 +40,27 @@ const agrupacionPorInmueble = computed(
   () => new Map(cuentaStore.inmuebles.map((i) => [i.id, i.agrupacion_id])),
 )
 
-await useAsyncData('cuenta-corriente-novedades-base', async () => {
-  const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  await Promise.all([
-    cuentaStore.cargarInmuebles(tenantId),
-    cuentaStore.cargarNovedades(tenantId),
-    cuentaStore.cargarTiposNovedad(tenantId),
-    cuentaStore.cargarNovedadCuotas(tenantId),
-    cuentaStore.cargarPropietarios(tenantId),
-    agrupacionesStore.cargarTiposAgrupacion(tenantId),
-    agrupacionesStore.cargarAgrupaciones(tenantId),
-  ])
-  return null
-})
+// `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
+// de este setup en la carga en frío — la opción reintenta sola en cuanto el
+// id esté disponible (mismo espíritu que configuracion/ia.vue).
+await useAsyncData(
+  'cuenta-corriente-novedades-base',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return null
+    await Promise.all([
+      cuentaStore.cargarInmuebles(tenantId),
+      cuentaStore.cargarNovedades(tenantId),
+      cuentaStore.cargarTiposNovedad(tenantId),
+      cuentaStore.cargarNovedadCuotas(tenantId),
+      cuentaStore.cargarPropietarios(tenantId),
+      agrupacionesStore.cargarTiposAgrupacion(tenantId),
+      agrupacionesStore.cargarAgrupaciones(tenantId),
+    ])
+    return null
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
 
 
 type Novedad = (typeof cuentaStore.novedades)[number]

@@ -53,41 +53,49 @@ export async function sendSms(params: SendSmsParams): Promise<SendSmsResult> {
     }
   }
 
-  const res = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
-    method: 'POST',
-    headers: {
-      'api-key': apiKey,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      sender: BREVO_SMS_SENDER,
-      recipient: params.to,
-      content: params.body,
-      type: 'transactional',
-      tag: params.reference,
-    }),
-  })
+  // Igual que email_cobranza_provider.ts: un fetch que revienta por red/DNS/TLS, o un 200 con
+  // cuerpo no-JSON, no es un HTTP no-ok — sin este try/catch tumbaría la función con un 500
+  // crudo en vez de degradar a success:false, legible en la bandeja.
+  try {
+    const res = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: BREVO_SMS_SENDER,
+        recipient: params.to,
+        content: params.body,
+        type: 'transactional',
+        tag: params.reference,
+      }),
+    })
 
-  if (!res.ok) {
-    let mensaje = `HTTP ${res.status}`
-    try {
-      const cuerpo = (await res.json()) as BrevoErrorBody
-      if (cuerpo.message) mensaje = cuerpo.message
-    } catch {
-      // el cuerpo no era JSON — se usa el mensaje genérico de arriba
+    if (!res.ok) {
+      let mensaje = `HTTP ${res.status}`
+      try {
+        const cuerpo = (await res.json()) as BrevoErrorBody
+        if (cuerpo.message) mensaje = cuerpo.message
+      } catch {
+        // el cuerpo no era JSON — se usa el mensaje genérico de arriba
+      }
+      return {
+        success: false,
+        segmentsUsed: 0,
+        errorMessage: `${mensaje} (HTTP ${res.status})`,
+      }
     }
+
+    const cuerpo = (await res.json()) as { messageId?: string; smsCount?: number }
     return {
-      success: false,
-      segmentsUsed: 0,
-      errorMessage: `${mensaje} (HTTP ${res.status})`,
+      success: true,
+      providerMessageId: cuerpo.messageId,
+      segmentsUsed: cuerpo.smsCount ?? 1,
     }
-  }
-
-  const cuerpo = (await res.json()) as { messageId?: string; smsCount?: number }
-  return {
-    success: true,
-    providerMessageId: cuerpo.messageId,
-    segmentsUsed: cuerpo.smsCount ?? 1,
+  } catch (excepcion) {
+    const detalle = excepcion instanceof Error ? excepcion.message : String(excepcion)
+    return { success: false, segmentsUsed: 0, errorMessage: `No se pudo contactar a Brevo: ${detalle}` }
   }
 }
