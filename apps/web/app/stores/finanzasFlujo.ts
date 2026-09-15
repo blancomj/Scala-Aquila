@@ -16,6 +16,8 @@
 import { defineStore } from 'pinia'
 import type { Database, Explicacion, Json } from '@aquila/shared'
 import { explicarAlertaLiquidez } from '@aquila/shared'
+import { extraerErrorFuncion } from '~/utils/edge-function-error'
+import type { ResultadoRedaccionIa } from '~/types/ia-redaccion'
 
 export type FlujoEscenario = 'base' | 'conservador' | 'optimista'
 
@@ -229,6 +231,23 @@ export const useFinanzasFlujoStore = defineStore('finanzasFlujo', () => {
     return alertasEmitidas.value
   }
 
+  /**
+   * Ola 3 (segunda rebanada, ver D-134/primera en cartera) — redacta en
+   * prosa la Explicacion de una alerta de liquidez ya emitida, reusando la
+   * misma Edge Function genérica (recibe cualquier Explicacion, no sabe
+   * de dominios). Bajo demanda, nunca automática — la llamada tiene costo.
+   */
+  async function redactarConIa(tenantId: string, explicacion: Explicacion): Promise<ResultadoRedaccionIa> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoRedaccionIa>(
+      'ia-redactar-explicacion',
+      { body: { tenant_id: tenantId, explicacion } },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('ia-redactar-explicacion no devolvió datos.')
+    return data
+  }
+
   async function cargarSnapshots(tenantId: string): Promise<FlujoSnapshotRow[]> {
     const cliente = useSupabaseClient<Database>()
     const { data, error } = await cliente
@@ -281,6 +300,6 @@ export const useFinanzasFlujoStore = defineStore('finanzasFlujo', () => {
     parametrosConservadorVigente, alertasExplicadas,
     cargarFlujo, cargarEscenarioParametros, guardarConservador,
     cargarAlertaReglas, actualizarAlertaRegla, cargarAlertasEmitidas,
-    cargarSnapshots, guardarSnapshot, cargarProyeccionVsReal, limpiar,
+    cargarSnapshots, guardarSnapshot, cargarProyeccionVsReal, redactarConIa, limpiar,
   }
 })

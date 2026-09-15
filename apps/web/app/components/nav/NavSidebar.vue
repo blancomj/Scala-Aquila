@@ -30,6 +30,16 @@ async function cargarAsuntos(): Promise<void> {
 onMounted(cargarAsuntos)
 watch(() => tenantStore.activeTenant?.id, cargarAsuntos)
 
+// Orden del menú personalizado por el administrador del tenant — se carga
+// una sola vez por tenant activo, igual que Mis asuntos arriba.
+const sidebarConfigStore = useSidebarConfigStore()
+async function cargarConfiguracionMenu(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (tenantId) await sidebarConfigStore.cargar(tenantId)
+}
+onMounted(cargarConfiguracionMenu)
+watch(() => tenantStore.activeTenant?.id, cargarConfiguracionMenu)
+
 /** Colapsado, el punto no dice cuántos: el tooltip sí, que es lo único que
  *  queda para quien navega con teclado o lector de pantalla. */
 function etiquetaConContador(item: NavItem): string {
@@ -101,11 +111,15 @@ function armarNodos(items: NavItem[]): NavNodo[] {
   return nodos
 }
 
+const { gruposPersonalizados } = useMenuPersonalizado()
+
 const gruposVisibles = computed(() =>
-  NAV_GRUPOS.map((grupo) => {
-    const items = grupo.items.filter(puedeVer)
-    return { ...grupo, items, nodos: armarNodos(items) }
-  }).filter((grupo) => grupo.items.length > 0),
+  gruposPersonalizados.value
+    .map((grupo) => {
+      const items = grupo.items.filter((item) => !item.oculto && puedeVer(item))
+      return { ...grupo, items, nodos: armarNodos(items) }
+    })
+    .filter((grupo) => grupo.items.length > 0),
 )
 
 function activo(to: string): boolean {

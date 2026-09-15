@@ -25,6 +25,7 @@
     "db:types": "node scripts/db-types.mjs",
     "db:types:prod": "node scripts/db-types.mjs --prod",
     "dev:login": "node scripts/dev-login.mjs",
+    "seed:qa": "node scripts/seed-qa-tenant.mjs",
     "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs",
     "test:e2e": "playwright test"
   },

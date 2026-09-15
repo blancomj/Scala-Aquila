@@ -7577,3 +7577,442 @@ observaciones se guardan y recargan en creación; un PDF de prueba subido vía `
 aterriza en `_comprobante/<id>/` en Storage con URL firmada válida; tras contabilizar el
 comprobante, tanto las observaciones (editadas y guardadas de nuevo) como el soporte siguen
 visibles y editables — confirmado también contra la fila real en Postgres.
+
+---
+
+## D-132
+
+**Evaluación de `ENFOQUE_CONSOLIDACION` (Casos de uso/FACTOR DIFERENCIADOR) y cierre de su último
+hueco de UI.** A pedido del usuario ("la implementación documentada en esa carpeta aún está
+incompleta, evalúa el avance"), se releyó `00_LEEME.md`–`10_INFORME_SPIKE_P0.md` completos y se
+contrastó contra el estado real del repo (migraciones, `DECISIONES.md`, `pnpm db:push:prod:dry`).
+
+**Hallazgo: el estado real está más avanzado de lo que la carpeta por sí sola sugiere.** Paso 0,
+Ola 1 y Ola 2 completas — código, pruebas y desplegadas en producción:
+
+```text
+Paso 0   cumplido, puerta validada 2026-09-13 (D-98, 10_INFORME_SPIKE_P0.md §7)
+Ola 1    completa y en prod: contrato común (tipo en fn_mis_asuntos), cartera notificando vía
+         fn_notificar, TIPO_SITUACION/TIPO_ALERTA_CARTERA sembrados, cron diario (D-99..D-104,
+         D-110). db:push:prod:dry confirma 20260934100000..140000 ya aplicadas.
+Ola 2    completa y en prod: taxonomía de certeza (Explicacion/Afirmacion), dos dominios
+         explicando (cartera, finanzas), recomendación→confirmación humana→acciones_cobranza sin
+         segunda ruta de escritura, verificación de resultado de gestión, sin Capability Registry
+         (D-105..D-109). `pnpm verify` remoto de cierre solo encontró infraestructura no
+         relacionada (timeouts de Vitest, Edge Functions sin desplegar, bug de Brevo — D-123).
+         20260934150000 también ya está en prod.
+Ola 3    no evaluada — correctamente: su condición de arranque (evidencia de demanda + costo por
+         copropiedad/mes) es una decisión de negocio, no una tarea de código pendiente (DI-14).
+```
+
+**El hueco real, confirmado con grep contra `apps/web/app`:** el contrato `Explicacion`/
+`Afirmacion[]` ya viaja calculado en los DTOs de cartera (`VariacionCarteraDTO.explicacion`) y
+finanzas (`finanzasFlujo.ts::alertasExplicadas`) desde D-105/D-106, pero ninguna pantalla lo
+consumía — ambas piezas quedaron deliberadamente diferidas ("una rebanada siguiente que nunca
+llegó"). Confirmado con el usuario como el siguiente paso a cerrar.
+
+**Qué se agregó:**
+
+```text
+apps/web/app/components/ui/UiAfirmaciones.vue   (nuevo)
+  Componente compartido: recibe Afirmacion[] y renderiza cada una con una UBadge de su
+  TipoCerteza (hecho/cálculo/inferencia/hipótesis/información insuficiente) + el texto ya
+  redactado por plantilla. No reinterpreta ni recalcula nada (DI-04) — solo muestra lo que
+  explicarVariacionCartera()/explicarAlertaLiquidez() ya produjeron.
+
+apps/web/app/pages/finanzas/tablero.vue
+  "Alertas emitidas recientes" pasó de mostrar solo nombre de regla + fecha a consumir
+  flujoStore.alertasExplicadas y mostrar además las afirmaciones con su badge de certeza. Este
+  era el hueco más grande: la pantalla no mostraba ningún porqué, ni siquiera el `detalle` crudo.
+
+apps/web/app/pages/cartera/index.vue
+  Bloque "Ver como afirmaciones trazables" agregado al final de la sección «¿Qué cambió?»,
+  colapsado por defecto (mismo criterio que UiTituloDescripcion — no duplicar la narrativa que
+  ya se cuenta arriba con sus propias plantillas Vue, sino ofrecerla aparte para quien necesite
+  trazabilidad afirmación por afirmación, p. ej. un revisor fiscal). No reemplaza la narrativa
+  existente porque ya cubre el mismo contenido en prosa — el valor añadido es la certeza tipada
+  y el puntero a evidencia, no un segundo relato del mismo dato.
+```
+
+**Verificado:**
+- `pnpm --filter @aquila/web typecheck` y `pnpm --filter @aquila/web lint` limpios (0 errores; los
+  7 warnings del lint son preexistentes, en archivos no tocados por este corte).
+- `packages/shared/src/explicacion.test.ts` (9) + `packages/liquidation-engine/src/cartera-
+  variacion.test.ts` (19) sin regresión.
+- **En navegador, sesión real (local):** se sembró una fila de `finanzas_alerta_emitida` a mano
+  (regla `saldo_30d_bajo_umbral`, tenant demo) y se confirmó que `/finanzas/tablero` renderiza la
+  regla, la fecha y la afirmación con su badge "Cálculo" y el texto exacto que
+  `explicarAlertaLiquidez()` arma. **La fila quedó sembrada de forma permanente**:
+  `finanzas_alerta_emitida` es append-only (SEC-14, `forbid_mutation_salvo_tenant_borrado()`) y el
+  intento de borrarla lo confirmó en vivo (`APPEND_ONLY: finanzas_alerta_emitida no admite
+  DELETE`) — el mismo riesgo que ya documentaba `10_INFORME_SPIKE_P0.md` §6 para `cartera`, aquí
+  materializado por no verificar antes de sembrar. Queda como dato de prueba permanente en el
+  tenant demo local, sin impacto funcional (es una fila más en un log de auditoría), pero se
+  registra el error en vez de callarlo.
+- **Cartera no se verificó con datos reales**: el tenant demo local no tiene ninguna fila de
+  cartera («no hay información... en ninguno de los dos cortes»), y sembrar `cargos`/
+  `eventos_cartera` de prueba habría sido la misma clase de operación irreversible (ambas tablas
+  llevan el mismo guard append-only). Con el precedente inmediato de arriba, se optó por no
+  repetir el riesgo. Confianza alta igual: el componente es el mismo `UiAfirmaciones.vue` ya
+  verificado con datos reales vía finanzas, el campo `variacion.explicacion.afirmaciones` ya
+  estaba tipado y probado desde D-105, y `nuxt typecheck` confirma que el binding compila. Queda
+  anotado como el único tramo de esta pieza verificado solo por lectura/tipos, no en vivo.
+
+**Solo en local** — `pnpm db:push`/`db:types` no aplican aquí (cero cambios de esquema, solo
+`apps/web`). No hay migración que pushear a producción para este corte.
+
+---
+
+## D-133
+
+**Resguardo contra reinicios accidentales del stack local de Supabase.** El 2026-09-15 el usuario
+reportó que su cuenta local `blancomj@gmail.com` había dejado de aceptar su contraseña. Investigado
+a fondo: producción intacta (sin actividad desde el día anterior), pero la cuenta **local** se había
+recreado esa misma mañana (`created_at` de hoy, `id` distinto al de la sesión anterior) — indicio de
+un reset/reinicio completo del stack local corrido por otra sesión en paralelo (`proyecto-web-92`,
+ya no activa para confirmarlo). El usuario lo describió como un patrón recurrente, no un incidente
+aislado, y pidió una forma de que esto no vuelva a pasar sin su orden explícita.
+
+**Dos mecanismos, no solo una nota de proceso:**
+
+1. `CLAUDE.md` (nueva sección justo después de la tabla de `## Commands`): nunca correr
+   `supabase db reset`, `supabase stop` o `supabase start` sin pedir confirmación explícita para
+   esa corrida puntual. Vinculante para cualquier sesión que trabaje en este repo, no solo para
+   quien lo decide.
+2. `.claude/settings.json` (versionado, no el `.local.json` personal): hook `PreToolUse` sobre
+   `Bash|PowerShell` que detecta el patrón `supabase ... (db reset|stop|start)` en el comando y
+   fuerza `permissionDecision: "ask"` en vez de dejarlo pasar. Construido y probado siguiendo el
+   flujo del skill `update-config`: pipe-test del comando exacto guardado en el archivo contra 8
+   comandos de muestra (dispara en los 3 de riesgo, silencio en `pnpm db:push`/`migration list`/
+   `pnpm typecheck`/`npm start` no relacionado), validación de esquema con `JSON.parse`, y una
+   prueba en vivo con un sentinel temporal agregado y revertido después — esa prueba no mostró el
+   bloqueo dentro de la misma sesión que lo escribió, consistente con que el watcher de
+   configuración de Claude Code no recarga `.claude/` a mitad de sesión (hace falta abrir `/hooks`
+   una vez, o reiniciar, para que tome efecto — documentado así, no asumido como ya activo).
+
+**Verificado en los hechos, no solo en teoría:** más adelante en esta misma sesión hizo falta un
+`supabase stop`+`start` real para servir la Edge Function nueva de D-134 — se pidió confirmación
+explícita antes de correrlo (aceptada), y se confirmó después que `blancomj@gmail.com` conservó el
+mismo `id` y los 216 tenants locales siguieron intactos: un `stop`+`start` normal no borra datos
+(a diferencia de `db reset`, que si lo haría) — el mecanismo protegió exactamente la operación que
+debía, sin bloquear la que no debía.
+
+Guardado también como memoria del agente (`feedback_no_resetear_supabase_local_sin_permiso.md`)
+como respaldo personal, aunque el resguardo real y vinculante para cualquier sesión son los dos
+mecanismos de arriba.
+
+---
+
+## D-134
+
+**Ola 3 (ENFOQUE_CONSOLIDACION) — primera rebanada: gateway de modelo real.** El usuario decidió
+avanzar explícitamente sin los dos insumos de negocio que `08_PROMPT_O3_CAPA_LENGUAJE.md` exige
+para arrancar (evidencia de demanda + costo unitario contrastado con el precio de la suscripción) —
+"avancemos sin necesidad de tener estos datos, más adelante los evaluamos". Se registra como
+desviación deliberada de esa puerta (DI-14), a pedido explícito del usuario, no como omisión de
+proceso.
+
+**Punto de partida verificado antes de construir** (dos agentes `Explore` en paralelo): IA-01/D-121
+ya construyó toda la plomería de configuración por tenant (`ia_config`/`ia_credencial` en Vault,
+`fn_leer_credenciales_ia` como único camino al valor descifrado, UI en `configuracion/ia.vue`) pero
+**cero llamadas reales a un LLM existían en todo el repo** — `configurar-ia`'s `probar_conexion`
+solo confirma que Vault puede descifrar la clave, nunca habla con la API real (reconocido así en el
+propio código, D-121). Tampoco existía patrón de timeout (`AbortController`) ni de presupuesto/uso
+acumulado por tenant en ningún módulo — únicas piezas genuinamente nuevas de este corte.
+
+**Qué se construyó:**
+
+```text
+supabase/migrations/20260936000000_ola3_ia_gateway_presupuesto.sql
+  ia_config.presupuesto_mensual_usd  (nullable, techo opcional — no una tabla de config aparte)
+  ia_uso_mensual                     (tenant_id, periodo 'YYYY-MM', llamadas, tokens, costo
+                                       estimado — RLS: SELECT para miembros, CERO escritura para
+                                       authenticated, mismo criterio que ia_credencial)
+  fn_registrar_uso_ia                (service_role, upsert-incrementa; única escritura)
+  fn_presupuesto_ia_disponible       (authenticated; true si no hay techo o el gasto no lo supera)
+
+packages/ai-providers/src/gateway.ts        (nuevo)
+  redactarExplicacion()   — primer y único punto del repo que construye una petición HTTP real
+                            y parsea la respuesta. 3 formatos de cable, no 4 (openai/openrouter
+                            comparten chat-completions; anthropic Messages API; google
+                            generateContent) — timeout real vía AbortController (no existía en
+                            el repo), nunca deja escapar una excepción cruda (ErrorIa tipado).
+  construirMensajes()     — separación DATO/INSTRUCCIÓN (Ola 3 §5): el texto de una afirmación
+                            (que puede contener algo escrito por una persona, p. ej. un nombre de
+                            inmueble) va SOLO en el bloque de datos, nunca interpolado en el
+                            mensaje de sistema — probado explícitamente con un caso de inyección.
+  estimarCosto()          — tabla de precios estimados por modelo, NO verificada contra la lista
+                            vigente de cada proveedor (mismo criterio de honestidad que
+                            modelosSoportados en descriptores.ts) — modelo desconocido → null,
+                            nunca un precio inventado.
+
+supabase/functions/ia-redactar-explicacion/index.ts   (nueva Edge Function)
+  Bajo demanda (nunca automática al cargar una pantalla — la llamada tiene costo real).
+  rate-limit (ia_redaccion:<actor>, 20/hora) → is_member → ia_config activa+verificada → 
+  presupuesto disponible → fn_leer_credenciales_ia (service_role) → redactarExplicacion() →
+  fn_registrar_uso_ia + audit_log. Degradación, no error (Ola 3 §6): "IA no activa",
+  "presupuesto agotado" y cualquier falla real del proveedor responden 200
+  { texto: null, degradado: true, motivo } — mismo criterio que Brevo, nunca 500 por una falla
+  externa. El texto del dominio y la clave nunca entran a audit_log ni a los logs de fallo.
+
+apps/web/app/stores/cartera.ts + pages/cartera/index.vue
+  Botón "Redactar con IA" junto al colapsable de D-132 — aditivo: si el modelo está apagado o
+  degrada, la narrativa determinista que ya existía sigue exactamente igual, solo sin el bloque
+  de prosa adicional.
+```
+
+**Finanzas queda fuera de esta rebanada** (mismo patrón que D-105→D-106 en Ola 2: cartera primero,
+segundo dominio como corte separado).
+
+**Hallazgo real corregido de paso:** el switch de `redactarExplicacion` (exhaustivo en TypeScript
+sobre las 4 variantes de `ia_proveedor_t`, sin `default`) compila sin avisos con `tsc`, pero
+`deno check` —ejecutado manualmente sobre la Edge Function, fuera de `pnpm test:edge` (que corre
+con `--no-check`)— sí lo marcaba como "posiblemente `undefined`": la ausencia de `default` en el
+JS compilado (que no conserva la prueba de exhaustividad de TypeScript) deja, en teoría, una rama
+que cae al final de la función sin retornar. No era solo ruido del checker: se corrigió agregando
+un `default` real que lanza `ErrorIa` si `ia_proveedor_t` ganara un valor nuevo sin actualizar este
+switch — exhaustividad real en tiempo de ejecución, no solo en TypeScript. Confirmado el resto de
+errores de `deno check` (`req`/`ctx` implícitos de `withSupabase`) como el mismo ruido preexistente
+que ya tiene `configurar-ia` sin tocar (5 errores ahí vs. 2 aquí, ambos del mismo tipo) — cero
+errores nuevos atribuibles a este corte.
+
+**Verificado:**
+- `pnpm --filter @aquila/ai-providers typecheck`/`build` y `pnpm --filter @aquila/web
+  typecheck`/`lint` limpios. `pnpm exec tsc --noEmit` (raíz) limpio.
+- `packages/ai-providers/src/gateway.test.ts` — 12 pruebas nuevas con `fetch` simulado (mismo
+  patrón que `wompi.test.ts`): petición y parseo correctos por los 3 formatos de cable, no-2xx →
+  `ErrorIa`, red rota → `ErrorIa`, timeout (AbortError) → `ErrorIa` con código `IA_TIMEOUT`,
+  separación dato/instrucción, minimización de PII (el payload al proveedor solo lleva
+  tipo/texto, nunca `evidencia`). 18/18 en el paquete completo.
+- `tests/rls/ia-uso-mensual.test.ts` (8 nuevas) — acumulación correcta en `fn_registrar_uso_ia`,
+  aislamiento SEC-11, ningún `authenticated` puede escribir directo (INSERT lanza 42501; UPDATE
+  filtra sin error — se probó el efecto en la fila, no un error, mismo criterio que memoria del
+  proyecto), `fn_registrar_uso_ia` inejecutable por `authenticated`, `fn_presupuesto_ia_disponible`
+  correcto en los 3 casos (sin techo, techo superado, sin membresía → FORBIDDEN).
+- `tests/tenancy/ia-redactar-explicacion.test.ts` (6 nuevas, HTTP real contra el Edge Function
+  local) — IA no activa (200, degradado), FORBIDDEN cross-tenant, payload inválido (400),
+  presupuesto agotado (200, degradado), RATE_LIMITED (429) tras 20 llamadas/hora. La prueba con
+  clave real queda `it.skip` por defecto (gateada por `ANTHROPIC_API_KEY_PRUEBA`, ausente en este
+  `.env`) — no se declaró en verde sin correr: se verificó el camino feliz aparte, en vivo (ver
+  abajo), en lugar de pedirle al usuario pegar una clave nueva en el chat.
+- **Llamada real a Anthropic, de punta a punta, sin tocar ningún secreto nuevo:** el usuario ya
+  tenía un proveedor Anthropic activo y verificado en el tenant demo (`82bd2ee0-...`,
+  `claude-fable-5-1`, configurado en una sesión anterior) — se invocó la función real con la
+  sesión real de `blancomj@gmail.com` y una `Explicacion` sintética de dos afirmaciones. Resultado:
+  `degradado: false`, texto redactado correcto en español ("La cartera vencida subió $500.000
+  entre los dos cortes. Dos inmuebles concentran el 80% de ese aumento.") — sin inventar cifras,
+  sin agregar afirmaciones nuevas. Confirmado contra Postgres: `ia_uso_mensual` incrementó a
+  1 llamada/420 tokens de entrada/47 de salida/$0.0007 estimado, y `audit_log` registró
+  `ia_redaccion.completada` con metadata limpia (proveedor, modelo, tokens, costo — nunca el
+  texto del dominio ni la clave).
+- `pnpm build` completo (todos los paquetes) corriendo en segundo plano al momento de escribir
+  esto — pendiente de confirmar antes de dar el corte por cerrado del todo.
+
+**Solo en local** — cadencia vigente de la ola (`04_HOJA_DE_RUTA.md`): `db:push`/`db:types` locales
+corridos; `db:push:prod` y el `pnpm verify` remoto de cierre quedan para cuando el usuario los pida,
+no automáticos.
+
+**Addendum — segundo dominio: finanzas** ("sigamos", siguiendo el mismo patrón D-105→D-106 de Ola
+2: cartera primero, finanzas como corte separado explícito). La Edge Function y el gateway no
+cambiaron — son genéricos, ya reciben cualquier `Explicacion` sin saber de dominios. Solo se
+conectó el mismo botón al segundo consumidor:
+
+```text
+apps/web/app/types/ia-redaccion.ts   (nuevo)
+  ResultadoRedaccionIa extraído a un archivo compartido — Nuxt auto-importa los exports de
+  stores/*.ts globalmente, y cartera.ts + finanzasFlujo.ts declarando el mismo nombre de
+  interfaz por separado producía un "Duplicated imports" silencioso (una definición pisaba la
+  otra sin error). Los 4 archivos consumidores (dos stores, dos páginas) importan desde aquí.
+
+apps/web/app/stores/finanzasFlujo.ts
+  redactarConIa(tenantId, explicacion) — mismo shape que el de cartera.ts, misma Edge Function.
+
+apps/web/app/pages/finanzas/tablero.vue
+  Botón "Redactar con IA" por alerta en "Alertas emitidas recientes", junto a <UiAfirmaciones>
+  (D-132) — mismo criterio aditivo: la explicación determinista de arriba nunca desaparece,
+  degradado o no.
+```
+
+**Verificado en navegador, sesión real, mismo tenant demo (`82bd2ee0-...`, config Anthropic ya
+activa — sin secreto nuevo):** login como `blancomj@gmail.com`, `/finanzas/tablero`, click en
+"Redactar con IA" sobre la alerta "Saldo proyectado a 30 días bajo 5.000.000" (la fila remanente
+de las pruebas de D-132). Resultado real, `degradado: false`: "El saldo proyectado a 30 días es de
+3.200.000, cifra que se encuentra por debajo del umbral de 5.000.000 establecido en la regla
+'Saldo proyectado a 30 días bajo 5.000.000'." — sin inventar cifras. Confirmado contra Postgres:
+`ia_uso_mensual` del tenant acumuló a **2 llamadas** (849 tokens de entrada/127 de salida/$0.0015
+estimado total), y `audit_log` tiene dos filas `ia_redaccion.completada` limpias — una con
+`entity_type: variacion_cartera` (la de D-134 original) y una nueva con
+`entity_type: finanzas_alerta_emitida`, ambas solo con proveedor/modelo/tokens/costo en metadata.
+
+`pnpm --filter @aquila/web typecheck` y `lint` corridos de nuevo tras el fix de tipo duplicado —
+limpios, sin la advertencia de Nuxt. No se tocó ningún test ni migración en este addendum.
+
+**Addendum — cierre del corte local: `pnpm build`/`typecheck`/`lint`/`test` completos.** Los tres
+primeros, verdes en todo el monorepo (un error real de eslint encontrado y corregido en
+`tests/tenancy/ia-redactar-explicacion.test.ts:141`, una aserción `config!.id` innecesaria ya que
+`.single<{id:string}>()` tipa `config` sin nulos). `pnpm test`: 2278 pasan / 10 fallan / 1 skip —
+**ninguna de las 10 toca código de esta ola** (nada en `packages/ai-providers`,
+`supabase/functions/ia-redactar-explicacion`, ni las migraciones/stores/páginas de IA):
+
+- 5 fallas (`tests/tenancy/cartera-ejecutar-lote.test.ts`,
+  `cartera-envio-evidencia.test.ts`) — `HTTP 402` de Brevo/Sendinblue por falta de crédito de SMS,
+  ya documentado en memoria del proyecto. Externo, no accionable desde código.
+- 5 fallas (`tests/seed/gc001.test.ts` ×4, `tests/contabilidad/contable-movimientos.test.ts` ×1) —
+  investigadas a fondo tras la duda inicial del usuario ("investiga/repara el dato"). **No es un
+  dato roto**: es exactamente el caso ya documentado en **D-111** (línea ~6293) — `gc-001` es un
+  tenant "vivo" cuyos 66 inmuebles/presupuesto/concepto archivado/cuadre contable solo existen en
+  el proyecto **remoto** (`hwjmlyzzvpmhadldavbq`), nunca se capturaron como seed reproducible para
+  local. Reverificado copiando temporalmente `.env.remoto` sobre `.env` (mismo mecanismo de
+  D-111, restaurado inmediatamente después, checksums idénticos confirmados): los 5 casos pasan en
+  verde contra remoto. Se había especulado inicialmente que el `supabase stop`+`start` de hoy
+  (necesario para servir la Edge Function nueva) había revertido esos datos — hipótesis
+  descartada explícitamente y corregida en memoria
+  (`feedback_diagnosticar_datos_faltantes_local_antes_de_bug`,
+  `feedback_no_resetear_supabase_local_sin_permiso`): el fallo contra local es el comportamiento
+  esperado y preexistente, sin relación con el reinicio de hoy ni con Ola 3. No se necesita ninguna
+  reparación de datos.
+
+**Hallazgo secundario, sin acción tomada:** al reverificar contra remoto, `materializacion.test.ts`
+completo falló en su `beforeAll` con `"el tenant nace con pendientes inesperados:
+CONSUMO_REPUESTO_MANTENIMIENTO"` — un fixture de un tenant desechable distinto de `gc-001`, no
+relacionado con esta ola. Queda anotado como pendiente de otro corte, no investigado más a fondo
+aquí por estar fuera de alcance de la duda que se resolvía.
+
+Con esto, el corte local de Ola 3 (gateway real + cartera + finanzas) queda cerrado: build,
+typecheck, lint y test en verde salvo las fallas preexistentes ya explicadas arriba. `db:push:prod`
+y `pnpm verify` remoto de cierre de ola siguen pendientes de que el usuario los pida.
+
+**Cierre de ola, mismo día:** `db:push:prod` corrido (8 migraciones aplicadas, incluida esta),
+`db:types:prod` regenerado, Edge Function `ia-redactar-explicacion` desplegada y confirmada
+`ACTIVE` en `hwjmlyzzvpmhadldavbq`. `pnpm verify` completo corrido contra producción
+(`.env` swapeado temporalmente a `.env.remoto`, restaurado después) — de paso confirmó que el
+"hallazgo secundario" de arriba (`CONSUMO_REPUESTO_MANTENIMIENTO`) ya estaba resuelto por la
+migración `20260935160000_mant6_fix_consumo_repuesto_default.sql` de otro corte: `materializacion.test.ts`
+pasa 12/12 contra remoto, incluido el caso de `gc-001`.
+
+**Nota operativa:** una sesión paralela (investigando ese mismo hallazgo) había movido
+`supabase/migrations/20260936000000_ola3_ia_gateway_presupuesto.sql` a una carpeta temporal
+(`.tmp_ola3_migration_holdout/`) para no incluirla en un push propio, y terminó sin restaurarla —
+detectado y corregido en esta sesión antes de que afectara ningún commit.
+
+## D-135
+
+**Personalización del menú lateral por tenant (orden y grupos).** El administrador de cada
+copropiedad puede reordenar los grupos del sidebar y mover ítems entre los grupos existentes,
+sin tocar código. Primera rebanada deliberada: **no** incluye renombrar grupos ni crear grupos
+nuevos (`COLOR_ICONO_GRUPO` en `NavSidebar.vue` indexa por `grupo.titulo` exacto — un grupo
+renombrado/inventado quedaría sin color).
+
+```text
+supabase/migrations/20260937000000_sidebar_config.sql
+  sidebar_config(tenant_id pk, configuracion jsonb, actualizado_por, actualizado_at) — RLS:
+  SELECT para is_member, INSERT/UPDATE restringidos a has_role(['administrador']) — a propósito
+  MÁS estricto que ia_config ('auxiliar'): el usuario pidió explícitamente que sea privilegio
+  del administrador.
+
+apps/web/app/composables/useMenuPersonalizado.ts
+  aplicarConfiguracionMenu() — función pura que fusiona NAV_GRUPOS (catálogo fijo en código) con
+  la configuración del tenant: reordena grupos e ítems mencionados, agrega al final los no
+  mencionados en su posición original (un ítem nuevo de un corte futuro aparece solo, sin
+  migrar datos), permite mover un ítem a un grupo distinto del suyo original. El permiso/módulo
+  de cada ítem sigue viniendo siempre de navegacion.ts — el JSON del tenant nunca gatea
+  seguridad, solo orden visual. 7 pruebas unitarias, sin red.
+
+apps/web/app/stores/sidebarConfig.ts + pages/configuracion/menu.vue
+  Página de edición con vuedraggable (nueva dependencia — no había ninguna librería de
+  drag-and-drop en el repo; el único precedente era HTML5 nativo para otro caso de uso).
+  Visible para 'auxiliar' y 'administrador' (mismo permiso settings:manage que el resto de
+  configuracion/), pero el guardado se deshabilita en la UI para no-administradores además de
+  estar bloqueado por RLS. NavSidebar.vue ahora consume useMenuPersonalizado() en vez de
+  NAV_GRUPOS directo — sin cambios en puedeVer()/armarNodos()/acordeón.
+```
+
+**Verificado:** `pnpm --filter @aquila/web typecheck`/`lint` limpios (un ajuste de tipos: el
+`jsonb` generado exige un cast `as unknown as Json` para el objeto tipado, mismo patrón ya usado
+en `stores/concepto.ts`/`activos.ts`). Test unitario del composable (7/7) y RLS de
+`sidebar_config` (5/5, aislamiento cross-tenant, `auxiliar` no puede escribir —RLS filtra sin
+error—, `administrador` sí) corridos contra Postgres local sin tocar el `.env` compartido
+(variables de entorno inyectadas solo para esa invocación de `vitest`, ya que `.env` estaba
+temporalmente apuntando a producción por el cierre de Ola 3 en paralelo). Migración aplicada a
+local con `supabase db push --db-url` directo contra `127.0.0.1:54322`, mismo motivo. Verificado
+en navegador con sesión real (`blancomj@gmail.com`, administrador del tenant `QA Integral
+mu2sbh77`): guardar un orden custom vía la API reordena el sidebar real de inmediato, y
+"Restablecer al orden predeterminado" lo revierte — ambos con su toast de confirmación.
+
+**Solo en local** — no se aplicó a producción en este corte.
+
+**Addendum — renombrar ítems.** El usuario pidió específicamente poder renombrar un ítem y
+volver a su nombre original. Investigado primero con un agente `Explore` si `label`/`titulo` se
+usan como identificador (no solo texto) en algún otro lugar del repo: **`item.label` es texto
+puro en todas partes** (breadcrumb, búsqueda global, shortcuts personales) — `to` es el único
+identificador real. `grupo.titulo` sí es una clave real (color de ícono, cookie de acordeón, y
+las propias claves de `sidebar_config.configuracion` de este corte) — por eso **renombrar grupos
+queda fuera de alcance** todavía (exigiría separar identidad de texto con un campo
+`tituloVisible`, no es este corte). Renombrar ítems, en cambio, es seguro sin ningún cambio de
+identidad.
+
+```text
+useMenuPersonalizado.ts — ConfiguracionMenu gana `etiquetas?: Record<string, string>` (ruta `to`
+  -> nombre custom). aplicarConfiguracionMenu() sobreescribe item.label cuando hay una etiqueta
+  no vacía (trim) — una etiqueta vacía o ausente usa el label original del catálogo, que es
+  exactamente "restablecer". 3 pruebas unitarias nuevas (10/10 en el archivo).
+
+pages/configuracion/menu.vue — cada fila del editor pasó de texto plano a un UInput editable;
+  aparece un botón "↺" solo cuando el nombre difiere del original (comparado contra un mapa
+  ruta->label construido desde NAV_GRUPOS crudo, nunca personalizado). Guardar arma `etiquetas`
+  solo con los ítems que de verdad difieren del original — no se persiste un mapa con 85 entradas
+  idénticas.
+```
+
+**Limitación conocida, no resuelta:** el breadcrumb (`NavBreadcrumb.vue`/`buscarMigaPan` en
+`navegacion.ts`) resuelve directo sobre `NAV_GRUPOS` crudo, no sobre la versión personalizada —
+un ítem renombrado en el sidebar sigue mostrando su nombre original en el breadcrumb. No se
+corrigió en este corte (fuera de lo pedido); queda anotado para si se decide que la consistencia
+ahí importa.
+
+**Verificado:** typecheck/lint limpios, 10/10 tests unitarios del composable. En navegador,
+sesión real: renombrar "Inmuebles" a "Propiedades", guardar, confirmar que el sidebar real lo
+muestra; recargar la página de edición, confirmar que el botón de restablecer aparece solo
+(detecta la personalización guardada); restablecer, guardar, confirmar que el sidebar real vuelve
+a "Inmuebles". Ciclo completo ida y vuelta, sin quedar en un estado intermedio.
+
+**Addendum — ocultar/mostrar ítems.** Parte de la orden original del usuario, quedó pendiente
+tras el addendum de renombrado y se completa acá. Sin conflicto de identidad (a diferencia de
+renombrar grupos): es una bandera más colgada de la misma ruta (`to`) que ya usan orden y
+etiquetas.
+
+```text
+useMenuPersonalizado.ts — ConfiguracionMenu gana `ocultos?: string[]` (rutas apagadas por el
+  administrador). aplicarConfiguracionMenu() ahora devuelve NavGrupoPersonalizado (items
+  NavItemPersonalizado, con `oculto: boolean`) en vez de NavGrupo — un ítem oculto SIGUE
+  presente en el resultado (no se elimina), para que el editor pueda volver a mostrarlo; lo
+  elimina recién NavSidebar.vue al armar gruposVisibles (`!item.oculto && puedeVer(item)`), el
+  mismo lugar donde ya se filtraba por permiso. 3 pruebas unitarias nuevas (13/13 en el archivo).
+
+NavSidebar.vue — un solo cambio de una línea: el filtro de gruposVisibles ahora excluye también
+  los ítems ocultos, antes de puedeVer(). Un grupo que se queda sin ítems visibles sigue
+  desapareciendo solo (el filtro de grupos vacíos ya existía).
+
+pages/configuracion/menu.vue — cada fila del editor suma un botón ojo/ojo-tachado
+  (alternarVisibilidad); la fila se atenúa (opacity-50) cuando está oculta, pero sigue en la
+  lista — el editor gestiona TODO el catálogo, oculto o no. La vista previa sí filtra los
+  ocultos, porque tiene que mostrar exactamente lo que ve un miembro cualquiera. Guardar arma
+  `ocultos` con las rutas marcadas.
+```
+
+**Verificado:** typecheck/lint limpios. En navegador, sesión real: ocultar "Terceros", guardar,
+confirmar que desaparece del sidebar real (`/terceros` deja de estar en el árbol de navegación);
+volver a mostrarlo, guardar, confirmar que reaparece. Ciclo completo ida y vuelta.
+
+**Addendum — acordeón colapsado por defecto.** El usuario pidió que tanto el editor como la
+vista previa arranquen con los grupos colapsados. Un solo `Set<string>` de títulos abiertos,
+compartido por los dos paneles (expandir un grupo en el editor lo expande también en la vista
+previa) — no se persiste en cookie como el sidebar real (`NavSidebar.vue`), es solo una comodidad
+de edición dentro de la misma visita. Vale aclarar de paso, respondiendo lo que preguntó el
+usuario: mover un ítem a otro grupo colapsado exige abrir ese grupo primero (`vuedraggable`
+necesita que el contenedor destino esté en el DOM/visible para aceptar el drop) — comportamiento
+esperado, igual que en Trello o cualquier lista arrastrable con secciones plegables.
+
+**Verificado:** typecheck/lint limpios. En navegador: ambos paneles arrancan colapsados; expandir
+"Copropiedad" en el editor expande también "COPROPIEDAD" en la vista previa, el resto queda
+colapsado.

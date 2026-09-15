@@ -20,6 +20,7 @@
 import { defineStore } from 'pinia'
 import type { Database, Explicacion } from '@aquila/shared'
 import { extraerErrorFuncion } from '~/utils/edge-function-error'
+import type { ResultadoRedaccionIa } from '~/types/ia-redaccion'
 
 export interface TarjetasCarteraDTO {
   carteraTotal: string
@@ -327,6 +328,25 @@ export const useCarteraStore = defineStore('cartera', () => {
     return data
   }
 
+  /**
+   * Ola 3 (primera rebanada) — redacta en prosa una Explicacion ya
+   * estructurada, bajo demanda (nunca automático al cargar la página: la
+   * llamada es real y tiene costo). `degradado: true` es una respuesta
+   * legítima (IA no activa, presupuesto agotado, o el proveedor falló) —
+   * la narrativa determinista que ya construye esta página sigue intacta,
+   * este resultado solo se añade encima.
+   */
+  async function redactarConIa(tenantId: string, explicacion: Explicacion): Promise<ResultadoRedaccionIa> {
+    const cliente = useSupabaseClient<Database>()
+    const { data, error: errorFuncion } = await cliente.functions.invoke<ResultadoRedaccionIa>(
+      'ia-redactar-explicacion',
+      { body: { tenant_id: tenantId, explicacion } },
+    )
+    if (errorFuncion) throw await extraerErrorFuncion(errorFuncion)
+    if (!data) throw new Error('ia-redactar-explicacion no devolvió datos.')
+    return data
+  }
+
   async function cargarIndicadores(
     tenantId: string,
     fechaDesde: string,
@@ -372,6 +392,7 @@ export const useCarteraStore = defineStore('cartera', () => {
     cargarActividadReciente,
     cargarIndicadores,
     cargarVariacion,
+    redactarConIa,
     limpiar,
   }
 })

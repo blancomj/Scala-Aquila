@@ -203,6 +203,7 @@ export const NAV_ICONOS = {
   // una funcionalidad de IA en sí misma.
   proveedorIa:
     'M11 2 9.3 7.3 4 9l5.3 1.7L11 16l1.7-5.3L18 9l-5.3-1.7ZM19 3v3.5M17.3 4.8h3.4M5 16v2.5M3.8 17.3h2.4',
+  ordenMenu: 'M4 6h16M4 12h16M4 18h16',
 } as const
 
 export const NAV_INICIO: NavItem = { label: 'Inicio', to: '/dashboard', icono: NAV_ICONOS.inicio }
@@ -856,6 +857,12 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/configuracion/agrupaciones',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.dependencias,
+      },
+      {
+        label: 'Orden del menú',
+        to: '/configuracion/menu',
+        permiso: 'settings:manage',
+        icono: NAV_ICONOS.ordenMenu,
       },
       {
         label: 'Coeficientes',

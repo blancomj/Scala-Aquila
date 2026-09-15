@@ -30,6 +30,7 @@
 // solo.
 import CarteraEvolucionChart from '~/components/cartera/EvolucionChart.vue'
 import CarteraBarrasEtapa from '~/components/cartera/BarrasEtapa.vue'
+import type { ResultadoRedaccionIa } from '~/types/ia-redaccion'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
@@ -174,6 +175,35 @@ const bucketsAntiguedad = computed(() => {
 
 const variacion = computed(() => carteraStore.variacion)
 const conceptos = computed(() => carteraStore.variacion?.conceptos ?? null)
+const mostrarAfirmaciones = ref(false)
+
+// ── Redactar con IA (ENFOQUE_CONSOLIDACION, Ola 3, primera rebanada) ────
+// Bajo demanda: nunca se llama automáticamente al cargar la página (la
+// llamada es real y tiene costo). `degradado: true` no es un error — la
+// narrativa determinista de arriba sigue siendo la respuesta válida.
+const redactandoConIa = ref(false)
+const resultadoIa = ref<ResultadoRedaccionIa | null>(null)
+
+const MOTIVO_IA_LABEL: Record<string, string> = {
+  IA_NO_ACTIVA: 'no hay un proveedor de IA activo en esta copropiedad — actívalo en Configuración',
+  PRESUPUESTO_AGOTADO: 'se agotó el presupuesto mensual de IA de esta copropiedad',
+  IA_CREDENCIAL_FALTANTE: 'la credencial del proveedor no está disponible',
+  IA_TIMEOUT: 'el proveedor tardó demasiado en responder',
+  IA_PROVEEDOR_ERROR: 'el proveedor de IA no pudo responder',
+}
+
+async function redactarConIa(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !variacion.value?.explicacion) return
+  redactandoConIa.value = true
+  try {
+    resultadoIa.value = await carteraStore.redactarConIa(tenantId, variacion.value.explicacion)
+  } catch {
+    resultadoIa.value = { texto: null, degradado: true, motivo: 'IA_PROVEEDOR_ERROR' }
+  } finally {
+    redactandoConIa.value = false
+  }
+}
 
 /** Signo del cambio para elegir color y verbo. 0 = sin cambio relevante. */
 function signo(valor: string | undefined): -1 | 0 | 1 {
@@ -615,6 +645,44 @@ const alertas = computed(() => {
               sin ningún movimiento registrado en el período. No se puede explicar con la información disponible.
             </p>
 
+          </div>
+
+          <!-- Afirmaciones trazables (ENFOQUE_CONSOLIDACION, Ola 2 §2) — colapsada por
+               defecto: el mismo contenido ya se narró arriba, esto solo lo hace auditable
+               afirmación por afirmación, con su nivel de certeza y su evidencia. -->
+          <div v-if="variacion.explicacion?.afirmaciones.length" class="mt-5 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+            <div class="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                class="flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                @click="mostrarAfirmaciones = !mostrarAfirmaciones"
+              >
+                <UIcon :name="mostrarAfirmaciones ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="h-3.5 w-3.5" />
+                Ver como afirmaciones trazables
+              </button>
+              <UButton size="xs" variant="soft" :loading="redactandoConIa" @click="redactarConIa">
+                Redactar con IA
+              </UButton>
+            </div>
+            <div v-if="mostrarAfirmaciones" class="mt-2">
+              <UiAfirmaciones :afirmaciones="variacion.explicacion.afirmaciones" />
+            </div>
+            <div
+              v-if="resultadoIa"
+              class="mt-3 rounded-md border p-3 text-sm"
+              :class="resultadoIa.texto
+                ? 'border-primary-200 bg-primary-50 dark:border-primary-900 dark:bg-primary-950'
+                : 'border-neutral-200 dark:border-neutral-800'"
+            >
+              <template v-if="resultadoIa.texto">
+                <p class="mb-1 text-xs font-medium text-primary-700 dark:text-primary-300">Redactado con IA</p>
+                <p>{{ resultadoIa.texto }}</p>
+              </template>
+              <p v-else class="text-xs text-neutral-500">
+                No se pudo redactar con IA: {{ MOTIVO_IA_LABEL[resultadoIa.motivo ?? ''] ?? resultadoIa.motivo }}.
+                La explicación de arriba sigue siendo la respuesta.
+              </p>
+            </div>
           </div>
         </template>
       </section>

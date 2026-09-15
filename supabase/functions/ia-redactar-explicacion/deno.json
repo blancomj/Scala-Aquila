@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/server": "npm:@supabase/server@^1",
+    "zod": "npm:zod@^3",
+    "@aquila/ai-providers": "../../../packages/ai-providers/dist/index.js"
+  }
+}

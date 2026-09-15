@@ -49,6 +49,16 @@ pnpm verify                # build + typecheck + lint + test — MUST be green b
 | `pnpm db:types` | regenerate `apps/web/app/types/database.types.ts` from the live schema — never hand-edit generated types |
 | `pnpm dev:login` | local dev helper for auth |
 
+**Never run `supabase db reset`, `supabase stop`, or `supabase start` without asking the user
+first and getting explicit confirmation for that specific run.** These wipe or recreate the local
+Postgres/auth data — including tenants, users, and test scenarios the user built by hand in the
+local Supabase stack, which are not recoverable. This applies to every agent/session working in
+this repo, not just the one that decides it's needed. `pnpm db:push` (local, no `:prod`) is
+additive — it applies new migrations without touching existing rows — and does NOT need this
+confirmation. A `PreToolUse` hook in `.claude/settings.json` intercepts `supabase db reset`/
+`stop`/`start` and forces a confirmation prompt; this rule is the reason it exists; do not remove
+or weaken it without the user's explicit request.
+
 **Single test file**: `pnpm exec vitest run path/to/file.test.ts` (or `pnpm exec vitest path/to/file.test.ts` to watch).
 
 **RLS/integration tests hit a real remote Supabase project** (see D-08 in `DECISIONES.md`) — they

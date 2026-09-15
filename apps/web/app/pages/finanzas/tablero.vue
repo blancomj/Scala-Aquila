@@ -3,7 +3,8 @@
 // a 30 días, CxP vencidas por programar y facturas próximas a vencer (FIN-2), compromisos por
 // cuenta bancaria (FIN-1), alertas activas (este corte). Ninguna cifra nueva: cada una viene de
 // una función ya expuesta, con su fuente navegable — esta pantalla no consulta tablas directo.
-import type { Database } from '@aquila/shared'
+import type { Database, Explicacion } from '@aquila/shared'
+import type { ResultadoRedaccionIa } from '~/types/ia-redaccion'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
@@ -59,6 +60,32 @@ const compromisosPorCuenta = computed(() => {
     nombre: b.detalle_nombre, total: Number(b.monto_total ?? 0), comprometido: Number(b.monto_comprometido ?? 0), disponible: Number(b.monto_disponible ?? 0),
   }))
 })
+
+// ── Redactar con IA (Ola 3, segunda rebanada — mismo botón de cartera, D-134) ───────────────────
+// Estado por alerta (puede haber varias en la lista) — nunca automático al cargar la página.
+const redactandoIa = ref<Record<string, boolean>>({})
+const resultadosIa = ref<Record<string, ResultadoRedaccionIa>>({})
+
+const MOTIVO_IA_LABEL: Record<string, string> = {
+  IA_NO_ACTIVA: 'no hay un proveedor de IA activo en esta copropiedad — actívalo en Configuración',
+  PRESUPUESTO_AGOTADO: 'se agotó el presupuesto mensual de IA de esta copropiedad',
+  IA_CREDENCIAL_FALTANTE: 'la credencial del proveedor no está disponible',
+  IA_TIMEOUT: 'el proveedor tardó demasiado en responder',
+  IA_PROVEEDOR_ERROR: 'el proveedor de IA no pudo responder',
+}
+
+async function redactarConIa(alertaId: string, explicacion: Explicacion): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  redactandoIa.value = { ...redactandoIa.value, [alertaId]: true }
+  try {
+    resultadosIa.value = { ...resultadosIa.value, [alertaId]: await flujoStore.redactarConIa(tenantId, explicacion) }
+  } catch {
+    resultadosIa.value = { ...resultadosIa.value, [alertaId]: { texto: null, degradado: true, motivo: 'IA_PROVEEDOR_ERROR' } }
+  } finally {
+    redactandoIa.value = { ...redactandoIa.value, [alertaId]: false }
+  }
+}
 
 // ── configuración de reglas de alerta ────────────────────────────────────────────────────────
 const drawerAlertasAbierto = ref(false)
@@ -132,11 +159,37 @@ async function alternarRegla(id: string, activa: boolean): Promise<void> {
 
     <div class="rounded-lg border border-default p-4">
       <p class="text-sm font-medium mb-2">Alertas emitidas recientes</p>
-      <div v-if="flujoStore.alertasEmitidas.length === 0" class="text-sm text-muted">Ninguna alerta emitida.</div>
+      <div v-if="flujoStore.alertasExplicadas.length === 0" class="text-sm text-muted">Ninguna alerta emitida.</div>
       <ul v-else class="divide-y divide-default text-sm">
-        <li v-for="a in flujoStore.alertasEmitidas" :key="a.id" class="py-2 flex justify-between gap-2">
-          <span>{{ flujoStore.alertaReglas.find((r) => r.id === a.regla_id)?.nombre ?? a.regla_id }}</span>
-          <span class="text-muted">{{ a.fecha_emision }}</span>
+        <li v-for="ae in flujoStore.alertasExplicadas" :key="ae.alerta.id" class="py-3 space-y-2">
+          <div class="flex justify-between gap-2">
+            <span class="font-medium">{{ flujoStore.alertaReglas.find((r) => r.id === ae.alerta.regla_id)?.nombre ?? ae.alerta.regla_id }}</span>
+            <span class="text-muted">{{ ae.alerta.fecha_emision }}</span>
+          </div>
+          <UiAfirmaciones :afirmaciones="ae.explicacion.afirmaciones" />
+          <UButton
+            size="xs" variant="soft"
+            :loading="redactandoIa[ae.alerta.id]"
+            @click="redactarConIa(ae.alerta.id, ae.explicacion)"
+          >
+            Redactar con IA
+          </UButton>
+          <div
+            v-if="resultadosIa[ae.alerta.id]"
+            class="rounded-md border p-3 text-sm"
+            :class="resultadosIa[ae.alerta.id]!.texto
+              ? 'border-primary-200 bg-primary-50 dark:border-primary-900 dark:bg-primary-950'
+              : 'border-default'"
+          >
+            <template v-if="resultadosIa[ae.alerta.id]!.texto">
+              <p class="mb-1 text-xs font-medium text-primary-700 dark:text-primary-300">Redactado con IA</p>
+              <p>{{ resultadosIa[ae.alerta.id]!.texto }}</p>
+            </template>
+            <p v-else class="text-xs text-muted">
+              No se pudo redactar con IA: {{ MOTIVO_IA_LABEL[resultadosIa[ae.alerta.id]!.motivo ?? ''] ?? resultadosIa[ae.alerta.id]!.motivo }}.
+              La explicación de arriba sigue siendo la respuesta.
+            </p>
+          </div>
         </li>
       </ul>
     </div>

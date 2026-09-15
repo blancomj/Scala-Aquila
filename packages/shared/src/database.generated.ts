@@ -11792,6 +11792,7 @@ export type Database = {
           created_at: string
           id: string
           modelo: string
+          presupuesto_mensual_usd: number | null
           proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
           tenant_id: string
           updated_at: string | null
@@ -11802,6 +11803,7 @@ export type Database = {
           created_at?: string
           id?: string
           modelo: string
+          presupuesto_mensual_usd?: number | null
           proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
           tenant_id: string
           updated_at?: string | null
@@ -11812,6 +11814,7 @@ export type Database = {
           created_at?: string
           id?: string
           modelo?: string
+          presupuesto_mensual_usd?: number | null
           proveedor?: Database["public"]["Enums"]["ia_proveedor_t"]
           tenant_id?: string
           updated_at?: string | null
@@ -11886,6 +11889,54 @@ export type Database = {
           },
           {
             foreignKeyName: "ia_credencial_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_uso_mensual: {
+        Row: {
+          actualizado_at: string
+          costo_estimado_usd: number
+          id: string
+          llamadas: number
+          periodo: string
+          tenant_id: string
+          tokens_entrada: number
+          tokens_salida: number
+        }
+        Insert: {
+          actualizado_at?: string
+          costo_estimado_usd?: number
+          id?: string
+          llamadas?: number
+          periodo: string
+          tenant_id: string
+          tokens_entrada?: number
+          tokens_salida?: number
+        }
+        Update: {
+          actualizado_at?: string
+          costo_estimado_usd?: number
+          id?: string
+          llamadas?: number
+          periodo?: string
+          tenant_id?: string
+          tokens_entrada?: number
+          tokens_salida?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_uso_mensual_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_uso_mensual_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -19704,6 +19755,42 @@ export type Database = {
           },
         ]
       }
+      sidebar_config: {
+        Row: {
+          actualizado_at: string
+          actualizado_por: string | null
+          configuracion: Json
+          tenant_id: string
+        }
+        Insert: {
+          actualizado_at?: string
+          actualizado_por?: string | null
+          configuracion?: Json
+          tenant_id: string
+        }
+        Update: {
+          actualizado_at?: string
+          actualizado_por?: string | null
+          configuracion?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sidebar_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sidebar_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitud_actuaciones: {
         Row: {
           created_at: string
@@ -22379,6 +22466,7 @@ export type Database = {
           created_at: string
           id: string
           modelo: string
+          presupuesto_mensual_usd: number | null
           proveedor: Database["public"]["Enums"]["ia_proveedor_t"]
           tenant_id: string
           updated_at: string | null
@@ -24635,6 +24723,10 @@ export type Database = {
           saldo_credito: number
         }[]
       }
+      fn_presupuesto_ia_disponible: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
       fn_propietario_responsable: {
         Args: { p_fecha: string; p_inmueble_id: string }
         Returns: {
@@ -24732,6 +24824,15 @@ export type Database = {
           p_transaction_id: string
         }
         Returns: string
+      }
+      fn_registrar_uso_ia: {
+        Args: {
+          p_costo_estimado_usd: number
+          p_tenant_id: string
+          p_tokens_entrada: number
+          p_tokens_salida: number
+        }
+        Returns: undefined
       }
       fn_reserva_aprobar: {
         Args: { p_reserva_id: string }
