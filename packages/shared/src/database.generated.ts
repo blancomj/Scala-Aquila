@@ -11,11 +11,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -4415,6 +4410,7 @@ export type Database = {
           fecha: string
           id: string
           numero: number | null
+          observaciones: string | null
           origen_entidad: string | null
           origen_evento: string | null
           origen_id: string | null
@@ -4440,6 +4436,7 @@ export type Database = {
           fecha: string
           id?: string
           numero?: number | null
+          observaciones?: string | null
           origen_entidad?: string | null
           origen_evento?: string | null
           origen_id?: string | null
@@ -4465,6 +4462,7 @@ export type Database = {
           fecha?: string
           id?: string
           numero?: number | null
+          observaciones?: string | null
           origen_entidad?: string | null
           origen_evento?: string | null
           origen_id?: string | null
@@ -5967,6 +5965,7 @@ export type Database = {
           anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
+          comprobante_id: string | null
           created_at: string
           descripcion: string | null
           envio_id: string | null
@@ -5990,6 +5989,7 @@ export type Database = {
           anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
+          comprobante_id?: string | null
           created_at?: string
           descripcion?: string | null
           envio_id?: string | null
@@ -6013,6 +6013,7 @@ export type Database = {
           anuncio_id?: string | null
           busqueda_tsv?: unknown
           caso_juridico_id?: string | null
+          comprobante_id?: string | null
           created_at?: string
           descripcion?: string | null
           envio_id?: string | null
@@ -6051,6 +6052,13 @@ export type Database = {
             columns: ["caso_juridico_id"]
             isOneToOne: false
             referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_comprobante_id_fkey"
+            columns: ["comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
             referencedColumns: ["id"]
           },
           {
@@ -13071,6 +13079,58 @@ export type Database = {
           },
         ]
       }
+      mant_categoria_depreciacion_default: {
+        Row: {
+          categoria_id: number
+          created_at: string
+          id: string
+          metodo_depreciacion: Database["public"]["Enums"]["depreciacion_metodo_t"]
+          tenant_id: string
+          updated_at: string | null
+          vida_util_meses: number | null
+        }
+        Insert: {
+          categoria_id: number
+          created_at?: string
+          id?: string
+          metodo_depreciacion: Database["public"]["Enums"]["depreciacion_metodo_t"]
+          tenant_id: string
+          updated_at?: string | null
+          vida_util_meses?: number | null
+        }
+        Update: {
+          categoria_id?: number
+          created_at?: string
+          id?: string
+          metodo_depreciacion?: Database["public"]["Enums"]["depreciacion_metodo_t"]
+          tenant_id?: string
+          updated_at?: string | null
+          vida_util_meses?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_categoria_depreciacion_default_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_categoria_depreciacion_default_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_categoria_depreciacion_default_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_consecutivo: {
         Row: {
           anio: number
@@ -16244,6 +16304,7 @@ export type Database = {
           descripcion: string | null
           id: string
           nombre: string
+          politica_contable: Database["public"]["Enums"]["politica_contable_repuesto_t"]
           punto_reorden: number | null
           sku: string
           stock_maximo: number | null
@@ -16262,6 +16323,7 @@ export type Database = {
           descripcion?: string | null
           id?: string
           nombre: string
+          politica_contable?: Database["public"]["Enums"]["politica_contable_repuesto_t"]
           punto_reorden?: number | null
           sku: string
           stock_maximo?: number | null
@@ -16280,6 +16342,7 @@ export type Database = {
           descripcion?: string | null
           id?: string
           nombre?: string
+          politica_contable?: Database["public"]["Enums"]["politica_contable_repuesto_t"]
           punto_reorden?: number | null
           sku?: string
           stock_maximo?: number | null
@@ -20246,6 +20309,8 @@ export type Database = {
       }
       tenants: {
         Row: {
+          agente_reteica: boolean
+          agente_reteiva: boolean
           agente_retencion: boolean
           canal_notificacion: string | null
           ciudad: string | null
@@ -20259,6 +20324,10 @@ export type Database = {
           direccion: string | null
           email: string | null
           explota_bienes_comunes: boolean
+          ica_aplica: boolean
+          ica_municipio: string | null
+          ica_periodicidad_id: number | null
+          ica_tarifa_por_mil: number | null
           id: string
           iva_periodicidad_id: number | null
           logo_path: string | null
@@ -20286,6 +20355,8 @@ export type Database = {
           zona_horaria: string
         }
         Insert: {
+          agente_reteica?: boolean
+          agente_reteiva?: boolean
           agente_retencion?: boolean
           canal_notificacion?: string | null
           ciudad?: string | null
@@ -20299,6 +20370,10 @@ export type Database = {
           direccion?: string | null
           email?: string | null
           explota_bienes_comunes?: boolean
+          ica_aplica?: boolean
+          ica_municipio?: string | null
+          ica_periodicidad_id?: number | null
+          ica_tarifa_por_mil?: number | null
           id?: string
           iva_periodicidad_id?: number | null
           logo_path?: string | null
@@ -20328,6 +20403,8 @@ export type Database = {
           zona_horaria?: string
         }
         Update: {
+          agente_reteica?: boolean
+          agente_reteiva?: boolean
           agente_retencion?: boolean
           canal_notificacion?: string | null
           ciudad?: string | null
@@ -20341,6 +20418,10 @@ export type Database = {
           direccion?: string | null
           email?: string | null
           explota_bienes_comunes?: boolean
+          ica_aplica?: boolean
+          ica_municipio?: string | null
+          ica_periodicidad_id?: number | null
+          ica_tarifa_por_mil?: number | null
           id?: string
           iva_periodicidad_id?: number | null
           logo_path?: string | null
@@ -20375,6 +20456,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_ica_periodicidad_id_fkey"
+            columns: ["ica_periodicidad_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
           {
@@ -20757,6 +20845,7 @@ export type Database = {
           nombre: string
           tarifa: number
           tenant_id: string
+          tipo_id: number
           updated_at: string | null
           vigente_desde: string
           vigente_hasta: string | null
@@ -20770,6 +20859,7 @@ export type Database = {
           nombre: string
           tarifa: number
           tenant_id: string
+          tipo_id: number
           updated_at?: string | null
           vigente_desde?: string
           vigente_hasta?: string | null
@@ -20783,6 +20873,7 @@ export type Database = {
           nombre?: string
           tarifa?: number
           tenant_id?: string
+          tipo_id?: number
           updated_at?: string | null
           vigente_desde?: string
           vigente_hasta?: string | null
@@ -20807,6 +20898,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tributario_concepto_retencion_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
           },
         ]
@@ -21602,6 +21700,7 @@ export type Database = {
           anuncio_id: string | null
           busqueda_tsv: unknown
           caso_juridico_id: string | null
+          comprobante_id: string | null
           created_at: string | null
           descripcion: string | null
           envio_id: string | null
@@ -21640,6 +21739,13 @@ export type Database = {
             columns: ["caso_juridico_id"]
             isOneToOne: false
             referencedRelation: "casos_juridicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_comprobante_id_fkey"
+            columns: ["comprobante_id"]
+            isOneToOne: false
+            referencedRelation: "contable_comprobante"
             referencedColumns: ["id"]
           },
           {
@@ -22106,6 +22212,8 @@ export type Database = {
       create_tenant: {
         Args: { p_name: string; p_slug: string }
         Returns: {
+          agente_reteica: boolean
+          agente_reteiva: boolean
           agente_retencion: boolean
           canal_notificacion: string | null
           ciudad: string | null
@@ -22119,6 +22227,10 @@ export type Database = {
           direccion: string | null
           email: string | null
           explota_bienes_comunes: boolean
+          ica_aplica: boolean
+          ica_municipio: string | null
+          ica_periodicidad_id: number | null
+          ica_tarifa_por_mil: number | null
           id: string
           iva_periodicidad_id: number | null
           logo_path: string | null
@@ -22409,6 +22521,10 @@ export type Database = {
       fn_actor_externo_solicitar_otp: {
         Args: { p_canal: string; p_contacto: string }
         Returns: string
+      }
+      fn_actualizar_observaciones_comprobante: {
+        Args: { p_comprobante_id: string; p_observaciones: string }
+        Returns: undefined
       }
       fn_alertas_cartera: {
         Args: { p_fecha_referencia: string; p_tenant_id: string }
@@ -23760,6 +23876,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_instalar_plan_contable: {
+        Args: {
+          p_incluir_opcionales?: boolean
+          p_plan_codigo?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          creadas: number
+          existentes: number
+        }[]
+      }
       fn_instanciar_conceptos: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -24224,6 +24351,7 @@ export type Database = {
           p_cantidad: number
           p_costo_unitario?: number
           p_ot_id: string
+          p_periodo_id?: string
           p_repuesto_id: string
         }
         Returns: {
@@ -26464,6 +26592,7 @@ export type Database = {
           p_hasta: string
           p_tenant_id: string
           p_tercero_id: string
+          p_tipo_codigo?: string
         }
         Returns: {
           concepto_codigo: string
@@ -26471,6 +26600,16 @@ export type Database = {
           tarifa: number
           total_base: number
           total_valor: number
+        }[]
+      }
+      tributario_resumen_ica: {
+        Args: { p_anio: number; p_periodo_numero: number; p_tenant_id: string }
+        Returns: {
+          base_gravable: number
+          mes_desde: number
+          mes_hasta: number
+          tarifa_por_mil: number
+          valor_estimado: number
         }[]
       }
       tributario_resumen_iva: {
@@ -26483,7 +26622,12 @@ export type Database = {
         }[]
       }
       tributario_resumen_retenciones_mensual: {
-        Args: { p_anio: number; p_mes: number; p_tenant_id: string }
+        Args: {
+          p_anio: number
+          p_mes: number
+          p_tenant_id: string
+          p_tipo_codigo?: string
+        }
         Returns: {
           concepto_codigo: string
           concepto_nombre: string
@@ -26861,6 +27005,7 @@ export type Database = {
       permiso_vehiculo_estado_t: "vigente" | "revocado"
       plan_alcance_t: "activo" | "tipo_activo" | "categoria" | "ubicacion"
       plan_frecuencia_origen_t: "heredada_requisito" | "propia"
+      politica_contable_repuesto_t: "inventario" | "gasto_directo"
       politica_imputacion_estrategia_t: "deuda_mas_antigua" | "periodo_actual"
       posicion_naturaleza_t:
         | "activo_liquido"
@@ -27009,12 +27154,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -27038,11 +27183,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -27063,11 +27208,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -27088,11 +27233,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -27105,11 +27250,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -27503,6 +27648,7 @@ export const Constants = {
       permiso_vehiculo_estado_t: ["vigente", "revocado"],
       plan_alcance_t: ["activo", "tipo_activo", "categoria", "ubicacion"],
       plan_frecuencia_origen_t: ["heredada_requisito", "propia"],
+      politica_contable_repuesto_t: ["inventario", "gasto_directo"],
       politica_imputacion_estrategia_t: ["deuda_mas_antigua", "periodo_actual"],
       posicion_naturaleza_t: [
         "activo_liquido",
@@ -27649,3 +27795,4 @@ export const Constants = {
     },
   },
 } as const
+

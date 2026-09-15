@@ -92,7 +92,7 @@ async function cerrarSesion(): Promise<void> {
 
       <NuxtLink
         to="/perfil"
-        class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         @click="menuAbierto = null"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 shrink-0">
@@ -100,6 +100,17 @@ async function cerrarSesion(): Promise<void> {
           <circle cx="12" cy="7" r="4" />
         </svg>
         Mi perfil
+      </NuxtLink>
+
+      <NuxtLink
+        to="/asuntos"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
+        @click="menuAbierto = null"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-emerald-500 shrink-0">
+          <path d="M4 13h4l1.5 3h5L16 13h4M4 13l2.5-7.5a1 1 0 0 1 1-.5h9a1 1 0 0 1 1 .5L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z" />
+        </svg>
+        Mis asuntos
       </NuxtLink>
 
       <div class="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800">

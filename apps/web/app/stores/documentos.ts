@@ -21,28 +21,32 @@ export const useDocumentosStore = defineStore('documentos', () => {
   const subiendo = ref(false)
 
   /** `inmuebleId` null = documentos de la copropiedad misma, no de un inmueble puntual.
-   * `casoJuridicoId`/`envioId`, si vienen, reemplazan el alcance por el expediente de ese
-   * caso jurídico (CAR §15.4) o por ese envío de cobranza (PRQ-CAR-022) — `inmuebleId` se
-   * ignora en ese caso. Prioridad envioId > casoJuridicoId > inmuebleId, mismo orden que
-   * subir-documento/index.ts resuelve el tenant. */
+   * `casoJuridicoId`/`envioId`/`comprobanteId`, si vienen, reemplazan el alcance por el
+   * expediente de ese caso jurídico (CAR §15.4), por ese envío de cobranza (PRQ-CAR-022) o por
+   * ese comprobante contable manual (CO-2/D-130) — `inmuebleId` se ignora en ese caso. Prioridad
+   * comprobanteId > envioId > casoJuridicoId > inmuebleId, mismo orden que subir-documento/
+   * index.ts resuelve el tenant. */
   async function cargarDocumentos(
     tenantId: string,
     inmuebleId: string | null,
     casoJuridicoId?: string | null,
     envioId?: string | null,
+    comprobanteId?: string | null,
   ): Promise<DocumentoVigenteRow[]> {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
       let consulta = cliente.from('v_documento_vigente').select('*').eq('tenant_id', tenantId)
       consulta =
-        envioId != null
-          ? consulta.eq('envio_id', envioId)
-          : casoJuridicoId != null
-            ? consulta.eq('caso_juridico_id', casoJuridicoId)
-            : inmuebleId === null
-              ? consulta.is('inmueble_id', null)
-              : consulta.eq('inmueble_id', inmuebleId)
+        comprobanteId != null
+          ? consulta.eq('comprobante_id', comprobanteId)
+          : envioId != null
+            ? consulta.eq('envio_id', envioId)
+            : casoJuridicoId != null
+              ? consulta.eq('caso_juridico_id', casoJuridicoId)
+              : inmuebleId === null
+                ? consulta.is('inmueble_id', null)
+                : consulta.eq('inmueble_id', inmuebleId)
       const { data, error: errorDocumentos } = await consulta.order('created_at', { ascending: false })
       if (errorDocumentos) throw errorDocumentos
       documentos.value = data ?? []
@@ -177,6 +181,10 @@ export const useDocumentosStore = defineStore('documentos', () => {
     /** Fase 5 de mantenimiento de activos (D-92): foto de un activo físico. Como las anteriores,
      * varias por activo (se pidió explícitamente "al menos 5") y sin versionarse entre sí. */
     activoId?: string
+    /** CO-2/D-130: soporte documental (factura, recibo escaneado) de un comprobante contable de
+     * captura manual. Versionado como inmuebleId/casoJuridicoId/pagoId — subir de nuevo con el
+     * mismo tipo_documento_id reemplaza, no duplica. */
+    comprobanteId?: string
   }): Promise<DocumentoVigenteRow> {
     subiendo.value = true
     try {
@@ -190,6 +198,8 @@ export const useDocumentosStore = defineStore('documentos', () => {
         form.set('tercero_perfil_id', params.perfilId)
       } else if (params.activoId) {
         form.set('activo_id', params.activoId)
+      } else if (params.comprobanteId) {
+        form.set('comprobante_id', params.comprobanteId)
       } else if (params.envioId) {
         form.set('envio_id', params.envioId)
       } else if (params.casoJuridicoId) {
@@ -219,7 +229,13 @@ export const useDocumentosStore = defineStore('documentos', () => {
       } else if (params.activoId) {
         await cargarImagenesActivo(params.tenantId, params.activoId)
       } else {
-        await cargarDocumentos(params.tenantId, params.inmuebleId, params.casoJuridicoId, params.envioId)
+        await cargarDocumentos(
+          params.tenantId,
+          params.inmuebleId,
+          params.casoJuridicoId,
+          params.envioId,
+          params.comprobanteId,
+        )
       }
       return data!
     } finally {

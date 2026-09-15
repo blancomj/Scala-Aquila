@@ -173,6 +173,9 @@ export const ERROR_CODES = {
   // Instanciación del plan por copropiedad (fn_instanciar_plan_contable, PC-2)
   PLAN_CONTABLE_INEXISTENTE: 'PLAN_CONTABLE_INEXISTENTE',
   TENANT_INEXISTENTE: 'TENANT_INEXISTENTE',
+  // fn_instalar_plan_contable: wrapper autorizado que el navegador invoca en vez de
+  // fn_instanciar_plan_contable directo (20260932550000 le revocó EXECUTE a authenticated).
+  PLAN_CONTABLE_NO_AUTORIZADO: 'PLAN_CONTABLE_NO_AUTORIZADO',
 
   // ── Puentes hacia el plan contable (PC-3) ────────────────────────────────
   // Los emite validar_cuenta_contable_destino(), compartida por presupuesto_cuenta,
@@ -515,6 +518,10 @@ export const ERROR_CODES = {
   // Postgres, 23505), no como `raise exception` — se registra igual para que el mapeo de
   // errores del frontend tenga un nombre estable que mostrar (CO-2 §3.3).
   COMPROBANTE_ORIGEN_DUPLICADO: 'COMPROBANTE_ORIGEN_DUPLICADO',
+  // guard_documento_tipo_familia (D-130): comprobante_id de otro tenant.
+  COMPROBANTE_INVALIDO: 'COMPROBANTE_INVALIDO',
+  // subir-documento/index.ts (D-130): comprobante_id no existe o no es accesible.
+  COMPROBANTE_NO_ENCONTRADO: 'COMPROBANTE_NO_ENCONTRADO',
 
   // ── CO-3: materialización — de la proyección al asiento persistido
   //    (20260930240000-20260930260000) ─────────────────────────────────────
@@ -779,6 +786,17 @@ export const ERROR_CODES = {
   // guard_mant_inventario_movimiento: tipo = 'transferencia' sin pasar por
   // fn_mant_transferir_repuesto (bandera de sesión ausente), o transferencia_par_id inválido.
   TRANSFERENCIA_DESTINO_INVALIDO: 'TRANSFERENCIA_DESTINO_INVALIDO',
+  // guard_mant_repuesto (MANT6-FASE1, 20260935120000): politica_contable = 'inventario' exige
+  // contable_cuenta_id (cuenta de existencias) desde la creación del repuesto.
+  REPUESTO_POLITICA_INVENTARIO_SIN_CUENTA: 'REPUESTO_POLITICA_INVENTARIO_SIN_CUENTA',
+  // fn_mant_consumir_repuesto: p_repuesto_id no existe.
+  REPUESTO_INEXISTENTE: 'REPUESTO_INEXISTENTE',
+  // fn_mant_consumir_repuesto: politica_contable = 'inventario' exige costo_unitario para
+  // valorizar el consumo (sin él, el consumo queda solo físico, pendiente de contabilizar).
+  CONSUMO_COSTO_UNITARIO_REQUERIDO: 'CONSUMO_COSTO_UNITARIO_REQUERIDO',
+  // fn_mant_consumir_repuesto: politica_contable = 'inventario' con costo_unitario exige también
+  // p_periodo_id para generar el comprobante.
+  CONTABLE_PERIODO_REQUERIDO: 'CONTABLE_PERIODO_REQUERIDO',
 
   // ── MANT-7: inspecciones, hallazgos y acciones correctivas (20260932200000+) ──
   // guard_mant_inspeccion_formato: tipo_id no pertenece a TIPO_INSPECCION.
@@ -1326,7 +1344,9 @@ export const ERROR_CODES = {
   // guard_contable_cuenta_naturaleza_tributaria: uso_economico=residencial sin
   // explota_bienes_comunes no puede marcar gravado_renta/gravado_renta_iva (ET art. 19-5).
   TRIBUTARIO_MARCA_INCOHERENTE_CON_USO: 'TRIBUTARIO_MARCA_INCOHERENTE_CON_USO',
-  // guard_finanzas_factura_retencion: el tenant no tiene agente_retencion=true (CO-1).
+  // guard_finanzas_factura_retencion: el tenant no tiene el agente correspondiente al tipo del
+  // concepto (fuente->agente_retencion, iva->agente_reteiva, ica->agente_reteica — gap
+  // ReteIVA/ReteICA, 20260935140000).
   TRIBUTARIO_SIN_AGENTE_RETENCION: 'TRIBUTARIO_SIN_AGENTE_RETENCION',
   // fn_finanzas_aprobar_factura: total_retenciones de la factura no coincide con la suma real de
   // finanzas_factura_retencion.
@@ -1339,6 +1359,14 @@ export const ERROR_CODES = {
   TRIBUTARIO_PERIODICIDAD_IVA_SIN_CONFIGURAR: 'TRIBUTARIO_PERIODICIDAD_IVA_SIN_CONFIGURAR',
   // tributario_resumen_iva: p_periodo_numero fuera de rango para la periodicidad configurada.
   TRIBUTARIO_PERIODO_IVA_INVALIDO: 'TRIBUTARIO_PERIODO_IVA_INVALIDO',
+  // ── Gap ICA (20260935130000, 2026-09-14) ──
+  // tributario_resumen_ica: el tenant no tiene ica_aplica=true (CO-1).
+  TRIBUTARIO_ICA_NO_APLICA: 'TRIBUTARIO_ICA_NO_APLICA',
+  // tributario_resumen_ica: el tenant no tiene ica_tarifa_por_mil o ica_periodicidad_id
+  // configurados.
+  TRIBUTARIO_ICA_SIN_CONFIGURAR: 'TRIBUTARIO_ICA_SIN_CONFIGURAR',
+  // tributario_resumen_ica: p_periodo_numero fuera de rango para la periodicidad configurada.
+  TRIBUTARIO_PERIODO_ICA_INVALIDO: 'TRIBUTARIO_PERIODO_ICA_INVALIDO',
 
   // ── GOB-9: comunicaciones y workflow transversal (20260931950000+) ──
   // gobierno_segmento_destinatarios: p_criterio no es uno de los 5 soportados.

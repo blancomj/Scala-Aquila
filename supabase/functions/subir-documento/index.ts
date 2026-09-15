@@ -67,6 +67,7 @@ export default {
     const anuncioIdRaw = form.get('anuncio_id')
     const terceroPerfilIdRaw = form.get('tercero_perfil_id')
     const activoIdRaw = form.get('activo_id')
+    const comprobanteIdRaw = form.get('comprobante_id')
     const archivo = form.get('archivo')
 
     // inmueble_id ausente/vacío = documento de la copropiedad misma (tenant_id
@@ -157,6 +158,21 @@ export default {
     if (activoId !== null && !UUID_RE.test(activoId)) {
       return errorResponse(400, 'INVALID_PAYLOAD', 'activo_id debe ser un uuid válido.', undefined, correlationId)
     }
+    // comprobante_id — CO-2/D-130: el soporte documental (factura, recibo escaneado) de un
+    // comprobante contable de captura manual. Mismo criterio de resolución de tenant que los
+    // anteriores (nunca se confía en un tenant_id enviado por el cliente cuando sí hay
+    // comprobante_id).
+    const comprobanteId =
+      typeof comprobanteIdRaw === 'string' && comprobanteIdRaw.length > 0 ? comprobanteIdRaw : null
+    if (comprobanteId !== null && !UUID_RE.test(comprobanteId)) {
+      return errorResponse(
+        400,
+        'INVALID_PAYLOAD',
+        'comprobante_id debe ser un uuid válido.',
+        undefined,
+        correlationId,
+      )
+    }
     if (
       inmuebleId === null &&
       casoJuridicoId === null &&
@@ -165,12 +181,13 @@ export default {
       anuncioId === null &&
       terceroPerfilId === null &&
       activoId === null &&
+      comprobanteId === null &&
       (typeof tenantIdRaw !== 'string' || !UUID_RE.test(tenantIdRaw))
     ) {
       return errorResponse(
         400,
         'INVALID_PAYLOAD',
-        'tenant_id debe ser un uuid válido cuando no se envía ningún alcance (inmueble_id, caso_juridico_id, envio_id, publicacion_id, anuncio_id, tercero_perfil_id o activo_id).',
+        'tenant_id debe ser un uuid válido cuando no se envía ningún alcance (inmueble_id, caso_juridico_id, envio_id, publicacion_id, anuncio_id, tercero_perfil_id, activo_id o comprobante_id).',
         undefined,
         correlationId,
       )
@@ -402,6 +419,25 @@ export default {
         )
       }
       tenantId = activo.tenant_id
+    } else if (comprobanteId !== null) {
+      const { data: comprobante, error: errorComprobante } = await ctx.supabase
+        .from('contable_comprobante')
+        .select('id, tenant_id')
+        .eq('id', comprobanteId)
+        .maybeSingle()
+      if (errorComprobante) {
+        return errorResponse(500, 'INTERNAL_ERROR', errorComprobante.message, undefined, correlationId)
+      }
+      if (!comprobante) {
+        return errorResponse(
+          404,
+          'COMPROBANTE_NO_ENCONTRADO',
+          'El comprobante no existe o no es accesible.',
+          undefined,
+          correlationId,
+        )
+      }
+      tenantId = comprobante.tenant_id
     } else {
       tenantId = tenantIdRaw as string
     }
@@ -502,6 +538,10 @@ export default {
         : consultaVigente.eq('tercero_perfil_id', terceroPerfilId)
     consultaVigente =
       activoId === null ? consultaVigente.is('activo_id', null) : consultaVigente.eq('activo_id', activoId)
+    consultaVigente =
+      comprobanteId === null
+        ? consultaVigente.is('comprobante_id', null)
+        : consultaVigente.eq('comprobante_id', comprobanteId)
 
     // EXS-6 · las fotos de un aviso NO se versionan entre sí.
     //
@@ -552,7 +592,9 @@ export default {
                 ? `_directorio/${terceroPerfilId}`
                 : activoId !== null
                   ? `_activo/${activoId}`
-                  : '_copropiedad')
+                  : comprobanteId !== null
+                    ? `_comprobante/${comprobanteId}`
+                    : '_copropiedad')
     const storagePath = `${tenantId}/${carpetaAlcance}/${grupoId}/${version}_${nombreSaneado}`
 
     // Único uso de service_role: ni el bucket ni documentos (antes
@@ -586,6 +628,7 @@ export default {
         anuncio_id: anuncioId,
         tercero_perfil_id: terceroPerfilId,
         activo_id: activoId,
+        comprobante_id: comprobanteId,
         tipo_documento_id: tipoDocumentoId,
         grupo_id: grupoId,
         version,

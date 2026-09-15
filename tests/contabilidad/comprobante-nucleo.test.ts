@@ -639,4 +639,85 @@ d('CO-2: núcleo del libro contable', () => {
     expect(errCreado).not.toBeNull()
     expect(creado).toBeNull()
   })
+
+  it('16. fn_actualizar_observaciones_comprobante anota un comprobante ya contabilizado (un UPDATE directo del cliente lo rechaza)', async () => {
+    const { tenantId, auxiliar } = await crearTenantConPlan('observaciones')
+    const periodoId = await crearPeriodo(tenantId, 2031, 11)
+    const tipoId = await tipoComprobanteId('INGRESO')
+    const caja = await cuentaPorCodigo(tenantId, '110505')
+    const bancos = await cuentaPorCodigo(tenantId, '111005') // sin dimensiones requeridas
+
+    const compId = await crearBorrador({
+      tenantId,
+      periodoId,
+      tipoId,
+      fecha: '2031-11-10',
+      lineas: [
+        { cuenta_id: caja, debito: 100, credito: 0 },
+        { cuenta_id: bancos, debito: 0, credito: 100 },
+      ],
+    })
+    const { error: errContab } = await auxiliar.rpc('fn_contabilizar_comprobante', {
+      p_comprobante_id: compId,
+    })
+    if (errContab) throw errContab
+
+    // Un UPDATE directo (aunque solo toque observaciones) lo rechaza RLS a propósito —
+    // contable_comprobante_update_auxiliar exige estado in (borrador, anulado) en su WITH CHECK.
+    // La fila SÍ es visible/seleccionable (USING no filtra por estado), así que esto es un
+    // 42501 duro (WITH CHECK violado), no un filtrado silencioso — se prueba con `auxiliar` (RLS
+    // real, no admin) para confirmar que la RPC es necesaria, no redundante.
+    const { error: errDirecto } = await auxiliar
+      .from('contable_comprobante')
+      .update({ observaciones: 'nota directa' })
+      .eq('id', compId)
+      .select('id')
+    expect(errDirecto?.code).toBe('42501')
+
+    const { error: errRpc } = await auxiliar.rpc('fn_actualizar_observaciones_comprobante', {
+      p_comprobante_id: compId,
+      p_observaciones: 'Revisado por el revisor fiscal el 2031-11-15.',
+    })
+    if (errRpc) throw errRpc
+
+    const { data: fila } = await admin
+      .from('contable_comprobante')
+      .select('observaciones, estado, descripcion')
+      .eq('id', compId)
+      .single<{ observaciones: string | null; estado: string; descripcion: string }>()
+    expect(fila!.observaciones).toBe('Revisado por el revisor fiscal el 2031-11-15.')
+    // Sigue contabilizado y con su descripción original — la RPC no tocó nada más.
+    expect(fila!.estado).toBe('contabilizado')
+    expect(fila!.descripcion).toBe('Comprobante de prueba')
+  })
+
+  it('17. un auditor no puede anotar observaciones (FORBIDDEN)', async () => {
+    const { tenantId } = await crearTenantConPlan('observaciones-auditor')
+    const periodoId = await crearPeriodo(tenantId, 2031, 12)
+    const tipoId = await tipoComprobanteId('AJUSTE')
+    const caja = await cuentaPorCodigo(tenantId, '110505')
+    const bancos = await cuentaPorCodigo(tenantId, '111005')
+
+    const compId = await crearBorrador({
+      tenantId,
+      periodoId,
+      tipoId,
+      fecha: '2031-12-10',
+      lineas: [
+        { cuenta_id: caja, debito: 10, credito: 0 },
+        { cuenta_id: bancos, debito: 0, credito: 10 },
+      ],
+    })
+
+    const auditor = await crearUsuario(admin, 'auditor-observaciones')
+    usuariosCreados.push(auditor)
+    await crearMembership(admin, tenantId, auditor.id, 'auditor')
+    const clienteAuditor: Cliente = await clienteComo(env!, auditor)
+
+    const { error } = await clienteAuditor.rpc('fn_actualizar_observaciones_comprobante', {
+      p_comprobante_id: compId,
+      p_observaciones: 'intento de auditor',
+    })
+    expect(error?.message).toContain('FORBIDDEN')
+  })
 })

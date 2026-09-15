@@ -274,6 +274,53 @@ function formularioEnvio(envioId: string, tipoDocumentoId: number, archivo = arc
   return form
 }
 
+function formularioComprobante(comprobanteId: string, tipoDocumentoId: number, archivo = archivoValido()): FormData {
+  const form = new FormData()
+  form.set('comprobante_id', comprobanteId)
+  form.set('tipo_documento_id', String(tipoDocumentoId))
+  form.set('archivo', archivo)
+  return form
+}
+
+// comprobante_id (CO-2/D-130): el soporte documental de un comprobante contable manual.
+// fn_instanciar_plan_contable vía `admin` (service_role) — mismo camino ya usado por
+// tests/contabilidad/comprobante-nucleo.test.ts, restaurado su EXECUTE para service_role en
+// 20260935170000.
+async function crearComprobante(admin: Cliente, tenantId: string): Promise<string> {
+  const { error: errorPlan } = await admin.rpc('fn_instanciar_plan_contable', { p_tenant_id: tenantId })
+  if (errorPlan) throw new Error(`fixture plan contable: ${errorPlan.message}`)
+
+  const { data: periodo, error: errorPeriodo } = await admin
+    .from('periodos')
+    .insert({ tenant_id: tenantId, anio: 2031, mes: 1 })
+    .select('id')
+    .single<{ id: string }>()
+  if (errorPeriodo) throw new Error(`fixture periodo: ${errorPeriodo.message}`)
+
+  const { data: tipo, error: errorTipo } = await admin
+    .from('lista_tipos')
+    .select('id')
+    .eq('tipo', 'TIPO_COMPROBANTE')
+    .eq('codigo', 'INGRESO')
+    .single<{ id: number }>()
+  if (errorTipo) throw new Error(`fixture tipo comprobante: ${errorTipo.message}`)
+
+  const { data: comprobante, error: errorComprobante } = await admin
+    .from('contable_comprobante')
+    .insert({
+      tenant_id: tenantId,
+      periodo_id: periodo.id,
+      tipo_id: tipo.id,
+      anio: 2031,
+      fecha: '2031-01-15',
+      descripcion: 'Comprobante de prueba (soporte documental)',
+    })
+    .select('id')
+    .single<{ id: string }>()
+  if (errorComprobante) throw new Error(`fixture comprobante: ${errorComprobante.message}`)
+  return comprobante.id
+}
+
 d('subir-documento (Edge Function)', () => {
   const admin = clienteAdmin(env!)
   let agente: UsuarioPrueba
@@ -286,6 +333,7 @@ d('subir-documento (Edge Function)', () => {
   let tipoDocumentoId: number
   let casoJuridicoId: string
   let envioId: string
+  let comprobanteId: string
   const storagePaths: string[] = []
 
   afterAll(async () => {
@@ -312,6 +360,7 @@ d('subir-documento (Edge Function)', () => {
     tipoDocumentoId = await tipoDocumentoEscrituraId(admin)
     casoJuridicoId = await crearCasoJuridico(admin, env!, tenant, inmuebleId, administrador)
     envioId = await crearEnvio(admin, tenant, inmuebleId)
+    comprobanteId = await crearComprobante(admin, tenant.id)
   }, 30_000)
 
   it('flujo feliz: agent sube un PDF, responde 200 y el objeto queda en Storage', async () => {
@@ -442,6 +491,38 @@ d('subir-documento (Edge Function)', () => {
     const { data, response } = await clienteAgent.functions.invoke<RespuestaDocumento>(
       'subir-documento',
       { body: formularioEnvio('00000000-0000-0000-0000-000000000000', tipoDocumentoId) },
+    )
+
+    expect(data).toBeNull()
+    expect(response?.status).toBe(404)
+  }, 30_000)
+
+  // ── comprobante_id (CO-2/D-130) ───────────────────────────────────────
+  it('flujo feliz: agent sube el soporte documental de un comprobante contable', async () => {
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaDocumento>(
+      'subir-documento',
+      { body: formularioComprobante(comprobanteId, tipoDocumentoId) },
+    )
+
+    expect(response?.status).toBe(200)
+    expect(data?.version).toBe(1)
+    expect(data?.storage_path).toContain(`${tenant.id}/_comprobante/${comprobanteId}/`)
+    if (data) storagePaths.push(data.storage_path)
+
+    const { data: fila } = await admin
+      .from('documentos')
+      .select('id, tenant_id, inmueble_id, comprobante_id')
+      .eq('id', data!.id)
+      .single()
+    expect(fila?.tenant_id).toBe(tenant.id)
+    expect(fila?.inmueble_id).toBeNull()
+    expect(fila?.comprobante_id).toBe(comprobanteId)
+  }, 30_000)
+
+  it('COMPROBANTE_NO_ENCONTRADO (404): comprobante inexistente', async () => {
+    const { data, response } = await clienteAgent.functions.invoke<RespuestaDocumento>(
+      'subir-documento',
+      { body: formularioComprobante('00000000-0000-0000-0000-000000000000', tipoDocumentoId) },
     )
 
     expect(data).toBeNull()

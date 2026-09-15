@@ -7206,3 +7206,374 @@ comunes`). `pnpm build`/`typecheck`/`lint` en verde.
 ninguna tabla operativa fuera del alcance de `fn_resetear_copropiedad`, salvo los 2 ciclos
 preexistentes dormidos (documentados, sin datos reales que los activen) y los 6 catálogos sin
 `tenant_id` que referencian `fundamento_normativo` (dormidos mientras esa tabla sea 100% global).
+
+**Addendum 2026-09-14 — ya en producción.** El usuario corrió `pnpm db:push:prod` (confirmación
+"si" tecleada por él mismo); `20260935100000` (D-125) y `20260935110000` (D-126) quedaron
+aplicadas en `hwjmlyzzvpmhadldavbq` (verificado con `supabase migration list --project-ref`,
+`local`/`remote` iguales para ambas). `pnpm db:types:prod` regenerado.
+
+## D-127
+
+**MANT-6 Fase 1: política contable de repuestos (existencias vs. gasto directo)** — a pedido
+explícito del usuario ("implementa la fase 1"), sobre el análisis ya entregado en
+`Casos de uso/Manejo de Respuestos en Contabilidad/CRITERIO_CONTABLE_INVENTARIO_REPUESTOS_AQUILA.md`
+(criterio híbrido, parametrizable por artículo, basado en materialidad — prohíbe explícitamente una
+regla universal "todo repuesto = clase 14" o "todo repuesto = gasto"). Migración `20260935120000`.
+
+**BUSCAR EXISTENTE primero** (§24 del documento): se leyeron en detalle `20260932100000`
+(`mant_repuestos`, `contable_cuenta_id` ya presente pero decorativa), `20260932110000`
+(`mant_inventario_movimientos`, `presupuesto_ejecucion_id` siempre NULL), `20260932140000`
+(`fn_mant_registrar_consumo`, nunca genera efecto contable), y el patrón "puente" reusable de
+`20260830460000` (`validar_cuenta_contable_destino` + `EVENTO_CONTABLE`/`contable_cuenta_default` +
+`contable_parametrizacion_pendiente`) y `20260930290000` (MANT-0:
+`fn_mant_capitalizar_activo`/`fn_mant_reconocer_depreciacion`, el precedente más directo de "generar
+un comprobante real desde un evento de mantenimiento", origen_modulo/origen_entidad/origen_id/
+origen_evento como mecanismo de idempotencia/trazabilidad, sin columna denormalizada nueva).
+
+**Hallazgo que cambió el diseño inicial**: `mant_inventario_movimientos.presupuesto_ejecucion_id`
+(la columna que ya existía, pensada por el corte original para "cuando exista política de
+valoración") NO es el mecanismo correcto. Investigado en esta sesión: `presupuesto_ejecucion` es el
+ledger del ciclo de facturas de proveedor (FIN-2/FIN-3, `liquidacion` 'por_pagar'/'pagado_banco',
+crédito siempre a proveedores) — no un vehículo genérico de partida doble. Un consumo de inventario
+necesita crédito a existencias, no a proveedores, así que reutilizarlo habría exigido tocar CO-3 muy
+por fuera del alcance de esta fase. Se dejó esa columna intacta (sigue NULL siempre) y se generó el
+comprobante directamente, igual que MANT-0.
+
+**Alcance de esta Fase 1**: solo el lado de CONSUMO (salida) de un repuesto con
+`politica_contable = 'inventario'`. Fuera de alcance, documentado en la cabecera de la migración:
+lado de ENTRADA/compra (sin puente CxP→inventario todavía), método de costeo (usa el
+`costo_unitario` que declara el propio consumo, sin promedio ponderado/FIFO), y el componente
+capitalizable (bridge `mant_repuestos`↔`activos`, Fase 2).
+
+**Diseño**:
+- `mant_repuestos.politica_contable` — enum nativo `politica_contable_repuesto_t`
+  (`inventario`/`gasto_directo`, default `gasto_directo` = sin cambio de comportamiento). Enum y no
+  `lista_tipos` (D-24): gatilla la rama de código real de `fn_mant_registrar_consumo`, no es
+  vocabulario descriptivo — mismo criterio que `movimiento_tipo_t`.
+- `mant_repuestos.contable_cuenta_id` (ya existía, decorativa) pasa a ser real y exigida
+  (`guard_mant_repuesto`) cuando `politica_contable = 'inventario'` — debe ser una cuenta clase 1
+  (existencias), validada con `validar_cuenta_contable_destino`.
+- Evento contable nuevo `CONSUMO_REPUESTO_MANTENIMIENTO` (clase 5 esperada en
+  `guard_contable_cuenta_default`) — **sin cuenta por defecto autoseeded a propósito**: no hay un
+  código PUC único "obvio" (puede ir a 5525/5530/5535/5590 según qué se consumió), mismo criterio ya
+  usado para `RECONOCIMIENTO_BIEN_DESAFECTADO` (MANT-0). `contable_parametrizacion_pendiente()` ya
+  lo reporta sin ningún cambio de código (recorre toda fila de `EVENTO_CONTABLE` sin
+  `contable_cuenta_default` para el tenant).
+- `fn_mant_registrar_consumo` gana `p_periodo_id` (arity change — `drop function` explícito de la
+  firma vieja antes de recrear, ver [[feedback-extender-funcion-pg-cambia-aridad]]). Cuando
+  `politica_contable = 'inventario'`, intenta generar el comprobante (Débito
+  `CONSUMO_REPUESTO_MANTENIMIENTO` / Crédito la cuenta de existencias del repuesto) dentro de un
+  bloque `BEGIN/EXCEPTION` propio — **el registro físico nunca se bloquea por falta de
+  parametrización contable** (principio explícito del corte original de `20260932140000`, preservado
+  sin excepción): costo/periodo faltante, periodo cerrado, o cuentas sin parametrizar hacen que el
+  bloque contable se absorba en silencio, dejando el movimiento físico igual registrado.
+- `mant_inventario_pendientes_contabilizar()` gana un segundo motivo:
+  `INVENTARIO_POLITICA_CONTABLE_NO_DEFINIDA` (repuesto sigue en `gasto_directo`, comportamiento
+  esperado, no requiere acción) vs. `INVENTARIO_CONSUMO_SIN_CONTABILIZAR` (repuesto SÍ es
+  `inventario` pero el comprobante no se pudo generar — este es el que de verdad requiere acción),
+  localizando el comprobante por `origen_modulo`/`origen_entidad`/`origen_id`/`origen_evento`, sin
+  columna nueva.
+
+**Bugs propios encontrados y corregidos durante la implementación** (verificados en vivo, no
+supuestos): `centro_costo_id` de `contable_comprobante_detalle` es `bigint` (familia `lista_tipos`
+CENTRO_COSTO), no `uuid` — se declaró mal la variable local al copiar el patrón de MANT-0 sin leer
+el tipo real de la columna; `fn_contabilizar_comprobante` exige que la fecha del comprobante caiga
+dentro del mes del periodo (`COMPROBANTE_FECHA_FUERA_DE_PERIODO`) — se cambió `current_date` (que
+casi nunca cae en el periodo que el consumo está contabilizando) por el último día del periodo dado,
+mismo criterio que `fn_mant_reconocer_depreciacion`.
+
+**Efecto colateral de entorno, no de este corte**: un `supabase db reset`/`stop`+`start` de esta
+sesión repitió el problema ya documentado en
+[[feedback-grants-service-role-incompletos-tras-bootstrap]] — `service_role`/`authenticated`/`anon`
+perdieron `SELECT/INSERT/UPDATE/DELETE` sobre TODAS las tablas, y por separado
+`cron_mant_inventario_alertas_diario` (con `revoke execute from public/anon/authenticated` propio)
+perdió su `EXECUTE` de `service_role`. Corregido con el mismo GRANT ya documentado (tablas primero,
+funciones después, sin tocar `anon` en funciones) — sin relación con el diseño de esta fase, efecto
+secundario de reiniciar el stack local varias veces en la misma sesión.
+
+**Pruebas nuevas** (`tests/mantenimiento/inventario-costos.test.ts`, 5 casos agregados: #15-19),
+19/19 en el archivo completo (incluye las 14 preexistentes de MANT-6). Cubren: guard exige cuenta
+cuando la política es inventario; guard exige clase 1; consumo con política inventario genera
+comprobante balanceado (débito gasto/crédito existencias) y desaparece de pendientes; consumo con
+política inventario pero sin costo/periodo se registra físicamente y aparece como
+`INVENTARIO_CONSUMO_SIN_CONTABILIZAR`; `gasto_directo` (default) nunca genera comprobante aunque se
+pasen costo/periodo.
+
+**Addendum 2026-09-14 — ya en producción + UI cerrada.** El usuario corrió `pnpm db:push:prod`
+(confirmación "si" tecleada por él mismo); `20260935120000` quedó aplicada en `hwjmlyzzvpmhadldavbq`
+(verificado con `supabase migration list --linked`, `local`/`remote` iguales hasta este timestamp).
+`pnpm db:types:prod` regenerado (`packages/shared/src/database.generated.ts`: nueva columna
+`politica_contable`, enum `politica_contable_repuesto_t`, `p_periodo_id` en
+`fn_mant_registrar_consumo`).
+
+Con los tipos ya disponibles, se cerró el wiring de UI que había quedado pendiente:
+- `RepuestoDrawer.vue` — selector "Política contable del consumo" (`USelect`) + selector de "Cuenta
+  de existencias" (`UiSelectorBuscable`, acotado a clase 1 vía `contabilidadStore.cuentasDeMovimiento`,
+  mismo criterio guía-no-validación que `ActivoFormDrawer.vue` con PP&E) que solo aparece cuando la
+  política es `inventario` — botón Guardar deshabilitado si falta la cuenta en ese caso.
+- `ordenes-trabajo/[id].vue` (formulario de consumo) — `periodoId` nuevo en `formConsumo`;
+  `consumoRequiereContabilizacion` (computed sobre `politica_contable` del repuesto seleccionado)
+  muestra/exige el selector de periodo (reutilizando `comprobantesStore.periodos`, mismo patrón que
+  `activos/[id].vue` para capitalizar/depreciar) y el costo unitario solo cuando aplica, con una nota
+  explicativa; el botón "Registrar consumo" se deshabilita si al repuesto le falta alguno de los dos.
+- `stores/mantenimientoInventario.ts` — `registrarConsumo()` gana `periodoId` (mapea a
+  `p_periodo_id`).
+
+**Verificado en el navegador real (dev server local, no solo Vitest)**: tenant desechable creado
+vía `create_tenant` con sesión de `blancomj@gmail.com` (`pnpm dev:login`); en `RepuestoDrawer.vue`
+se creó un repuesto con política `inventario` + cuenta `1410 — Materiales y repuestos de
+mantenimiento` (clase 1) desde la UI real, confirmado en la fila insertada; en la OT, seleccionar
+ese repuesto en el formulario de consumo hizo aparecer el selector de periodo y la nota explicativa
+de inmediato (reactividad confirmada), y "Registrar consumo" con cantidad 5 / costo 1.000 generó un
+`contable_comprobante` real (`estado = 'contabilizado'`, `origen_evento = 'consumo_repuesto'`) con
+sus dos líneas balanceadas (débito 5.000 a la cuenta de gasto mapeada, crédito 5.000 a la cuenta de
+existencias elegida en el drawer) — verificado consultando la base directamente tras la acción, no
+solo la respuesta en pantalla.
+
+Reverificación completa post-push+wiring: `pnpm build`/`typecheck`/`lint` en verde (0 errores; el
+único hallazgo, `@typescript-eslint/no-unnecessary-type-conversion` en 4 `Number(...)` redundantes
+de los tests nuevos, corregido) y `tests/mantenimiento/inventario-costos.test.ts` 19/19.
+
+## D-128
+
+**Tres gaps de configurabilidad contable (ICA, ReteIVA/ReteICA, depreciación por defecto)** — a
+pedido explícito del usuario ("Implementa los 3 Gaps encontrados y política de depreciación por
+defecto"), sobre el análisis de investigación entregado previamente en la conversación (auditoría de
+qué le falta configurar al módulo contable, sin exagerar y acotado a lo concerniente a PH). Local
+únicamente (no pusheado a prod todavía). Migraciones `20260935130000`-`20260935170000`.
+
+**1. ICA (`20260935130000`)** — `co1_marco_contable_tenant.sql` ya documentaba en su propio
+comentario que `uso_economico`/`explota_bienes_comunes` deciden "si aplica ICA" (ET art. 19-5 cubre
+renta E ICA con la misma base), y el plan de cuentas ya trae 2510 'Industria y comercio (ICA)' — pero
+no existía ningún lugar para configurar municipio/tarifa/periodicidad ni ningún resumen, a diferencia
+de IVA (CO-8 §4.3). Mismo patrón incremental que `iva_periodicidad_id`: 4 columnas nuevas en
+`tenants` (`ica_aplica`, `ica_municipio`, `ica_tarifa_por_mil`, `ica_periodicidad_id`), catálogo
+`PERIODICIDAD_ICA` (bimestral/anual — distinto de `PERIODICIDAD_IVA` porque ICA puede ser anual,
+IVA no), sin guard de escritura (validación perezosa, igual que IVA). `tributario_resumen_ica()`
+reutiliza `contable_ingresos_por_naturaleza_tributaria()` (CO-8 §4.1) sumando `gravado_renta` +
+`gravado_renta_iva` — no crea un ledger nuevo tipo `tributario_iva_generado`, porque a diferencia de
+IVA (hecho generador propio), ICA comparte exactamente la base de renta. Informativo: no genera
+ningún asiento automático, mismo criterio que `tributario_resumen_iva`.
+
+**2. ReteIVA/ReteICA (`20260935140000`)** — hoy `agente_retencion` es un solo booleano que en la
+práctica solo cubre retención en la fuente (renta), pero la DIAN/el municipio nombran agentes de
+ReteIVA y ReteICA por separado. El mecanismo `tributario_concepto_retencion` + `finanzas_factura_
+retencion` (CO-8 §4.2) ya es genérico (concepto → tarifa → cuenta contable, sobre una base
+cualquiera) — no se crea una tabla nueva, solo se agrega `tipo_id` (catálogo `TIPO_RETENCION_
+CONCEPTO`: fuente/iva/ica) a `tributario_concepto_retencion` (NOT NULL con backfill a 'fuente' para
+conceptos preexistentes — 3 pasos por disciplina aunque CO-8 documenta la tabla como "nace vacía"),
+2 columnas nuevas en `tenants` (`agente_reteiva`, `agente_reteica`), y se redefine
+`guard_finanzas_factura_retencion` para exigir la columna correspondiente al tipo del concepto en
+vez de siempre `agente_retencion`. `tributario_certificado_retencion`/`tributario_resumen_
+retenciones_mensual` ganan un `p_tipo_codigo` opcional al final (retrocompatible: sin especificar,
+junta los tres tipos como antes). **Error propio corregido en el camino**: `create or replace
+function` con distinta aridad crea un SEGUNDO overload en vez de reemplazar — lección ya en memoria
+de sesión ([[feedback-extender-funcion-pg-cambia-aridad]]), olvidada al escribir la primera versión
+de este mismo corte; encontrado por `PGRST203` en `tests/contabilidad/tributario.test.ts` #6, resuelto
+con `drop function if exists` explícito de las firmas viejas antes de recrear.
+
+**3. Depreciación por defecto (`20260935150000`)** — `activos.vida_util_meses`/`metodo_
+depreciacion` (MANT-0) se definen activo por activo, sin ningún default de copropiedad. Tabla nueva
+`mant_categoria_depreciacion_default` (tenant_id, categoria_id → `CATEGORIA_ACTIVO`, metodo_
+depreciacion, vida_util_meses), **deliberadamente SIN el versionado borrador/vigente/histórica** de
+`contable_politica_deterioro` (CO-7): esto no recalcula saldos ni necesita auditoría de cambios, es
+una sugerencia que `ActivoFormDrawer.vue` precarga al elegir categoría (solo en modo creación, y solo
+si el usuario no tocó ya método/vida útil) — el mismo criterio de proporcionalidad que MANT-6/D-127
+("no toda parametrización necesita el aparato completo de una política versionada"). Nueva página
+`contabilidad/depreciacion.vue` + store `depreciacion-default.ts` (mirror de `deterioro.ts` pero sin
+simulación/activación).
+
+**Dos regresiones preexistentes encontradas al correr la suite completa (no de este corte, pero
+bloqueaban verificarlo)**:
+- **`CONSUMO_REPUESTO_MANTENIMIENTO` sin default rompía TODA materialización** (`20260935160000`):
+  D-127 sembró este evento deliberadamente sin cuenta por defecto ("mismo criterio que
+  `RECONOCIMIENTO_BIEN_DESAFECTADO`") — pero esa cita es exactamente la lectura que
+  `20260930350000` ya había corregido para ese mismo evento: "todo evento contable global activo
+  tiene un default sembrado al alta" es una invariante cerrada (`tests/contabilidad/alta-
+  parametrizacion-contable.test.ts`, PC-3c). Sin backfill, cualquier tenant que llamara
+  `fn_contabilizar_periodo` quedaba bloqueado con `CONTABLE_PARAMETRIZACION_PENDIENTE` aunque nunca
+  hubiera tocado un repuesto — regresión en `tests/finanzas/facturas-proveedor.test.ts` #13 y
+  `tests/contabilidad/tributario.test.ts` #8. Corregido sembrando `CONSUMO_REPUESTO_MANTENIMIENTO
+  -> 5590` (Otros mantenimientos, cuenta genérica ya existente en el PUC) en `fn_instanciar_cuentas_
+  default`, mismo patrón que el fix de `RECONOCIMIENTO_BIEN_DESAFECTADO`.
+- **`fn_instanciar_plan_contable`/`fn_instanciar_fondo_imprevistos` sin EXECUTE para NADIE**
+  (`20260935170000`): `20260932550000` revocó EXECUTE de estas 7 funciones de aprovisionamiento
+  "from public, anon, authenticated" por una razón de seguridad real (cualquier autenticado podía
+  resembrar la plantilla de OTRO tenant) — pero como ningún rol tenía un GRANT propio (todos
+  dependían del EXECUTE por defecto de PUBLIC que ese revoke retiró), `service_role` quedó bloqueado
+  también, rompiendo en silencio dos fixtures que predatan el revoke (`tenantConPlan` en
+  `tributario.test.ts`, la prueba de idempotencia de `fn_instanciar_fondo_imprevistos` en `alta-
+  parametrizacion-contable.test.ts`). `tenantConPlan` se corrigió para pasar por `create_tenant()`
+  (más correcto — ejercita el camino real, no necesita ningún grant); a las 7 funciones se les
+  restauró el EXECUTE solo a `service_role` (nunca `authenticated`/`anon` — eso reabriría el hueco de
+  seguridad que corrigió `20260932550000`). **Hallazgo más serio, flageado aparte (`spawn_task`, no
+  resuelto en este corte)**: `apps/web/app/stores/contabilidad.ts::instanciarPlan()` /
+  `plan-de-cuentas.vue` ("Instalar plan base"/"Agregar cuentas opcionales") llaman a
+  `fn_instanciar_plan_contable` DIRECTO como `authenticated` desde el navegador — el mismo patrón que
+  `20260932550000` bloqueó. Sin verificar todavía si ya está roto en producción; necesita una RPC
+  wrapper con `has_role` antes de exponerla al store.
+
+**Verificado**: `pnpm build`/`typecheck`/`lint` en verde (0 errores). 4 tests nuevos en
+`tests/contabilidad/tributario.test.ts` (#10-13: ICA no aplica/sin configurar/happy path,
+ReteIVA distinto de agente_retencion) y 2 en `tests/mantenimiento/activos-contable.test.ts` (#25-26:
+categoria_id inválida, vida_util_meses condicionada al método). `pnpm test` completo: 2249 passed /
+10 failed (224 archivos, 5 fallan) — las 10 fallas son preexistentes y no relacionadas con este
+corte: 6 dependen de datos de gc-001 que esta base local no tiene sembrados (mismo criterio que
+[[feedback_diagnosticar_datos_faltantes_local_antes_de_bug]] — `tests/seed/gc001.test.ts`,
+`materializacion.test.ts` #11, `contable-movimientos.test.ts`), 1 de `cartera-ejecutar-lote.test.ts`
+(misma causa, depende de candidatas de gc-001), y 3 de `cartera-envio-evidencia.test.ts` (SMS de
+Brevo sin crédito, documentado desde antes — [[feedback_brevo_fetch_sin_try_catch]]). Ninguna toca
+contabilidad/tributario, mantenimiento/activos-contable, mantenimiento/inventario-costos,
+alta-parametrizacion-contable ni error-codes-coverage — los 4 archivos de este corte están 59/59 en
+verde de forma aislada y dentro de la corrida completa.
+
+**Verificación en navegador** (tenant nuevo, sin datos): clasificación ICA completa (3 checkboxes +
+municipio/tarifa/periodicidad) con guardado y recarga dura confirmando persistencia; pestaña ICA en
+`tributario.vue` calculando el resumen vía RPC (feliz y error); selector de tipo de retención
+(ReteIVA/ReteICA) filtrando el catálogo de conceptos; página `depreciacion.vue` guardando un default
+por categoría; `ActivoFormDrawer` autocompletando método/vida útil al crear un activo nuevo en esa
+categoría — los 5 flujos correctos de punta a punta.
+
+**Bug propio encontrado y corregido durante esta verificación** (no en el análisis original, pero
+bloqueaba la pestaña de periodicidad ICA que este mismo corte agrega): `configuracion.vue` cargaba
+las opciones de los `USelect` de periodicidad IVA/ICA y sincronizaba el formulario dentro del
+handler de `useAsyncData` — en una recarga dura del navegador, Nuxt reutiliza el payload de SSR y
+nunca vuelve a ejecutar ese handler en el cliente, así que esos efectos secundarios (mutar los refs
+de opciones, `sincronizarFormConTenant()`) nunca corrían y el select de periodicidad ICA quedaba con
+cero opciones — mismo patrón ya documentado en
+[[feedback_useasyncdata_ref_pagina_no_hidrata]]. El de periodicidad IVA (preexistente, no de este
+corte) tenía el mismo defecto silencioso. Corregido moviendo la carga a `onMounted(cargar)` (mismo
+patrón que `mantenimiento/salud/configuracion.vue`), verificado con recarga dura + reapertura del
+select mostrando ambas opciones.
+
+**Además**: 4 códigos de error de la migración `20260935120000` (MANT6-FASE1, de esta misma sesión
+antes de la compactación) sin registrar en `error-codes.ts`
+(`REPUESTO_POLITICA_INVENTARIO_SIN_CUENTA`, `REPUESTO_INEXISTENTE`,
+`CONSUMO_COSTO_UNITARIO_REQUERIDO`, `CONTABLE_PERIODO_REQUERIDO`) — hallado por una sesión paralela
+corriendo `tests/governance/error-codes-coverage.test.ts`, corregido acá.
+
+**Fuera de alcance de este corte, evaluado y descartado explícitamente** (criterio "sin exagerar"
+del propio pedido de investigación): multi-moneda/redondeo configurable (`tenants.moneda` fijo en
+COP, sin caso real de PH operando en otra moneda), periodo fiscal no-calendario (hardcoded Ene-Dic,
+consistente con Ley 675), dígitos de cuenta auxiliar configurables por tenant (invasivo para un
+beneficio marginal), Gran Contribuyente/Régimen Simple (rarísimo en PH, sin necesidad documentada).
+
+## D-129
+
+**Bug de producción real hallado durante D-128, sin relación con ese corte: `fn_instanciar_plan_
+contable` sin EXECUTE para `authenticated` rompía "Instalar plan base" desde el navegador** —
+`20260932550000` (SEC-REVOKE, 2026-09-09) le revocó EXECUTE de `public`/`anon`/`authenticated` a
+las 7 funciones `fn_instanciar_*` de aprovisionamiento interno de `create_tenant()` (razón legítima:
+ninguna validaba que `auth.uid()` perteneciera al `p_tenant_id` recibido — cualquier autenticado
+podía resembrar la plantilla de OTRA copropiedad pasando su id). Pero
+`apps/web/app/pages/contabilidad/plan-de-cuentas.vue` (vía
+`contabilidad.ts::instanciarPlan()`) invoca `fn_instanciar_plan_contable` DIRECTO como RPC desde el
+navegador — exactamente el patrón que el revoke bloqueó. Confirmado roto en producción
+(`hwjmlyzzvpmhadldavbq`: `has_function_privilege('authenticated', 'fn_instanciar_plan_contable(uuid,
+boolean,text)', 'execute')` = `false`), sin que ningún test lo hubiera detectado — el único test
+existente (`tests/contabilidad/marco-contable-tenant.test.ts`) la invoca con el cliente admin
+(`service_role`), no como el usuario autenticado real. Ninguna sesión anterior lo notó porque
+"verificar en el navegador" se hizo contra un stack local con grants ya parchados manualmente
+(mismo problema que [[feedback_grants_service_role_incompletos_tras_bootstrap]] documenta), no
+contra el estado real que producen las migraciones limpias.
+
+**Fix (`20260935180000`)**: función nueva `fn_instalar_plan_contable(uuid, boolean, text)`,
+`security definer`, que valida `has_role(p_tenant_id, array['auxiliar'])` —mismo chequeo que ya usa
+`contable_cuenta_insert_auxiliar`— y solo entonces delega en `fn_instanciar_plan_contable`. El
+chequeo de autorización sigue siendo del usuario real y no del dueño de la función: `has_role` lee
+`auth.uid()` de la sesión (GUC), no del rol de Postgres activo, así que `SECURITY DEFINER` no lo
+debilita. `fn_instanciar_plan_contable` en sí sigue SIN EXECUTE para `authenticated` — la wrapper es
+la única vía autorizada desde RPC directo. `contabilidad.ts::instanciarPlan()` actualizado para
+llamar a la wrapper. Las otras 6 `fn_instanciar_*` no se invocan desde `apps/web` (verificado por
+grep) — no necesitan wrapper equivalente.
+
+Regresión en `tests/contabilidad/plan-de-cuentas-instalacion.test.ts`: cubre el flujo real (auxiliar
+instala el plan de su propia copropiedad), rol insuficiente (auditor), tenant ajeno (administrador
+de OTRA copropiedad), y que `fn_instanciar_plan_contable` sin wrapper sigue dando `42501` — así el
+hueco que `20260932550000` cerró no se reabre en silencio ni el flujo real se vuelve a romper.
+
+## D-130
+
+**Gap real hallado al auditar el modal "Nuevo comprobante" (a pedido del usuario, tras mostrar un
+screenshot del formulario): las dimensiones analíticas por línea (tercero/inmueble/centro de
+costo/fondo) no tenían ningún campo en la captura manual** — el modelo de datos y
+`fn_contabilizar_comprobante` (CO-2, `20260930210000`) ya exigen `requiere_tercero/inmueble/
+centro_costo/fondo` por cuenta desde el origen (`COMPROBANTE_DIMENSION_REQUERIDA`), y el store
+(`crearComprobante`) ya aceptaba e insertaba esos 4 campos — pero
+`apps/web/app/pages/contabilidad/comprobantes.vue` solo tenía Cuenta/Débito/Crédito por línea. Un
+borrador contra una cuenta que exige tercero (ej. 2205 Proveedores de bienes) o inmueble (ej. 4105
+Cuotas ordinarias) quedaba permanentemente atascado: se guardaba como borrador, pero
+`fn_contabilizar_comprobante` lo rechazaba siempre y no había forma de completar el dato faltante
+desde la UI.
+
+**Fix (solo frontend, sin migración)**: cada línea ahora muestra una segunda fila de selectores —
+Tercero, Inmueble, Centro de costo, Fondo— pero **solo los que la cuenta elegida en esa línea
+realmente exige** (`contable_cuenta.requiere_*`, ya cargado en `contabilidadStore.cuentas`), para no
+llenar de campos un formulario donde la mayoría de las cuentas no necesita ninguno. Reutiliza los
+catálogos y componentes ya existentes en el resto de la app (mismo criterio que
+`PresupuestoEjecucionDrawer.vue`): `UiSelectorBuscable` + `useTercerosStore`/`useCuentaCorrienteStore`
+(inmuebles)/`useFondosStore`, y `USelect` + `usePresupuestoStore().tiposCentroCosto` (mismo patrón
+que el resto de selectores de centro de costo). Los 4 catálogos se cargan bajo demanda al abrir el
+drawer (`abrirCreacion`), no en el `useAsyncData` de la página — no todos los tenants con
+comprobantes tienen terceros/fondos que valga la pena precargar siempre.
+
+Deliberadamente **no** se bloquea "Guardar borrador" si falta una dimensión requerida: el propio
+formulario ya documenta que "el borrador se guarda aunque no cuadre" (el cuadre y las dimensiones
+las exige únicamente `fn_contabilizar_comprobante`, del lado del servidor) — cambiar eso habría sido
+un cambio de comportamiento no pedido, no parte de este gap.
+
+**Verificado**: `pnpm typecheck`/`lint` en verde (0 errores); `tests/contabilidad/comprobante-
+nucleo.test.ts` (15/15, incluida la prueba #9 que ya cubre `COMPROBANTE_DIMENSION_REQUERIDA` del
+lado del servidor — este corte no toca esa función, solo la UI que faltaba delante de ella).
+Verificado en navegador contra el plan de cuentas real: cuenta 1315 (Fondo de imprevistos, exige
+fondo E inmueble) muestra ambos selectores; cuenta 5105 (Honorarios de administración, exige
+tercero Y centro de costo) muestra esos dos, con el desplegable de centro de costo poblado con datos
+reales (Administración/Seguridad/Aseo/Mantenimiento/Ascensores/Piscina/Zonas verdes); cuentas sin
+ninguna dimensión requerida (la mayoría) no muestran fila adicional.
+
+## D-131
+
+**Los otros dos gaps del mismo análisis de D-130 (comprobantes manuales): sin campo de
+observaciones y sin soporte documental** — pedido explícito del usuario tras confirmarle que el
+segundo no se había implementado todavía. Migración `20260935190000`.
+
+**1. Observaciones (`contable_comprobante.observaciones`, nullable)** — distinta de `descripcion`
+(el concepto, obligatorio, fijado al crear): nota libre para quien revisa el comprobante después
+(ej. un revisor fiscal dejando contexto). No participa en la inmutabilidad de
+`guard_contable_comprobante_transicion` (no está en su lista de campos bloqueados), pero
+`contable_comprobante_update_auxiliar` SÍ bloquea cualquier UPDATE directo del cliente cuando el
+comprobante ya no está en `(borrador, anulado)` — a propósito, para que un cliente nunca alcance
+`estado='contabilizado'` ni toque `numero` por fuera de `fn_contabilizar_comprobante` (ver D-2 de
+esta misma tabla). Cambiar esa política para dejar pasar "solo observaciones" no es expresable de
+forma segura en RLS (`WITH CHECK` no ve el `OLD.estado`, y una segunda policy permisiva reabriría
+el bypass vía OR de policies) — se optó por una RPC dedicada,
+`fn_actualizar_observaciones_comprobante(uuid, text)`, `security definer` con `has_role` interno,
+que solo puede tocar esa columna. Funciona en cualquier estado, incluido `contabilizado`.
+
+**2. Soporte documental (`documentos.comprobante_id`)** — generalización #9 de `documentos`
+(después de `pago_id`/`caso_juridico_id`/`envio_id`/`publicacion_id`+`anuncio_id`/
+`tercero_perfil_id`/`activo_id`), mismo patrón que `pago_id` (RC-7): se sube DESPUÉS de crear el
+comprobante (el borrador ya tiene id estable, a diferencia de `fondo_movimientos.documento_id` que
+exige subir antes porque esa fila no se vuelve a tocar tras crearla). Nuevo código de catálogo
+`TIPO_DOCUMENTO.soporte_comprobante`. UI: sección "Soporte documental" en el drawer de detalle
+(no en el de creación), visible en cualquier estado — listado de adjuntos + subida ad-hoc (input
+de archivo nativo, sin selector de tipo: siempre `soporte_comprobante`).
+
+**Hallazgo incidental corregido de paso**: al redefinir `guard_documento_tipo_familia()` para
+agregar la validación de `comprobante_id`, se encontró que la de `pago_id` se había perdido en
+silencio desde `20260908180000` (cada `create or replace function` reemplaza el cuerpo completo, y
+esa migración de `envio_id` no la volvió a copiar) — no explotable hoy porque `subir-documento/
+index.ts` ya valida `pago.tenant_id === tenantId` antes del insert (único camino de escritura real,
+`documentos` no tiene política INSERT para `authenticated`), pero es defensa en profundidad que no
+debía perderse. Restaurada en la misma migración.
+
+**Verificado**: `pnpm typecheck`/`lint` en verde. `tests/contabilidad/comprobante-nucleo.test.ts`
+17/17 (2 pruebas nuevas: #16 confirma que un UPDATE directo de `auxiliar` sobre un comprobante
+contabilizado da 42501 —RLS `WITH CHECK`— y que la RPC sí lo anota sin tocar `estado`/`numero`/
+`descripcion`; #17 confirma que un auditor no puede llamar la RPC). `tests/tenancy/subir-
+documento.test.ts` 12/12 (2 pruebas nuevas: flujo feliz con `comprobante_id` y
+`COMPROBANTE_NO_ENCONTRADO` con un id inexistente). Verificado en navegador de punta a punta:
+observaciones se guardan y recargan en creación; un PDF de prueba subido vía `comprobante_id`
+aterriza en `_comprobante/<id>/` en Storage con URL firmada válida; tras contabilizar el
+comprobante, tanto las observaciones (editadas y guardadas de nuevo) como el soporte siguen
+visibles y editables — confirmado también contra la fila real en Postgres.

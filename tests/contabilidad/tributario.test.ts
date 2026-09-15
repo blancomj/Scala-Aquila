@@ -23,8 +23,6 @@ import type { Database } from '@aquila/shared'
 import {
   clienteAdmin,
   clienteComo,
-  crearMembership,
-  crearTenant,
   crearUsuario,
   eliminarTenant,
   eliminarUsuario,
@@ -77,23 +75,28 @@ d('CO-8: obligaciones tributarias', () => {
   }
 
   // ── Escenario liviano: tenant + membresía + plan de cuentas, sin proveedor/factura ────────
+  // Vía create_tenant() (nunca fn_instanciar_plan_contable directo): 20260932550000 le revocó
+  // EXECUTE a public/anon/authenticated — invocable solo internamente desde create_tenant() (la
+  // razón de seguridad real: cualquier autenticado podía resembrar la plantilla de OTRO tenant
+  // pasando su id). El creador queda 'administrador', que ya satisface cualquier chequeo de
+  // 'auxiliar' (has_role, 20260830100000) — no hace falta crearMembership aparte.
   async function tenantConPlan(
     etiqueta: string,
     overrides: Partial<Database['public']['Tables']['tenants']['Update']> = {},
   ): Promise<{ tenant: TenantPrueba; cliente: Cliente }> {
-    const tenant = await crearTenant(admin, etiqueta)
-    tenantsCreados.push(tenant.id)
-    const { error: errPlan } = await admin.rpc('fn_instanciar_plan_contable', { p_tenant_id: tenant.id })
-    if (errPlan) throw errPlan
-    if (Object.keys(overrides).length > 0) {
-      const { error } = await admin.from('tenants').update(overrides).eq('id', tenant.id)
-      if (error) throw error
-    }
     const usuario = await crearUsuario(admin, etiqueta)
     usuariosCreados.push(usuario)
-    await crearMembership(admin, tenant.id, usuario.id, 'auxiliar')
     const cliente = await clienteComo(env!, usuario)
-    return { tenant, cliente }
+    const { data: tenantRpc, error } = await cliente
+      .rpc('create_tenant', { p_name: `CO-8 ${etiqueta}`, p_slug: `t-${RUN_ID}-${etiqueta}` })
+      .single<{ id: string; slug: string }>()
+    if (error) throw new Error(`create_tenant (${etiqueta}): ${error.message}`)
+    tenantsCreados.push(tenantRpc.id)
+    if (Object.keys(overrides).length > 0) {
+      const { error: errOverrides } = await admin.from('tenants').update(overrides).eq('id', tenantRpc.id)
+      if (errOverrides) throw errOverrides
+    }
+    return { tenant: { id: tenantRpc.id, slug: tenantRpc.slug }, cliente }
   }
 
   // ── Escenario completo (mismo patrón que tests/finanzas/facturas-proveedor.test.ts): tenant
@@ -215,9 +218,12 @@ d('CO-8: obligaciones tributarias', () => {
   async function crearConceptoRetencion(
     tenantId: string, cuentaId: string, codigo: string, tarifa: number,
   ): Promise<number> {
+    // Gap ReteIVA/ReteICA (2026-09-14): tipo_id ahora es obligatorio — todos los conceptos de
+    // este archivo son retención en la fuente (agente_retencion), nunca ReteIVA/ReteICA.
+    const tipoFuenteId = await idListaTipos('TIPO_RETENCION_CONCEPTO', 'fuente')
     const { data, error } = await admin
       .from('tributario_concepto_retencion')
-      .insert({ tenant_id: tenantId, codigo, nombre: codigo, tarifa, cuenta_contable_id: cuentaId })
+      .insert({ tenant_id: tenantId, codigo, nombre: codigo, tarifa, cuenta_contable_id: cuentaId, tipo_id: tipoFuenteId })
       .select('id').single<{ id: number }>()
     if (error) throw new Error(`fixture concepto retención ${codigo}: ${error.message}`)
     return data.id
@@ -479,5 +485,95 @@ d('CO-8: obligaciones tributarias', () => {
       .from('tributario_iva_generado').select('id').eq('tenant_id', tenantB.id)
     expect(errIva).toBeNull()
     expect(iva).toEqual([])
+  }, 30_000)
+
+  // ── Gap ICA / ReteIVA / ReteICA (2026-09-14) ─────────────────────────────
+  it('10. un tenant con ica_aplica=false no puede calcular el resumen de ICA', async () => {
+    const { tenant } = await tenantConPlan('ica-no-aplica')
+    const { error } = await admin.rpc('tributario_resumen_ica', {
+      p_tenant_id: tenant.id, p_anio: ANIO, p_periodo_numero: 1,
+    })
+    expect(error?.message).toContain('TRIBUTARIO_ICA_NO_APLICA')
+  }, 30_000)
+
+  it('11. ica_aplica=true sin tarifa/periodicidad configuradas falla con TRIBUTARIO_ICA_SIN_CONFIGURAR', async () => {
+    const { tenant } = await tenantConPlan('ica-sin-configurar', { ica_aplica: true })
+    const { error } = await admin.rpc('tributario_resumen_ica', {
+      p_tenant_id: tenant.id, p_anio: ANIO, p_periodo_numero: 1,
+    })
+    expect(error?.message).toContain('TRIBUTARIO_ICA_SIN_CONFIGURAR')
+  }, 30_000)
+
+  it('12. el resumen de ICA calcula sobre la misma base gravada de renta que comparte con el ET art. 19-5', async () => {
+    const periodicidadBimestral = await idListaTipos('PERIODICIDAD_ICA', 'bimestral')
+    const { tenant, cliente } = await tenantConPlan('ica-resumen', {
+      ica_aplica: true, ica_tarifa_por_mil: 10, ica_periodicidad_id: periodicidadBimestral,
+    })
+    const periodoId = await crearPeriodo(tenant.id, ANIO, MES)
+    const naturalezaGravadoRenta = await idListaTipos('NATURALEZA_TRIBUTARIA_CUENTA', 'gravado_renta')
+    const tipoIngresoId = await idListaTipos('TIPO_COMPROBANTE', 'INGRESO')
+
+    const caja = await cuentaPorCodigo(tenant.id, '110505')
+    const parqueadero = await cuentaPorCodigo(tenant.id, '4310')
+    await admin.from('contable_cuenta').update({ naturaleza_tributaria_id: naturalezaGravadoRenta }).eq('id', parqueadero)
+
+    const { data: periodo } = await admin.from('periodos').select('anio').eq('id', periodoId).single<{ anio: number }>()
+    const { data: comp, error: errComp } = await admin
+      .from('contable_comprobante')
+      .insert({ tenant_id: tenant.id, periodo_id: periodoId, tipo_id: tipoIngresoId, anio: periodo!.anio, fecha: FECHA_EMISION, descripcion: 'CO-8 prueba 12 ICA' })
+      .select('id').single<{ id: string }>()
+    if (errComp) throw errComp
+    await admin.from('contable_comprobante_detalle').insert([
+      { tenant_id: tenant.id, comprobante_id: comp.id, linea: 1, cuenta_id: caja, debito: 1_000_000, credito: 0 },
+      { tenant_id: tenant.id, comprobante_id: comp.id, linea: 2, cuenta_id: parqueadero, debito: 0, credito: 1_000_000 },
+    ])
+    const { error: errContab } = await cliente.rpc('fn_contabilizar_comprobante', { p_comprobante_id: comp.id })
+    expect(errContab).toBeNull()
+
+    // MES=6 -> bimestre 3 (mayo-junio).
+    const periodoNumero = Math.ceil(MES / 2)
+    const { data: resumen, error } = await admin
+      .rpc('tributario_resumen_ica', { p_tenant_id: tenant.id, p_anio: ANIO, p_periodo_numero: periodoNumero })
+      .single()
+    expect(error).toBeNull()
+    expect(resumen!.base_gravable).toBe(1_000_000)
+    expect(resumen!.tarifa_por_mil).toBe(10)
+    expect(resumen!.valor_estimado).toBe(10_000)
+  }, 30_000)
+
+  it('13. un concepto tipo ReteIVA exige agente_reteiva, independiente de agente_retencion', async () => {
+    const e = await prepararEscenario('reteiva-sin-agente')
+    // agente_retencion=true (reteFuente) a propósito: la prueba aísla que agente_reteiva es
+    // un permiso DISTINTO, no que "cualquier agente de retención" habilite cualquier tipo.
+    await admin.from('tenants').update({ agente_retencion: true }).eq('id', e.tenantId)
+    const cuenta2367 = await cuentaPorCodigo(e.tenantId, '2320') // cualquier cuenta de clase 23 sirve para la prueba
+    const tipoIvaId = await idListaTipos('TIPO_RETENCION_CONCEPTO', 'iva')
+    const { data: concepto, error: errConcepto } = await admin
+      .from('tributario_concepto_retencion')
+      .insert({
+        tenant_id: e.tenantId, codigo: 'reteiva-15', nombre: 'ReteIVA', tarifa: 15,
+        cuenta_contable_id: cuenta2367, tipo_id: tipoIvaId,
+      })
+      .select('id').single<{ id: number }>()
+    expect(errConcepto).toBeNull()
+
+    const { data: factura, error } = await crearFactura(filaFactura(e, {
+      subtotal: 1_000_000, total_bruto: 1_000_000, total_retenciones: 0, total_neto_pagar: 1_000_000,
+    }))
+    expect(error).toBeNull()
+
+    // e.tenantId tiene agente_retencion=true (prepararEscenario) pero NO agente_reteiva.
+    const { error: errRetencion } = await admin.from('finanzas_factura_retencion').insert({
+      tenant_id: e.tenantId, factura_id: factura!.id, concepto_id: concepto!.id,
+      base: 190_000, tarifa: 15, valor: 28_500,
+    })
+    expect(errRetencion?.message).toContain('TRIBUTARIO_SIN_AGENTE_RETENCION')
+
+    await admin.from('tenants').update({ agente_reteiva: true }).eq('id', e.tenantId)
+    const { error: errRetencionOk } = await admin.from('finanzas_factura_retencion').insert({
+      tenant_id: e.tenantId, factura_id: factura!.id, concepto_id: concepto!.id,
+      base: 190_000, tarifa: 15, valor: 28_500,
+    })
+    expect(errRetencionOk).toBeNull()
   }, 30_000)
 })

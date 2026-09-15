@@ -9,6 +9,8 @@
 //
 // Arriba va lo que falta, no lo que está bien: mientras queden pendientes no se puede exportar,
 // así que esa lista ES la tarea de esta pantalla.
+import type { OpcionSelectorBuscable } from '~/components/ui/UiSelectorBuscable.vue'
+
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
@@ -58,23 +60,30 @@ const partidas = computed(() => {
 
 /** El guard de BD exige que la clase concuerde con la naturaleza (egreso → 5 o 6, ingreso → 4).
  * Filtrar aquí evita ofrecer opciones que la base va a rechazar: el error existe igual, pero no
- * es forma de descubrir la regla. */
-function opcionesPara(naturaleza: string): { label: string; value: string | null }[] {
+ * es forma de descubrir la regla.
+ *
+ * `UiSelectorBuscable`, no `USelect` (CLAUDE.md, catálogos de copropiedad): egreso solo llega a
+ * mostrar hasta ~45 cuentas (clases 5+6), pero es la MISMA columna que ingreso (~15) fila por
+ * fila — partir el comportamiento entre buscable/no-buscable dentro de una sola columna sería
+ * más confuso que darle buscador a las dos. */
+function opcionesPara(naturaleza: string): OpcionSelectorBuscable[] {
   const clases = naturaleza === 'egreso' ? [5, 6] : [4]
   return [
-    { label: '— Sin mapear —', value: null },
+    { etiqueta: '— Sin mapear —', valor: null },
     ...contabilidadStore.cuentasDeMovimiento
       .filter((c) => clases.includes(c.clase))
-      .map((c) => ({ label: `${c.codigo} · ${c.nombre}`, value: c.id })),
+      .map((c) => ({ etiqueta: `${c.codigo} · ${c.nombre}`, valor: c.id })),
   ]
 }
 
-const opcionesEvento = computed(() => [
-  ...contabilidadStore.cuentasDeMovimiento.map((c) => ({
-    label: `${c.codigo} · ${c.nombre}`,
-    value: c.id,
+/** Sin filtrar por clase (cualquier evento puede caer en cualquiera) — la más larga de las dos
+ * listas de esta pantalla, ~100 cuentas: la candidata obvia a buscador. */
+const opcionesEvento = computed<OpcionSelectorBuscable[]>(() =>
+  contabilidadStore.cuentasDeMovimiento.map((c) => ({
+    etiqueta: `${c.codigo} · ${c.nombre}`,
+    valor: c.id,
   })),
-])
+)
 
 const defaultPorEvento = computed(
   () => new Map(contabilidadStore.defaults.map((d) => [d.evento_id, d.contable_cuenta_id])),
@@ -210,12 +219,13 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
 
       <UiTabla
         :columnas="[
-          { clave: 'partida', etiqueta: 'Partida presupuestal' },
-          { clave: 'naturaleza', etiqueta: 'Naturaleza' },
+          { clave: 'partida', etiqueta: 'Partida presupuestal', ancho: '469px' },
+          { clave: 'naturaleza', etiqueta: 'Naturaleza', ancho: '110px' },
           { clave: 'cuenta', etiqueta: 'Cuenta contable' },
         ]"
         :filas="partidas"
         :clave-fila="(fila) => fila.id"
+        :fijo="true"
         :vacio="soloSinMapear ? 'No queda ninguna partida sin mapear.' : 'Sin partidas.'"
       >
         <template #celda-partida="{ fila }">
@@ -232,13 +242,13 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
           </UBadge>
         </template>
         <template #celda-cuenta="{ fila }">
-          <USelect
+          <UiSelectorBuscable
             :model-value="fila.contable_cuenta_id"
-            :items="opcionesPara(fila.naturaleza)"
-            value-key="value"
-            :loading="guardando === fila.id"
-            class="w-80"
-            @update:model-value="(v: string | null) => mapear(fila.id, v)"
+            :opciones="opcionesPara(fila.naturaleza)"
+            placeholder="— Sin mapear —"
+            :deshabilitado="guardando === fila.id"
+            class="w-[500px]"
+            @update:model-value="(v) => mapear(fila.id, v as string | null)"
           />
         </template>
       </UiTabla>
@@ -253,11 +263,12 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
 
       <UiTabla
         :columnas="[
-          { clave: 'evento', etiqueta: 'Evento' },
+          { clave: 'evento', etiqueta: 'Evento', ancho: '662px' },
           { clave: 'cuenta', etiqueta: 'Cuenta contable' },
         ]"
         :filas="contabilidadStore.eventos"
         :clave-fila="(fila) => fila.id"
+        :fijo="true"
         vacio="Sin eventos en el catálogo."
       >
         <template #celda-evento="{ fila }">
@@ -267,14 +278,13 @@ async function asignarEvento(eventoId: number, contableCuentaId: string): Promis
           </div>
         </template>
         <template #celda-cuenta="{ fila }">
-          <USelect
-            :model-value="defaultPorEvento.get(fila.id) ?? undefined"
-            :items="opcionesEvento"
-            value-key="value"
+          <UiSelectorBuscable
+            :model-value="defaultPorEvento.get(fila.id) ?? null"
+            :opciones="opcionesEvento"
             placeholder="Elegir cuenta…"
-            :loading="guardando === String(fila.id)"
-            class="w-80"
-            @update:model-value="(v: string) => asignarEvento(fila.id, v)"
+            :deshabilitado="guardando === String(fila.id)"
+            class="w-[500px]"
+            @update:model-value="(v) => asignarEvento(fila.id, v as string)"
           />
         </template>
       </UiTabla>

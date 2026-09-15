@@ -584,6 +584,210 @@ d('MANT-6: inventario de repuestos y costos', () => {
     expect(familias!.map((f) => f.codigo)).toEqual(['UNIDAD_MEDIDA'])
   }, 30_000)
 
+  async function cuentaPorCodigo(tenantId: string, codigo: string): Promise<string> {
+    const { data, error } = await admin
+      .from('contable_cuenta')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('codigo', codigo)
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture cuenta contable ${codigo}: ${error.message}`)
+    return data.id
+  }
+
+  async function mapearEventoContable(
+    tenantId: string,
+    codigoEvento: string,
+    contableCuentaId: string,
+  ): Promise<void> {
+    const evento = await idListaTipos('EVENTO_CONTABLE', codigoEvento)
+    // upsert, no insert: fix MANT-6 (20260935160000) sembró un default propio para
+    // CONSUMO_REPUESTO_MANTENIMIENTO en create_tenant() — un insert plano chocaría con esa fila
+    // ya existente (contable_cuenta_default_pkey).
+    const { error } = await admin
+      .from('contable_cuenta_default')
+      .upsert(
+        { tenant_id: tenantId, evento_id: evento, contable_cuenta_id: contableCuentaId },
+        { onConflict: 'tenant_id,evento_id' },
+      )
+    if (error) throw new Error(`fixture contable_cuenta_default ${codigoEvento}: ${error.message}`)
+  }
+
+  it('15. politica_contable inventario sin contable_cuenta_id falla con REPUESTO_POLITICA_INVENTARIO_SIN_CUENTA', async () => {
+    const { tenantId } = await crearTenantCompleto('inv-sin-cuenta')
+    const categoriaId = await idListaTipos('CATEGORIA_REPUESTO', 'ferreteria')
+    const { error } = await admin.from('mant_repuestos').insert({
+      tenant_id: tenantId,
+      sku: `SKU-${RUN_ID}-15`,
+      nombre: 'Repuesto sin cuenta',
+      categoria_id: categoriaId,
+      politica_contable: 'inventario',
+    })
+    expect(error?.message).toContain('REPUESTO_POLITICA_INVENTARIO_SIN_CUENTA')
+  }, 30_000)
+
+  it('16. politica_contable inventario con cuenta de clase distinta de 1 falla con CUENTA_CONTABLE_CLASE_INCOMPATIBLE', async () => {
+    const { tenantId } = await crearTenantCompleto('inv-clase-mala')
+    const cuentaGasto = await cuentaPorCodigo(tenantId, '5530')
+    const { error } = await admin.from('mant_repuestos').insert({
+      tenant_id: tenantId,
+      sku: `SKU-${RUN_ID}-16`,
+      nombre: 'Repuesto con cuenta de gasto',
+      categoria_id: await idListaTipos('CATEGORIA_REPUESTO', 'ferreteria'),
+      politica_contable: 'inventario',
+      contable_cuenta_id: cuentaGasto,
+    })
+    expect(error?.message).toContain('CUENTA_CONTABLE_CLASE_INCOMPATIBLE')
+  }, 30_000)
+
+  it('17. consumir un repuesto con política inventario genera el comprobante Débito gasto / Crédito existencias', async () => {
+    const { tenantId, cliente } = await crearTenantCompleto('inv-consumo-contable')
+    const cuentaExistencias = await cuentaPorCodigo(tenantId, '1410')
+    // 5915 no exige tercero ni centro de costo (dim '' en el PUC seed) — el fixture no necesita
+    // un activo con centro_costo_id para probar la generación del comprobante en sí.
+    const cuentaGasto = await cuentaPorCodigo(tenantId, '5915')
+    await mapearEventoContable(tenantId, 'CONSUMO_REPUESTO_MANTENIMIENTO', cuentaGasto)
+
+    const repuestoId = await crearRepuesto(tenantId, `SKU-${RUN_ID}-17`, {
+      politica_contable: 'inventario',
+      contable_cuenta_id: cuentaExistencias,
+    })
+    const almacenId = await crearAlmacen(tenantId, 'Principal')
+    const otId = await crearOt(tenantId, 'OT con política inventario')
+    const periodoId = await crearPeriodo(tenantId, ANIO, MES)
+
+    await admin.from('mant_inventario_movimientos').insert({
+      tenant_id: tenantId,
+      repuesto_id: repuestoId,
+      almacen_id: almacenId,
+      tipo: 'entrada',
+      cantidad: 20,
+    })
+
+    const { data: movimiento, error } = await cliente
+      .rpc('fn_mant_registrar_consumo', {
+        p_ot_id: otId,
+        p_repuesto_id: repuestoId,
+        p_almacen_id: almacenId,
+        p_cantidad: 5,
+        p_costo_unitario: 1000,
+        p_periodo_id: periodoId,
+      })
+      .single<Database['public']['Tables']['mant_inventario_movimientos']['Row']>()
+    expect(error).toBeNull()
+    expect(movimiento!.tipo).toBe('salida')
+
+    const { data: comprobante, error: errComp } = await admin
+      .from('contable_comprobante')
+      .select('id, estado, origen_evento')
+      .eq('tenant_id', tenantId)
+      .eq('origen_modulo', 'mantenimiento')
+      .eq('origen_entidad', 'mant_inventario_movimientos')
+      .eq('origen_id', movimiento!.id)
+      .single<{ id: string; estado: string; origen_evento: string }>()
+    expect(errComp).toBeNull()
+    expect(comprobante!.estado).toBe('contabilizado')
+    expect(comprobante!.origen_evento).toBe('consumo_repuesto')
+
+    const { data: detalle, error: errDet } = await admin
+      .from('contable_comprobante_detalle')
+      .select('cuenta_id, debito, credito')
+      .eq('comprobante_id', comprobante!.id)
+      .order('linea')
+    expect(errDet).toBeNull()
+    expect(detalle).toHaveLength(2)
+    expect(detalle![0]!.cuenta_id).toBe(cuentaGasto)
+    expect(detalle![0]!.debito).toBe(5000)
+    expect(detalle![0]!.credito).toBe(0)
+    expect(detalle![1]!.cuenta_id).toBe(cuentaExistencias)
+    expect(detalle![1]!.debito).toBe(0)
+    expect(detalle![1]!.credito).toBe(5000)
+
+    const { data: pendientes } = await admin.rpc('mant_inventario_pendientes_contabilizar', {
+      p_tenant_id: tenantId,
+    })
+    expect(
+      pendientes!.some((p: { movimiento_id: string }) => p.movimiento_id === movimiento!.id),
+    ).toBe(false)
+  }, 30_000)
+
+  it('18. consumo con política inventario pero sin costo_unitario/periodo_id se registra físicamente y queda pendiente con INVENTARIO_CONSUMO_SIN_CONTABILIZAR', async () => {
+    const { tenantId, cliente } = await crearTenantCompleto('inv-consumo-incompleto')
+    const cuentaExistencias = await cuentaPorCodigo(tenantId, '1410')
+    const repuestoId = await crearRepuesto(tenantId, `SKU-${RUN_ID}-18`, {
+      politica_contable: 'inventario',
+      contable_cuenta_id: cuentaExistencias,
+    })
+    const almacenId = await crearAlmacen(tenantId, 'Principal')
+    const otId = await crearOt(tenantId, 'OT inventario incompleta')
+
+    await admin.from('mant_inventario_movimientos').insert({
+      tenant_id: tenantId,
+      repuesto_id: repuestoId,
+      almacen_id: almacenId,
+      tipo: 'entrada',
+      cantidad: 10,
+    })
+
+    const { data: movimiento, error } = await cliente
+      .rpc('fn_mant_registrar_consumo', {
+        p_ot_id: otId,
+        p_repuesto_id: repuestoId,
+        p_almacen_id: almacenId,
+        p_cantidad: 3,
+      })
+      .single<Database['public']['Tables']['mant_inventario_movimientos']['Row']>()
+    expect(error).toBeNull()
+    expect(movimiento!.tipo).toBe('salida')
+
+    const { data: pendientes, error: errPendientes } = await admin.rpc(
+      'mant_inventario_pendientes_contabilizar',
+      { p_tenant_id: tenantId },
+    )
+    expect(errPendientes).toBeNull()
+    const fila = pendientes!.find(
+      (p: { movimiento_id: string }) => p.movimiento_id === movimiento!.id,
+    )
+    expect(fila).toBeDefined()
+    expect(fila!.motivo_bloqueo).toBe('INVENTARIO_CONSUMO_SIN_CONTABILIZAR')
+  }, 30_000)
+
+  it('19. politica_contable gasto_directo (default) nunca genera comprobante, aunque se pasen costo_unitario y periodo_id', async () => {
+    const { tenantId, cliente } = await crearTenantCompleto('gasto-directo-explicito')
+    const repuestoId = await crearRepuesto(tenantId, `SKU-${RUN_ID}-19`)
+    const almacenId = await crearAlmacen(tenantId, 'Principal')
+    const otId = await crearOt(tenantId, 'OT gasto directo')
+    const periodoId = await crearPeriodo(tenantId, ANIO, MES)
+
+    await admin.from('mant_inventario_movimientos').insert({
+      tenant_id: tenantId,
+      repuesto_id: repuestoId,
+      almacen_id: almacenId,
+      tipo: 'entrada',
+      cantidad: 10,
+    })
+
+    const { data: movimiento, error } = await cliente
+      .rpc('fn_mant_registrar_consumo', {
+        p_ot_id: otId,
+        p_repuesto_id: repuestoId,
+        p_almacen_id: almacenId,
+        p_cantidad: 3,
+        p_costo_unitario: 500,
+        p_periodo_id: periodoId,
+      })
+      .single<Database['public']['Tables']['mant_inventario_movimientos']['Row']>()
+    expect(error).toBeNull()
+
+    const { count } = await admin
+      .from('contable_comprobante')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('origen_entidad', 'mant_inventario_movimientos')
+      .eq('origen_id', movimiento!.id)
+    expect(count).toBe(0)
+  }, 30_000)
+
   it('14. aislamiento entre tenants', async () => {
     const { tenantId: tenantA } = await crearTenantCompleto('aislamiento-a')
     const { tenantId: tenantB, cliente: clienteB } = await crearTenantCompleto('aislamiento-b')

@@ -210,6 +210,7 @@ export const useMantenimientoInventarioStore = defineStore('mantenimientoInventa
     almacenId: string
     cantidad: number
     costoUnitario?: number
+    periodoId?: string
   }): Promise<MovimientoRow> {
     guardando.value = true
     try {
@@ -221,6 +222,7 @@ export const useMantenimientoInventarioStore = defineStore('mantenimientoInventa
           p_almacen_id: params.almacenId,
           p_cantidad: params.cantidad,
           p_costo_unitario: params.costoUnitario,
+          p_periodo_id: params.periodoId,
         })
         .single()
       if (error) throw error

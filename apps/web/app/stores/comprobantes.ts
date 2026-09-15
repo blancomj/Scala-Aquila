@@ -133,6 +133,7 @@ export const useComprobantesStore = defineStore('comprobantes', () => {
     anio: number
     fecha: string
     descripcion: string
+    observaciones?: string
     lineas: NuevaLineaDetalle[]
   }): Promise<string> {
     const cliente = useSupabaseClient<Database>()
@@ -145,6 +146,7 @@ export const useComprobantesStore = defineStore('comprobantes', () => {
         anio: params.anio,
         fecha: params.fecha,
         descripcion: params.descripcion,
+        observaciones: params.observaciones?.trim() || null,
       })
       .select('id')
       .single()
@@ -201,6 +203,24 @@ export const useComprobantesStore = defineStore('comprobantes', () => {
     await cargarComprobantes(tenantId)
   }
 
+  /** RPC dedicada (no un UPDATE directo): contable_comprobante_update_auxiliar exige estado in
+   * (borrador, anulado) a propósito — un comprobante contabilizado necesita poder anotarse
+   * igual (ej. un revisor fiscal dejando contexto), así que fn_actualizar_observaciones_
+   * comprobante (SECURITY DEFINER, solo toca esta columna) es el único camino para ese caso. */
+  async function actualizarObservaciones(
+    tenantId: string,
+    comprobanteId: string,
+    observaciones: string,
+  ): Promise<void> {
+    const cliente = useSupabaseClient<Database>()
+    const { error } = await cliente.rpc('fn_actualizar_observaciones_comprobante', {
+      p_comprobante_id: comprobanteId,
+      p_observaciones: observaciones,
+    })
+    if (error) throw error
+    await cargarComprobantes(tenantId)
+  }
+
   async function reversar(
     tenantId: string,
     comprobanteId: string,
@@ -241,6 +261,7 @@ export const useComprobantesStore = defineStore('comprobantes', () => {
     contabilizar,
     anular,
     reversar,
+    actualizarObservaciones,
     limpiar,
   }
 })

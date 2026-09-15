@@ -16,6 +16,7 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 
 const tenantStore = useTenantStore()
 const activosStore = useActivosStore()
+const depreciacionDefaultStore = useDepreciacionDefaultStore()
 // Fase 6 (D-94): "permisos" — un auditor tiene `data:read` (por eso llega a esta pantalla, ver
 // `definePageMeta` abajo) pero no `data:create`/`data:update`; ocultar los botones de escritura
 // evita que confíe en un control que la RLS igual rechazaría (mismo criterio que
@@ -39,6 +40,7 @@ async function cargar(): Promise<void> {
       activosStore.cargarListado(tenantId),
       cargarListaTipos(tenantId, 'TIPO_ACTIVO').then((d) => { tiposActivo.value = d }),
       cargarListaTipos(tenantId, 'CATEGORIA_ACTIVO').then((d) => { categoriasActivo.value = d }),
+      depreciacionDefaultStore.cargarDefaults(tenantId),
     ])
   } catch (excepcion) {
     errorCarga.value = mensajeError(excepcion, 'No se pudo cargar el registro de activos.')
@@ -528,6 +530,7 @@ async function alGuardar(): Promise<void> {
       :tipos-activo="tiposActivo"
       :categorias-activo="categoriasActivo"
       :activos-existentes="activosStore.activos"
+      :depreciacion-defaults="depreciacionDefaultStore.defaults"
       @cerrar="drawerAbierto = false"
       @guardado="alGuardar()"
     />

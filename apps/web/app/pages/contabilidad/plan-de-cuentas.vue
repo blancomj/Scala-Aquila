@@ -31,6 +31,15 @@ const colapsados = ref(new Set<string>())
 // como el árbol de cuentas deben verse cerrados al entrar a la pantalla.
 const resumenExpandido = useCookie<boolean>('contable-plan-resumen-expandido', { default: () => false })
 
+// Por tenant (no global): un administrador puede llevar varias copropiedades y que una de
+// ellas sí quiera clase 6/8 no debe silenciar el aviso en las demás. Se recalcula una sola vez
+// al montar — cambiar de copropiedad implica salir de esta ruta (seleccionar-copropiedad.vue),
+// así que el componente siempre remonta con el tenant correcto ya resuelto.
+const ocultarAvisoOpcionales = useCookie<boolean>(
+  `contable-plan-opcionales-ocultar-${tenantStore.activeTenant?.id ?? 'sin-tenant'}`,
+  { default: () => false },
+)
+
 // `watch: [...]`: activeTenant puede no estar resuelto en el instante exacto
 // de este setup en la carga en frío — la opción reintenta sola en cuanto el
 // id esté disponible (mismo espíritu que configuracion/ia.vue).
@@ -120,8 +129,22 @@ const resumen = computed(() => {
 /** Las clases 6 y 8 y el fondo de reserva son opcionales (PC-01 §3.3): si no están, se pueden
  * agregar sin tocar el resto del plan. */
 const faltanOpcionales = computed(
-  () => contabilidadStore.tienePlan && !contabilidadStore.cuentas.some((c) => c.clase === 6),
+  () =>
+    contabilidadStore.tienePlan &&
+    !contabilidadStore.cuentas.some((c) => c.clase === 6) &&
+    !ocultarAvisoOpcionales.value,
 )
+
+/** Las 13 cuentas marcadas `opcional` en la plantilla (PC-01 §3.3), para el detalle del aviso:
+ * clase 6, clase 8 y 111020 (fondo de reserva). Viene de la plantilla global, no del plan ya
+ * instanciado — por eso se ve aunque el tenant todavía no las tenga. */
+const cuentasOpcionalesPlantilla = computed(() =>
+  [...contabilidadStore.planCuentas]
+    .filter((c) => c.opcional)
+    .sort((a, b) => a.codigo.localeCompare(b.codigo)),
+)
+
+const modalDetalleAbierto = ref(false)
 
 function alternar(codigo: string): void {
   const set = new Set(colapsados.value)
@@ -134,6 +157,15 @@ function colapsarTodo(): void {
   colapsados.value = new Set(
     contabilidadStore.cuentas.filter((c) => !c.permite_movimiento).map((c) => c.codigo),
   )
+}
+
+/** Un solo botón, no dos: si algo sigue contraído (aunque sea parcial, de un toggle manual)
+ * expande todo; solo cuando ya no queda nada contraído, contrae todo de nuevo. */
+const todoExpandido = computed(() => colapsados.value.size === 0)
+
+function alternarExpandirTodo(): void {
+  if (todoExpandido.value) colapsarTodo()
+  else colapsados.value = new Set()
 }
 
 async function instalar(incluirOpcionales: boolean): Promise<void> {
@@ -154,6 +186,22 @@ async function instalar(incluirOpcionales: boolean): Promise<void> {
   } finally {
     trabajando.value = false
   }
+}
+
+/** Cerrar el modal sin elegir nada (X, "Cancelar" o clic afuera) no cambia nada — ni el plan ni
+ * la preferencia de "no mostrar más". */
+function cerrarDetalleOpcionales(): void {
+  modalDetalleAbierto.value = false
+}
+
+function noMostrarMasOpcionales(): void {
+  ocultarAvisoOpcionales.value = true
+  modalDetalleAbierto.value = false
+}
+
+async function agregarOpcionalesDesdeDetalle(): Promise<void> {
+  await instalar(true)
+  modalDetalleAbierto.value = false
 }
 
 async function alternarActiva(cuenta: ContableCuentaNodo): Promise<void> {
@@ -302,14 +350,59 @@ async function alEditarCuenta(): Promise<void> {
       >
         <template #description>
           <p class="mb-2 text-xs">
-            Costos (clase 6), cuentas de orden (clase 8) y el fondo de reserva. Agregarlas no
-            altera ninguna cuenta existente.
+            Vienen en la plantilla base pero no se instalan solas al crear la copropiedad.
           </p>
-          <UButton size="xs" variant="soft" :loading="trabajando" @click="instalar(true)">
-            Agregar cuentas opcionales
+          <UButton size="xs" variant="soft" @click="modalDetalleAbierto = true">
+            Ver detalle
           </UButton>
         </template>
       </UAlert>
+
+      <UModal v-model:open="modalDetalleAbierto" title="Cuentas opcionales">
+        <template #body>
+          <p class="text-sm text-muted mb-4">
+            Son las {{ cuentasOpcionalesPlantilla.length }} cuentas de clase 6 (Costos) y clase 8
+            (Cuentas de orden), más el fondo de reserva — la mayoría de las PH no explota bienes
+            comunes ni lleva cuentas de orden, así que no se instalan solas. Agregarlas no altera
+            ninguna cuenta existente ni requiere volver a hacer nada más adelante.
+          </p>
+          <UiTabla
+            :columnas="[
+              { clave: 'cuenta', etiqueta: 'Cuenta' },
+              { clave: 'naturaleza', etiqueta: 'Naturaleza' },
+            ]"
+            :filas="cuentasOpcionalesPlantilla"
+            :clave-fila="(fila) => fila.id"
+          >
+            <template #celda-cuenta="{ fila }">
+              <span class="tabular-nums font-medium">{{ fila.codigo }}</span>
+              <span :class="fila.permite_movimiento ? '' : 'font-semibold'" class="ml-1">
+                {{ fila.nombre }}
+              </span>
+            </template>
+            <template #celda-naturaleza="{ fila }">
+              <UBadge
+                :color="fila.naturaleza === 'debito' ? 'info' : 'warning'"
+                variant="subtle"
+                size="xs"
+              >
+                {{ fila.naturaleza === 'debito' ? 'Débito' : 'Crédito' }}
+              </UBadge>
+            </template>
+          </UiTabla>
+        </template>
+        <template #footer>
+          <div class="flex items-center justify-between w-full">
+            <UButton variant="ghost" @click="noMostrarMasOpcionales()">No mostrar más</UButton>
+            <div class="flex items-center gap-2">
+              <UButton variant="ghost" @click="cerrarDetalleOpcionales()">Cancelar</UButton>
+              <UButton :loading="trabajando" @click="agregarOpcionalesDesdeDetalle()">
+                Agregar cuentas opcionales
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UModal>
 
       <div class="flex items-center gap-2 flex-wrap">
         <UInput
@@ -330,16 +423,13 @@ async function alEditarCuenta(): Promise<void> {
         </UInput>
         <UCheckbox v-model="soloMovimiento" label="Solo cuentas de movimiento" />
         <div class="flex-1" />
-        <UButton size="xs" variant="ghost" icon="i-lucide-chevrons-down-up" @click="colapsarTodo()">
-          Contraer todo
-        </UButton>
         <UButton
           size="xs"
           variant="ghost"
-          icon="i-lucide-chevrons-up-down"
-          @click="colapsados = new Set()"
+          :icon="todoExpandido ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'"
+          @click="alternarExpandirTodo()"
         >
-          Expandir todo
+          {{ todoExpandido ? 'Contraer todo' : 'Expandir todo' }}
         </UButton>
       </div>
 

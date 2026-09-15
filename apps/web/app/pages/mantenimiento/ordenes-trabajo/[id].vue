@@ -17,6 +17,7 @@ const membersStore = useMembersStore()
 const documentosStore = useDocumentosStore()
 const authStore = useAuthStore()
 const inventarioStore = useMantenimientoInventarioStore()
+const comprobantesStore = useComprobantesStore()
 
 const tiposMantenimiento = ref<Awaited<ReturnType<typeof cargarListaTipos>>>([])
 const tiposEvidencia = ref<Awaited<ReturnType<typeof cargarListaTipos>>>([])
@@ -50,6 +51,7 @@ async function cargar(): Promise<void> {
   await Promise.all([
     inventarioStore.cargarCatalogos(tenantId),
     inventarioStore.cargarMovimientos(tenantId, { otId }),
+    comprobantesStore.periodos.length === 0 ? comprobantesStore.cargarPeriodos(tenantId) : Promise.resolve(),
   ])
   const activoId = ordenesStore.otActual?.activo_id
   if (activoId) {
@@ -224,9 +226,31 @@ const formConsumo = reactive({
   almacenId: undefined as string | undefined,
   cantidad: null as number | null,
   costoUnitario: null as number | null,
+  periodoId: undefined as string | undefined,
+})
+// MANT-6 Fase 1 (D-127): solo un repuesto con politica_contable = 'inventario' necesita periodo
+// (y costo) para que fn_mant_registrar_consumo genere el comprobante — 'gasto_directo' (default)
+// se registra igual que antes, sin ningún campo contable adicional.
+const repuestoConsumoSeleccionado = computed(() =>
+  inventarioStore.repuestos.find((r) => r.id === formConsumo.repuestoId) ?? null,
+)
+const consumoRequiereContabilizacion = computed(
+  () => repuestoConsumoSeleccionado.value?.politica_contable === 'inventario',
+)
+const periodosAbiertosConsumo = computed(() =>
+  comprobantesStore.periodos
+    .filter((p) => p.contable_estado === 'abierto')
+    .map((p) => ({ label: `${MESES_CONSUMO[p.mes - 1]} ${String(p.anio)}`, value: p.id })),
+)
+const MESES_CONSUMO = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+watch(consumoRequiereContabilizacion, (requiere) => {
+  if (requiere && !formConsumo.periodoId) formConsumo.periodoId = periodosAbiertosConsumo.value[0]?.value
+  if (!requiere) formConsumo.periodoId = undefined
 })
 async function registrarConsumo(): Promise<void> {
   if (!ot.value || !formConsumo.repuestoId || !formConsumo.almacenId || !formConsumo.cantidad)
+    return
+  if (consumoRequiereContabilizacion.value && (!formConsumo.costoUnitario || !formConsumo.periodoId))
     return
   errorAccion.value = null
   try {
@@ -236,9 +260,11 @@ async function registrarConsumo(): Promise<void> {
       almacenId: formConsumo.almacenId,
       cantidad: formConsumo.cantidad,
       costoUnitario: formConsumo.costoUnitario ?? undefined,
+      periodoId: formConsumo.periodoId,
     })
     formConsumo.cantidad = null
     formConsumo.costoUnitario = null
+    formConsumo.periodoId = undefined
   } catch (excepcion) {
     errorAccion.value = mensajeError(excepcion, 'No se pudo registrar el consumo.')
   }
@@ -754,13 +780,29 @@ async function agregarEvidencia(): Promise<void> {
               v-model.number="formConsumo.costoUnitario"
               type="number"
               min="0"
-              placeholder="Costo unitario"
+              :placeholder="consumoRequiereContabilizacion ? 'Costo unitario (requerido)' : 'Costo unitario'"
             />
+            <USelect
+              v-if="consumoRequiereContabilizacion"
+              v-model="formConsumo.periodoId"
+              class="w-full"
+              placeholder="Período contable"
+              :items="periodosAbiertosConsumo"
+            />
+            <p v-if="consumoRequiereContabilizacion" class="col-span-full text-xs text-muted">
+              Este repuesto tiene política contable "inventario": el consumo genera un comprobante
+              (débito gasto / crédito existencias) — costo unitario y período son obligatorios.
+            </p>
             <UButton
               class="col-span-full"
               size="sm"
               :loading="inventarioStore.guardando"
-              :disabled="!formConsumo.repuestoId || !formConsumo.almacenId || !formConsumo.cantidad"
+              :disabled="
+                !formConsumo.repuestoId ||
+                !formConsumo.almacenId ||
+                !formConsumo.cantidad ||
+                (consumoRequiereContabilizacion && (!formConsumo.costoUnitario || !formConsumo.periodoId))
+              "
               @click="registrarConsumo()"
             >
               Registrar consumo

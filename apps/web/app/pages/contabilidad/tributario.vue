@@ -15,12 +15,31 @@ const copropiedadStore = useCopropiedadStore()
 const tributarioStore = useTributarioStore()
 
 const error = ref<string | null>(null)
-const pestana = ref<'segregacion' | 'retencion' | 'iva' | 'exogena'>('segregacion')
+const pestana = ref<'segregacion' | 'retencion' | 'iva' | 'ica' | 'exogena'>('segregacion')
 const naturalezasTributarias = ref<OpcionTipo[]>([])
 const terceros = ref<TerceroOpcion[]>([])
+const tiposRetencionCatalogo = ref<OpcionTipo[]>([])
 
 const tenant = computed(() => copropiedadStore.tenant)
-const aplica = computed(() => !!tenant.value && (tenant.value.responsable_iva || tenant.value.agente_retencion))
+const tieneAlgunaRetencion = computed(
+  () => !!tenant.value && (tenant.value.agente_retencion || tenant.value.agente_reteiva || tenant.value.agente_reteica),
+)
+const aplica = computed(
+  () => !!tenant.value && (tenant.value.responsable_iva || tenant.value.ica_aplica || tieneAlgunaRetencion.value),
+)
+
+/** Gap ReteIVA/ReteICA: solo se ofrecen los tipos que el tenant tiene habilitados en
+ * Configuración contable (CO-1) — mismo criterio "nada se activa por defecto" del corte CO-8. */
+const tiposRetencionHabilitados = computed<OpcionTipo[]>(() => {
+  if (!tenant.value) return []
+  return tiposRetencionCatalogo.value.filter((t) =>
+    t.codigo === 'fuente' ? tenant.value!.agente_retencion
+    : t.codigo === 'iva' ? tenant.value!.agente_reteiva
+    : t.codigo === 'ica' ? tenant.value!.agente_reteica
+    : false,
+  )
+})
+const tipoRetencionActivo = ref<string | null>(null)
 
 async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -30,13 +49,16 @@ async function cargar(): Promise<void> {
     await copropiedadStore.cargarTenant(tenantId)
     if (!aplica.value) return
     const cliente = useSupabaseClient<Database>()
-    const [naturalezas, { data: tercerosFilas }] = await Promise.all([
+    const [naturalezas, tiposRetencion, { data: tercerosFilas }] = await Promise.all([
       cargarListaTipos(tenantId, 'NATURALEZA_TRIBUTARIA_CUENTA'),
+      cargarListaTipos(tenantId, 'TIPO_RETENCION_CONCEPTO'),
       cliente.from('terceros').select('id, primer_nombre, primer_apellido').eq('tenant_id', tenantId).order('primer_nombre'),
       tributarioStore.cargarCuentasClasificables(tenantId),
-      tenant.value!.agente_retencion ? tributarioStore.cargarConceptosRetencion(tenantId) : Promise.resolve(),
+      tieneAlgunaRetencion.value ? tributarioStore.cargarConceptosRetencion(tenantId) : Promise.resolve(),
     ])
     naturalezasTributarias.value = naturalezas.map((n) => ({ id: n.id, codigo: n.codigo, nombre: n.nombre }))
+    tiposRetencionCatalogo.value = tiposRetencion.map((t) => ({ id: t.id, codigo: t.codigo, nombre: t.nombre }))
+    tipoRetencionActivo.value = tiposRetencionHabilitados.value[0]?.codigo ?? null
     terceros.value = (tercerosFilas ?? []).map((t) => ({ id: t.id, etiqueta: `${t.primer_nombre ?? ''} ${t.primer_apellido ?? ''}`.trim() }))
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo cargar la información tributaria.')
@@ -72,17 +94,27 @@ async function consultarIngresos(): Promise<void> {
   }
 }
 
-// ── retención en la fuente (§4.2) ────────────────────────────────────────
+// ── retención en la fuente / ReteIVA / ReteICA (§4.2 + gap 2026-09-14) ───
+// Un solo catálogo/certificado/resumen, filtrado por tipoRetencionActivo — separar la UI en
+// tres copias casi idénticas hubiera sido la duplicación que el marco §1.2 evita.
+const conceptosDelTipoActivo = computed(() =>
+  tributarioStore.conceptosRetencion.filter((c) => {
+    const tipo = tiposRetencionCatalogo.value.find((t) => t.id === c.tipo_id)
+    return tipo?.codigo === tipoRetencionActivo.value
+  }),
+)
 const formConcepto = reactive({ codigo: '', nombre: '', tarifa: null as number | null, baseMinimaUvt: null as number | null, cuentaContableId: null as string | null })
 const cuentasRetencion = computed(() => tributarioStore.cuentasClasificables.filter((c) => c.codigo.startsWith('23')))
 async function guardarConcepto(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId || !formConcepto.codigo.trim() || !formConcepto.tarifa || !formConcepto.cuentaContableId) return
+  const tipo = tiposRetencionCatalogo.value.find((t) => t.codigo === tipoRetencionActivo.value)
+  if (!tenantId || !tipo || !formConcepto.codigo.trim() || !formConcepto.tarifa || !formConcepto.cuentaContableId) return
   error.value = null
   try {
     await tributarioStore.crearConceptoRetencion({
       tenantId, codigo: formConcepto.codigo.trim(), nombre: formConcepto.nombre.trim() || formConcepto.codigo.trim(),
       tarifa: formConcepto.tarifa, baseMinimaUvt: formConcepto.baseMinimaUvt, cuentaContableId: formConcepto.cuentaContableId,
+      tipoId: tipo.id,
     })
     formConcepto.codigo = ''; formConcepto.nombre = ''; formConcepto.tarifa = null; formConcepto.baseMinimaUvt = null; formConcepto.cuentaContableId = null
   } catch (excepcion) {
@@ -102,7 +134,10 @@ async function consultarCertificado(): Promise<void> {
   }
   error.value = null
   try {
-    await tributarioStore.cargarCertificado(tenantId, certificadoTerceroId.value, certificadoDesde.value, certificadoHasta.value)
+    await tributarioStore.cargarCertificado(
+      tenantId, certificadoTerceroId.value, certificadoDesde.value, certificadoHasta.value,
+      tipoRetencionActivo.value ?? undefined,
+    )
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo generar el certificado.')
   }
@@ -115,7 +150,7 @@ async function consultarResumenRetenciones(): Promise<void> {
   if (!tenantId) return
   error.value = null
   try {
-    await tributarioStore.cargarResumenRetenciones(tenantId, resumenAnio.value, resumenMes.value)
+    await tributarioStore.cargarResumenRetenciones(tenantId, resumenAnio.value, resumenMes.value, tipoRetencionActivo.value ?? undefined)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo calcular el resumen mensual.')
   }
@@ -131,6 +166,19 @@ async function consultarResumenIva(): Promise<void> {
     await tributarioStore.cargarResumenIva(tenantId, resumenAnio.value, ivaPeriodoNumero.value)
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo calcular el resumen de IVA — configura la periodicidad en Configuración contable.')
+  }
+}
+
+// ── ICA (gap 2026-09-14) ──────────────────────────────────────────────────
+const icaPeriodoNumero = ref(1)
+async function consultarResumenIca(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  error.value = null
+  try {
+    await tributarioStore.cargarResumenIca(tenantId, resumenAnio.value, icaPeriodoNumero.value)
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo calcular el resumen de ICA — configura la tarifa y periodicidad en Configuración contable.')
   }
 }
 
@@ -177,9 +225,9 @@ async function exportarExogenaExcel(): Promise<void> {
     <div v-if="!aplica" class="rounded-lg border border-default p-6 space-y-3">
       <p class="font-medium">Esta copropiedad no tiene ninguna obligación tributaria activada.</p>
       <p class="text-sm text-muted">
-        Nada de este módulo se activa por defecto: depende de <strong>responsable_iva</strong> y
-        <strong>agente_retencion</strong>, configurados en Configuración contable (CO-1). Mientras
-        ninguno de los dos esté marcado, no hay nada que registrar aquí.
+        Nada de este módulo se activa por defecto: depende de <strong>responsable_iva</strong>,
+        <strong>ica_aplica</strong> y los agentes de retención (fuente/IVA/ICA), configurados en
+        Configuración contable (CO-1). Mientras ninguno esté marcado, no hay nada que registrar aquí.
       </p>
       <UButton to="/contabilidad/configuracion" variant="soft">Ir a Configuración contable</UButton>
     </div>
@@ -189,8 +237,9 @@ async function exportarExogenaExcel(): Promise<void> {
         <button
           v-for="p in [
             { valor: 'segregacion', etiqueta: 'Segregación tributaria' },
-            ...(tenant?.agente_retencion ? [{ valor: 'retencion', etiqueta: 'Retención en la fuente' }] : []),
+            ...(tieneAlgunaRetencion ? [{ valor: 'retencion', etiqueta: 'Retención' }] : []),
             ...(tenant?.responsable_iva ? [{ valor: 'iva', etiqueta: 'IVA' }] : []),
+            ...(tenant?.ica_aplica ? [{ valor: 'ica', etiqueta: 'ICA' }] : []),
             { valor: 'exogena', etiqueta: 'Exógena' },
           ]"
           :key="p.valor" type="button"
@@ -249,8 +298,21 @@ async function exportarExogenaExcel(): Promise<void> {
         </div>
       </section>
 
-      <!-- ── Retención en la fuente ─────────────────────────────────── -->
+      <!-- ── Retención en la fuente / ReteIVA / ReteICA ────────────────── -->
       <section v-else-if="pestana === 'retencion'" class="space-y-4">
+        <div v-if="tiposRetencionHabilitados.length > 1" class="flex gap-2">
+          <button
+            v-for="t in tiposRetencionHabilitados" :key="t.codigo" type="button"
+            class="px-3 py-1 text-xs rounded-full border"
+            :class="tipoRetencionActivo === t.codigo
+              ? 'border-primary bg-primary/10 text-primary font-medium'
+              : 'border-default text-muted hover:text-default'"
+            @click="tipoRetencionActivo = t.codigo"
+          >
+            {{ t.nombre }}
+          </button>
+        </div>
+
         <div class="rounded-lg border border-default p-4 space-y-3">
           <p class="font-medium text-sm">Catálogo de conceptos</p>
           <p class="text-xs text-muted">Cero conceptos precargados — tarifas y bases mínimas cambian por resolución cada año; los define la copropiedad con su contador.</p>
@@ -258,10 +320,10 @@ async function exportarExogenaExcel(): Promise<void> {
             <table class="w-full text-sm">
               <thead class="bg-muted/30"><tr><th class="p-2 text-left">Código</th><th class="p-2 text-left">Nombre</th><th class="p-2 text-right">Tarifa</th></tr></thead>
               <tbody>
-                <tr v-for="c in tributarioStore.conceptosRetencion" :key="c.id" class="border-t border-default">
+                <tr v-for="c in conceptosDelTipoActivo" :key="c.id" class="border-t border-default">
                   <td class="p-2">{{ c.codigo }}</td><td class="p-2">{{ c.nombre }}</td><td class="p-2 text-right">{{ c.tarifa }}%</td>
                 </tr>
-                <tr v-if="tributarioStore.conceptosRetencion.length === 0"><td colspan="3" class="p-3 text-center text-muted">Sin conceptos todavía.</td></tr>
+                <tr v-if="conceptosDelTipoActivo.length === 0"><td colspan="3" class="p-3 text-center text-muted">Sin conceptos todavía.</td></tr>
               </tbody>
             </table>
           </div>
@@ -334,6 +396,30 @@ async function exportarExogenaExcel(): Promise<void> {
             <div class="rounded border border-default p-3"><p class="text-xs text-muted">Meses</p><p class="font-medium">{{ tributarioStore.resumenIva.mes_desde }}–{{ tributarioStore.resumenIva.mes_hasta }}</p></div>
             <div class="rounded border border-default p-3"><p class="text-xs text-muted">Base total</p><p class="font-medium">{{ tributarioStore.resumenIva.total_base }}</p></div>
             <div class="rounded border border-default p-3"><p class="text-xs text-muted">IVA total</p><p class="font-medium">{{ tributarioStore.resumenIva.total_valor }}</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ICA (gap 2026-09-14) ──────────────────────────────────────── -->
+      <section v-else-if="pestana === 'ica'" class="space-y-4">
+        <div class="rounded-lg border border-default p-4 space-y-3">
+          <p class="font-medium text-sm">Resumen estimado de ICA</p>
+          <p class="text-xs text-muted">
+            Registro informativo — no genera ningún asiento contable automático (mismo criterio
+            que IVA). Base gravable = ingresos de clase 4 con naturaleza tributaria "gravado de
+            renta" (ET art. 19-5 cubre renta e ICA con la misma base) × la tarifa configurada en
+            Configuración contable.
+          </p>
+          <div class="grid gap-2 sm:grid-cols-3 items-end">
+            <UFormField label="Año"><UInput v-model.number="resumenAnio" type="number" class="w-full" /></UFormField>
+            <UFormField label="Periodo (bimestre o año, según periodicidad)"><UInput v-model.number="icaPeriodoNumero" type="number" min="1" class="w-full" /></UFormField>
+            <UButton :loading="tributarioStore.loading" @click="consultarResumenIca()">Calcular</UButton>
+          </div>
+          <div v-if="tributarioStore.resumenIca" class="grid grid-cols-4 gap-3 text-sm">
+            <div class="rounded border border-default p-3"><p class="text-xs text-muted">Meses</p><p class="font-medium">{{ tributarioStore.resumenIca.mes_desde }}–{{ tributarioStore.resumenIca.mes_hasta }}</p></div>
+            <div class="rounded border border-default p-3"><p class="text-xs text-muted">Base gravable</p><p class="font-medium">{{ tributarioStore.resumenIca.base_gravable }}</p></div>
+            <div class="rounded border border-default p-3"><p class="text-xs text-muted">Tarifa (por mil)</p><p class="font-medium">{{ tributarioStore.resumenIca.tarifa_por_mil }}</p></div>
+            <div class="rounded border border-default p-3"><p class="text-xs text-muted">ICA estimado</p><p class="font-medium">{{ tributarioStore.resumenIca.valor_estimado }}</p></div>
           </div>
         </div>
       </section>

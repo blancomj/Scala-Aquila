@@ -186,6 +186,8 @@ export const NAV_ICONOS = {
     'M12 6c-1.5-1.3-3.5-2-6-2H4v14h2c2.5 0 4.5.7 6 2 1.5-1.3 3.5-2 6-2h2V4h-2c-2.5 0-4.5.7-6 2ZM12 6v14',
   // Línea descendente: deterioro es una pérdida de valor, espejo de flujoProyectado (que sube).
   deterioroCartera: 'M3 7l6 6 4-4 8 8M15 17h6v-6',
+  // Reloj/engranaje simplificado: la depreciación es valor que se consume con el tiempo de uso.
+  depreciacionActivos: 'M12 3a9 9 0 1 0 9 9M12 3v9l6 3M16 3h5v5',
   // Documento con barras: un estado financiero es un reporte con cifras, no la balanza sola.
   estadosFinancieros: 'M5 3h14v18H5zM8 17v-4M12 17v-7M16 17v-2',
   // Candado: cerrar un período contable es bloquearlo, no pesarlo en la balanza.
@@ -500,6 +502,13 @@ export const NAV_GRUPOS: NavGrupo[] = [
         permiso: 'data:create',
         modulo: 'financiero',
         icono: NAV_ICONOS.deterioroCartera,
+      },
+      {
+        label: 'Depreciación por defecto',
+        to: '/contabilidad/depreciacion',
+        permiso: 'data:create',
+        modulo: 'financiero',
+        icono: NAV_ICONOS.depreciacionActivos,
       },
       {
         label: 'Estados financieros',

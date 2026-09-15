@@ -61,6 +61,16 @@ export interface ActualizarTenantParams {
   marco_fundamento?: string | null
   // CO-9 §4.2: solo aplica al caso residencial — comercial/mixto ya lo exige Ley 675 art. 56.
   tiene_revisor_fiscal?: boolean | null
+  // Gap ReteIVA/ReteICA (2026-09-14): agentes de retención distintos de agente_retencion
+  // (renta) — cada uno habilita su propia pestaña en /contabilidad/tributario.
+  agente_reteiva?: boolean
+  agente_reteica?: boolean
+  // Gap ICA (2026-09-14): la propia copropiedad como contribuyente de Industria y Comercio
+  // (distinto de agente_reteica, que es retenerlo a terceros).
+  ica_aplica?: boolean
+  ica_municipio?: string | null
+  ica_tarifa_por_mil?: number | null
+  ica_periodicidad_id?: number | null
 }
 
 export const useCopropiedadStore = defineStore('copropiedad', () => {

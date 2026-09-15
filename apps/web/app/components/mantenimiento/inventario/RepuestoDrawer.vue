@@ -4,12 +4,14 @@
 import type { Database } from '@aquila/shared'
 
 type RepuestoRow = Database['public']['Tables']['mant_repuestos']['Row']
+type PoliticaContable = Database['public']['Enums']['politica_contable_repuesto_t']
 
 const props = defineProps<{ repuesto?: RepuestoRow | null }>()
 const emit = defineEmits<{ cerrar: []; guardado: [] }>()
 
 const tenantStore = useTenantStore()
 const inventarioStore = useMantenimientoInventarioStore()
+const contabilidadStore = useContabilidadStore()
 
 const categorias = ref<Awaited<ReturnType<typeof cargarListaTipos>>>([])
 const unidades = ref<Awaited<ReturnType<typeof cargarListaTipos>>>([])
@@ -22,6 +24,11 @@ const unidadId = ref<number | undefined>(props.repuesto?.unidad_id ?? undefined)
 const stockMinimo = ref<number | null>(props.repuesto?.stock_minimo ?? null)
 const stockMaximo = ref<number | null>(props.repuesto?.stock_maximo ?? null)
 const puntoReorden = ref<number | null>(props.repuesto?.punto_reorden ?? null)
+// MANT-6 Fase 1 (D-127): 'gasto_directo' es el default — sin cambio de comportamiento para
+// quien no elige 'inventario'. contableCuentaId solo importa (y solo lo exige el guard) cuando
+// la política es 'inventario'.
+const politicaContable = ref<PoliticaContable>(props.repuesto?.politica_contable ?? 'gasto_directo')
+const contableCuentaId = ref<string | null>(props.repuesto?.contable_cuenta_id ?? null)
 
 const error = ref<string | null>(null)
 
@@ -31,10 +38,20 @@ onMounted(async () => {
   const [cat, uni] = await Promise.all([
     cargarListaTipos(tenantId, 'CATEGORIA_REPUESTO'),
     cargarListaTipos(tenantId, 'UNIDAD_MEDIDA'),
+    contabilidadStore.cuentas.length === 0 ? contabilidadStore.cargarPlan(tenantId) : Promise.resolve(),
   ])
   categorias.value = cat
   unidades.value = uni
 })
+
+// Guía, no validación: guard_mant_repuesto exige clase 1 cuando politica_contable = 'inventario'
+// — se acota la lista a esa clase para no ofrecer una cuenta que el guard va a rechazar de
+// todas formas (mismo criterio que ActivoFormDrawer.vue con la clase 15 de PP&E).
+const opcionesCuentaExistencias = computed(() =>
+  contabilidadStore.cuentasDeMovimiento
+    .filter((c) => c.clase === 1)
+    .map((c) => ({ valor: c.id, etiqueta: `${c.codigo} — ${c.nombre}` })),
+)
 
 async function guardar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
@@ -42,6 +59,10 @@ async function guardar(): Promise<void> {
     return
   error.value = null
   try {
+    const bloqueContable = {
+      politica_contable: politicaContable.value,
+      contable_cuenta_id: politicaContable.value === 'inventario' ? contableCuentaId.value : null,
+    }
     if (props.repuesto) {
       await inventarioStore.actualizarRepuesto(props.repuesto.id, {
         sku: sku.value.trim(),
@@ -52,6 +73,7 @@ async function guardar(): Promise<void> {
         stock_minimo: stockMinimo.value,
         stock_maximo: stockMaximo.value,
         punto_reorden: puntoReorden.value,
+        ...bloqueContable,
       })
     } else {
       await inventarioStore.crearRepuesto({
@@ -64,6 +86,7 @@ async function guardar(): Promise<void> {
         stock_minimo: stockMinimo.value,
         stock_maximo: stockMaximo.value,
         punto_reorden: puntoReorden.value,
+        ...bloqueContable,
       })
     }
     emit('guardado')
@@ -117,6 +140,29 @@ async function guardar(): Promise<void> {
           <UInput v-model.number="stockMaximo" type="number" min="0" class="w-full" />
         </UFormField>
       </div>
+      <div class="space-y-3 rounded-lg border border-default p-3">
+        <UFormField label="Política contable del consumo" name="politica_contable">
+          <USelect
+            v-model="politicaContable"
+            class="w-full"
+            :items="[
+              { label: 'Gasto directo (sin registro contable al consumir)', value: 'gasto_directo' },
+              { label: 'Inventario (existencias — genera comprobante al consumir)', value: 'inventario' },
+            ]"
+          />
+        </UFormField>
+        <UFormField
+          v-if="politicaContable === 'inventario'"
+          label="Cuenta de existencias"
+          name="cuenta_existencias"
+        >
+          <UiSelectorBuscable
+            v-model="contableCuentaId"
+            :opciones="opcionesCuentaExistencias"
+            placeholder="Cuenta de clase 1"
+          />
+        </UFormField>
+      </div>
       <UAlert v-if="error" color="error" variant="soft" :title="error" />
     </div>
     <template #foot>
@@ -124,7 +170,12 @@ async function guardar(): Promise<void> {
         <UButton variant="ghost" @click="emit('cerrar')">Cancelar</UButton>
         <UButton
           :loading="inventarioStore.guardando"
-          :disabled="!sku.trim() || !nombre.trim() || categoriaId === null"
+          :disabled="
+            !sku.trim() ||
+            !nombre.trim() ||
+            categoriaId === null ||
+            (politicaContable === 'inventario' && !contableCuentaId)
+          "
           @click="guardar()"
         >
           Guardar

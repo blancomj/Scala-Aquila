@@ -41,12 +41,19 @@ const form = reactive({
   explotaBienesComunes: false,
   responsableIva: false,
   agenteRetencion: false,
+  agenteReteiva: false,
+  agenteReteica: false,
   ivaPeriodicidadId: null as number | null,
   marcoFundamento: '',
   tieneRevisorFiscal: false,
+  icaAplica: false,
+  icaMunicipio: '',
+  icaTarifaPorMil: null as number | null,
+  icaPeriodicidadId: null as number | null,
 })
 
 const opcionesPeriodicidadIva = ref<{ label: string; value: number }[]>([])
+const opcionesPeriodicidadIca = ref<{ label: string; value: number }[]>([])
 
 function sincronizarFormConTenant(): void {
   const t = copropiedadStore.tenant
@@ -56,23 +63,42 @@ function sincronizarFormConTenant(): void {
   form.explotaBienesComunes = t.explota_bienes_comunes
   form.responsableIva = t.responsable_iva
   form.agenteRetencion = t.agente_retencion
+  form.agenteReteiva = t.agente_reteiva
+  form.agenteReteica = t.agente_reteica
   form.ivaPeriodicidadId = t.iva_periodicidad_id
   form.marcoFundamento = t.marco_fundamento ?? ''
   form.tieneRevisorFiscal = t.tiene_revisor_fiscal ?? false
+  form.icaAplica = t.ica_aplica
+  form.icaMunicipio = t.ica_municipio ?? ''
+  form.icaTarifaPorMil = t.ica_tarifa_por_mil
+  form.icaPeriodicidadId = t.ica_periodicidad_id
 }
 
-await useAsyncData('contable-configuracion', async () => {
+// onMounted, no useAsyncData: mutar refs de página (opcionesPeriodicidadIva/Ica, form) dentro del
+// handler de useAsyncData se pierde en el cliente en un hard-reload — Nuxt reusa el payload de SSR
+// y no vuelve a ejecutar el handler, así que esos efectos secundarios nunca corren en el cliente.
+const cargando = ref(false)
+
+async function cargar(): Promise<void> {
   const tenantId = tenantStore.activeTenant?.id
-  if (!tenantId) return null
-  const [, , periodicidades] = await Promise.all([
-    copropiedadStore.cargarTenant(tenantId),
-    contabilidadStore.cargarMarcoContable(tenantId),
-    cargarListaTipos(tenantId, 'PERIODICIDAD_IVA'),
-  ])
-  opcionesPeriodicidadIva.value = periodicidades.map((p) => ({ label: p.nombre, value: p.id }))
-  sincronizarFormConTenant()
-  return true
-})
+  if (!tenantId) return
+  cargando.value = true
+  try {
+    const [, , periodicidadesIva, periodicidadesIca] = await Promise.all([
+      copropiedadStore.cargarTenant(tenantId),
+      contabilidadStore.cargarMarcoContable(tenantId),
+      cargarListaTipos(tenantId, 'PERIODICIDAD_IVA'),
+      cargarListaTipos(tenantId, 'PERIODICIDAD_ICA'),
+    ])
+    opcionesPeriodicidadIva.value = periodicidadesIva.map((p) => ({ label: p.nombre, value: p.id }))
+    opcionesPeriodicidadIca.value = periodicidadesIca.map((p) => ({ label: p.nombre, value: p.id }))
+    sincronizarFormConTenant()
+  } finally {
+    cargando.value = false
+  }
+}
+
+onMounted(cargar)
 
 const clasificado = computed(() => contabilidadStore.marcoContable?.clasificado ?? false)
 const estadosRequeridos = computed(() => contabilidadStore.marcoContable?.estados_requeridos ?? [])
@@ -104,9 +130,15 @@ async function guardar(): Promise<void> {
       explota_bienes_comunes: form.explotaBienesComunes,
       responsable_iva: form.responsableIva,
       agente_retencion: form.agenteRetencion,
+      agente_reteiva: form.agenteReteiva,
+      agente_reteica: form.agenteReteica,
       iva_periodicidad_id: form.responsableIva ? form.ivaPeriodicidadId : null,
       marco_fundamento: form.marcoFundamento.trim() || null,
       tiene_revisor_fiscal: form.usoEconomico === 'residencial' ? form.tieneRevisorFiscal : null,
+      ica_aplica: form.icaAplica,
+      ica_municipio: form.icaAplica ? form.icaMunicipio.trim() || null : null,
+      ica_tarifa_por_mil: form.icaAplica ? form.icaTarifaPorMil : null,
+      ica_periodicidad_id: form.icaAplica ? form.icaPeriodicidadId : null,
     })
     await contabilidadStore.cargarMarcoContable(tenantId)
     aviso.value = 'Clasificación guardada.'
@@ -163,6 +195,9 @@ async function guardar(): Promise<void> {
         />
         <UCheckbox v-model="form.responsableIva" label="Responsable de IVA" />
         <UCheckbox v-model="form.agenteRetencion" label="Agente de retención en la fuente" />
+        <UCheckbox v-model="form.agenteReteiva" label="Agente de retención de IVA (ReteIVA)" />
+        <UCheckbox v-model="form.agenteReteica" label="Agente de retención de ICA (ReteICA)" />
+        <UCheckbox v-model="form.icaAplica" label="Contribuyente de Industria y Comercio (ICA)" />
       </div>
 
       <UFormField
@@ -189,6 +224,25 @@ async function guardar(): Promise<void> {
           @update:model-value="(v) => (form.ivaPeriodicidadId = (v as number) ?? null)"
         />
       </UFormField>
+
+      <div v-if="form.icaAplica" class="grid gap-4 sm:grid-cols-2 rounded-md border border-default p-4">
+        <UFormField label="Municipio" description="Solo informativo — no hay catálogo de municipios en el sistema.">
+          <UInput v-model="form.icaMunicipio" class="w-full" />
+        </UFormField>
+        <UFormField
+          label="Tarifa por mil"
+          description="La fija el municipio (Ley 14 de 1983 art. 33, rango 2-30 por mil) — parametrizable, nunca fija."
+        >
+          <UInputNumber v-model="form.icaTarifaPorMil" :min="0" :step="0.1" class="w-full" />
+        </UFormField>
+        <UFormField label="Periodicidad de declaración de ICA" class="sm:col-span-2">
+          <USelect
+            :model-value="form.icaPeriodicidadId ?? undefined" :items="opcionesPeriodicidadIca"
+            placeholder="Sin configurar" class="w-full"
+            @update:model-value="(v) => (form.icaPeriodicidadId = (v as number) ?? null)"
+          />
+        </UFormField>
+      </div>
 
       <UFormField
         label="Fundamento de la clasificación"

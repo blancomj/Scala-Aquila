@@ -618,4 +618,36 @@ d('MANT-0: registro de activos, ficha contable y depreciación', () => {
     expect(resultado.data).toBeNull()
     expect(resultado.error).not.toBeNull()
   }, 30_000)
+
+  // ── Gap de configurabilidad contable (2026-09-14): depreciación por defecto por categoría ──
+  it('25. un default de depreciación exige que categoria_id pertenezca a CATEGORIA_ACTIVO', async () => {
+    const { tenantId } = await crearTenantCompleto('depreciacion-default-categoria-invalida')
+    const centroCostoId = await idListaTipos('CENTRO_COSTO', 'administracion')
+    const { error } = await admin.from('mant_categoria_depreciacion_default').insert({
+      tenant_id: tenantId, categoria_id: centroCostoId, metodo_depreciacion: 'linea_recta', vida_util_meses: 60,
+    })
+    expect(error?.message).toContain('ACTIVO_CATEGORIA_INVALIDA')
+  }, 30_000)
+
+  it('26. metodo_depreciacion=linea_recta exige vida_util_meses > 0, y no_deprecia no la exige', async () => {
+    const { tenantId } = await crearTenantCompleto('depreciacion-default-vida-util')
+    const categoriaId = await idListaTipos('CATEGORIA_ACTIVO', 'mobiliario')
+
+    const { error: errSinVida } = await admin.from('mant_categoria_depreciacion_default').insert({
+      tenant_id: tenantId, categoria_id: categoriaId, metodo_depreciacion: 'linea_recta', vida_util_meses: null,
+    })
+    expect(errSinVida?.message).toContain('mant_categoria_depreciacion_default_vida_util_valida')
+
+    const { error: errOk } = await admin.from('mant_categoria_depreciacion_default').insert({
+      tenant_id: tenantId, categoria_id: categoriaId, metodo_depreciacion: 'no_deprecia', vida_util_meses: null,
+    })
+    expect(errOk).toBeNull()
+
+    // (tenant_id, categoria_id) es único — un segundo default para la misma categoría exige
+    // reemplazar (upsert), no un segundo insert.
+    const { error: errDuplicado } = await admin.from('mant_categoria_depreciacion_default').insert({
+      tenant_id: tenantId, categoria_id: categoriaId, metodo_depreciacion: 'linea_recta', vida_util_meses: 36,
+    })
+    expect(errDuplicado?.message).toContain('mant_categoria_depreciacion_default_unica')
+  }, 30_000)
 })

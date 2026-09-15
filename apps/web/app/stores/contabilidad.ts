@@ -12,7 +12,9 @@
  * consultar `parent_id` recursivamente.
  *
  * Este store NO instancia el plan por su cuenta: eso lo hace `fn_instanciar_plan_contable`
- * (PC-2), idempotente, que se invoca desde aquí como RPC.
+ * (PC-2), idempotente. Se invoca vía `fn_instalar_plan_contable`, wrapper autorizado (has_role
+ * 'auxiliar') — la función de aprovisionamiento no tiene EXECUTE para `authenticated`
+ * (20260932550000): invocarla directo desde aquí fallaría con 42501 en producción.
  */
 import { defineStore } from 'pinia'
 import type { Database } from '@aquila/shared'
@@ -130,7 +132,7 @@ export const useContabilidadStore = defineStore('contabilidad', () => {
     incluirOpcionales = false,
   ): Promise<{ creadas: number; existentes: number }> {
     const cliente = useSupabaseClient<Database>()
-    const { data, error } = await cliente.rpc('fn_instanciar_plan_contable', {
+    const { data, error } = await cliente.rpc('fn_instalar_plan_contable', {
       p_tenant_id: tenantId,
       p_incluir_opcionales: incluirOpcionales,
     })

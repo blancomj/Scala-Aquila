@@ -20,6 +20,7 @@ type ListaTipoRow = Database['public']['Tables']['lista_tipos']['Row']
 type NaturalezaBien = Database['public']['Enums']['activo_naturaleza_bien_t']
 type Origen = Database['public']['Enums']['activo_origen_t']
 type MetodoDepreciacion = Database['public']['Enums']['depreciacion_metodo_t']
+type DepreciacionDefaultRow = Database['public']['Tables']['mant_categoria_depreciacion_default']['Row']
 
 const props = defineProps<{
   abierto: boolean
@@ -28,6 +29,9 @@ const props = defineProps<{
   tiposActivo: ListaTipoRow[]
   categoriasActivo: ListaTipoRow[]
   activosExistentes: ActivoRow[]
+  /** Gap de configurabilidad contable (2026-09-14): sugerencia por categoría, nunca bloqueante —
+   * ver mant_categoria_depreciacion_default. */
+  depreciacionDefaults?: DepreciacionDefaultRow[]
 }>()
 const emit = defineEmits<{ cerrar: []; guardado: [ActivoRow] }>()
 
@@ -129,6 +133,18 @@ watch(() => props.abierto, (abierto) => {
   if (!abierto) return
   sincronizarDesdeActivo()
   void cargarCatalogos()
+})
+
+// Gap de configurabilidad contable (2026-09-14): al crear (nunca al editar) un activo, precarga
+// método/vida útil desde el default de su categoría — solo si el usuario todavía no tocó esos
+// dos campos, para no pisar algo que ya haya escrito antes de terminar de elegir la categoría.
+watch(() => form.categoriaId, (categoriaId) => {
+  if (modoEdicion.value || categoriaId === undefined) return
+  if (form.metodoDepreciacion !== undefined || form.vidaUtilMeses !== null) return
+  const def = (props.depreciacionDefaults ?? []).find((d) => d.categoria_id === categoriaId)
+  if (!def) return
+  form.metodoDepreciacion = def.metodo_depreciacion
+  form.vidaUtilMeses = def.vida_util_meses
 })
 
 const opcionesCategoria = computed(() => props.categoriasActivo.map((c) => ({ label: c.nombre, value: c.id })))

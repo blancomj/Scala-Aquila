@@ -15,6 +15,11 @@ definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'da
 const tenantStore = useTenantStore()
 const comprobantesStore = useComprobantesStore()
 const contabilidadStore = useContabilidadStore()
+const tercerosStore = useTercerosStore()
+const cuentaCorrienteStore = useCuentaCorrienteStore()
+const presupuestoStore = usePresupuestoStore()
+const fondosStore = useFondosStore()
+const documentosStore = useDocumentosStore()
 
 const error = ref<string | null>(null)
 const aviso = ref<string | null>(null)
@@ -79,15 +84,96 @@ const COLOR_ESTADO: Record<EstadoComprobante, 'neutral' | 'success' | 'error'> =
 const comprobanteAbierto = ref<ComprobanteRow | null>(null)
 const motivoAccion = ref('')
 const periodoReversion = ref<string | null>(null)
+const observacionesEdit = ref('')
+const guardandoObservaciones = ref(false)
 
 async function abrirDetalle(c: ComprobanteRow): Promise<void> {
   comprobanteAbierto.value = c
   motivoAccion.value = ''
   periodoReversion.value = null
-  await comprobantesStore.cargarDetalle(c.id)
+  observacionesEdit.value = c.observaciones ?? ''
+  archivoSoporte.value = null
+  const tenantId = tenantStore.activeTenant?.id
+  await Promise.all([
+    comprobantesStore.cargarDetalle(c.id),
+    tenantId ? documentosStore.cargarDocumentos(tenantId, null, null, null, c.id) : Promise.resolve(),
+  ])
 }
 function cerrarDetalle(): void {
   comprobanteAbierto.value = null
+  documentosStore.limpiar()
+}
+
+async function guardarObservaciones(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !comprobanteAbierto.value) return
+  guardandoObservaciones.value = true
+  error.value = null
+  try {
+    await comprobantesStore.actualizarObservaciones(tenantId, comprobanteAbierto.value.id, observacionesEdit.value)
+    aviso.value = 'Observaciones guardadas.'
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudieron guardar las observaciones.')
+  } finally {
+    guardandoObservaciones.value = false
+  }
+}
+
+// ── soporte documental (D-130): factura/recibo del comprobante manual ─────
+const MIME_SOPORTE_PERMITIDOS = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+const TAMANO_SOPORTE_MAXIMO = 15 * 1024 * 1024
+const archivoSoporte = ref<File | null>(null)
+const subiendoSoporte = ref(false)
+const descargandoSoporte = ref<string | null>(null)
+
+function elegirArchivoSoporte(evento: Event): void {
+  const input = evento.target as HTMLInputElement
+  const archivo = input.files?.[0] ?? null
+  error.value = null
+  if (archivo && (!MIME_SOPORTE_PERMITIDOS.has(archivo.type) || archivo.size > TAMANO_SOPORTE_MAXIMO)) {
+    error.value = 'El soporte debe ser PDF, JPG o PNG, hasta 15 MB.'
+    archivoSoporte.value = null
+    input.value = ''
+    return
+  }
+  archivoSoporte.value = archivo
+}
+
+async function subirSoporte(): Promise<void> {
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId || !comprobanteAbierto.value || !archivoSoporte.value) return
+  subiendoSoporte.value = true
+  error.value = null
+  try {
+    const tipos = await cargarListaTipos(tenantId, 'TIPO_DOCUMENTO')
+    const tipoSoporte = tipos.find((t) => t.codigo === 'soporte_comprobante')
+    if (!tipoSoporte) throw new Error('No se encontró el tipo de documento "soporte_comprobante".')
+    await documentosStore.subirDocumento({
+      tenantId,
+      inmuebleId: null,
+      tipoDocumentoId: tipoSoporte.id,
+      archivo: archivoSoporte.value,
+      comprobanteId: comprobanteAbierto.value.id,
+    })
+    archivoSoporte.value = null
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo subir el soporte.')
+  } finally {
+    subiendoSoporte.value = false
+  }
+}
+
+async function verSoporte(storagePath: string | null): Promise<void> {
+  if (!storagePath) return
+  descargandoSoporte.value = storagePath
+  try {
+    const url = await documentosStore.urlDescarga(storagePath)
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    error.value = 'No se pudo generar el enlace de descarga.'
+  } finally {
+    descargandoSoporte.value = null
+  }
 }
 
 // Enlace entrante desde movimientos.vue (CO-3 §4.5, trazabilidad bidireccional): ?comprobante=<id>
@@ -205,10 +291,22 @@ const nuevoPeriodoId = ref<string | null>(null)
 const nuevoTipoId = ref<number | null>(null)
 const nuevaFecha = ref(new Date().toISOString().slice(0, 10))
 const nuevaDescripcion = ref('')
-const nuevasLineas = ref<NuevaLineaDetalle[]>([
-  { cuentaId: '', debito: 0, credito: 0 },
-  { cuentaId: '', debito: 0, credito: 0 },
-])
+const nuevaObservaciones = ref('')
+// terceroId/inmuebleId/fondoId inicializan en null (no undefined): UiSelectorBuscable exige
+// `string | number | null` en su v-model, sin `undefined`.
+function lineaVacia(): NuevaLineaDetalle {
+  return {
+    cuentaId: '',
+    debito: 0,
+    credito: 0,
+    terceroId: null,
+    inmuebleId: null,
+    centroCostoId: null,
+    fondoId: null,
+  }
+}
+
+const nuevasLineas = ref<NuevaLineaDetalle[]>([lineaVacia(), lineaVacia()])
 
 const opcionesCuenta = computed(() =>
   contabilidadStore.cuentasDeMovimiento.map((c) => ({
@@ -217,8 +315,41 @@ const opcionesCuenta = computed(() =>
   })),
 )
 
+// Dimensiones analíticas por línea (COMPROBANTE_DIMENSION_REQUERIDA, co2_comprobante_funciones):
+// cada cuenta declara con requiere_tercero/inmueble/centro_costo/fondo cuáles son obligatorias —
+// se muestran solo si la cuenta elegida en esa línea lo exige, para no llenar de selectores un
+// formulario que en la mayoría de las cuentas no los necesita.
+const cuentaPorId = computed(() => new Map(contabilidadStore.cuentas.map((c) => [c.id, c])))
+const requisitosPorLinea = computed(() =>
+  nuevasLineas.value.map((l) => {
+    const cuenta = l.cuentaId ? cuentaPorId.value.get(l.cuentaId) : undefined
+    return {
+      tercero: cuenta?.requiere_tercero ?? false,
+      inmueble: cuenta?.requiere_inmueble ?? false,
+      centroCosto: cuenta?.requiere_centro_costo ?? false,
+      fondo: cuenta?.requiere_fondo ?? false,
+    }
+  }),
+)
+
+const opcionesTercero = computed(() =>
+  tercerosStore.terceros.map((t) => ({
+    valor: t.id,
+    etiqueta: `${t.nombre_completo ?? t.razon_social ?? t.numero_documento} (${t.numero_documento})`,
+  })),
+)
+const opcionesInmuebleLinea = computed(() =>
+  cuentaCorrienteStore.inmuebles.map((i) => ({ valor: i.id, etiqueta: i.codigo })),
+)
+const opcionesCentroCostoLinea = computed(() =>
+  presupuestoStore.tiposCentroCosto.map((t) => ({ label: t.nombre, value: t.id })),
+)
+const opcionesFondoLinea = computed(() =>
+  fondosStore.fondos.map((f) => ({ valor: f.id, etiqueta: `${f.codigo} — ${f.nombre}` })),
+)
+
 function agregarLinea(): void {
-  nuevasLineas.value = [...nuevasLineas.value, { cuentaId: '', debito: 0, credito: 0 }]
+  nuevasLineas.value = [...nuevasLineas.value, lineaVacia()]
 }
 function quitarLinea(i: number): void {
   if (nuevasLineas.value.length <= 2) return
@@ -235,16 +366,25 @@ const nuevoCuadrado = computed(
   () => nuevoTotalDebito.value === nuevoTotalCredito.value && nuevoTotalDebito.value > 0,
 )
 
-function abrirCreacion(): void {
+async function abrirCreacion(): Promise<void> {
   creando.value = true
   nuevoPeriodoId.value = comprobantesStore.periodos[0]?.id ?? null
   nuevoTipoId.value = comprobantesStore.tiposCaptura[0]?.id ?? null
   nuevaFecha.value = new Date().toISOString().slice(0, 10)
   nuevaDescripcion.value = ''
-  nuevasLineas.value = [
-    { cuentaId: '', debito: 0, credito: 0 },
-    { cuentaId: '', debito: 0, credito: 0 },
-  ]
+  nuevaObservaciones.value = ''
+  nuevasLineas.value = [lineaVacia(), lineaVacia()]
+
+  const tenantId = tenantStore.activeTenant?.id
+  if (!tenantId) return
+  const cargas: Promise<unknown>[] = []
+  if (tercerosStore.terceros.length === 0) cargas.push(tercerosStore.cargarTerceros(tenantId))
+  if (cuentaCorrienteStore.inmuebles.length === 0) cargas.push(cuentaCorrienteStore.cargarInmuebles(tenantId))
+  if (presupuestoStore.tiposCentroCosto.length === 0) {
+    cargas.push(presupuestoStore.cargarTiposCentroCosto(tenantId))
+  }
+  if (fondosStore.fondos.length === 0) cargas.push(fondosStore.cargarFondos(tenantId))
+  await Promise.all(cargas)
 }
 function cerrarCreacion(): void {
   creando.value = false
@@ -265,6 +405,7 @@ async function guardarBorrador(): Promise<void> {
       anio: periodo.anio,
       fecha: nuevaFecha.value,
       descripcion: nuevaDescripcion.value,
+      observaciones: nuevaObservaciones.value,
       lineas: nuevasLineas.value.filter((l) => l.cuentaId),
     })
     aviso.value = 'Borrador creado.'
@@ -398,6 +539,51 @@ async function guardarBorrador(): Promise<void> {
           </span>
         </div>
 
+        <!-- Observaciones y soporte documental: disponibles en cualquier estado (incluido
+             contabilizado) — son anotación/evidencia, no hechos financieros del asiento. -->
+        <div class="space-y-2 border-t border-default pt-3">
+          <p class="text-sm font-medium">Observaciones</p>
+          <UTextarea v-model="observacionesEdit" placeholder="Nota libre (opcional)" :rows="2" class="w-full" />
+          <UButton size="xs" variant="soft" :loading="guardandoObservaciones" @click="guardarObservaciones">
+            Guardar observaciones
+          </UButton>
+        </div>
+
+        <div class="space-y-2 border-t border-default pt-3">
+          <p class="text-sm font-medium">Soporte documental</p>
+          <ul v-if="documentosStore.documentos.length > 0" class="space-y-1">
+            <li
+              v-for="d in documentosStore.documentos"
+              :key="d.id ?? undefined"
+              class="flex items-center justify-between gap-2 text-sm"
+            >
+              <span class="truncate">{{ d.nombre_archivo }}</span>
+              <UButton
+                variant="ghost"
+                size="xs"
+                :disabled="descargandoSoporte === d.storage_path"
+                @click="verSoporte(d.storage_path)"
+              >
+                {{ descargandoSoporte === d.storage_path ? 'Generando…' : 'Ver' }}
+              </UButton>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-muted">Sin soporte adjunto todavía.</p>
+          <div class="flex items-center gap-2">
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm" @change="elegirArchivoSoporte">
+            <UButton
+              size="xs"
+              variant="soft"
+              :loading="subiendoSoporte"
+              :disabled="!archivoSoporte"
+              @click="subirSoporte"
+            >
+              Adjuntar
+            </UButton>
+          </div>
+          <p class="text-xs text-muted">Factura, recibo o comprobante — PDF, JPG o PNG, hasta 15 MB.</p>
+        </div>
+
         <div v-if="comprobanteAbierto.estado === 'borrador'" class="flex items-center gap-2">
           <UButton :loading="trabajando" :disabled="diferencia !== 0" @click="accionContabilizar">
             Contabilizar
@@ -451,24 +637,69 @@ async function guardarBorrador(): Promise<void> {
         <UFormField label="Descripción">
           <UInput v-model="nuevaDescripcion" class="w-full" />
         </UFormField>
+        <UFormField label="Observaciones (opcional)">
+          <UTextarea v-model="nuevaObservaciones" :rows="2" class="w-full" />
+        </UFormField>
 
         <div class="space-y-2">
-          <div v-for="(linea, i) in nuevasLineas" :key="i" class="flex items-center gap-2">
-            <UiSelectorBuscable
-              v-model="linea.cuentaId"
-              :opciones="opcionesCuenta"
-              placeholder="Cuenta…"
-              class="flex-1"
-            />
-            <UInput v-model.number="linea.debito" type="number" step="0.01" placeholder="Débito" class="w-32" />
-            <UInput v-model.number="linea.credito" type="number" step="0.01" placeholder="Crédito" class="w-32" />
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              :disabled="nuevasLineas.length <= 2"
-              @click="quitarLinea(i)"
-            />
+          <div v-for="(linea, i) in nuevasLineas" :key="i" class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiSelectorBuscable
+                v-model="linea.cuentaId"
+                :opciones="opcionesCuenta"
+                placeholder="Cuenta…"
+                class="flex-1"
+              />
+              <UInput v-model.number="linea.debito" type="number" step="0.01" placeholder="Débito" class="w-32" />
+              <UInput v-model.number="linea.credito" type="number" step="0.01" placeholder="Crédito" class="w-32" />
+              <UButton
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :disabled="nuevasLineas.length <= 2"
+                @click="quitarLinea(i)"
+              />
+            </div>
+            <!-- Solo aparece si la cuenta elegida arriba exige la dimensión (contable_cuenta.
+                 requiere_tercero/inmueble/centro_costo/fondo) — fn_contabilizar_comprobante
+                 rechaza con COMPROBANTE_DIMENSION_REQUERIDA si falta al contabilizar. -->
+            <div
+              v-if="Object.values(requisitosPorLinea[i]!).some(Boolean)"
+              class="flex flex-wrap items-center gap-2 pl-1"
+            >
+              <UiSelectorBuscable
+                v-if="requisitosPorLinea[i]!.tercero"
+                :model-value="linea.terceroId ?? null"
+                :opciones="opcionesTercero"
+                placeholder="Tercero (requerido)…"
+                class="w-56"
+                @update:model-value="(v) => (linea.terceroId = v as string | null)"
+              />
+              <UiSelectorBuscable
+                v-if="requisitosPorLinea[i]!.inmueble"
+                :model-value="linea.inmuebleId ?? null"
+                :opciones="opcionesInmuebleLinea"
+                placeholder="Inmueble (requerido)…"
+                class="w-40"
+                @update:model-value="(v) => (linea.inmuebleId = v as string | null)"
+              />
+              <USelect
+                v-if="requisitosPorLinea[i]!.centroCosto"
+                :model-value="linea.centroCostoId ?? undefined"
+                :items="opcionesCentroCostoLinea"
+                placeholder="Centro de costo (requerido)"
+                class="w-48"
+                @update:model-value="(v) => (linea.centroCostoId = (v as number) ?? null)"
+              />
+              <UiSelectorBuscable
+                v-if="requisitosPorLinea[i]!.fondo"
+                :model-value="linea.fondoId ?? null"
+                :opciones="opcionesFondoLinea"
+                placeholder="Fondo (requerido)…"
+                class="w-48"
+                @update:model-value="(v) => (linea.fondoId = v as string | null)"
+              />
+            </div>
           </div>
           <UButton size="xs" variant="ghost" icon="i-lucide-plus" @click="agregarLinea">
             Agregar línea
