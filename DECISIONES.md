@@ -7895,6 +7895,33 @@ pasa 12/12 contra remoto, incluido el caso de `gc-001`.
 (`.tmp_ola3_migration_holdout/`) para no incluirla en un push propio, y terminó sin restaurarla —
 detectado y corregido en esta sesión antes de que afectara ningún commit.
 
+**Resultado final de `pnpm verify` contra producción** (corrida completa, ~7000s por la latencia
+de red — `.env` restaurado a local inmediatamente después, checksum verificado): **10 archivos /
+15 pruebas fallidas, 217/227 archivos y 2248/2289 pruebas en verde.** Ninguna de las 15 toca
+código de Ola 3 ni del sidebar (D-135). Desglose:
+
+- **5 — Brevo/Sendinblue sin crédito de SMS** (`cartera-ejecutar-lote.test.ts`,
+  `cartera-envio-evidencia.test.ts`): igual que en local, ya documentado, externo.
+- **8 — fixtures bajo carga del proyecto remoto** (`identidad-actor-externo`, `exs8-hardening`,
+  `posiciones-cartera-snapshot`, `crear-intencion-pago`, `convivencia-sanciones`,
+  `planes-programacion` ×5): todas fallan en `crearUsuario`/`crearTenant`/hooks con
+  `fetch failed` o timeout — la misma firma ya documentada en D-110 ("fixtures básicos fallando
+  en decenas de tests no relacionados = carga/latencia del proyecto remoto, no un bug"). Ninguna
+  llegó a ejercer lógica de negocio real.
+- **2 — reales, preexistentes, NO relacionadas con esta sesión:** `cartera-indicadores.test.ts`
+  (`averageDaysToRecovery` da `null` en vez de ~15 — su propio `setup` ya había dado timeout, así
+  que es sospechoso de ser el mismo problema de carga, no concluyente) y `subir-documento.test.ts`
+  ("sube el soporte documental de un comprobante contable" responde 400 en vez de 200 — esta sí
+  se reprodujo igual en una revisión anterior de este mismo log, consistente, no parece transitoria).
+  Ninguna toca `packages/ai-providers`, `ia-redactar-explicacion`, `sidebar_config` ni ningún
+  archivo de esta sesión — quedan anotadas para un corte aparte, no bloquean el cierre de Ola 3.
+
+**Confirmado también:** las 5 fallas de `gc-001` que sí aparecían contra local (D-134 arriba) NO
+aparecen en esta corrida contra remoto — se resuelven solas, como predecía D-111.
+
+**Ola 3 queda cerrada del todo**: código, pruebas, migraciones y Edge Function desplegadas y
+verificadas contra producción, sin ninguna regresión atribuible a este corte.
+
 ## D-135
 
 **Personalización del menú lateral por tenant (orden y grupos).** El administrador de cada
@@ -8016,3 +8043,672 @@ esperado, igual que en Trello o cualquier lista arrastrable con secciones plegab
 **Verificado:** typecheck/lint limpios. En navegador: ambos paneles arrancan colapsados; expandir
 "Copropiedad" en el editor expande también "COPROPIEDAD" en la vista previa, el resto queda
 colapsado.
+
+## D-136
+
+**Motor de Reportes — evaluación del prompt maestro y decisiones de arquitectura, antes de
+escribir código.** El 2026-09-15 el usuario presentó
+`Casos de uso/Informes/PROMPT_MAESTRO_IMPLEMENTACION_MOTOR_REPORTES_AQUILA.md` (3.346 líneas,
+114 secciones) + 4 referencias visuales, y pidió evaluarlo antes de implementarlo. Resultado:
+**núcleo aceptado, ~30 % del alcance rechazado, 8 decisiones ajustadas.** El plan de ejecución
+vive en `PLAN_MOTOR_REPORTES.md`; esta entrada registra por qué se decidió así.
+
+**El diagnóstico del prompt es correcto:** hay 11 puntos de exportación dispersos (7 con `xlsx`,
+5 con `pdfmake`, `contabilidad/libros.vue` en ambos), todos operando sobre los datos ya pintados
+en pantalla —justo lo que su §30 prohíbe— y sin ningún `packages/*` que los comparta. Sus cifras
+del repo son exactas (616 migraciones, 87 funciones + `_shared`, 141 páginas, pdfmake 0.2.20,
+xlsx 0.18.5). Donde falla es en dar por resueltas cuatro cosas que en este repo no lo están.
+
+**Lo que se rechaza, con la evidencia:**
+
+- **Los 9 permisos `REPORTES_*` (§56).** `apps/web/app/types/permissions.ts` tiene 3 roles y 12
+  permisos genéricos; `auxiliar` los tiene todos, incluido `tenant:delete`; la matriz se valida
+  cruzadamente contra SQL en `tests/rbac/t-matrix.test.ts`. Añadirlos rompe ese contrato o crea
+  el segundo sistema de autorización que el propio §110 prohíbe. **Decisión del usuario: mapear
+  a los 12 existentes** (`data:read` ejecutar, `settings:manage` publicar/programar, `audit:view`
+  historial). Granularidad por módulo queda como discusión de RBAC global, aparte.
+- **La cola de ejecución (§33, §78, §94).** Medición real contra producción el 2026-09-15:
+  **8.730 inmuebles, 8.496 cargos, 11.497 filas de `audit_log` — en toda la base, todos los
+  tenants juntos.** Un reporte se acota siempre a un tenant (AD-24). `QUEUED/RUNNING/CANCELLED/
+  EXPIRED`, workers, reintentos, compresión y partición de archivos son infraestructura sin
+  problema que resolver. V1 síncrono con límite de filas y `statement_timeout`;
+  `reporte_ejecuciones` se crea igual porque su valor es el historial.
+- **El DSL de expresiones (§12).** Sería el tercer lenguaje del repo. AD-21/AD-23 lo prohíben sin
+  caso de negocio, y AEL no sirve como sustituto: su runtime tiene 4 funciones (`MIN`, `MAX`,
+  `PORCENTAJE`, `REDONDEAR_DINERO`) y evalúa en TS sobre `TypedValue`, no compila a SQL. V1 sin
+  expresiones: lo que haya que calcular lo entrega el catálogo como campo derivado o métrica
+  certificada, escrita por nosotros.
+- **`report_categories` como tabla (§15/§41).** Vocabulario descriptivo → `lista_tipos`
+  (`CATEGORIA_REPORTE`), D-24. Un solo enum en todo el módulo: `reporte_version_estado_t`
+  (`BORRADOR/PUBLICADA/ARCHIVADA`), que sí gatilla transiciones.
+- **Los 8 agentes en paralelo (§84-85) y las 12/13 fases contradictorias (§71-83 vs §112).** El
+  repo trabaja por cortes secuenciales con ledger y `DECISIONES.md`; sesiones paralelas ya
+  provocaron una colisión de migraciones real. Se reemplazan por 5 cortes RPT-01…RPT-05.
+- **Detalles de las maquetas:** el filtro "Administración / Copropiedad" del diseñador choca con
+  AD-24 (no hay administradora; el tenant *es* la copropiedad); los KPIs "22 usuarios que
+  generan" / "254 descargas" son ruido con 3-5 usuarios por copropiedad; y "Expresión
+  personalizada · SQL seguro" es exactamente lo que §12 prohíbe en el mismo documento.
+
+**Lo que el prompt no resuelve y aquí se decide:** dice "nada de SQL dinámico" (§59, §74) y a la
+vez "el usuario elige campos, filtros y agrupaciones" (§20-24), sin explicar nunca cómo se
+ejecuta la consulta. Con RPC de firma fija es imposible. **Decisión: `fn_reporte_ejecutar(
+p_definicion jsonb, …)` en plpgsql, `SECURITY INVOKER`, `set search_path = ''`**, que arma el SQL
+con `format(%I)` usando **solo identificadores resueltos contra el catálogo en base** —nunca del
+payload— y pasa **todos los valores por `using $1..$n`**. `SECURITY INVOKER` hace que la RLS del
+usuario aplique sola: no se reimplementa tenancy ni se replica la matriz de seguridad, que es lo
+que obligaría a hacer una Edge Function con `service_role`. Precedente en el repo:
+`fn_resetear_copropiedad` (`execute format('… public.%I …') using $1`). El catálogo
+(`reporte_fuentes`/`reporte_campos`) es **global y sembrado por migración, sin `tenant_id` y sin
+escritura en runtime**: es el guard de seguridad del compilador, y si un tenant pudiera
+escribirlo el guard no existiría.
+
+**PDF (decisión del usuario: patrón probado).** AQUILA no genera hoy ni un solo PDF fuera del
+navegador: `pdfmake` vive en 5 páginas Vue, y el PDFShift que documenta la migración
+`20260822100000` no existe en el código —el estado de cuenta se entrega como enlace firmado a una
+página Nuxt propia. Así que: interactivo → `pdfmake` en cliente; programado → XLSX/CSV adjunto +
+enlace firmado (`link_token.ts`, HMAC, bucket privado), el mismo camino ya probado del estado de
+cuenta. Ninguna dependencia nueva.
+
+**Alcance (decisión del usuario): solo reportes tabulares.** Envolver los documentos formales que
+ya existen (estado de cuenta, expediente de cobro con `fn_compilar_expediente`, informe de
+auditoría, certificaciones de deuda, actas de gobierno) queda **comprometido para una fase
+posterior**, no descartado: tienen folio/hash y semántica propia, y si el motor nunca los absorbe
+AQUILA se queda con dos sistemas de generación documental en paralelo.
+
+**Regla que el prompt no escribe y es la que evita el fracaso:** las métricas certificadas deben
+apuntar a las mismas funciones que ya alimentan las pantallas (`fn_dashboard_cartera`,
+`presupuesto_cuenta_ejecucion`, `mant_indicador_*`, `posiciones_cartera_snapshot`), nunca a
+consultas nuevas equivalentes. Es el §11 del prompt ("una sola definición"), su mejor aporte: si
+el motor consulta las tablas por su cuenta, en tres meses hay dos cifras de cartera distintas y la
+culpa es del motor.
+
+**Fase 0 ya estaba medio hecha:** `Casos de uso/Gobierno/INFORME_INVENTARIO_REPORTES_MODULOS_
+EXISTENTES.md` (2026-09-05) inventaría los reportes por módulo con fuentes y actores. Se actualiza
+(declara que Mantenimiento no existe; hoy existe con 12+ `mant_indicador_*`), no se rehace.
+
+**Sin código todavía.** Esta entrada y `PLAN_MOTOR_REPORTES.md` son el contrato; RPT-01 arranca en
+`20260938000000` según el ledger.
+
+## D-137
+
+**RPT-01 — catálogo, compilador y ejecución del Motor de Reportes.** Primer corte de la serie
+definida en `PLAN_MOTOR_REPORTES.md` (D-136). Cierra la cadena completa catálogo → definición →
+ejecución → tabla en pantalla, con seguridad real y datos reales.
+
+```text
+supabase/migrations/20260938000000_rpt1_catalogo.sql
+  reporte_fuentes / reporte_campos — catálogo GLOBAL (sin tenant_id), política SELECT para
+  authenticated y NINGUNA de escritura: solo una migración lo modifica. Es el guard del
+  compilador, no metadato decorativo. CHECKs de identificador (^[a-z][a-z0-9_]{0,62}$ en
+  campos, ^vr_ en objeto_sql) como última barrera antes de format(%I).
+
+20260938010000_rpt1_definiciones.sql
+  reportes / reporte_versiones / reporte_ejecuciones + enum reporte_version_estado_t (el único
+  del módulo; categoría fue a lista_tipos, D-24). Permisos mapeados a la matriz existente
+  (R-01): ver = is_member, crear/editar = has_role(auxiliar). guard_reporte_version_inmutable
+  impide tocar la definición de una versión publicada.
+
+20260938020000_rpt1_vistas_fuentes.sql
+  vr_cartera_inmueble / vr_cuenta_corriente / vr_recaudos, las tres con security_invoker.
+  DECISIÓN ESTRUCTURAL: una fuente = UNA vista ya aplanada. Los joins se resuelven aquí, no en
+  el compilador, que así nunca arma un join dinámico y se audita de un vistazo.
+
+20260938030000_rpt1_fn_reporte_ejecutar.sql
+  El compilador. SECURITY INVOKER + search_path vacío. Resuelve códigos contra el catálogo y
+  solo entonces interpola con format(%I); TODOS los valores viajan en un único $1 jsonb y se
+  leen como ($1->>'vN')::tipo, con el tipo tomado del catálogo. Tope de 5000 filas y
+  statement_timeout de 20s.
+
+20260938040000_rpt1_semilla_catalogo.sql
+  3 fuentes, 47 campos y 3 reportes de fábrica (RPT-CAR-001, RPT-CC-001, RPT-FIN-001) sembrados
+  por tenant vía fn_reportes_sistema_sembrar (idempotente), que llaman la propia migración y un
+  trigger AFTER INSERT sobre tenants — AFTER y no BEFORE porque las filas referencian al tenant
+  por FK.
+
+20260938050000_rpt1_grants_vistas.sql
+  Las vistas quedan con SELECT para authenticated y nada para anon, mismo mínimo que
+  v_cargo_saldo (20260831120000). authenticated NECESITA ese SELECT: el compilador es
+  SECURITY INVOKER, la consulta la hace el usuario.
+
+20260938060000_rpt1_ejecuciones_cascada_tenant.sql  ← BUG REAL
+20260938070000_rpt1_resetear_copropiedad.sql        ← AGUJERO REAL
+```
+
+**Dos hallazgos que no atrapó ninguna prueba y sí la verificación en navegador:**
+
+1. **Una copropiedad con reportes ejecutados era imposible de borrar.** `reporte_ejecuciones`
+   nació con `forbid_mutation()`, y la FK `tenant_id ... on delete cascade` dispara un DELETE que
+   ese guard rechaza (`APPEND_ONLY: reporte_ejecuciones no admite DELETE`). Es el mismo bug que
+   20260823250000 ya había arreglado para las otras diez tablas append-only; la corrección es
+   reutilizar su `forbid_mutation_salvo_tenant_borrado()`, que permite únicamente el DELETE cuya
+   fila apunta a un tenant que ya no existe. Las pruebas no lo vieron porque llaman a la RPC
+   directamente y la bitácora la escribe el store del frontend: no había ejecuciones cuando el
+   `afterAll` borraba los tenants. Ahora hay un caso explícito que lo cubre.
+2. **`fn_resetear_copropiedad` no cubría las tablas nuevas**, reabriendo el agujero que
+   D-99/D-122/D-125/D-126 habían cerrado al 100 %. Se añaden `reporte_ejecuciones` y `reportes` al
+   array y una llamada de resiembra al final: tras el reset la copropiedad queda con sus reportes
+   de fábrica recién publicados, como una recién creada.
+
+**Frontend** (`stores/reportes.ts`, `pages/reportes/index.vue`, ruta canónica `/reportes`, grupo
+nuevo "Reportes" en el sidebar): listar por categoría, resolver parámetros, ejecutar y pintar la
+tabla con `UiTabla`. Dos detalles que costaron su iteración —y que valen para el próximo corte:
+
+- **La RLS no basta como filtro de pantalla.** `is_member(tenant_id)` deja ver los reportes de
+  TODAS las copropiedades donde el usuario es miembro; sin `.eq('tenant_id', activeTenant.id)`,
+  quien administra tres copropiedades veía cada reporte tres veces (reproducido en navegador).
+- **El `select` de supabase-js debe ser un literal de una sola pieza.** Partido en varias líneas
+  con `+`, la inferencia colapsa a `GenericStringError` y el typecheck cae con trece errores que
+  no dicen eso por ninguna parte.
+
+Los parámetros se resuelven en el store, nunca en la base: la definición guarda
+`{campo, operador, parametro}` y el store manda `{campo, operador, valor}`. El compilador solo
+entiende `valor`, y así no sabe nada de plantillas.
+
+**Códigos de error** (10, registrados en `packages/shared/src/error-codes.ts` al escribir el
+RAISE, no al cerrar el corte): `RPT_VERSION_PUBLICADA_INMUTABLE`, `RPT_FUENTE_NO_ENCONTRADA`,
+`RPT_CAMPO_NO_ENCONTRADO`, `RPT_DEFINICION_INVALIDA`, `RPT_CAMPO_NO_AGRUPABLE`,
+`RPT_AGREGACION_INVALIDA`, `RPT_FILTRO_INVALIDO`, `RPT_OPERADOR_INVALIDO`,
+`RPT_FILTRO_OBLIGATORIO`, `RPT_ORDEN_INVALIDO`. La UI los traduce (§66); ninguno llega crudo.
+
+**Verificado:** 22 pruebas nuevas en verde (17 en `tests/rls/reportes.test.ts`, 5 en
+`tests/rls/reportes-catalogo.test.ts`, este último un guardia que pide a PostgREST exactamente las
+columnas que el catálogo promete, para que un renombre en una vista falle en CI y no delante del
+usuario). Entre ellas, las tres que sostienen el motor: un campo fuera del catálogo se rechaza
+(también un identificador SQL disfrazado), un valor de filtro con `' or 1=1 --` devuelve 0 filas y
+deja las tablas intactas, y un miembro del tenant A no ve por el motor una fila del tenant B que
+el dueño sí ve con la misma definición. **En navegador** (local, Chrome del preview): los tres
+reportes de fábrica listados por categoría, parámetros auto-resueltos (inicio de mes / hoy),
+ejecución de "Recaudos del período" sobre una copropiedad desechable sembrada al efecto —
+3 filas · 10 ms, encabezados tomados del catálogo ("Valor recaudado", no "monto") y montos
+formateados por tipo declarado ($ 450.000). La copropiedad desechable se borró después, lo que a
+su vez destapó el hallazgo 1.
+
+**Pendiente del corte, a propósito:** la fuente de cartera no se pudo ejercitar con datos porque
+el Supabase local no tiene `posiciones_cartera_snapshot` (dato faltante del entorno, no fallo —
+la vista compila y ejecuta, devuelve 0 filas). Queda para la verificación contra remoto. Y nada
+de esto está en producción todavía: `db:push:prod` no se ha corrido.
+
+**Addendum D-137 — el catálogo se lee solo desde dentro de una copropiedad (20260938080000).**
+`pnpm verify` completo local (2329 pruebas) destapó que la política de `reporte_campos`, escrita
+como `using (true)`, hacía saltar el guardia de AD-37 §5
+(`tests/external/identidad-actor-externo.test.ts`, caso 11), que vigila que la lectura abierta para
+`authenticated` quede reservada a catálogos globales sin dato de negocio. Ese guardia contempla
+añadir un catálogo nuevo a su lista permitida "de forma consciente"; aquí se tomó la decisión
+contraria, más estricta y sin coste: **el catálogo del motor no se abre.** Desde EXT-01 existen
+sesiones `authenticated` que no son miembros de ninguna copropiedad —los actores externos del
+portal—, y un actor externo no ejecuta reportes, así que tampoco tiene por qué enumerar las
+fuentes del motor ni sus etiquetas de negocio. Se añade
+`public.es_miembro_de_alguna_copropiedad()` (la versión sin tenant de `is_member()`, SECURITY
+DEFINER por el mismo motivo) y ambas políticas pasan a exigirla. El guardia AD-37 vuelve a verde
+(17/17) sin tocar su lista permitida.
+
+**Resultado de `pnpm verify` local (2026-09-15):** build, typecheck y lint limpios;
+**2317/2329 pruebas en verde, 11 fallidas en 6 archivos**, ninguna del motor de reportes salvo la
+de AD-37 ya corregida arriba. Las otras diez son preexistentes y de entorno, verificadas una a una:
+
+- **5 — `gc-001` sin datos en local** (`tests/seed/gc001.test.ts` ×3,
+  `contabilidad/contable-movimientos` ×1, `contabilidad/materializacion` ×1). Comprobado contra la
+  base: el tenant `gc-001` existe en local con **0 cargos y 0 liquidaciones**, así que
+  `contable_movimientos()` devuelve 0 líneas y la materialización 0 asientos de 62 esperados. Es
+  el caso ya documentado en D-111/D-134 (dato acumulado que solo vive en remoto), no una regresión.
+- **5 — Brevo sin crédito de SMS** (`tenancy/cartera-envio-evidencia` ×4,
+  `tenancy/cartera-ejecutar-lote` ×1): el acuse no llega porque el SMS no sale, ya documentado
+  en D-123.
+
+Las 22 pruebas del corte siguen en verde tras el cambio de políticas.
+
+## D-138
+
+**RPT-02 — el diseñador de reportes.** Segundo corte de la serie
+(`PLAN_MOTOR_REPORTES.md` §6). Un usuario autorizado ya puede crear un reporte desde cero, elegir
+campos, filtrarlos, agruparlos, ordenarlos, probarlo con datos reales y publicarlo — sin escribir
+SQL y sin que el motor le deje pedir nada fuera del catálogo.
+
+**El corte casi no necesitó base de datos, y eso es el resultado más interesante.** La pregunta de
+apertura era qué esquema hacía falta para el diseñador; la respuesta fue *ninguno*:
+
+- **Los valores sugeridos de un filtro no necesitan RPC propia.** Agrupar por el campo con
+  `fn_reporte_ejecutar` ya devuelve sus valores distintos, con catálogo y RLS aplicados. Y como
+  admite filtros, la **cascada sale gratis**: los valores de Inmueble llegan acotados a la Torre ya
+  elegida sin un solo mecanismo nuevo. El §23 del prompt pedía parámetros en cascada como
+  capacidad aparte; aquí es una consecuencia del compilador.
+- **El alias es solo presentación.** La columna de salida sigue llamándose como el campo del
+  catálogo (RPT-01), así que un alias escrito por el usuario no llega nunca al SQL: lo consume la
+  tabla al pintar el encabezado. Texto libre que por construcción no puede colar nada.
+- La vista previa es la misma RPC, con límite 100 y **sin registrar ejecución**: diseñar son
+  decenas de corridas de prueba y anotarlas todas dejaría el historial inservible (§35).
+
+```text
+supabase/migrations/20260939000000_rpt2_reportes_del_sistema_protegidos.sql
+  Lo ÚNICO que sí hubo que tocar. RPT-01 protegía `del_sistema` solo contra DELETE; en cuanto
+  existe una UI que escribe, faltaban las dos mitades: sin `not del_sistema` en el WITH CHECK del
+  INSERT, cualquier auxiliar podía crear un reporte marcándolo de fábrica y quedarse con una fila
+  que después ni él podía borrar. Se cierran INSERT y UPDATE de `reportes`, y las tres políticas
+  de escritura de `reporte_versiones` pasan a exigir que el reporte no sea de fábrica. Queda
+  impuesta la regla que RPT-01 solo documentaba: un reporte de fábrica no se edita, se duplica.
+
+apps/web/app/stores/reportes.ts
+  previsualizar / valoresDe / crearReporte / guardarBorrador / publicar / nuevaVersion /
+  duplicar / cargarVersion. `versionBorrador` se suma al listado: un reporte a medio diseñar
+  tiene que poder reabrirse.
+
+apps/web/app/pages/reportes/disenador/[id].vue
+  El parámetro es el id de una VERSIÓN, no del reporte: se diseña siempre sobre una versión
+  concreta. Una publicada abre en solo lectura y ofrece crear la siguiente. Autosave con
+  debounce de 1,5 s (§64) y aviso de cambios sin guardar al salir (§65).
+```
+
+**Una trampa que ya estaba documentada y volvió a morder:** la carga inicial del diseñador estaba
+en `useAsyncData`, escribiendo en refs de página (`version`, `definicion`). Eso no sobrevive a la
+hidratación —el cliente reutiliza el payload sin re-ejecutar y los refs se quedan vacíos—, así que
+`version` llegaba en null, `soloLectura` daba true y **el diseñador abría un borrador como si
+fuera una versión publicada**, ofreciendo "Crear versión nueva" en vez de dejar editar. Reproducido
+en navegador, no en pruebas: el SSR lo pintaba bien y solo fallaba tras hidratar. La carga se mueve
+a `onMounted` + watch del tenant. Es exactamente lo que advierte la nota
+`useasyncdata-ref-pagina-no-hidrata`; lo que la hace fácil de repetir es que en la misma página
+conviven dos llamadas que sí pueden quedarse en `useAsyncData` (perfil y membresías, que escriben
+en stores de Pinia).
+
+**Un test de RPT-01 cambió de significado y hubo que reescribirlo**, no relajarlo: "una versión
+publicada es inmutable" tomaba la primera versión publicada que encontrara —siempre una de
+fábrica— y esperaba el error del trigger. Con las políticas nuevas la RLS filtra antes y el trigger
+ya no llega a hablar, así que el UPDATE no devuelve error. Ahora el test crea un reporte propio, lo
+publica y comprueba el trigger sobre él; que un reporte de fábrica se filtre por RLS se prueba
+aparte, en `reportes-disenador.test.ts`.
+
+**Verificado:** build, typecheck y lint limpios; 29 pruebas del módulo en verde (17 + 5 + 7
+nuevas). **En navegador**, el ciclo completo con datos reales: crear "Recaudos por torre" desde el
+botón Nuevo reporte → elegir Torre/Bloque y Deuda total → agrupar por torre → poner el filtro de
+corte que la fuente exige → Probar (4 filas · 15 ms, deuda por torre de $5,8 M a $14,2 M, con el
+formato de moneda del catálogo) → Publicar (queda sellada con fecha y autor) → "Nueva versión" crea
+la v2 en borrador copiando la definición, con la v1 intacta.
+
+**Fuera de alcance del corte, a propósito:** los subtotales jerárquicos (detalle + subtotal por
+grupo) no entran aquí. Agrupar produce filas agregadas, que es lo que el compilador sabe hacer;
+mostrar detalle y subtotal a la vez es trabajo de presentación y le corresponde a RPT-03, donde
+viven los renderers.
+
+## D-139
+
+**RPT-03 — los renderers.** Tercer corte de la serie (`PLAN_MOTOR_REPORTES.md` §6). Lo que RPT-01
+sabía ejecutar y RPT-02 sabía diseñar, ahora **sale del navegador como archivo**: XLSX, CSV y PDF,
+más la pantalla, los cuatro formateando con **la misma función**.
+
+**Es el primer corte de la serie sin una sola migración.** El ledger se queda como estaba (última
+fila: RPT-02); no se añade fila con guiones porque la regla de continuidad es «lee la última fila y
+usa timestamps posteriores», y una fila sin timestamps la rompería.
+
+**La decisión de fondo: el paquete produce datos, no archivos.**
+
+```text
+packages/reporting/            (@aquila/reporting, 720 líneas con pruebas)
+  tipos.ts        ColumnaReporte {clave, etiqueta, tipo} · FilaReporte · EncabezadoReporte.
+                  Deliberadamente pobre: el tipo lo declara el catálogo (reporte_campos), no se
+                  adivina del valor. Un código de inmueble que parece número («0102») es texto y
+                  no puede perder su cero a la izquierda.
+  formato.ts      formatearValor / valorParaHoja / formatoCeldaExcel / anchoColumna.
+  csv.ts          aCsv: BOM UTF-8, separador «;», CRLF, escape RFC 4180.
+  hoja.ts         construirHoja: matriz de celdas + anchos + formatos + fila de encabezados.
+  documento.ts    construirDocumento: el docDefinition de pdfmake COMO DATO, sin importar pdfmake.
+```
+
+Ninguno de esos módulos importa `xlsx`, `pdfmake`, Vue ni Supabase. Quien materializa es
+`apps/web/app/utils/reporte-exportar.ts`, con import dinámico de las dos librerías pesadas (el
+patrón que ya usaban `contabilidad/libros.vue` y `recaudo/index.vue`). **Esa frontera no es estética:
+RPT-05 va a construir estos mismos archivos desde una Edge Function en Deno, donde no hay `document`
+ni `Blob` de navegador.** El corolario práctico es que la hoja y el documento se prueban como
+matrices y objetos en una prueba unitaria —donde están los errores de verdad: una columna corrida,
+un total que no cuadra— y no abriendo un binario.
+
+**Tres errores clásicos de exportación, cerrados de una vez:**
+
+- **El número exportado como texto.** `valorParaHoja` manda los montos a Excel como números y el
+  formato de celda (`"$" #,##0`) se aplica celda a celda, porque `xlsx` no tiene formato por
+  columna. Exportar «$ 450.000» ya formateado produce una columna que no suma; era justo lo que
+  señalaba §30 del prompt.
+- **El CSV ilegible en español.** Sin BOM, Excel en Windows abre el archivo en la codificación del
+  sistema y «Administración» sale «AdministraciÃ³n»; con separador coma, cae entero en una sola
+  columna porque la coma es el separador decimal. Van BOM y `;` por defecto.
+- **La fecha que retrocede un día.** `new Date('2026-09-01')` se interpreta en UTC y en hora de
+  Bogotá (UTC-5) se imprime como 31 de agosto. `formatearFecha` parte la cadena a mano.
+
+**Un punto de verdad, no cuatro.** Las dos pantallas de reportes tenían su propia copia de
+`formatear()` —el mismo `switch` duplicado en `reportes/index.vue` y en el diseñador— y los
+exportadores traían la tercera. Ahora las dos páginas llaman a `formatearValor` del paquete. Es
+exactamente el hallazgo de la auditoría externa de 2026-08-26 (`formatoMoneda` copiado 18 veces, una
+de ellas con otro formato): un motor de reportes que repitiera ese patrón produciría el mismo número
+escrito distinto según por dónde saliera. De paso corrige dos diferencias reales que tenían las
+copias: un booleano `'f'` de Postgres se pintaba como «Sí» por truthiness de JavaScript, y las
+fechas se mostraban crudas en pantalla («2026-09-01») mientras el archivo las escribía en formato
+local.
+
+**Exportar vuelve a ejecutar el reporte, no recicla lo de pantalla** (§30), con límite 5 000 filas
+y registrando la ejecución con su `formato` — así el historial distingue una consulta en pantalla de
+una descarga. Verificado en la bitácora: `pantalla`, `csv`, `xlsx` y `pdf`, 20 filas, 8-38 ms.
+
+**Migración de un exportador existente, con equivalencia demostrada** (§88, regla del plan: ninguno
+se elimina sin ella). `recaudo/index.vue` —el más simple— pasa a `exportarXlsx` con sus
+`COLUMNAS_RECAUDO`; `apps/web/app/utils/reporte-equivalencia.test.ts` reconstruye la hoja como la
+armaba el código viejo y compara **celda por celda**, incluyendo el tipo de cada una: los montos
+siguen siendo números y las fechas siguen siendo las mismas cadenas. La prueba se queda en el repo
+como red para las migraciones que vengan.
+
+**Verificado:** build, typecheck (9 paquetes + `nuxt typecheck`) y lint en cero errores; **51
+pruebas del módulo de reportes en verde** (17 RLS + 7 diseñador + 5 catálogo + 17 del paquete + 5 de
+equivalencia) sobre 2 347 de la suite completa.
+
+**`pnpm verify` NO cerró limpio, y conviene dejar escrito por qué:** 10 pruebas fallan en 5 archivos
+—`tests/seed/gc001.test.ts`, los dos de `tests/contabilidad/`, y los dos de cartera con despacho
+real— y **ninguna toca el módulo**. Son el desfase de datos entre local y remoto: el `.env` de la
+raíz apunta hoy a `127.0.0.1:54321`, pero esas suites están escritas contra el estado acumulado de
+gc-001 en el proyecto remoto (D-08). El local trae la semilla original de paso0 —6 inmuebles, no los
+66 que la prueba espera; concepto `activo`, no `archivado`— y esos son datos que ninguna prueba
+crea: tienen que existir de antes. RPT-03 **no lleva una sola migración** y ninguno de esos cinco
+archivos importa nada del corte, así que no puede ser causa. No se tocó ninguna de esas pruebas para
+ponerla en verde.
+
+**En navegador**, con los datos sembrados del tenant QA: «Cartera por inmueble»
+ejecutado a 20 filas y descargado en los tres formatos, interceptando el blob real —CSV 1 376 bytes
+con `;`, CRLF, tildes intactas y montos crudos (`3502800`, no `$ 3.502.800`); XLSX 23 301 bytes, zip
+válido con `xl/styles.xml`; PDF 25 001 bytes, cabecera `%PDF-1.3`, 1 página— y el Recaudo migrado
+exportando 33 103 bytes de XLSX válido sobre 62 pagos reales.
+
+**Pendiente del corte, explícito:** los subtotales jerárquicos que RPT-02 dejó aquí (detalle +
+subtotal por grupo) **no entran**: `totalesDe` da el total general del pie, que es lo que los tres
+formatos necesitan hoy. El subtotal por grupo pide una pantalla con filas de agrupación, y esa
+pantalla es RPT-04.
+
+## D-140
+
+**RPT-04 — el Centro de Reportes y su historial.** Cuarto corte de la serie
+(`PLAN_MOTOR_REPORTES.md` §6). El catálogo pasa de ser una lista por categorías a una pantalla que
+responde «lo que abro siempre» antes que «todo lo que existe», y aparece la bitácora que contesta la
+única pregunta que importa cuando alguien discute una cifra: **de dónde salió ese número**.
+
+```text
+supabase/migrations/20260940000000_rpt4_favoritos.sql
+  Un favorito es PERSONAL, no de la copropiedad. La PK es (reporte_id, profile_id) y la política
+  de SELECT solo deja ver las filas propias: ni el administrador ve los favoritos de otro. No hay
+  nada auditable ahí — es una preferencia de pantalla.
+
+supabase/migrations/20260940010000_rpt4_artefactos.sql
+  Tabla + bucket privado `reportes`. SIN política de INSERT para authenticated.
+
+supabase/migrations/20260940020000_rpt4_auditoria.sql
+  Dos disparadores a audit_log y el guardia que cierra un rodeo a SEC-14.
+```
+
+**«Recientes» no necesitó tabla.** `reporte_ejecuciones` ya guarda `ejecutado_por` e `iniciado_at`
+desde RPT-01: las últimas sesenta corridas del usuario, deduplicadas por reporte, son los recientes.
+Una tabla propia habría sido una segunda verdad sobre lo mismo. Es el mismo hallazgo que RPT-02 tuvo
+con los valores de filtro: casi todo lo que el prompt pedía como mecanismo aparte ya estaba.
+
+**Quién escribe los artefactos, y por qué nadie más.** Después de RPT-03 los archivos se arman en el
+navegador y se descargan; **no pasan por el servidor y hoy no hay nada que archivar**. El productor
+es el renderer de servidor que construye RPT-05 para las entregas programadas, así que este corte
+deja la estructura y el historial que la lee, con la columna «Archivo» mostrando «—» en todas las
+corridas — que es la verdad, no un hueco. Por eso el bucket no tiene INSERT para `authenticated`:
+subir el blob que generó el cliente obligaría a abrir escritura bajo `{tenant_id}/` a cualquier
+miembro, y un bucket del sistema donde el cliente pone lo que quiera deja de ser evidencia de nada.
+Es el mismo criterio de `estados-cuenta` (20260822100000) y `auditoria-evidencias` (20260915100000).
+
+**El historial sobrevive al archivo.** Al vencer la retención se borra el objeto y se marca
+`purgado_at`; la fila queda. Así la pantalla puede decir «esta corrida produjo un XLSX que expiró el
+15 de octubre» en vez de fingir que nunca hubo archivo.
+
+**Un rodeo a SEC-14 que estaba abierto desde RPT-01.** `reporte_ejecuciones` es append-only, pero su
+FK a `reportes` es `ON DELETE CASCADE`: **borrar el reporte se llevaba su historial entero sin violar
+ningún disparador** — la misma prohibición evitada por el padre. Ninguna pantalla borra reportes hoy
+(la RLS lo permite, la app no lo ofrece), así que se cierra ahora que es barato:
+`guard_reporte_con_historial` impide borrar un reporte ya ejecutado, con `RPT_REPORTE_CON_HISTORIAL`.
+El borrado del tenant y `fn_resetear_copropiedad` siguen pasando, con el mecanismo exacto de
+`forbid_mutation_salvo_tenant_borrado` (tenant inexistente o `aquila.reset_context`); el test de
+reseteo de RPT-01 lo confirma. **Nota para quien añada un botón «Eliminar reporte»:** con este
+guardia hará falta un ARCHIVAR (`archivado_at` + filtro en el catálogo), no un borrado. No se añade
+aquí porque sería estructura sin uso.
+
+**Qué va a `audit_log` y qué no (§57).** `reporte_ejecuciones` ya es la bitácora operativa; repetir
+cada corrida en `audit_log` sería la misma verdad dos veces y ahogaría la auditoría en ruido — una
+pantalla de reportes se consulta decenas de veces al día. Van los dos actos que no son una consulta:
+`reporte.publicado` (sellar una versión es gobierno: a partir de ahí es inmutable y produce cifras
+que alguien va a citar, y el metadata lleva la definición sellada entera) y `reporte.exportado`
+(sacar datos del sistema, con el precedente exacto de `fn_registrar_exportacion_libro`, que escribe
+`contabilidad.libro.exportar`). El disparador filtra por `formato <> 'pantalla'`. `reporte.programado`
+llega con RPT-05. **Esto ajusta lo que el plan decía** —hablaba de `reporte.ejecutado`—: auditar toda
+ejecución habría duplicado RPT-01.
+
+**KPIs: los cuatro que significan algo en una copropiedad de 3-5 usuarios** — corridas registradas,
+cuántas produjeron archivo, fallidas y la corrida más lenta. Se descartan a propósito «usuarios que
+generan» y «descargas del mes» de la maqueta: con tres personas el primero es siempre 3 y el segundo
+no cambia ninguna decisión.
+
+**Un punto de verdad también en la pantalla.** `formatearValor` de `@aquila/reporting` (RPT-03)
+formatea ya los parámetros del historial, igual que el Centro y los archivos.
+
+**Verificado:** 11 pruebas RLS nuevas —las tres negativas exigen **código 42501**, no un error
+cualquiera: una prueba negativa que pasa por el motivo equivocado no prueba nada— y las 40 del módulo
+en verde, incluida la de reseteo de RPT-01 que ahora atraviesa el guardia nuevo. **En navegador**,
+con el tenant QA sembrado: la estrella enciende y persiste tras recargar (fila real en
+`reporte_favoritos`) sin cambiar el reporte abierto; «Recientes» sale de las corridas de verdad y
+deja de repetir lo que ya está en Favoritos; la búsqueda ignora tildes («periodo» encuentra «Recaudos
+del período»); el historial muestra 17 corridas con versión, parámetros, filas y duración, los KPIs
+cuadran (4 con archivo, 0 fallidas, 228 ms la más lenta) y el filtro deja exactamente las 4
+exportaciones. Y exportar un CSV desde la aplicación dejó `reporte.exportado` en `audit_log` con
+`formato: csv` y 20 filas — el disparador funciona de punta a punta, no solo en la prueba.
+
+## D-141
+
+**RPT-05 (en curso) — el compilador filtra por copropiedad, siempre.** Al empezar la entrega
+programada apareció un agujero que ninguna prueba del módulo podía ver, y que habría salido por
+correo la primera vez que se ejecutara un reporte agendado.
+
+**El hallazgo.** RPT-01 apoyó TODA la separación entre copropiedades en la RLS de las vistas `vr_*`
+(`security_invoker`), y lo documentó como una virtud: no se duplica la matriz de seguridad. Es
+correcto **mientras el ejecutor sea un usuario con sesión**. RPT-05 introduce uno que no lo es: la
+Edge Function que envía los reportes programados corre con `service_role`, y `service_role` tiene
+`BYPASSRLS`. Medido contra la base, no deducido:
+
+```sql
+set role service_role;
+select count(distinct tenant_id) from public.vr_recaudos;  -->  11
+```
+
+Once copropiedades, 72 filas. El primer reporte programado habría salido por correo con los datos de
+todas. **Las 40 pruebas del módulo estaban en verde** y ninguna podía detectarlo: todas corren como
+usuario, y a un usuario la RLS sí lo protege.
+
+**La corrección va en el compilador, no en la Edge Function.** Un filtro escrito en Deno se puede
+olvidar en la próxima función que llame a la RPC; uno que pone el compilador, no.
+
+```text
+supabase/migrations/20260941000000_rpt5_ejecutar_filtra_tenant.sql
+  · `p_tenant_id` pasa a ser OBLIGATORIO y va antes del límite. Cambia la aridad, así que la firma
+    vieja se borra explícitamente: con `create or replace` habrían quedado dos sobrecargas y la
+    ambigua seguiría siendo la insegura.
+  · `tenant_id = ($1->>'tenant')::uuid` se antepone SIEMPRE a las demás condiciones. El valor viaja
+    por $1 como todos: el compilador sigue sin interpolar un solo dato del cliente.
+  · Una fuente cuya vista no exponga `tenant_id` se rechaza con `RPT_FUENTE_SIN_TENANT` antes de
+    compilar nada — sin esa guarda, la próxima vista `vr_*` sin esa columna reabriría el agujero en
+    silencio. Las tres actuales la tienen.
+```
+
+**Para un usuario con sesión no cambia nada** salvo que ahora hay dos capas: el filtro del
+compilador y la RLS. Un cliente que mande el id de otra copropiedad no gana nada, y esa es ahora la
+prueba de aislamiento de RPT-01 — se reescribió para pedir explícitamente el tenant ajeno, que es el
+caso hostil de verdad; antes solo comprobaba que no aparecieran filas que el usuario nunca pidió.
+
+**`tests/rls/reportes-tenant-servidor.test.ts`** es el archivo nuevo, y usa el cliente de servicio a
+propósito: es el único ángulo desde el que se ve. Empieza por un **control positivo** —que
+`service_role` sí ve las dos copropiedades en la vista— porque sin él las otras tres podrían pasar
+por el motivo equivocado.
+
+**Verificado:** 44 pruebas del módulo en verde con la firma nueva (17 + 11 + 7 + 5 + 4), typecheck y
+lint limpios, y en navegador el Centro sigue ejecutando y registrando (20 filas, 37 ms).
+
+**Estado del corte: RPT-05 NO está cerrado.** Falta lo que el plan pide: `reporte_programaciones` y
+`reporte_suscripciones`, la bitácora de entregas, el cron con `net.http_post` y la Edge Function que
+arma y envía. Esta migración es su prerrequisito, y se documenta aparte porque **corrige RPT-01 y
+tiene valor por sí sola**, con o sin entrega programada.
+
+### D-141 · addendum: esquema de programación (20260941010000-20260941040000)
+
+**Solo se suscribe a MIEMBROS, y eso estrecha el plan a propósito.** El esquema esbozado en §5 decía
+`profile_id | correo`: o un usuario, o una dirección escrita a mano. Pero la regla de seguridad del
+mismo corte dice «un usuario no puede suscribir a un destinatario que no es miembro del tenant», y
+las dos cosas no caben juntas: **una dirección libre es exactamente un canal para sacar los estados
+financieros de la copropiedad a donde sea, programado y recurrente, con un solo INSERT**. Se resuelve
+a favor de la seguridad: `profile_id` obligatorio, con membresía **activa** comprobada en la propia
+política. Si algún día hace falta enviarle al revisor fiscal que no es usuario, será una decisión
+deliberada con su propio control, no el efecto colateral de una columna de texto.
+
+**La política de UPDATE no basta para «no cambiar de tenant».** Quien administra DOS copropiedades
+pasa el `using` con una y el `with check` con la otra, y se llevaría la programación —con sus
+suscriptores y su historial de entregas— al otro tenant. Lo impide
+`guard_reporte_programacion_tenant`, y la prueba lo ejerce con un usuario que es auxiliar en ambas,
+que es el único escenario en que el agujero existía.
+
+**`reporte_entregas` responde otra pregunta que `reporte_ejecuciones`.** Una corrida produce UN
+archivo y puede terminar en CINCO buzones con cinco suertes distintas. El destinatario **se congela
+como texto**: un perfil cambia de correo y la evidencia de a dónde se envió, no. Append-only y sin
+escritura para `authenticated` — que el administrador pueda editar la prueba de lo que se envió la
+vacía de sentido.
+
+**El cálculo de calendario es una función PURA** (`fn_reporte_proxima_corrida`, IMMUTABLE, no toca
+tablas) precisamente porque un error ahí no se ve hasta el mes siguiente. Se prueba con instantes
+fijos y sin fixtures. Y la zona horaria **no es decorativa**: la prueba comprueba que «las 7:00» en
+Bogotá, Madrid y Ciudad de México son **tres instantes UTC distintos** (12:00, 05:00 y 13:00) — el
+horario de verano de Madrid lo resuelve `at time zone`, no una constante escrita a mano.
+
+**Un error real que encontró la prueba, no la revisión.** El CHECK de coherencia decía
+`dia_semana between 0 and 6`; con la columna nula eso **no da falso, da NULL**, y un CHECK que
+evalúa a NULL se considera satisfecho. Una programación 'semanal' SIN día de semana entraba sin
+protestar y su `proxima_at` habría sido NULL para siempre: **una programación que nunca corre y que
+nadie nota**. Lo delató exigir el código `23514` en vez de conformarse con «falló» — no fallaba.
+Corregido en 20260941040000 con `coalesce(..., false)`. Lección general: en un CHECK, toda rama que
+compare columnas opcionales necesita ese `coalesce`.
+
+**Verificado:** 66 pruebas del módulo en verde (17 + 12 + 11 + 7 + 10 + 5 + 4), lint y build limpios.
+
+**Sigue faltando para cerrar RPT-05:** el cron con `net.http_post`, la Edge Function que ejecuta y
+envía, y la UI de programación. La verificación del envío se hará con `supabase functions serve`,
+que regenera el mapa de funciones **sin tocar el contenedor de la base ni su volumen** — no hace
+falta `supabase stop`.
+
+### D-141 · addendum 2: el reloj, el despachador y dos fallos que solo salieron al probarlo
+
+**El reparto.** La base decide QUÉ (`fn_reporte_programaciones_debidas`), la Edge Function hace lo
+que la base no puede (armar el archivo, hablar con Brevo). `cron_reportes_programados()` hace UNA
+petición y ni la abre si no hay nada vencido — a 96 pasadas diarias, la mayoría no tienen trabajo.
+Cada 15 minutos y no una vez al día, porque una programación tiene HORA: un informe pedido para las
+15:00 saldría a la mañana siguiente, quince horas tarde.
+
+**`enviar-reportes-programados` usa el MISMO renderer que el navegador.** `@aquila/reporting`
+construye la hoja como dato y no importa `xlsx` ni toca el DOM — esa frontera, declarada en RPT-03,
+es lo que aquí se cobra: la misma matriz que se descarga desde el Centro es la que viaja adjunta.
+
+**Formato: solo XLSX y CSV.** El PDF de servidor, en este repo, se hace con PDFShift a partir de
+HTML (estados de cuenta) — otro camino y otra decisión de coste. Se quita `'pdf'` del CHECK en vez
+de admitir una programación que fallaría siempre.
+
+**Dos fallos que la prueba de punta a punta destapó, y que ninguna prueba unitaria habría visto:**
+
+1. **La primera corrida real produjo un archivo de CERO FILAS, sin fallar.** La definición guarda
+   sus filtros por REFERENCIA (`parametro_desde`/`parametro_hasta`) y el compilador solo entiende
+   VALORES; el store de Pinia hacía esa traducción, y el despachador —que corre en Deno y no puede
+   importar un store de Vue— no la hacía. **No dio error: entregó un informe vacío**, que es peor.
+   La traducción baja a `@aquila/reporting` (`resolverFiltros`, `definicionEjecutable`,
+   `parametrosSinValor`), la usan los dos ejecutores, y el store pasa a reexportarla. Tras el
+   arreglo: 62 filas, 33 685 bytes. Además, una programación a la que le falte un parámetro
+   obligatorio ahora se **omite con motivo** en vez de enviar el vacío.
+2. **El archivo salió sellado con la hora de UTC.** «Generado: 16/9/2026, 4:25 a. m.» cuando en la
+   copropiedad eran las 11:25 de la noche anterior — el mismo reporte decía una hora en el navegador
+   y otra por correo. `EncabezadoReporte` gana `zonaHoraria` y `selloDeGeneracion` la aplica.
+
+**Probado de punta a punta con `supabase functions serve`** —sin tocar el contenedor de la base ni
+su volumen, así que los datos sembrados siguen intactos— y **a propósito sin credenciales de Brevo**:
+así se ejercita la cadena entera sin enviar un correo real. Cadena verificada contra la base:
+programación vencida → corrida `origen='programada'`, 62 filas, 15 ms → **XLSX válido de 33 685
+bytes** en el bucket privado, con su `sha256` y retención a 30 días → entrega registrada
+(`blancomj@gmail.com · fallida · Brevo no está configurado`) → `proxima_at` movido al día siguiente →
+`reporte.exportado` en `audit_log`. El XLSX, descomprimido: encabezado con copropiedad, versión y
+los dos parámetros, 62 filas de datos, fechas `dd/mm/aaaa` y el formato `"$" #,##0` del paquete.
+
+**Verificado:** 96 pruebas del módulo en verde, `deno check` limpio sobre la función, lint sin
+errores.
+
+**Falta para cerrar RPT-05:** la UI de programación y suscripción, el barrido de retención que purga
+los artefactos vencidos, y **un envío real por Brevo** —que no se hace sin pedirlo, porque manda
+correo de verdad—. La programación de prueba queda **desactivada** en el tenant QA.
+
+### D-141 · addendum 3: la pantalla de reportes programados
+
+`/reportes/programaciones` — crear, pausar, suscribir y ver a quién llegó. Tres decisiones y un
+hallazgo.
+
+**Los parámetros se congelan al programar.** Un informe que se manda solo no puede pedirle una
+fecha a nadie, así que se guardan los valores sugeridos de la definición —los mismos que la pantalla
+ofrece al ejecutarlo a mano— y el modal los muestra antes de confirmar. Que queden fijos es una
+propiedad, no una limitación: el reporte semanal de los lunes tiene que decir lo mismo cada lunes.
+
+**El selector solo ofrece miembros, y solo reportes con versión publicada.** Las dos reglas ya las
+imponen las políticas; la pantalla las refleja para que nadie las descubra a golpe de error. Y una
+programación sin suscriptores lo dice en amarillo —«Nadie: este envío no llegará a ninguna parte»—
+en vez de fingir que está lista.
+
+**El calendario lo calcula la base, no el cliente.** `proxima_at` llega ya resuelto; la pantalla solo
+lo pinta en la zona de la copropiedad. Duplicar ese cálculo en JavaScript sería la misma regla en dos
+sitios, lista para divergir. Verificado en navegador: al crear «Cartera de los lunes» un martes, el
+próximo envío salió **21/9/2026 7:00 a. m.**, exactamente lo que predice
+`tests/rls/reportes-calendario.test.ts`.
+
+**El hallazgo: el botón «Eliminar» iba a fallar siempre** en cuanto una programación hubiera
+enviado algo. `reporte_entregas` cuelga de `reporte_programaciones` con `on delete cascade`, y la
+cascada choca con el guardia append-only — que es lo correcto: borrar la programación no puede
+llevarse la evidencia de a quién se le envió. Comprobado en navegador: la fila sobrevivió al intento.
+Pero el usuario veía «no pasó nada». Ahora la pantalla **carga el conteo de entregas** (`reporte_entregas(count)`)
+y sustituye el botón por «N envíos registrados», con «Pausar» como la acción que sí corresponde; y si
+alguien llega por otra vía, el mensaje explica qué pasó en vez de mostrar el error de Postgres.
+Es el mismo patrón que RPT-04 cerró para los reportes con historial.
+
+**Verificado en navegador** con el tenant QA: alta completa desde el modal, suscripción de un
+miembro, bitácora de entregas con sus tres intentos fallidos y su motivo, borrado de una programación
+sin envíos (funciona) y bloqueo de la que sí los tiene. 96 pruebas del módulo en verde, typecheck y
+lint sin errores.
+
+**Queda para cerrar RPT-05:** el barrido de retención que purga los artefactos vencidos y marca
+`purgado_at`, y **un envío real por Brevo**, que no se hace sin pedirlo.
+
+### D-141 · addendum 4: barrido de retención
+
+`purgar-artefactos-reportes` + `cron_reportes_purgar_artefactos` (migración 20260941060000), diario
+a las 06:00 UTC = 1:00 a. m. en Colombia. La retención se mide en días, así que barrer más veces
+sería trabajo inútil.
+
+**Esto no se puede hacer solo en SQL, y conviene decir por qué.** Borrar la fila de
+`storage.objects` con un DELETE **no borra el archivo**: Storage guarda el binario fuera de la base y
+solo su API sabe dónde. Un barrido «en SQL» dejaría a la copropiedad creyendo que purgó, con los
+archivos intactos en disco — peor que no purgar, porque además mentiría. Así que la base decide QUÉ
+purgar (`fn_reporte_artefactos_vencidos`, sobre el índice parcial que RPT-04 ya había creado) y una
+Edge Function con service_role lo ejecuta. Mismo reparto que el despachador.
+
+**La fila no se borra: se marca `purgado_at`.** Es lo que permite que el historial diga «produjo un
+XLSX de 33 KB que expiró el 15 de septiembre» en vez de fingir que nunca hubo archivo.
+
+**Un archivo que ya no está también se marca.** Si alguien lo borró a mano, o un barrido anterior se
+cayó entre el borrado y la marca, el objetivo está cumplido; lo que no puede pasar es que la fila
+quede vencida para siempre y el barrido la reintente cada día. Probado a propósito: se puso
+`purgado_at` de vuelta en null con el archivo ya borrado y el barrido lo resolvió sin fallos.
+
+**Un fallo que salió al mirar el resultado en pantalla, no en la API.** El historial mostraba «—» en
+la columna Archivo para corridas que sí habían producido uno. Causa: `reporte_artefactos.ejecucion_id`
+es **UNIQUE**, y eso hace que PostgREST vea una relación **uno a uno** y devuelva un **objeto**, no
+una lista — el código leía `[0]` sobre un objeto y obtenía `undefined`. Se aceptan ambas formas,
+porque cuál llega depende de una restricción de la tabla y no de la consulta. Es la contrapartida de
+haber puesto ese UNIQUE en RPT-04: la restricción correcta cambió la forma de la respuesta.
+
+**Verificado de punta a punta:** artefacto con retención vencida → barrido → **objeto borrado de
+Storage**, fila viva con `purgado_at`, ejecución intacta, cero vencidos pendientes; y en el
+historial, «**Expiró el 15/9/2026**» junto a los «33 KB» de los que siguen disponibles. 96 pruebas
+del módulo en verde, `deno check` limpio, lint sin errores.
+
+**Queda solo una cosa para cerrar RPT-05:** un envío real por Brevo, que no se hace sin pedirlo.

@@ -1637,6 +1637,53 @@ export const ERROR_CODES = {
   // Mismo patrón que FINANZAS_ALERTA_TIPO_INVALIDO (FIN-4) — se escapó de este registro al
   // cerrar Ola 1 (D-100/D-101) y lo encontró pnpm verify remoto al cerrarla de verdad.
   CARTERA_ALERTA_TIPO_INVALIDO: 'CARTERA_ALERTA_TIPO_INVALIDO',
+
+  // ── RPT-01: Motor de Reportes (20260938000000+, D-136) ──
+  // Todos los lanza fn_reporte_ejecutar salvo el primero, que es del trigger
+  // reporte_versiones_inmutable. Son errores de DEFINICIÓN, no de datos: si alguno llega al
+  // usuario final, la UI debe traducirlo (§66) — un código de estos en pantalla significa que
+  // el diseñador dejó guardar algo que el compilador no acepta.
+  // guard_reporte_version_inmutable: editar una versión ya publicada exige crear una nueva.
+  RPT_VERSION_PUBLICADA_INMUTABLE: 'RPT_VERSION_PUBLICADA_INMUTABLE',
+  // La fuente no existe en reporte_fuentes o está inactiva.
+  RPT_FUENTE_NO_ENCONTRADA: 'RPT_FUENTE_NO_ENCONTRADA',
+  // El código de campo no está en el catálogo de esa fuente. Es también la respuesta a
+  // cualquier intento de colar un identificador SQL: lo que no está en la lista blanca, no pasa.
+  RPT_CAMPO_NO_ENCONTRADO: 'RPT_CAMPO_NO_ENCONTRADO',
+  // Definición incoherente: sin campos, campo repetido, o columna sin agrupar ni agregar.
+  RPT_DEFINICION_INVALIDA: 'RPT_DEFINICION_INVALIDA',
+  // El campo existe pero el catálogo no lo marca como agrupable.
+  RPT_CAMPO_NO_AGRUPABLE: 'RPT_CAMPO_NO_AGRUPABLE',
+  // Se pidió agregar una dimensión, o una agregación que no es suma/conteo/promedio/mínimo/máximo.
+  RPT_AGREGACION_INVALIDA: 'RPT_AGREGACION_INVALIDA',
+  // El campo no admite filtros, o el operador recibió un valor de la forma equivocada.
+  RPT_FILTRO_INVALIDO: 'RPT_FILTRO_INVALIDO',
+  // Operador fuera de la lista permitida.
+  RPT_OPERADOR_INVALIDO: 'RPT_OPERADOR_INVALIDO',
+  // La fuente declara filtro_obligatorio y la ejecución no lo trae (p. ej. cartera sin fecha
+  // de corte: devolvería inmuebles × cortes y sumaría varias veces la misma deuda).
+  RPT_FILTRO_OBLIGATORIO: 'RPT_FILTRO_OBLIGATORIO',
+  // Orden por un campo no ordenable o que no está entre los seleccionados.
+  RPT_ORDEN_INVALIDO: 'RPT_ORDEN_INVALIDO',
+
+  // ── RPT-04: Centro de Reportes e historial (20260940000000+, D-140) ──
+  // guard_reporte_con_historial: reporte_ejecuciones es append-only (SEC-14), pero su FK a
+  // reportes cascadea; borrar el padre borraba el historial por la puerta de atrás. Un reporte
+  // ya ejecutado no se borra — el borrado del tenant y fn_resetear_copropiedad sí pasan.
+  RPT_REPORTE_CON_HISTORIAL: 'RPT_REPORTE_CON_HISTORIAL',
+
+  // ── RPT-05: entrega programada (20260941000000+, D-141) ──
+  // fn_reporte_ejecutar: la fuente existe en el catálogo pero su vista no expone tenant_id, así
+  // que el filtro de copropiedad que el compilador antepone quedaría sin efecto. Importa porque
+  // el ejecutor programado corre con service_role, que atraviesa la RLS: sin esa columna, una
+  // fuente nueva mezclaría copropiedades en silencio. Se rechaza antes de compilar nada.
+  RPT_FUENTE_SIN_TENANT: 'RPT_FUENTE_SIN_TENANT',
+  // guard_reporte_programacion_tenant: una programación no se muda de copropiedad ni de reporte.
+  // La política de UPDATE no basta: quien administra dos tenants pasa el using con uno y el with
+  // check con el otro, y se llevaría la programación con sus suscriptores y sus entregas.
+  RPT_PROGRAMACION_CONTEXTO_INMUTABLE: 'RPT_PROGRAMACION_CONTEXTO_INMUTABLE',
+  // fn_reporte_proxima_corrida: frecuencia fuera de una_vez/diaria/semanal/mensual.
+  RPT_FRECUENCIA_INVALIDA: 'RPT_FRECUENCIA_INVALIDA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

@@ -2,6 +2,9 @@
 // Módulo de recaudo (RC-5) — listado tenant-wide de pagos con su recibo de
 // caja, filtros por fecha/inmueble/forma de pago, totales por forma de
 // pago, y las acciones Ver recibo / Reenviar / Anular.
+import type { ColumnaReporte } from '@aquila/reporting'
+import { exportarXlsx } from '~/utils/reporte-exportar'
+
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
 const tenantStore = useTenantStore()
@@ -222,28 +225,51 @@ async function verComprobante(storagePath: string): Promise<void> {
 /** Mismo patrón que contabilidad/movimientos.vue: SheetJS por carga dinámica,
  * para que xlsx solo pese en el bundle de quien efectivamente exporta.
  * Exporta lo que ya está filtrado/cargado en pantalla, no un query aparte. */
+/**
+ * RPT-03: primer exportador migrado al renderer común (@aquila/reporting).
+ * La equivalencia con la versión anterior está demostrada celda a celda en
+ * `utils/reporte-equivalencia.test.ts`, como pide §88 — mismas ocho columnas,
+ * mismo orden, montos que siguen siendo números.
+ *
+ * Dos cambios queridos frente a lo que había: el rango de fechas pasa del
+ * NOMBRE del archivo a una cabecera dentro de la hoja (junto con la
+ * copropiedad y la fecha de generación), donde sobrevive a que alguien
+ * renombre el archivo; y las fechas se escriben en formato local en vez del
+ * texto crudo de Postgres.
+ */
+const COLUMNAS_RECAUDO: ColumnaReporte[] = [
+  { clave: 'fecha', etiqueta: 'Fecha', tipo: 'fecha' },
+  { clave: 'inmueble', etiqueta: 'Inmueble', tipo: 'texto' },
+  { clave: 'ubicacion', etiqueta: 'Ubicación', tipo: 'texto' },
+  { clave: 'monto', etiqueta: 'Monto', tipo: 'dinero' },
+  { clave: 'forma_pago', etiqueta: 'Forma de pago', tipo: 'texto' },
+  { clave: 'recibo', etiqueta: 'Recibo', tipo: 'texto' },
+  { clave: 'estado', etiqueta: 'Estado', tipo: 'texto' },
+  { clave: 'comprobante', etiqueta: 'Comprobante', tipo: 'texto' },
+]
+
 async function exportarExcel(): Promise<void> {
-  const XLSX = await import('xlsx')
-  const encabezados = ['Fecha', 'Inmueble', 'Ubicación', 'Monto', 'Forma de pago', 'Recibo', 'Estado', 'Comprobante']
-  const filas = recaudoStore.pagos.map((p) => [
-    p.fecha_pago,
-    p.inmueble_codigo,
-    ubicacionDe(p.inmueble_agrupacion_id),
-    Number(p.monto),
-    p.forma_pago_nombre ?? '',
-    p.recibo_folio ?? '',
-    p.es_reversa ? 'Reversa' : p.esta_anulado ? 'Anulado' : 'Vigente',
-    p.comprobante_nombre_archivo ?? '',
-  ])
-  const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filas])
-  hoja['!cols'] = [
-    { wch: 12 }, { wch: 12 }, { wch: 24 }, { wch: 14 },
-    { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
-  ]
-  const libro = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(libro, hoja, 'Recaudo')
-  const rango = desde.value && hasta.value ? `-${desde.value}-a-${hasta.value}` : ''
-  XLSX.writeFile(libro, `recaudo${rango}.xlsx`)
+  const filas = recaudoStore.pagos.map((p) => ({
+    fecha: p.fecha_pago,
+    inmueble: p.inmueble_codigo,
+    ubicacion: ubicacionDe(p.inmueble_agrupacion_id),
+    monto: Number(p.monto),
+    forma_pago: p.forma_pago_nombre ?? '',
+    recibo: p.recibo_folio ?? '',
+    estado: p.es_reversa ? 'Reversa' : p.esta_anulado ? 'Anulado' : 'Vigente',
+    comprobante: p.comprobante_nombre_archivo ?? '',
+  }))
+
+  const parametros: Record<string, string> = {}
+  if (desde.value) parametros.Desde = desde.value
+  if (hasta.value) parametros.Hasta = hasta.value
+
+  await exportarXlsx(COLUMNAS_RECAUDO, filas, {
+    titulo: 'Recaudo',
+    copropiedad: tenantStore.activeTenant?.name ?? '',
+    generadoEn: new Date(),
+    parametros,
+  })
 }
 </script>
 

@@ -144,6 +144,7 @@ const COLOR_ICONO_GRUPO: Record<string, string> = {
   Mantenimiento: 'text-lime-400',
   Gobierno: 'text-fuchsia-400',
   Comunicaciones: 'text-sky-400',
+  Reportes: 'text-indigo-400',
   Configuración: 'text-slate-400',
   Seguridad: 'text-amber-400',
 }

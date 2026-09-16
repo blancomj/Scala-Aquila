@@ -60,6 +60,12 @@ export const NAV_ICONOS = {
   usuarios:
     'M9 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5M16 8a3 3 0 1 1 0 6M17.5 14.5c2.3.4 3.9 1.8 4.5 4.5',
   auditoria: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM21 21l-4.3-4.3',
+  reportes: 'M4 19V5a1 1 0 0 1 1-1h10l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1ZM14 4v5h5M8 13h3M8 16h6',
+  // Reloj con flecha de retroceso: el historial de ejecuciones (RPT-04).
+  historialReportes: 'M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 7v5l3.5 2',
+  // Calendario con reloj: los envíos programados (RPT-05).
+  reportesProgramados:
+    'M4 7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1ZM8 3v4M16 3v4M4 11h16M15 15v2l1.5 1',
   plataforma: 'M4 6h16M4 6v11a2 2 0 0 0 2 2h4M4 6l2.5-3h11L20 6M20 6v6M15 21l3-3-3-3M13 18h7',
   carteraDashboard: 'M4 19V9M10 19V5M16 19v-7M4 19h16',
   // Cofre/bóveda: efectivo restringido, no de libre disposición (PC_01 §3.2).
@@ -869,6 +875,31 @@ export const NAV_GRUPOS: NavGrupo[] = [
         to: '/coeficientes',
         permiso: 'settings:manage',
         icono: NAV_ICONOS.coeficientes,
+      },
+    ],
+  },
+  {
+    // Transversal a propósito: Reporting lee de todos los módulos, así que no
+    // cuelga de ninguno (PLAN_MOTOR_REPORTES.md §4 — ruta canónica /reportes).
+    titulo: 'Reportes',
+    items: [
+      {
+        label: 'Centro de Reportes',
+        to: '/reportes',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.reportes,
+      },
+      {
+        label: 'Historial',
+        to: '/reportes/historial',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.historialReportes,
+      },
+      {
+        label: 'Programados',
+        to: '/reportes/programaciones',
+        permiso: 'data:read',
+        icono: NAV_ICONOS.reportesProgramados,
       },
     ],
   },

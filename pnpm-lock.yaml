@@ -121,6 +121,9 @@ importers:
       '@aquila/payment-gateways':
         specifier: workspace:*
         version: link:../../packages/payment-gateways
+      '@aquila/reporting':
+        specifier: workspace:*
+        version: link:../../packages/reporting
       '@aquila/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -271,6 +274,8 @@ importers:
       '@aquila/shared':
         specifier: workspace:*
         version: link:../shared
+
+  packages/reporting: {}
 
   packages/shared:
     dependencies:

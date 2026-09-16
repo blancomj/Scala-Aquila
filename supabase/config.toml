@@ -193,6 +193,22 @@ entrypoint = "./functions/enviar-recibo-caja/index.ts"
 # Batch cron post-liquidación (D-28): notifica los estados emitidos por L5
 # que aún no tienen rastro 'estado_cuenta.enviado' en audit_log. Sin JWT a
 # propósito — se autentica con CRON_SECRET en el header x-cron-secret.
+# RPT-05: lo invoca cron_reportes_programados con x-cron-secret, no una persona,
+# así que no hay JWT que validar (mismo patrón que enviar-estados-cuenta-pendientes).
+# RPT-05: barrido diario de retención. Lo invoca cron_reportes_purgar_artefactos
+# con x-cron-secret; sin persona detrás, sin JWT.
+[functions.purgar-artefactos-reportes]
+enabled = true
+verify_jwt = false
+import_map = "./functions/purgar-artefactos-reportes/deno.json"
+entrypoint = "./functions/purgar-artefactos-reportes/index.ts"
+
+[functions.enviar-reportes-programados]
+enabled = true
+verify_jwt = false
+import_map = "./functions/enviar-reportes-programados/deno.json"
+entrypoint = "./functions/enviar-reportes-programados/index.ts"
+
 [functions.enviar-estados-cuenta-pendientes]
 enabled = true
 verify_jwt = false

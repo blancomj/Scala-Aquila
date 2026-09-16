@@ -19732,6 +19732,653 @@ export type Database = {
           },
         ]
       }
+      reporte_artefactos: {
+        Row: {
+          bytes: number
+          created_at: string
+          ejecucion_id: string
+          expira_at: string
+          id: string
+          mime: string
+          purgado_at: string | null
+          sha256: string
+          storage_path: string
+          tenant_id: string
+        }
+        Insert: {
+          bytes: number
+          created_at?: string
+          ejecucion_id: string
+          expira_at: string
+          id?: string
+          mime: string
+          purgado_at?: string | null
+          sha256: string
+          storage_path: string
+          tenant_id: string
+        }
+        Update: {
+          bytes?: number
+          created_at?: string
+          ejecucion_id?: string
+          expira_at?: string
+          id?: string
+          mime?: string
+          purgado_at?: string | null
+          sha256?: string
+          storage_path?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_artefactos_ejecucion_id_fkey"
+            columns: ["ejecucion_id"]
+            isOneToOne: true
+            referencedRelation: "reporte_ejecuciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_artefactos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_artefactos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_campos: {
+        Row: {
+          agregacion_default: string | null
+          agrupable: boolean
+          clase: string
+          codigo: string
+          descripcion: string | null
+          etiqueta: string
+          filtrable: boolean
+          fuente_id: number
+          id: number
+          orden: number
+          ordenable: boolean
+          tipo_dato: string
+        }
+        Insert: {
+          agregacion_default?: string | null
+          agrupable?: boolean
+          clase: string
+          codigo: string
+          descripcion?: string | null
+          etiqueta: string
+          filtrable?: boolean
+          fuente_id: number
+          id?: never
+          orden?: number
+          ordenable?: boolean
+          tipo_dato: string
+        }
+        Update: {
+          agregacion_default?: string | null
+          agrupable?: boolean
+          clase?: string
+          codigo?: string
+          descripcion?: string | null
+          etiqueta?: string
+          filtrable?: boolean
+          fuente_id?: number
+          id?: never
+          orden?: number
+          ordenable?: boolean
+          tipo_dato?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_campos_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "reporte_fuentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_ejecuciones: {
+        Row: {
+          duracion_ms: number | null
+          ejecutado_por: string | null
+          error_codigo: string | null
+          exito: boolean
+          filas: number | null
+          formato: string
+          id: string
+          iniciado_at: string
+          origen: string
+          parametros: Json
+          reporte_id: string
+          tenant_id: string
+          version_id: string
+        }
+        Insert: {
+          duracion_ms?: number | null
+          ejecutado_por?: string | null
+          error_codigo?: string | null
+          exito: boolean
+          filas?: number | null
+          formato?: string
+          id?: string
+          iniciado_at?: string
+          origen?: string
+          parametros?: Json
+          reporte_id: string
+          tenant_id: string
+          version_id: string
+        }
+        Update: {
+          duracion_ms?: number | null
+          ejecutado_por?: string | null
+          error_codigo?: string | null
+          exito?: boolean
+          filas?: number | null
+          formato?: string
+          id?: string
+          iniciado_at?: string
+          origen?: string
+          parametros?: Json
+          reporte_id?: string
+          tenant_id?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_ejecuciones_ejecutado_por_fkey"
+            columns: ["ejecutado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_ejecuciones_reporte_id_fkey"
+            columns: ["reporte_id"]
+            isOneToOne: false
+            referencedRelation: "reportes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_ejecuciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_ejecuciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_ejecuciones_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "reporte_versiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_entregas: {
+        Row: {
+          destinatario: string
+          detalle: string | null
+          ejecucion_id: string | null
+          estado: string
+          id: string
+          intentada_at: string
+          profile_id: string | null
+          programacion_id: string
+          tenant_id: string
+        }
+        Insert: {
+          destinatario: string
+          detalle?: string | null
+          ejecucion_id?: string | null
+          estado: string
+          id?: string
+          intentada_at?: string
+          profile_id?: string | null
+          programacion_id: string
+          tenant_id: string
+        }
+        Update: {
+          destinatario?: string
+          detalle?: string | null
+          ejecucion_id?: string | null
+          estado?: string
+          id?: string
+          intentada_at?: string
+          profile_id?: string | null
+          programacion_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_entregas_ejecucion_id_fkey"
+            columns: ["ejecucion_id"]
+            isOneToOne: false
+            referencedRelation: "reporte_ejecuciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_entregas_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_entregas_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "reporte_programaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_entregas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_entregas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_favoritos: {
+        Row: {
+          created_at: string
+          profile_id: string
+          reporte_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          reporte_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          reporte_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_favoritos_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_favoritos_reporte_id_fkey"
+            columns: ["reporte_id"]
+            isOneToOne: false
+            referencedRelation: "reportes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_favoritos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_favoritos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_fuentes: {
+        Row: {
+          activa: boolean
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          filtro_obligatorio: string | null
+          id: number
+          modulo: string
+          nombre: string
+          objeto_sql: string
+        }
+        Insert: {
+          activa?: boolean
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          filtro_obligatorio?: string | null
+          id?: never
+          modulo: string
+          nombre: string
+          objeto_sql: string
+        }
+        Update: {
+          activa?: boolean
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          filtro_obligatorio?: string | null
+          id?: never
+          modulo?: string
+          nombre?: string
+          objeto_sql?: string
+        }
+        Relationships: []
+      }
+      reporte_programaciones: {
+        Row: {
+          activa: boolean
+          creado_por: string | null
+          created_at: string
+          dia_mes: number | null
+          dia_semana: number | null
+          fecha_unica: string | null
+          formato: string
+          frecuencia: string
+          hora: string
+          id: string
+          nombre: string
+          parametros: Json
+          proxima_at: string | null
+          reporte_id: string
+          tenant_id: string
+          ultima_at: string | null
+          updated_at: string | null
+          zona_horaria: string
+        }
+        Insert: {
+          activa?: boolean
+          creado_por?: string | null
+          created_at?: string
+          dia_mes?: number | null
+          dia_semana?: number | null
+          fecha_unica?: string | null
+          formato: string
+          frecuencia: string
+          hora: string
+          id?: string
+          nombre: string
+          parametros?: Json
+          proxima_at?: string | null
+          reporte_id: string
+          tenant_id: string
+          ultima_at?: string | null
+          updated_at?: string | null
+          zona_horaria: string
+        }
+        Update: {
+          activa?: boolean
+          creado_por?: string | null
+          created_at?: string
+          dia_mes?: number | null
+          dia_semana?: number | null
+          fecha_unica?: string | null
+          formato?: string
+          frecuencia?: string
+          hora?: string
+          id?: string
+          nombre?: string
+          parametros?: Json
+          proxima_at?: string | null
+          reporte_id?: string
+          tenant_id?: string
+          ultima_at?: string | null
+          updated_at?: string | null
+          zona_horaria?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_programaciones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_programaciones_reporte_id_fkey"
+            columns: ["reporte_id"]
+            isOneToOne: false
+            referencedRelation: "reportes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_programaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_programaciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_suscripciones: {
+        Row: {
+          created_at: string
+          profile_id: string
+          programacion_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          programacion_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          programacion_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_suscripciones_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_suscripciones_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "reporte_programaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_suscripciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_suscripciones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporte_versiones: {
+        Row: {
+          creado_por: string | null
+          created_at: string
+          definicion: Json
+          estado: Database["public"]["Enums"]["reporte_version_estado_t"]
+          id: string
+          notas: string | null
+          publicada_at: string | null
+          publicada_por: string | null
+          reporte_id: string
+          tenant_id: string
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          creado_por?: string | null
+          created_at?: string
+          definicion?: Json
+          estado?: Database["public"]["Enums"]["reporte_version_estado_t"]
+          id?: string
+          notas?: string | null
+          publicada_at?: string | null
+          publicada_por?: string | null
+          reporte_id: string
+          tenant_id: string
+          updated_at?: string | null
+          version: number
+        }
+        Update: {
+          creado_por?: string | null
+          created_at?: string
+          definicion?: Json
+          estado?: Database["public"]["Enums"]["reporte_version_estado_t"]
+          id?: string
+          notas?: string | null
+          publicada_at?: string | null
+          publicada_por?: string | null
+          reporte_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporte_versiones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_versiones_publicada_por_fkey"
+            columns: ["publicada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_versiones_reporte_id_fkey"
+            columns: ["reporte_id"]
+            isOneToOne: false
+            referencedRelation: "reportes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporte_versiones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reportes: {
+        Row: {
+          categoria_id: number | null
+          codigo: string
+          creado_por: string | null
+          created_at: string
+          del_sistema: boolean
+          descripcion: string | null
+          id: string
+          nombre: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria_id?: number | null
+          codigo: string
+          creado_por?: string | null
+          created_at?: string
+          del_sistema?: boolean
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria_id?: number | null
+          codigo?: string
+          creado_por?: string | null
+          created_at?: string
+          del_sistema?: boolean
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reportes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reportes_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reportes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reportes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rol_funcional_modulo: {
         Row: {
           lista_tipos_id: number
@@ -21991,6 +22638,116 @@ export type Database = {
           },
         ]
       }
+      vr_cartera_inmueble: {
+        Row: {
+          agrupacion: string | null
+          agrupacion_tipo: string | null
+          cantidad_cargos_vencidos: number | null
+          clasificacion: string | null
+          deuda_capital: number | null
+          deuda_interes: number | null
+          deuda_otros: number | null
+          deuda_total: number | null
+          dias_mora_maximo: number | null
+          etapa_cobranza: string | null
+          fecha_corte: string | null
+          fecha_vencimiento_mas_antigua: string | null
+          inmueble: string | null
+          inmueble_estado: string | null
+          inmueble_tipo: string | null
+          nivel_riesgo: string | null
+          propietario: string | null
+          saldo_credito: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posiciones_cartera_snapshot_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vr_cuenta_corriente: {
+        Row: {
+          agrupacion: string | null
+          categoria: string | null
+          concepto: string | null
+          concepto_codigo: string | null
+          dias_vencido: number | null
+          fecha_cargo: string | null
+          fecha_vencimiento: string | null
+          inmueble: string | null
+          monto_original: number | null
+          monto_pagado: number | null
+          monto_pendiente: number | null
+          origen: string | null
+          pendiente: boolean | null
+          periodo: string | null
+          periodo_anio: number | null
+          periodo_estado: string | null
+          periodo_mes: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vr_recaudos: {
+        Row: {
+          agrupacion: string | null
+          anulado_motivo: string | null
+          es_anulacion: boolean | null
+          fecha_pago: string | null
+          fecha_registro: string | null
+          forma_pago: string | null
+          inmueble: string | null
+          monto: number | null
+          monto_aplicado: number | null
+          monto_sin_aplicar: number | null
+          pagador: string | null
+          referencia: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_invitation: {
@@ -22364,6 +23121,7 @@ export type Database = {
       cron_mant_salud_snapshot_mensual: { Args: never; Returns: undefined }
       cron_marketplace_expirar: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
+      es_miembro_de_alguna_copropiedad: { Args: never; Returns: boolean }
       finanzas_alertas_evaluar: {
         Args: { p_fecha?: string; p_tenant_id: string }
         Returns: number
@@ -24834,6 +25592,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_reporte_ejecutar: {
+        Args: { p_definicion: Json; p_limite?: number; p_tenant_id: string }
+        Returns: Json
+      }
+      fn_reporte_proxima_corrida: {
+        Args: {
+          p_desde?: string
+          p_dia_mes?: number
+          p_dia_semana?: number
+          p_fecha_unica?: string
+          p_frecuencia: string
+          p_hora: string
+          p_zona: string
+        }
+        Returns: string
+      }
+      fn_reportes_sistema_sembrar: {
+        Args: { p_tenant: string }
+        Returns: undefined
+      }
       fn_reserva_aprobar: {
         Args: { p_reserva_id: string }
         Returns: {
@@ -27128,6 +27906,7 @@ export type Database = {
         | "expirada"
       publicacion_origen_t: "residente" | "auxiliar" | "administrador"
       redondeo_modo_t: "half_up" | "half_even" | "down" | "up"
+      reporte_version_estado_t: "borrador" | "publicada" | "archivada"
       requisito_tipo_t:
         | "legal_nacional"
         | "legal_territorial"
@@ -27773,6 +28552,7 @@ export const Constants = {
       ],
       publicacion_origen_t: ["residente", "auxiliar", "administrador"],
       redondeo_modo_t: ["half_up", "half_even", "down", "up"],
+      reporte_version_estado_t: ["borrador", "publicada", "archivada"],
       requisito_tipo_t: [
         "legal_nacional",
         "legal_territorial",

@@ -21,6 +21,7 @@
     "@aquila/financial-kernel": "workspace:*",
     "@aquila/liquidation-engine": "workspace:*",
     "@aquila/payment-gateways": "workspace:*",
+    "@aquila/reporting": "workspace:*",
     "@aquila/shared": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
