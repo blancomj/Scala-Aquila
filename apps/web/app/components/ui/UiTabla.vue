@@ -68,6 +68,10 @@ const props = withDefaults(
      * absorbe el resto de forma determinista — pero entonces TODAS las columnas necesitan un
      * `ancho` explícito salvo esa, porque en table-layout:fixed no hay heurística de contenido. */
     fijo?: boolean
+    /** Clase(s) extra para una fila normal (no de grupo) — p. ej. resaltar el periodo vigente en
+     * PresupuestoTabPeriodosVigencia.vue. Mismo mecanismo que `esFilaGrupo`, pero para estilo en
+     * vez de estructura. */
+    claseFila?: (fila: T, indice: number) => string | undefined
   }>(),
   {
     variante: 'tailwind',
@@ -77,6 +81,7 @@ const props = withDefaults(
     orden: undefined,
     encabezadoAlto: false,
     fijo: false,
+    claseFila: undefined,
   },
 )
 
@@ -215,7 +220,10 @@ const columnasTrasGrupo = computed(() =>
         </tr>
         <tr
           v-else
-          :class="variante === 'tailwind' ? 'group border-b border-neutral-100 dark:border-neutral-900' : 'group'"
+          :class="[
+            variante === 'tailwind' ? 'group border-b border-neutral-100 dark:border-neutral-900' : 'group',
+            claseFila?.(fila, indice),
+          ]"
         >
           <td
             v-for="col in columnas"

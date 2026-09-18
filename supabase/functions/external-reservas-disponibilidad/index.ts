@@ -7,6 +7,11 @@
 // zonas_comunes y mant_zona_reserva_regla exigen is_member(tenant_id) por RLS — un actor externo
 // nunca es tenant_member (AD-37) — se leen con el cliente ADMIN tras resolver tenant_id vía el
 // vínculo, mismo patrón exacto que external-solicitudes-catalogo (EXT-02) usó para lista_tipos.
+//
+// EXT-13 (Ola 2, M18) — cuando la zona tiene horario semanal configurado (mant_zona_horario_
+// semanal), la respuesta agrega `franjas_validas` con las franjas del día consultado (mismo
+// criterio de lectura vía admin). Si la zona no tiene NINGUNA fila ahí, la clave se omite por
+// completo — compatibilidad hacia atrás explícita, ningún consumidor existente ve un campo nuevo.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
@@ -14,6 +19,12 @@ import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http
 interface VinculoFila {
   vinculo_id: string
   tenant_id: string
+}
+
+interface FilaHorarioSemanal {
+  dia_semana: number
+  hora_desde: string
+  hora_hasta: string
 }
 
 Deno.serve(async (req) => {
@@ -150,10 +161,30 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'INTERNAL_ERROR', errorOcupadas.message, undefined, correlationId)
   }
 
+  const { data: horarioSemanal, error: errorHorario } = await admin
+    .from('mant_zona_horario_semanal')
+    .select('dia_semana, hora_desde, hora_hasta')
+    .eq('zona_comun_id', zonaComunId)
+    .eq('tenant_id', vinculo.tenant_id)
+  if (errorHorario) {
+    return errorResponse(500, 'INTERNAL_ERROR', errorHorario.message, undefined, correlationId)
+  }
+  let franjasValidas: { hora_desde: string; hora_hasta: string }[] | undefined
+  if (horarioSemanal && horarioSemanal.length > 0) {
+    // Mismo criterio que new Date(`${fecha}T00:00:00`) en el resto del frontend (formatoFecha):
+    // medianoche local, sin conversión — igual que extract(dow from date) en el guard SQL.
+    const diaSemana = new Date(`${fecha!}T00:00:00`).getDay()
+    franjasValidas = (horarioSemanal as FilaHorarioSemanal[])
+      .filter((f) => f.dia_semana === diaSemana)
+      .map((f) => ({ hora_desde: f.hora_desde, hora_hasta: f.hora_hasta }))
+      .sort((a, b) => a.hora_desde.localeCompare(b.hora_desde))
+  }
+
   return jsonResponse(
     {
       ocupadas: ocupadas ?? [],
       regla: regla ? { ...regla, monto } : null,
+      ...(franjasValidas !== undefined ? { franjas_validas: franjasValidas } : {}),
     },
     200, correlationId,
   )

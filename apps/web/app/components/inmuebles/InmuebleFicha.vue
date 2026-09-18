@@ -142,18 +142,23 @@ async function guardarInmueble(): Promise<void> {
 
 async function inactivarInmueble(): Promise<void> {
   if (!inmueble.value) return
-  await inmueblesStore.actualizarInmueble({
-    id: inmueble.value.id,
-    codigo: inmueble.value.codigo,
-    tipoId: inmueble.value.tipo_id,
-    estado: 'inactivo',
-    matriculaInmobiliaria: inmueble.value.matricula_inmobiliaria ?? undefined,
-    areaPrivada: inmueble.value.area_privada ?? undefined,
-    areaComun: inmueble.value.area_comun ?? undefined,
-    estadoLegalId: inmueble.value.estado_legal_id,
-    estadoLegalObservaciones: inmueble.value.estado_legal_observaciones ?? undefined,
-    habitabilidadId: inmueble.value.habitabilidad_id,
-  })
+  error.value = null
+  try {
+    await inmueblesStore.actualizarInmueble({
+      id: inmueble.value.id,
+      codigo: inmueble.value.codigo,
+      tipoId: inmueble.value.tipo_id,
+      estado: 'inactivo',
+      matriculaInmobiliaria: inmueble.value.matricula_inmobiliaria ?? undefined,
+      areaPrivada: inmueble.value.area_privada ?? undefined,
+      areaComun: inmueble.value.area_comun ?? undefined,
+      estadoLegalId: inmueble.value.estado_legal_id,
+      estadoLegalObservaciones: inmueble.value.estado_legal_observaciones ?? undefined,
+      habitabilidadId: inmueble.value.habitabilidad_id,
+    })
+  } catch (excepcion) {
+    error.value = mensajeError(excepcion, 'No se pudo inactivar el inmueble.')
+  }
 }
 
 type EstadoInmueble = Database['public']['Enums']['inmueble_estado_t']

@@ -35,7 +35,11 @@ const nombreInmueble = computed(() => new Map(inmuebles.value.map((i) => [i.id, 
 type Tab = 'porteria' | 'autorizaciones'
 const tabActiva = ref<Tab>('porteria')
 
-function formatoFecha(fecha: string): string {
+// EXT-09 (Ola 2, M14): una autorización permanente no tiene fecha_prevista (CHECK de la
+// migración 20260943000000) — mostrar eso como "Invalid Date" sería un defecto visible, no un
+// crash, pero igual de real; "Permanente" comunica la semántica correcta.
+function formatoFecha(fecha: string | null): string {
+  if (!fecha) return 'Permanente'
   return new Date(`${fecha}T00:00:00`).toLocaleDateString('es-CO')
 }
 function formatoFechaHora(iso: string): string {
@@ -53,12 +57,23 @@ const estadoColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'> =
 const codigoQr = ref('')
 const autorizacionValidada = ref<Awaited<ReturnType<typeof accesoStore.validarQr>> | null>(null)
 const observacionesConsumo = ref('')
+// EXT-09 (Ola 2, M14): visitas-fotos es un bucket privado — la policy de SELECT existe solo para
+// miembros del tenant (staff), así que portería necesita una signed URL, nunca la ruta cruda.
+const fotoValidadaUrl = ref<string | null>(null)
 
 async function validar(): Promise<void> {
   error.value = null
   autorizacionValidada.value = null
+  fotoValidadaUrl.value = null
   try {
     autorizacionValidada.value = await accesoStore.validarQr(codigoQr.value.trim())
+    if (autorizacionValidada.value.foto_url) {
+      const cliente = useSupabaseClient<Database>()
+      const { data } = await cliente.storage
+        .from('visitas-fotos')
+        .createSignedUrl(autorizacionValidada.value.foto_url, 300)
+      fotoValidadaUrl.value = data?.signedUrl ?? null
+    }
   } catch (excepcion) {
     error.value = mensajeError(excepcion, 'No se pudo validar el código.')
   }
@@ -232,6 +247,10 @@ async function revocar(id: string): Promise<void> {
             <p><span class="text-muted">Visitante:</span> {{ autorizacionValidada.visitante_nombre }}</p>
             <p><span class="text-muted">Inmueble:</span> {{ nombreInmueble.get(autorizacionValidada.inmueble_id) ?? '—' }}</p>
             <p><span class="text-muted">Fecha:</span> {{ formatoFecha(autorizacionValidada.fecha_prevista) }}</p>
+            <img
+              v-if="fotoValidadaUrl" :src="fotoValidadaUrl" alt="Foto del visitante"
+              class="h-32 w-32 rounded-lg object-cover"
+            >
             <UFormField label="Observaciones (opcional)">
               <UInput v-model="observacionesConsumo" class="w-full" />
             </UFormField>

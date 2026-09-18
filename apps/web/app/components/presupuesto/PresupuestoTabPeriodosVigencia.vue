@@ -15,8 +15,6 @@
 // engancha cada periodo cuando se crea una v2?). Esta pestaña ahora
 // filtra por ese mismo criterio (año), en vez de listar todos los
 // periodos del tenant sin relación visible con el presupuesto elegido.
-const props = defineProps<{ presupuestoId: string | null }>()
-
 const tenantStore = useTenantStore()
 const presupuestoStore = usePresupuestoStore()
 const liquidacionStore = useLiquidacionStore()
@@ -34,8 +32,12 @@ onMounted(async () => {
   }
 })
 
+// Estado compartido con el resto de páginas de Presupuesto (Presupuesto, Control y
+// validaciones) — el selector vive acá, junto a la vigencia que describe, en vez de en el
+// encabezado de la página.
+const presupuestoSeleccionadoId = useSeleccionPresupuesto()
 const presupuestoSeleccionado = computed(
-  () => presupuestoStore.presupuestos.find((p) => p.id === props.presupuestoId) ?? null,
+  () => presupuestoStore.presupuestos.find((p) => p.id === presupuestoSeleccionadoId.value) ?? null,
 )
 
 /** Mismo criterio que presupuesto_cuenta_ejecucion() (E9): el año fiscal del presupuesto es la
@@ -46,24 +48,44 @@ const periodosDelAnio = computed(() => {
   return liquidacionStore.periodos.filter((p) => p.anio === anio)
 })
 
-const COLOR_ESTADO_PRESUPUESTO: Record<string, 'neutral' | 'info' | 'success'> = {
-  borrador: 'neutral',
-  aprobado: 'info',
-  vigente: 'success',
-  cerrado: 'neutral',
-}
 const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = {
   abierto: 'success',
   en_liquidacion: 'warning',
   cerrado: 'neutral',
   bloqueado: 'error',
 }
+
+const hoy = new Date()
+function esPeriodoActual(fila: { anio: number; mes: number }): boolean {
+  return fila.anio === hoy.getFullYear() && fila.mes === hoy.getMonth() + 1
+}
+
+const resumenPeriodos = computed(() => {
+  const abiertos = periodosDelAnio.value.filter((p) => p.estado === 'abierto').length
+  const cerrados = periodosDelAnio.value.filter((p) => p.estado === 'cerrado').length
+  return { abiertos, cerrados }
+})
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
     <div>
-      <h2 class="text-lg font-semibold mb-2">Vigencia del presupuesto</h2>
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <h2 class="text-lg font-semibold">Vigencia del presupuesto</h2>
+        <UBadge
+          v-if="presupuestoSeleccionado"
+          :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'"
+          variant="subtle"
+        >
+          {{ ETIQUETA_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? presupuestoSeleccionado.estado }}
+        </UBadge>
+      </div>
+      <PresupuestoSelector
+        v-if="presupuestoStore.presupuestos.length > 0"
+        v-model="presupuestoSeleccionadoId"
+        compacto
+        class="mb-3"
+      />
       <p v-if="!presupuestoSeleccionado" class="text-sm text-neutral-500">
         Selecciona un presupuesto para ver su vigencia.
       </p>
@@ -88,17 +110,9 @@ const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | '
         </div>
         <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
           <dt class="flex items-center gap-1.5 text-neutral-500">
-            <UIcon name="i-lucide-file-text" class="size-4" /> Acta de asamblea
+            <UIcon name="i-lucide-file-text" class="size-4" /> Acta
           </dt>
           <dd class="font-medium text-right">{{ presupuestoSeleccionado.acta_asamblea ?? '—' }}</dd>
-        </div>
-        <div class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
-          <dt class="text-neutral-500">Estado</dt>
-          <dd>
-            <UBadge :color="COLOR_ESTADO_PRESUPUESTO[presupuestoSeleccionado.estado] ?? 'neutral'" variant="subtle">
-              {{ presupuestoSeleccionado.estado }}
-            </UBadge>
-          </dd>
         </div>
       </div>
     </div>
@@ -106,8 +120,8 @@ const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | '
     <div>
       <h2 class="text-lg font-semibold mb-2">Periodos de liquidación</h2>
       <p class="text-sm text-neutral-500 mb-2">
-        Los 12 periodos mensuales del año fiscal {{ presupuestoSeleccionado?.anio ?? '—' }} de
-        este presupuesto.
+        Año fiscal {{ presupuestoSeleccionado?.anio ?? '—' }} ·
+        {{ resumenPeriodos.abiertos }} abiertos · {{ resumenPeriodos.cerrados }} cerrados
       </p>
       <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden">
         <UiTabla
@@ -118,6 +132,7 @@ const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | '
           ]"
           :filas="periodosDelAnio"
           :clave-fila="(fila) => fila.id"
+          :clase-fila="(fila) => (esPeriodoActual(fila) ? 'bg-neutral-50 dark:bg-neutral-900/50' : undefined)"
           vacio="Sin periodos para este año todavía."
         >
           <template v-if="cargando" #vacio>
@@ -125,9 +140,12 @@ const COLOR_ESTADO_PERIODO: Record<string, 'success' | 'warning' | 'neutral' | '
               <USkeleton v-for="i in 5" :key="i" class="h-8 w-full" />
             </div>
           </template>
-          <template #celda-periodo="{ fila }"
-            >{{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}</template
-          >
+          <template #celda-periodo="{ fila }">
+            <span class="inline-flex items-center gap-2">
+              {{ fila.anio }}-{{ String(fila.mes).padStart(2, '0') }}
+              <UBadge v-if="esPeriodoActual(fila)" color="primary" variant="subtle">Actual</UBadge>
+            </span>
+          </template>
           <template #celda-estado="{ fila }">
             <UBadge :color="COLOR_ESTADO_PERIODO[fila.estado] ?? 'neutral'" variant="subtle">
               {{ fila.estado }}

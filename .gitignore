@@ -42,3 +42,8 @@ Thumbs.db
 
 # material histórico
 Originales.rar
+
+# Banco de pruebas QA: el tablero se regenera con pnpm seed:qa-suite y trae
+# ids y contraseñas locales; el export del artefacto es derivado.
+qa/tenants.json
+qa/artefacto-resultados.json

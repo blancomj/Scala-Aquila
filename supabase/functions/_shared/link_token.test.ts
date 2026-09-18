@@ -97,3 +97,35 @@ Deno.test('sha256HexPublico: hash conocido para cadena vacía', async () => {
     'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   )
 })
+
+// clavePorEntorno() (sin materialClave inyectado) es la vía real de producción — ver-estado-cuenta
+// y demás llamadores no pasan materialClave. Debe ser el ÚNICO test de este archivo que llama a
+// firmar/verificar sin materialClave: clavePorEntorno cachea la clave en una variable de módulo
+// (claveCacheada), así que una vez resuelta aquí, cualquier otra llamada sin materialClave en el
+// mismo proceso reutilizaría esta clave sin importar el entorno — motivo por el que el siguiente
+// test cambia el entorno A PROPÓSITO y espera que el resultado no cambie.
+Deno.test('firmar/verificar sin materialClave: deriva la clave de SUPABASE_SERVICE_ROLE_KEY cuando ESTADO_CUENTA_LINK_SECRET no está definida', async () => {
+  const original = Deno.env.get
+  Deno.env.get = ((clave: string) =>
+    clave === 'SUPABASE_SERVICE_ROLE_KEY' ? 'service-role-de-prueba' : undefined) as typeof Deno.env.get
+  try {
+    const token = await firmarTokenEnlace(ID, 30)
+    assertEquals(await verificarTokenEnlace(token, ID), 'valido')
+  } finally {
+    Deno.env.get = original
+  }
+})
+
+Deno.test('firmar/verificar sin materialClave: la clave queda cacheada (un cambio de entorno posterior no la invalida)', async () => {
+  // Reutiliza la clave que el test anterior ya cacheó — si clavePorEntorno() releyera el entorno
+  // en cada llamada, este token dejaría de validar con un ESTADO_CUENTA_LINK_SECRET distinto.
+  const original = Deno.env.get
+  Deno.env.get = ((clave: string) =>
+    clave === 'ESTADO_CUENTA_LINK_SECRET' ? 'un-secreto-completamente-distinto' : undefined) as typeof Deno.env.get
+  try {
+    const token = await firmarTokenEnlace(ID, 30)
+    assertEquals(await verificarTokenEnlace(token, ID), 'valido')
+  } finally {
+    Deno.env.get = original
+  }
+})

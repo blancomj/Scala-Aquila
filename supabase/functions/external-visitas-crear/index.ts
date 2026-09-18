@@ -10,10 +10,21 @@
 // diff mínimo que el resto de la sesión (fn_solicitud_cancelar_externa, fn_reserva_crear_externa).
 // No hay función SQL equivalente posible: firmar el QR exige Web Crypto de Deno
 // (_shared/link_token.ts), irreproducible en plpgsql.
+//
+// EXT-09 (Ola 2, M14) — foto + autorización permanente: el body pasa de JSON a
+// multipart/form-data (mismo criterio que subir-documento, la única otra función del proyecto
+// que recibe un archivo) SOLO para poder adjuntar la foto opcional; ningún campo cambia de
+// significado. `permanente=true` omite fecha_prevista/hora_desde/hora_hasta (el CHECK de la
+// migración 20260943000000 los exige en null) y usa una vigencia de QR de 1 año (el tope que
+// permite el guard actualizado) en vez de la ventana de 6h sobre una fecha puntual que no existe
+// para este caso. La foto se sube DESPUÉS de tener el id real de la fila (mismo motivo que el QR:
+// la ruta del objeto en Storage usa ese id) — si la subida falla, la autorización queda creada
+// igual, sin foto: una foto es un enriquecimiento, no una condición de validez de la visita.
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
 import { firmarTokenEnlace } from '../_shared/link_token.ts'
+import { logEvent } from '../_shared/logger.ts'
 
 interface VinculoFila {
   vinculo_id: string
@@ -21,7 +32,15 @@ interface VinculoFila {
   inmueble_id: string
 }
 
-const VENTANA_HORAS = 6
+const VENTANA_HORAS_PUNTUAL = 6
+const VENTANA_DIAS_PERMANENTE = 365
+const TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024 // 5 MB — mismo límite que el bucket visitas-fotos.
+const MIME_PERMITIDOS = new Set(['image/jpeg', 'image/png'])
+
+function sanearNombreArchivo(nombre: string): string {
+  const limpio = nombre.replace(/[^\w.\-]+/g, '_').slice(-100)
+  return limpio.length > 0 ? limpio : 'foto'
+}
 
 Deno.serve(async (req) => {
   const preflight = respuestaPreflight(req)
@@ -32,43 +51,54 @@ Deno.serve(async (req) => {
     return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Solo POST.', undefined, correlationId)
   }
 
-  let body: unknown
+  let form: FormData
   try {
-    body = await req.json()
+    form = await req.formData()
   } catch {
-    return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser JSON.', undefined, correlationId)
+    return errorResponse(400, 'INVALID_PAYLOAD', 'El cuerpo debe ser multipart/form-data.', undefined, correlationId)
   }
-  const cuerpo = body as {
-    vinculo_id?: unknown
-    visitante_nombre?: unknown
-    visitante_documento?: unknown
-    tipo_id?: unknown
-    fecha_prevista?: unknown
-    hora_desde?: unknown
-    hora_hasta?: unknown
-  } | null
-  const vinculoId = cuerpo?.vinculo_id
-  const visitanteNombre = cuerpo?.visitante_nombre
-  const fechaPrevista = cuerpo?.fecha_prevista
+
+  const vinculoId = form.get('vinculo_id')
+  const visitanteNombre = form.get('visitante_nombre')
+  const permanente = form.get('permanente') === 'true'
+  const fechaPrevistaRaw = form.get('fecha_prevista')
   if (
     typeof vinculoId !== 'string' || typeof visitanteNombre !== 'string' || !visitanteNombre.trim()
-    || typeof fechaPrevista !== 'string'
+    || (!permanente && typeof fechaPrevistaRaw !== 'string')
   ) {
     return errorResponse(
       400, 'INVALID_PAYLOAD',
-      'vinculo_id, visitante_nombre y fecha_prevista son requeridos.', undefined, correlationId,
+      'vinculo_id, visitante_nombre son requeridos; fecha_prevista es requerida salvo permanente=true.',
+      undefined, correlationId,
     )
   }
-  const visitanteDocumento = typeof cuerpo?.visitante_documento === 'string' ? cuerpo.visitante_documento : null
-  const tipoId = typeof cuerpo?.tipo_id === 'number' ? cuerpo.tipo_id : null
-  const horaDesde = typeof cuerpo?.hora_desde === 'string' ? cuerpo.hora_desde : null
-  const horaHasta = typeof cuerpo?.hora_hasta === 'string' ? cuerpo.hora_hasta : null
+  const fechaPrevista = permanente ? null : (fechaPrevistaRaw as string)
+  const visitanteDocumentoRaw = form.get('visitante_documento')
+  const visitanteDocumento = typeof visitanteDocumentoRaw === 'string' ? visitanteDocumentoRaw : null
+  const tipoIdRaw = form.get('tipo_id')
+  const tipoId = typeof tipoIdRaw === 'string' && tipoIdRaw.length > 0 ? Number(tipoIdRaw) : null
+  // Una autorización permanente no tiene ventana horaria propia (CHECK de la migración) —
+  // hora_desde/hora_hasta se ignoran si permanente=true en vez de exigir que el cliente no los mande.
+  const horaDesdeRaw = form.get('hora_desde')
+  const horaDesde = !permanente && typeof horaDesdeRaw === 'string' && horaDesdeRaw.length > 0 ? horaDesdeRaw : null
+  const horaHastaRaw = form.get('hora_hasta')
+  const horaHasta = !permanente && typeof horaHastaRaw === 'string' && horaHastaRaw.length > 0 ? horaHastaRaw : null
+  const foto = form.get('foto')
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !anonKey || !serviceKey) {
     return errorResponse(500, 'INTERNAL_ERROR', 'Configuración incompleta.', undefined, correlationId)
+  }
+
+  if (foto instanceof File) {
+    if (!MIME_PERMITIDOS.has(foto.type)) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'La foto debe ser JPEG o PNG.', undefined, correlationId)
+    }
+    if (foto.size > TAMANO_MAXIMO_BYTES) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'La foto supera el tamaño máximo (5 MB).', undefined, correlationId)
+    }
   }
 
   const jwt = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
@@ -99,11 +129,16 @@ Deno.serve(async (req) => {
     )
   }
 
-  const finVentanaBase = new Date(`${fechaPrevista}T${horaHasta ?? horaDesde ?? '23:59:59'}`)
-  if (Number.isNaN(finVentanaBase.getTime())) {
-    return errorResponse(400, 'INVALID_PAYLOAD', 'fecha_prevista/hora_hasta inválidas.', undefined, correlationId)
+  let qrExpiraAt: Date
+  if (permanente) {
+    qrExpiraAt = new Date(Date.now() + VENTANA_DIAS_PERMANENTE * 24 * 3600 * 1000)
+  } else {
+    const finVentanaBase = new Date(`${fechaPrevista}T${horaHasta ?? horaDesde ?? '23:59:59'}`)
+    if (Number.isNaN(finVentanaBase.getTime())) {
+      return errorResponse(400, 'INVALID_PAYLOAD', 'fecha_prevista/hora_hasta inválidas.', undefined, correlationId)
+    }
+    qrExpiraAt = new Date(finVentanaBase.getTime() + VENTANA_HORAS_PUNTUAL * 3600 * 1000)
   }
-  const qrExpiraAt = new Date(finVentanaBase.getTime() + VENTANA_HORAS * 3600 * 1000)
 
   const admin = createClient<Database>(supabaseUrl, serviceKey)
   const { data: fila, error: errorInsert } = await admin
@@ -116,6 +151,7 @@ Deno.serve(async (req) => {
       visitante_nombre: visitanteNombre.trim(),
       visitante_documento: visitanteDocumento,
       tipo_id: tipoId,
+      permanente,
       fecha_prevista: fechaPrevista,
       hora_desde: horaDesde,
       hora_hasta: horaHasta,
@@ -131,9 +167,26 @@ Deno.serve(async (req) => {
   const firmado = await firmarTokenEnlace(fila.id, vigenciaDias)
   const qrToken = `${fila.id}.${firmado}`
 
+  let fotoUrl: string | null = null
+  if (foto instanceof File) {
+    const ruta = `${vinculo.tenant_id}/${fila.id}/${sanearNombreArchivo(foto.name)}`
+    const { error: errorSubida } = await admin.storage.from('visitas-fotos').upload(ruta, foto, {
+      contentType: foto.type,
+      upsert: false,
+    })
+    if (errorSubida) {
+      logEvent({
+        level: 'error', action: 'external_visitas_crear.foto_fallida', correlationId,
+        message: errorSubida.message, meta: { autorizacionId: fila.id },
+      })
+    } else {
+      fotoUrl = ruta
+    }
+  }
+
   const { data: filaFinal, error: errorUpdate } = await admin
     .from('mant_autorizaciones_visita')
-    .update({ qr_token: qrToken })
+    .update({ qr_token: qrToken, ...(fotoUrl ? { foto_url: fotoUrl } : {}) })
     .eq('id', fila.id)
     .select('*')
     .single()

@@ -3,6 +3,12 @@
 // independiente de apps/mobile (hoy solo scaffolding sin compilar). Flujo de 2 pasos: pedir un
 // OTP por correo, confirmarlo para obtener una sesión real — nunca una membership (AD-37). Solo
 // canal email en este corte (decisión del Plan); el Edge Function ya soporta sms.
+//
+// EXT-05 (reubicación desde portal-externo/index.vue): sigue en 'blank', a propósito NO usa
+// 'mi-copropiedad' como el resto de esta superficie — antes de autenticarse no hay vínculo que
+// mostrar en el header ni sentido en ofrecer Finanzas/Solicitudes en la barra inferior (esas
+// rutas exigirían sesión de todas formas). Es la única página de esta carpeta que se queda con
+// el layout viejo, deliberadamente.
 definePageMeta({ layout: 'blank', publico: true })
 
 const etapa = ref<'contacto' | 'codigo'>('contacto')
@@ -35,7 +41,7 @@ async function confirmar(): Promise<void> {
     // Recarga completa, no navigateTo() — misma ventana de carrera ya documentada en
     // login.vue: justo después de establecer la sesión hay un momento en que el ref
     // reactivo ya está listo pero el resto del cliente (la RPC de la landing) todavía no.
-    window.location.href = '/portal-externo/mis-vinculos'
+    window.location.href = '/mi-copropiedad/vinculos'
   } catch (err) {
     error.value = mensajeError(err, 'Código inválido o vencido.')
     cargando.value = false

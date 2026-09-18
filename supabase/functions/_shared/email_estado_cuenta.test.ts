@@ -4,7 +4,11 @@
 // escapar (XSS dentro del cliente de correo del destinatario), monto mal
 // formateado, URL ausente del CTA y la línea anti-phishing con el host real.
 import { assertEquals, assertStringIncludes as incluir } from 'jsr:@std/assert@^1'
-import { construirCorreoEstadoCuenta, hostDelEnlace } from './email_estado_cuenta.ts'
+import {
+  construirCorreoEstadoCuenta,
+  enviarEmailEstadoCuenta,
+  hostDelEnlace,
+} from './email_estado_cuenta.ts'
 
 const BASE = {
   tenantNombre: 'Conjunto Los Robles',
@@ -66,3 +70,81 @@ Deno.test('html: menciona vigencia del enlace y fundamento DIAN de cuotas', () =
 Deno.test('hostDelEnlace: null ante URL inválida (fallback defensivo)', () => {
   assertEquals(hostDelEnlace('no-es-una-url'), null)
 })
+
+// enviarEmailEstadoCuenta() delega en enviarEmailCobranza (email_cobranza_provider.ts), que lee
+// Deno.env y llama a fetch — mismo patrón de dobles que email_cobranza_provider.test.ts (sin
+// --allow-env/--allow-net, test:edge no los pasa).
+function conEnvBrevo<T>(vars: Record<string, string | undefined>, fn: () => Promise<T>): Promise<T> {
+  const original = Deno.env.get
+  Deno.env.get = ((key: string) => vars[key]) as typeof Deno.env.get
+  return fn().finally(() => {
+    Deno.env.get = original
+  })
+}
+
+function conFetchMock<T>(mock: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  const original = globalThis.fetch
+  globalThis.fetch = mock
+  return fn().finally(() => {
+    globalThis.fetch = original
+  })
+}
+
+const ENV_BREVO_OK = { BREVO_API_KEY: 'test-key', BREVO_SENDER_EMAIL: 'no-responder@aquila.test' }
+
+Deno.test('enviarEmailEstadoCuenta: éxito → ok true, providerMessageId normalizado, sin error', () =>
+  conEnvBrevo(ENV_BREVO_OK, () =>
+    conFetchMock(
+      (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as { tags: string[] }
+        // COM-1 §reference: el estado de cuenta usa sus propios tags, no el default 'cobranza'.
+        assertEquals(body.tags, ['estado_cuenta', 'edc-123'])
+        return Promise.resolve(
+          new Response(JSON.stringify({ messageId: '<msg-edc@smtp-relay>' }), { status: 201 }),
+        )
+      },
+      async () => {
+        const resultado = await enviarEmailEstadoCuenta({
+          ...BASE,
+          email: 'propietario@example.com',
+          reference: 'edc-123',
+        })
+        assertEquals(resultado.ok, true)
+        assertEquals(resultado.providerMessageId, 'msg-edc@smtp-relay')
+        assertEquals(resultado.error, null)
+        // subject/html deben ser EXACTAMENTE los que construirCorreoEstadoCuenta ya produce —
+        // enviarEmailEstadoCuenta no los reconstruye ni los altera.
+        incluir(resultado.subject, 'Los Robles')
+        incluir(resultado.html, 'APT-302-T2')
+      },
+    ),
+  ))
+
+Deno.test('enviarEmailEstadoCuenta: Brevo no configurado → ok false, providerMessageId null, con el motivo', () =>
+  conEnvBrevo({}, async () => {
+    const resultado = await enviarEmailEstadoCuenta({
+      ...BASE,
+      email: 'propietario@example.com',
+      reference: 'edc-456',
+    })
+    assertEquals(resultado.ok, false)
+    assertEquals(resultado.providerMessageId, null)
+    incluir(resultado.error ?? '', 'BREVO_API_KEY')
+  }))
+
+Deno.test('enviarEmailEstadoCuenta: Brevo acepta pero no devuelve messageId → ok true, providerMessageId null, sin error (el aviso interno de enviarEmailCobranza no se propaga cuando success es true)', () =>
+  conEnvBrevo(ENV_BREVO_OK, () =>
+    conFetchMock(
+      () => Promise.resolve(new Response(JSON.stringify({}), { status: 201 })),
+      async () => {
+        const resultado = await enviarEmailEstadoCuenta({
+          ...BASE,
+          email: 'propietario@example.com',
+          reference: 'edc-789',
+        })
+        assertEquals(resultado.ok, true)
+        assertEquals(resultado.providerMessageId, null)
+        assertEquals(resultado.error, null)
+      },
+    ),
+  ))

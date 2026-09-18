@@ -5804,6 +5804,166 @@ export type Database = {
           },
         ]
       }
+      contactos_emergencia: {
+        Row: {
+          creado_por_vinculo_id: string | null
+          created_at: string
+          id: string
+          inmueble_id: string
+          nombre: string
+          parentesco: string | null
+          telefono: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          creado_por_vinculo_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          nombre: string
+          parentesco?: string | null
+          telefono: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          creado_por_vinculo_id?: string | null
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          nombre?: string
+          parentesco?: string | null
+          telefono?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contactos_emergencia_creado_por_vinculo_id_fkey"
+            columns: ["creado_por_vinculo_id"]
+            isOneToOne: false
+            referencedRelation: "actor_externo_vinculo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_emergencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_emergencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_emergencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_emergencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      correspondencia: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          destino: string
+          entregada: boolean
+          entregada_a: string | null
+          entregada_at: string | null
+          id: string
+          inmueble_id: string
+          registrado_por: string | null
+          remitente: string
+          tenant_id: string
+          tipo_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          destino: string
+          entregada?: boolean
+          entregada_a?: string | null
+          entregada_at?: string | null
+          id?: string
+          inmueble_id: string
+          registrado_por?: string | null
+          remitente: string
+          tenant_id: string
+          tipo_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          destino?: string
+          entregada?: boolean
+          entregada_a?: string | null
+          entregada_at?: string | null
+          id?: string
+          inmueble_id?: string
+          registrado_por?: string | null
+          remitente?: string
+          tenant_id?: string
+          tipo_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "correspondencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondencia_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "v_inmuebles_sin_titular"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondencia_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondencia_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       costas_judiciales: {
         Row: {
           actuacion_id: string | null
@@ -13040,11 +13200,13 @@ export type Database = {
           autorizado_por_ref: string
           created_at: string
           estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
-          fecha_prevista: string
+          fecha_prevista: string | null
+          foto_url: string | null
           hora_desde: string | null
           hora_hasta: string | null
           id: string
           inmueble_id: string
+          permanente: boolean
           qr_expira_at: string | null
           qr_token: string | null
           tenant_id: string
@@ -13059,11 +13221,13 @@ export type Database = {
           autorizado_por_ref: string
           created_at?: string
           estado?: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
-          fecha_prevista: string
+          fecha_prevista?: string | null
+          foto_url?: string | null
           hora_desde?: string | null
           hora_hasta?: string | null
           id?: string
           inmueble_id: string
+          permanente?: boolean
           qr_expira_at?: string | null
           qr_token?: string | null
           tenant_id: string
@@ -13078,11 +13242,13 @@ export type Database = {
           autorizado_por_ref?: string
           created_at?: string
           estado?: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
-          fecha_prevista?: string
+          fecha_prevista?: string | null
+          foto_url?: string | null
           hora_desde?: string | null
           hora_hasta?: string | null
           id?: string
           inmueble_id?: string
+          permanente?: boolean
           qr_expira_at?: string | null
           qr_token?: string | null
           tenant_id?: string
@@ -16880,6 +17046,58 @@ export type Database = {
           },
         ]
       }
+      mant_zona_horario_semanal: {
+        Row: {
+          created_at: string
+          dia_semana: number
+          hora_desde: string
+          hora_hasta: string
+          id: string
+          tenant_id: string
+          zona_comun_id: string
+        }
+        Insert: {
+          created_at?: string
+          dia_semana: number
+          hora_desde: string
+          hora_hasta: string
+          id?: string
+          tenant_id: string
+          zona_comun_id: string
+        }
+        Update: {
+          created_at?: string
+          dia_semana?: number
+          hora_desde?: string
+          hora_hasta?: string
+          id?: string
+          tenant_id?: string
+          zona_comun_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mant_zona_horario_semanal_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_zona_horario_semanal_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mant_zona_horario_semanal_zona_comun_id_fkey"
+            columns: ["zona_comun_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_comunes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mant_zona_reserva_regla: {
         Row: {
           anticipacion_maxima_dias: number | null
@@ -17212,6 +17430,70 @@ export type Database = {
             columns: ["tipo_id"]
             isOneToOne: false
             referencedRelation: "lista_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificaciones_actor_externo: {
+        Row: {
+          actor_externo_vinculo_id: string
+          created_at: string
+          cuerpo: string | null
+          enlace: string | null
+          id: string
+          leida_at: string | null
+          origen_entidad: string
+          origen_evento: string
+          origen_id: string | null
+          tenant_id: string
+          titulo: string
+        }
+        Insert: {
+          actor_externo_vinculo_id: string
+          created_at?: string
+          cuerpo?: string | null
+          enlace?: string | null
+          id?: string
+          leida_at?: string | null
+          origen_entidad: string
+          origen_evento: string
+          origen_id?: string | null
+          tenant_id: string
+          titulo: string
+        }
+        Update: {
+          actor_externo_vinculo_id?: string
+          created_at?: string
+          cuerpo?: string | null
+          enlace?: string | null
+          id?: string
+          leida_at?: string | null
+          origen_entidad?: string
+          origen_evento?: string
+          origen_id?: string | null
+          tenant_id?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_actor_externo_actor_externo_vinculo_id_fkey"
+            columns: ["actor_externo_vinculo_id"]
+            isOneToOne: false
+            referencedRelation: "actor_externo_vinculo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificaciones_actor_externo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificaciones_actor_externo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -23120,6 +23402,8 @@ export type Database = {
       cron_mant_inventario_alertas_diario: { Args: never; Returns: undefined }
       cron_mant_salud_snapshot_mensual: { Args: never; Returns: undefined }
       cron_marketplace_expirar: { Args: never; Returns: undefined }
+      cron_reportes_programados: { Args: never; Returns: undefined }
+      cron_reportes_purgar_artefactos: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
       es_miembro_de_alguna_copropiedad: { Args: never; Returns: boolean }
       finanzas_alertas_evaluar: {
@@ -23520,11 +23804,13 @@ export type Database = {
           autorizado_por_ref: string
           created_at: string
           estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
-          fecha_prevista: string
+          fecha_prevista: string | null
+          foto_url: string | null
           hora_desde: string | null
           hora_hasta: string | null
           id: string
           inmueble_id: string
+          permanente: boolean
           qr_expira_at: string | null
           qr_token: string | null
           tenant_id: string
@@ -23548,11 +23834,13 @@ export type Database = {
           autorizado_por_ref: string
           created_at: string
           estado: Database["public"]["Enums"]["autorizacion_visita_estado_t"]
-          fecha_prevista: string
+          fecha_prevista: string | null
+          foto_url: string | null
           hora_desde: string | null
           hora_hasta: string | null
           id: string
           inmueble_id: string
+          permanente: boolean
           qr_expira_at: string | null
           qr_token: string | null
           tenant_id: string
@@ -25442,6 +25730,19 @@ export type Database = {
         }
         Returns: string
       }
+      fn_notificar_actor_externo: {
+        Args: {
+          p_actor_externo_vinculo_id: string
+          p_cuerpo: string
+          p_enlace: string
+          p_origen_entidad: string
+          p_origen_evento: string
+          p_origen_id: string
+          p_tenant_id: string
+          p_titulo: string
+        }
+        Returns: string
+      }
       fn_panel_acciones_cartera: {
         Args: { p_fecha_referencia: string; p_tenant_id: string }
         Returns: {
@@ -25592,9 +25893,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_reporte_artefacto_marcar_purgado: {
+        Args: { p_artefacto_id: string }
+        Returns: undefined
+      }
+      fn_reporte_artefactos_vencidos: {
+        Args: { p_limite?: number }
+        Returns: {
+          expira_at: string
+          id: string
+          storage_path: string
+          tenant_id: string
+        }[]
+      }
       fn_reporte_ejecutar: {
         Args: { p_definicion: Json; p_limite?: number; p_tenant_id: string }
         Returns: Json
+      }
+      fn_reporte_programacion_registrar_corrida: {
+        Args: { p_corrida_at?: string; p_programacion_id: string }
+        Returns: string
+      }
+      fn_reporte_programaciones_debidas: {
+        Args: { p_limite?: number }
+        Returns: {
+          formato: string
+          id: string
+          nombre: string
+          parametros: Json
+          proxima_at: string
+          reporte_id: string
+          tenant_id: string
+          zona_horaria: string
+        }[]
       }
       fn_reporte_proxima_corrida: {
         Args: {
@@ -25776,6 +26107,14 @@ export type Database = {
           codigo: string
           inmueble_id: string
           similitud: number
+        }[]
+      }
+      fn_solicitud_actuaciones_externas: {
+        Args: { p_solicitud_id: string; p_vinculo_id: string }
+        Returns: {
+          created_at: string
+          descripcion: string
+          fecha: string
         }[]
       }
       fn_solicitud_cancelar_externa: {

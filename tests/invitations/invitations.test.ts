@@ -50,24 +50,30 @@ d('E5 — invitaciones (RPC)', () => {
   const admin = clienteAdmin(env!)
   let agentUser: UsuarioPrueba
   let auditorUser: UsuarioPrueba
+  let adminUser: UsuarioPrueba
   let tenant: TenantPrueba
   let clienteAgent: Cliente
   let clienteAuditor: Cliente
+  let clienteAdministrador: Cliente
 
   beforeAll(async () => {
     agentUser = await crearUsuario(admin, 'inv-agent')
     auditorUser = await crearUsuario(admin, 'inv-auditor')
+    adminUser = await crearUsuario(admin, 'inv-administrador')
     tenant = await crearTenant(admin, 'inv', agentUser.id)
     await crearMembership(admin, tenant.id, agentUser.id, 'auxiliar')
     await crearMembership(admin, tenant.id, auditorUser.id, 'auditor')
+    await crearMembership(admin, tenant.id, adminUser.id, 'administrador')
     clienteAgent = await clienteComo(env!, agentUser)
     clienteAuditor = await clienteComo(env!, auditorUser)
+    clienteAdministrador = await clienteComo(env!, adminUser)
   }, 30_000)
 
   afterAll(async () => {
     await eliminarTenant(admin, tenant.id)
     await eliminarUsuario(admin, agentUser.id)
     await eliminarUsuario(admin, auditorUser.id)
+    await eliminarUsuario(admin, adminUser.id)
   }, 30_000)
 
   it('invite_user: agent puede invitar', async () => {
@@ -97,6 +103,47 @@ d('E5 — invitaciones (RPC)', () => {
     })
     expect(error).not.toBeNull()
     expect(error?.message).toMatch(/^FORBIDDEN:/)
+  })
+
+  it('invite_user: auxiliar NO puede invitar a administrador (PRIVILEGE_ESCALATION, hallazgo QA f1-01)', async () => {
+    const { hash } = hashDePrueba()
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const { error } = await clienteAgent.rpc('invite_user', {
+      p_tenant_id: tenant.id,
+      p_email: 'escalada@example.test',
+      p_role: 'administrador',
+      p_token_hash: hash,
+      p_expires_at: expiresAt,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toMatch(/^PRIVILEGE_ESCALATION:/)
+  })
+
+  it('invite_user: auxiliar SI puede invitar a auxiliar (rol igual)', async () => {
+    const { hash } = hashDePrueba()
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const { error } = await clienteAgent.rpc('invite_user', {
+      p_tenant_id: tenant.id,
+      p_email: 'igual-nivel@example.test',
+      p_role: 'auxiliar',
+      p_token_hash: hash,
+      p_expires_at: expiresAt,
+    })
+    expect(error).toBeNull()
+  })
+
+  it('invite_user: administrador SI puede invitar a administrador (rol igual, el techo de la jerarquía)', async () => {
+    const { hash } = hashDePrueba()
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const { data, error } = await clienteAdministrador.rpc('invite_user', {
+      p_tenant_id: tenant.id,
+      p_email: 'otro-administrador@example.test',
+      p_role: 'administrador',
+      p_token_hash: hash,
+      p_expires_at: expiresAt,
+    })
+    expect(error).toBeNull()
+    expect(data?.role).toBe('administrador')
   })
 
   it('invite_user: ALREADY_MEMBER si el correo ya es miembro activo', async () => {

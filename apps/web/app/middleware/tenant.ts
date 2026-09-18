@@ -71,14 +71,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // nunca es tenant_member", regla que gobierna toda la serie External (APENDICE_EXT.md).
   // Sin este chequeo caería en la rama de abajo ("crea tu copropiedad"), dejándolo crear una
   // copropiedad fantasma si navega por accidente a una ruta interna con este middleware. Las
-  // páginas de portal-externo/* no declaran 'tenant', así que esto solo se ejerce en ese caso
-  // accidental — una llamada extra por sesión sin membership, nunca en el camino feliz normal.
+  // páginas de mi-copropiedad/* (EXT-05, antes portal-externo/*) no declaran 'tenant', así que
+  // esto solo se ejerce en ese caso accidental — una llamada extra por sesión sin membership,
+  // nunca en el camino feliz normal.
   if (tenantStore.memberships.length === 0 && perfil?.id) {
     const { data: vinculosExterno } = await cliente.rpc('fn_actor_externo_mis_vinculos', {
       p_auth_user_id: perfil.id,
     })
     if (vinculosExterno && vinculosExterno.length > 0) {
-      return navigateTo('/portal-externo/mis-vinculos')
+      return navigateTo('/mi-copropiedad/vinculos')
     }
   }
 

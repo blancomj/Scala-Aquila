@@ -152,6 +152,10 @@ export async function enviarEmailEstadoCuenta(
     subject,
     html,
     providerMessageId: resultado.providerMessageId ?? null,
-    error: resultado.success ? null : (resultado.errorMessage ?? 'Brevo no aceptó el correo.'),
+    // enviarEmailCobranza SIEMPRE fija errorMessage cuando success es false (config faltante,
+    // HTTP no-ok o excepción de red — sus tres ramas de fallo lo garantizan por invariante); no
+    // hay un cuarto camino que lo deje undefined, así que no hace falta un texto de reserva que
+    // nunca se mostraría.
+    error: resultado.success ? null : resultado.errorMessage!,
   }
 }

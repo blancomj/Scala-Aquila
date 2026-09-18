@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@^1'
-import { errorResponse, jsonResponse, parsearErrorRpc } from './http.ts'
+import { errorResponse, jsonResponse, parsearErrorRpc, respuestaPreflight } from './http.ts'
 
 Deno.test(
   'jsonResponse(): status 200 por defecto, headers de seguridad, sin X-Correlation-Id si no se pasa',
@@ -50,4 +50,17 @@ Deno.test('parsearErrorRpc(): sin el formato CODIGO: mensaje cae a INTERNAL_ERRO
     code: 'INTERNAL_ERROR',
     message: 'algo raro sin formato',
   })
+})
+
+Deno.test('respuestaPreflight(): OPTIONS → 204 con headers CORS, sin cuerpo', () => {
+  const req = new Request('https://example.test', { method: 'OPTIONS' })
+  const res = respuestaPreflight(req)
+  assertEquals(res?.status, 204)
+  assertEquals(res?.headers.get('Access-Control-Allow-Origin'), '*')
+  assertEquals(res?.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS')
+})
+
+Deno.test('respuestaPreflight(): un método distinto de OPTIONS → null (no intercepta el request real)', () => {
+  const req = new Request('https://example.test', { method: 'POST' })
+  assertEquals(respuestaPreflight(req), null)
 })

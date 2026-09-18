@@ -22,6 +22,7 @@ import {
   eliminarTenant,
   eliminarUsuario,
   leerEntorno,
+  RUN_ID,
   type Cliente,
   type TenantPrueba,
   type UsuarioPrueba,
@@ -268,5 +269,315 @@ d('crear-intencion-pago', () => {
       body: { via: 'sesion', inmueble_id: inmuebleId, metodo: 'pse', monto: 999_999 },
     })
     expect(response?.status).toBe(422)
+  }, 60_000)
+})
+
+/**
+ * EXT-07 §7.3 — tercera vía 'actor_externo': el propio propietario/residente paga su saldo,
+ * autenticado por actor_externo_vinculo (D-60/AD-37), sin ser tenant_member. Mismo patrón de
+ * fixtures que tests/external/cuenta-resumen.test.ts (vínculo + sesión real) combinado con el
+ * armado de cargo con saldo de este archivo.
+ */
+d('crear-intencion-pago — vía actor_externo (EXT-07)', () => {
+  const admin = clienteAdmin(env!)
+  const tenantsCreados: string[] = []
+  const usuariosCreados: string[] = []
+  const tercerosCreados: string[] = []
+
+  afterAll(async () => {
+    for (const id of usuariosCreados) await eliminarUsuario(admin, id)
+    for (const id of tenantsCreados) await eliminarTenant(admin, id)
+    for (const id of tercerosCreados) {
+      await admin.from('inmueble_persona_rol').delete().eq('tercero_id', id)
+      await admin.from('terceros').delete().eq('id', id)
+    }
+  }, 60_000)
+
+  async function idListaTipos(tipo: string, codigo: string): Promise<number> {
+    const { data, error } = await admin
+      .from('lista_tipos')
+      .select('id')
+      .eq('tipo', tipo)
+      .eq('codigo', codigo)
+      .is('tenant_id', null)
+      .single<{ id: number }>()
+    if (error) throw new Error(`fixture lista_tipos ${tipo}.${codigo}: ${error.message}`)
+    return data.id
+  }
+
+  async function crearInmuebleAE(tenantId: string, codigo: string): Promise<string> {
+    const tipoId = await idListaTipos('TIPO_INMUEBLE', 'apartamento')
+    const { data, error } = await admin
+      .from('inmuebles')
+      .insert({ tenant_id: tenantId, codigo, tipo_id: tipoId })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture inmueble ${codigo}: ${error.message}`)
+    return data.id
+  }
+
+  async function crearTerceroAE(tenantId: string, sello: string): Promise<string> {
+    const tipoIdentId = await idListaTipos('TIPO_IDENTIFICACION', 'cedula')
+    const estadoActivoId = await idListaTipos('ESTADO_TERCERO', 'activo')
+    const { data, error } = await admin
+      .from('terceros')
+      .insert({
+        tenant_id: tenantId,
+        tipo_persona: 'natural',
+        tipo_identificacion_id: tipoIdentId,
+        numero_documento: sello,
+        primer_nombre: 'Externo',
+        primer_apellido: sello,
+        estado_id: estadoActivoId,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture tercero ${sello}: ${error.message}`)
+    tercerosCreados.push(data.id)
+    return data.id
+  }
+
+  async function crearPersonaRolAE(
+    tenantId: string,
+    inmuebleId: string,
+    terceroId: string,
+  ): Promise<string> {
+    const rolId = await idListaTipos('PERSONA_PREDIO', 'copropietario')
+    const { data, error } = await admin
+      .from('inmueble_persona_rol')
+      .insert({
+        tenant_id: tenantId,
+        inmueble_id: inmuebleId,
+        tercero_id: terceroId,
+        rol_id: rolId,
+        vigente_desde: '2020-01-01',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (error) throw new Error(`fixture inmueble_persona_rol: ${error.message}`)
+    return data.id
+  }
+
+  async function crearVinculoAE(
+    tenantId: string,
+    personaRolId: string,
+    authUserId: string,
+  ): Promise<string> {
+    const { error } = await admin.rpc('fn_actor_externo_registrar_vinculo', {
+      p_tenant_id: tenantId,
+      p_auth_user_id: authUserId,
+      p_persona_rol_id: personaRolId,
+      p_persona_tipo: 'propietario',
+      p_origen: 'staff',
+    })
+    if (error) throw error
+    const { data: vinculo, error: errorLeer } = await admin
+      .from('actor_externo_vinculo')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .eq('persona_rol_id', personaRolId)
+      .single<{ id: string }>()
+    if (errorLeer) throw errorLeer
+    return vinculo.id
+  }
+
+  async function prepararActorExternoConInmueble(
+    etiqueta: string,
+  ): Promise<{ tenantId: string; inmuebleId: string; vinculoId: string; clienteExterno: Cliente }> {
+    const tenant = await crearTenant(admin, etiqueta)
+    tenantsCreados.push(tenant.id)
+    const inmuebleId = await crearInmuebleAE(tenant.id, `CIPAE-${etiqueta}-${RUN_ID}`)
+    const terceroId = await crearTerceroAE(tenant.id, `${RUN_ID}-${etiqueta}`)
+    const personaRolId = await crearPersonaRolAE(tenant.id, inmuebleId, terceroId)
+
+    const email = `cipae-${RUN_ID}-${etiqueta}@example.test`
+    const password = `Aa1${crypto.randomUUID()}`
+    const { data: creado, error: errorCrear } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+    if (errorCrear) throw errorCrear
+    usuariosCreados.push(creado.user.id)
+
+    const vinculoId = await crearVinculoAE(tenant.id, personaRolId, creado.user.id)
+    const clienteExterno = await clienteComo(env!, { id: creado.user.id, email, password })
+
+    // Pasarela activa — requisito de crear-intencion-pago para CUALQUIER vía (PASARELA_NO_
+    // CONFIGURADA si falta), configurada por un staff desechable, no expuesto en el test.
+    const staff = await crearUsuario(admin, `${etiqueta}-staff`)
+    usuariosCreados.push(staff.id)
+    await crearMembership(admin, tenant.id, staff.id, 'auxiliar')
+    const clienteStaff = await clienteComo(env!, staff)
+    const { data: cfg } = await clienteStaff.functions.invoke<{ config: { id: string } }>(
+      'configurar-pasarela',
+      {
+        body: {
+          accion: 'guardar_credenciales',
+          tenant_id: tenant.id,
+          proveedor: 'wompi',
+          identificador_publico: 'pub_test_fixture',
+          metodos: ['pse'],
+          credenciales: {
+            public_key: 'pub_test_fixture',
+            private_key: 'prv_test_fixture',
+            events_secret: 'test_events_fixture',
+            integrity_secret: 'test_integrity_fixture',
+          },
+        },
+      },
+    )
+    const configId = cfg!.config.id
+    await clienteStaff.functions.invoke('configurar-pasarela', {
+      body: { accion: 'probar_conexion', tenant_id: tenant.id, config_id: configId },
+    })
+    await clienteStaff.functions.invoke('configurar-pasarela', {
+      body: { accion: 'activar', tenant_id: tenant.id, config_id: configId },
+    })
+
+    return { tenantId: tenant.id, inmuebleId, vinculoId, clienteExterno }
+  }
+
+  async function armarSaldo(
+    tenantId: string,
+    inmuebleId: string,
+    monto: number,
+    // Distingue periodos cuando se arman dos cargos para el MISMO tenant (periodos_unico es
+    // tenant_id+anio+mes).
+    mes = 1,
+  ): Promise<void> {
+    const sufijo = `${String(Date.now())}${String(Math.floor(Math.random() * 10000))}`
+    const { data: periodo, error: eP } = await admin
+      .from('periodos')
+      .insert({ tenant_id: tenantId, anio: 2026, mes, estado: 'abierto' })
+      .select('id')
+      .single<{ id: string }>()
+    if (eP) throw new Error(`fixture periodo: ${eP.message}`)
+
+    const { data: concepto, error: eC } = await admin
+      .from('conceptos')
+      .insert({
+        tenant_id: tenantId,
+        codigo: `CUOTA-${sufijo}`,
+        nombre: 'Cuota de administración',
+        modo_calculo: 'distribucion',
+        modo_valor: 'formulado',
+        tipo_recurrencia: 'recurrente',
+        periodicidad: 'mensual',
+        alcance: 'todos',
+        fecha_inicio_anio: 2000,
+        fecha_inicio_mes: 1,
+        prioridad: 100,
+        estado: 'activo',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (eC) throw new Error(`fixture concepto: ${eC.message}`)
+
+    const { data: liq, error: eL } = await admin
+      .from('liquidaciones')
+      .insert({
+        tenant_id: tenantId,
+        periodo_id: periodo.id,
+        result_hash: `cipae-fixture-${sufijo}`,
+        tenant_total: monto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (eL) throw new Error(`fixture liquidacion: ${eL.message}`)
+
+    const { data: linea, error: eLinea } = await admin
+      .from('liquidacion_lineas')
+      .insert({
+        tenant_id: tenantId,
+        liquidacion_id: liq.id,
+        inmueble_id: inmuebleId,
+        concepto_id: concepto.id,
+        monto,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (eLinea) throw new Error(`fixture linea: ${eLinea.message}`)
+
+    const { error: eCargo } = await admin.from('cargos').insert({
+      tenant_id: tenantId,
+      inmueble_id: inmuebleId,
+      periodo_id: periodo.id,
+      categoria: 'capital',
+      origen_tipo: 'liquidacion_linea',
+      liquidacion_linea_id: linea.id,
+      concepto_id: concepto.id,
+      monto_original: monto,
+    })
+    if (eCargo) throw new Error(`fixture cargo: ${eCargo.message}`)
+  }
+
+  it('el propio actor externo genera su intención de pago, con el saldo real (no lo que mande el body)', async () => {
+    const t = await prepararActorExternoConInmueble('ae1')
+    await armarSaldo(t.tenantId, t.inmuebleId, 275_000)
+
+    const { data, response } = await t.clienteExterno.functions.invoke<{
+      intencion_id: string
+      referencia: string
+      monto: number
+    }>('crear-intencion-pago', {
+      body: { via: 'actor_externo', vinculo_id: t.vinculoId, metodo: 'pse' },
+    })
+    expect(response?.status).toBe(200)
+    expect(data?.monto).toBe(275_000)
+
+    const { data: fila } = await admin
+      .from('intenciones_pago')
+      .select('estado, inmueble_id, tenant_id, creada_por')
+      .eq('id', data!.intencion_id)
+      .single<{ estado: string; inmueble_id: string; tenant_id: string; creada_por: string }>()
+    expect(fila?.estado).toBe('pendiente')
+    expect(fila?.inmueble_id).toBe(t.inmuebleId)
+    // creada_por sí se traza para esta vía (a diferencia de 'token') — es el propio actor externo.
+    expect(fila?.creada_por).not.toBeNull()
+  }, 60_000)
+
+  it('un vínculo de otro actor no puede pagar en su nombre → 403 VINCULO_NO_PERTENECE', async () => {
+    const a = await prepararActorExternoConInmueble('ae2a')
+    const b = await prepararActorExternoConInmueble('ae2b')
+    await armarSaldo(b.tenantId, b.inmuebleId, 100_000)
+
+    const { response } = await a.clienteExterno.functions.invoke('crear-intencion-pago', {
+      body: { via: 'actor_externo', vinculo_id: b.vinculoId, metodo: 'pse' },
+    })
+    expect(response?.status).toBe(403)
+  }, 60_000)
+
+  it('un inmueble_id forzado en el cuerpo no tiene efecto: el inmueble siempre sale del vínculo', async () => {
+    const t = await prepararActorExternoConInmueble('ae3')
+    const otroInmuebleId = await crearInmuebleAE(t.tenantId, `CIPAE-ae3-otro-${RUN_ID}`)
+    await armarSaldo(t.tenantId, t.inmuebleId, 60_000, 1)
+    await armarSaldo(t.tenantId, otroInmuebleId, 999_000, 2)
+
+    const { data, response } = await t.clienteExterno.functions.invoke<{ monto: number }>(
+      'crear-intencion-pago',
+      {
+        // inmueble_id no es un campo válido para la vía actor_externo (zod lo ignora vía
+        // discriminatedUnion) — se envía igual para probar que un campo extra del body no
+        // tiene ningún efecto: el inmueble siempre sale del vínculo resuelto en el servidor.
+        body: {
+          via: 'actor_externo',
+          vinculo_id: t.vinculoId,
+          metodo: 'pse',
+          inmueble_id: otroInmuebleId,
+        },
+      },
+    )
+    expect(response?.status).toBe(200)
+    expect(data?.monto).toBe(60_000)
+  }, 60_000)
+
+  it('sin sesión (Authorization ausente) → 401 UNAUTHENTICATED', async () => {
+    const t = await prepararActorExternoConInmueble('ae4')
+    await t.clienteExterno.auth.signOut()
+    const { response } = await t.clienteExterno.functions.invoke('crear-intencion-pago', {
+      body: { via: 'actor_externo', vinculo_id: t.vinculoId, metodo: 'pse' },
+    })
+    expect(response?.status).toBe(401)
   }, 60_000)
 })

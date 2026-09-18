@@ -1,8 +1,11 @@
-// Crear intención de pago por pasarela — Fase 2 §5. Endpoint público (token
-// HMAC del enlace de estado de cuenta, mismo mecanismo que ver-estado-cuenta,
-// D-27) o autenticado (un auxiliar/administrador cobrando en nombre de un
-// residente). El propietario NO tiene auth.users (AD-26) — el camino público
-// es la vía obligatoria para que él mismo pueda pagar.
+// Crear intención de pago por pasarela — Fase 2 §5. Tres vías: token (enlace
+// HMAC del estado de cuenta, mismo mecanismo que ver-estado-cuenta, D-27),
+// sesion (un auxiliar/administrador cobrando en nombre de un residente) o
+// actor_externo (EXT-07 — el propio propietario/residente autenticado por
+// actor_externo_vinculo, D-60/AD-37: tiene sesión real de Supabase Auth desde
+// EXT-01, pero nunca es tenant_member, así que no puede pasar por 'sesion').
+// La vía 'token' se mantiene para enlaces ya emitidos (correo del estado de
+// cuenta) y para quien no tenga sesión iniciada.
 //
 // REGLA DE ORO (§1, §5.3): el monto lo decide el SERVIDOR, nunca el body del
 // cliente sin verificar. inmueble_id/tenant_id SIEMPRE se derivan del lado
@@ -22,6 +25,11 @@ import {
 } from '../../../packages/payment-gateways/dist/index.js'
 import type { MetodoPago } from '../../../packages/payment-gateways/dist/index.js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
+import {
+  extraerJwtDelHeader,
+  resolverContextoActorExterno,
+  respuestaErrorContextoActorExterno,
+} from '../_shared/actor_externo_context.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
 import { verificarTokenEnlace } from '../_shared/link_token.ts'
 import { logEvent } from '../_shared/logger.ts'
@@ -50,6 +58,12 @@ const payloadSchema = z.discriminatedUnion('via', [
   z.object({
     via: z.literal('sesion'),
     inmueble_id: z.string().uuid(),
+    monto: z.number().positive().optional(),
+    metodo: z.string().trim().min(1),
+  }),
+  z.object({
+    via: z.literal('actor_externo'),
+    vinculo_id: z.string().uuid(),
     monto: z.number().positive().optional(),
     metodo: z.string().trim().min(1),
   }),
@@ -132,6 +146,19 @@ Deno.serve(async (req) => {
     tenantId = estadoCuenta.tenant_id
     inmuebleId = estadoCuenta.inmueble_id
     creadaPor = null
+  } else if (datos.via === 'actor_externo') {
+    const jwtActorExterno = extraerJwtDelHeader(req)
+    const contexto = await resolverContextoActorExterno(admin, jwtActorExterno, datos.vinculo_id)
+    if ('tipo' in contexto) {
+      return respuestaErrorContextoActorExterno(contexto, correlationId)
+    }
+    tenantId = contexto.tenantId
+    inmuebleId = contexto.inmuebleId
+    // A diferencia de 'sesion' (un auxiliar cobrando en nombre de otro, creadaPor=null no aplica
+    // aquí), el propio actor externo SÍ tiene fila en `profiles` (handle_new_user se dispara para
+    // cualquier alta en auth.users, incluida la de EXT-01) — trazarlo es correcto, no un relleno
+    // forzado de una columna que no lo espera.
+    creadaPor = contexto.authUserId
   } else {
     const jwt = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
     if (!jwt) {

@@ -5,9 +5,15 @@
 // uno) → catálogo real de tipo/categoría del tenant → asunto/descripción → confirmar. Las dos
 // Edge Functions (external-solicitudes-catalogo/-crear) ya resuelven inmueble_id/tenant_id del
 // lado del servidor vía fn_actor_externo_mis_vinculos — nunca confían en lo que mande el cliente.
+//
+// EXT-05 (reubicación desde portal-externo/nueva-solicitud.vue): sin cambios de lógica — solo el
+// layout (ahora 'mi-copropiedad') y las rutas de retorno/redirección. Mantiene su propia
+// resolución de vínculo (independiente de stores/actorExterno.ts) a propósito: esta pantalla
+// necesita el catálogo de tipo/categoría del vínculo elegido, algo que el store de EXT-05 no
+// carga — no se le agrega esa responsabilidad aquí sin necesidad.
 import type { Database } from '@aquila/shared'
 
-definePageMeta({ layout: 'blank', publico: true })
+definePageMeta({ layout: 'mi-copropiedad', publico: true })
 
 type Vinculo = Database['public']['Functions']['fn_actor_externo_mis_vinculos']['Returns'][number]
 
@@ -39,7 +45,7 @@ onMounted(async () => {
     data: { user: usuario },
   } = await cliente.auth.getUser()
   if (!usuario) {
-    await navigateTo('/portal-externo')
+    await navigateTo('/mi-copropiedad/login')
     return
   }
 
@@ -126,7 +132,7 @@ async function enviar(): Promise<void> {
           Solicitud #{{ solicitudCreada?.numero }}/{{ solicitudCreada?.anio }} recibida. El equipo
           de la copropiedad la revisará pronto.
         </p>
-        <NuxtLink to="/portal-externo/mis-vinculos" class="boton">Volver</NuxtLink>
+        <NuxtLink to="/mi-copropiedad/solicitudes" class="boton">Ver mis solicitudes</NuxtLink>
       </template>
 
       <template v-else>
@@ -181,7 +187,7 @@ async function enviar(): Promise<void> {
           configurado — pídele al staff que lo active antes de radicar una solicitud aquí.
         </p>
 
-        <NuxtLink to="/portal-externo/mis-vinculos" class="enlace">Volver a mis vínculos</NuxtLink>
+        <NuxtLink to="/mi-copropiedad/solicitudes" class="enlace">Volver a mis solicitudes</NuxtLink>
       </template>
     </main>
   </div>
@@ -191,16 +197,12 @@ async function enviar(): Promise<void> {
 .pagina {
   font-family: var(--font-sans);
   color: var(--color-neutral-900);
-  background: var(--color-neutral-100);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 16px;
+  padding: 24px 16px 40px;
 }
 .hoja {
   width: 100%;
   max-width: 460px;
+  margin: 0 auto;
   background: var(--color-neutral-50);
   border-radius: var(--radius-xl);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);

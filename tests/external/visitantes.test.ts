@@ -45,9 +45,12 @@ interface RespuestaAutorizacion {
   autorizado_por_origen: string
   visitante_nombre: string
   visitante_documento: string | null
+  permanente: boolean
+  fecha_prevista: string | null
   estado: string
   qr_token: string | null
   qr_expira_at: string
+  foto_url: string | null
 }
 interface RespuestaListado {
   id: string
@@ -89,6 +92,17 @@ function invocarConError<T>(
     }
     return { data: null, error: { status, codigo: cuerpo.error?.code ?? null, mensaje: cuerpo.error?.message ?? null } }
   })
+}
+
+/** EXT-09 (Ola 2, M14): external-visitas-crear pasó de JSON a multipart/form-data (para poder
+ * adjuntar la foto opcional) — este helper arma el FormData a partir de los mismos campos planos
+ * que antes se mandaban como objeto, sin cambiar el significado de ningún test existente. */
+function formVisita(campos: Record<string, string | number | undefined>): FormData {
+  const form = new FormData()
+  for (const [clave, valor] of Object.entries(campos)) {
+    if (valor !== undefined) form.set(clave, String(valor))
+  }
+  return form
 }
 
 d('EXT-04: visitantes desde External', () => {
@@ -200,11 +214,11 @@ d('EXT-04: visitantes desde External', () => {
 
     const { data, error } = await invocarConError(
       t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: {
+        body: formVisita({
           vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Juan Visitante',
           fecha_prevista: '2028-04-01', hora_desde: '10:00', hora_hasta: '12:00',
           inmueble_id: otroInmuebleId,
-        },
+        }),
       }),
     )
     if (error) throw new Error(error.mensaje ?? 'fallo inesperado')
@@ -219,7 +233,7 @@ d('EXT-04: visitantes desde External', () => {
     const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const { data, error } = await invocarConError(
       t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Ana Visitante', fecha_prevista: manana, hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Ana Visitante', fecha_prevista: manana, hora_hasta: '18:00' }),
       }),
     )
     if (error) throw new Error(error.mensaje ?? 'fallo inesperado')
@@ -233,7 +247,7 @@ d('EXT-04: visitantes desde External', () => {
     const t = await prepararTenantConActorExterno('p3')
     const { data: creada, error: errorCrear } = await invocarConError(
       t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Pedro Visitante', fecha_prevista: '2028-04-03', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Pedro Visitante', fecha_prevista: '2028-04-03', hora_hasta: '18:00' }),
       }),
     )
     if (errorCrear) throw new Error(errorCrear.mensaje ?? 'fallo inesperado')
@@ -251,7 +265,7 @@ d('EXT-04: visitantes desde External', () => {
     const t = await prepararTenantConActorExterno('p4')
     const { data: creada, error: errorCrear } = await invocarConError(
       t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Laura Visitante', fecha_prevista: '2028-04-04', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Laura Visitante', fecha_prevista: '2028-04-04', hora_hasta: '18:00' }),
       }),
     )
     if (errorCrear) throw new Error(errorCrear.mensaje ?? 'fallo inesperado')
@@ -272,13 +286,13 @@ d('EXT-04: visitantes desde External', () => {
     const b = await prepararTenantConActorExterno('p5b')
     const { error: eA } = await invocarConError(
       a.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: a.actorExternoVinculoId, visitante_nombre: 'De A', fecha_prevista: '2028-04-05', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: a.actorExternoVinculoId, visitante_nombre: 'De A', fecha_prevista: '2028-04-05', hora_hasta: '18:00' }),
       }),
     )
     if (eA) throw new Error(eA.mensaje ?? 'fallo inesperado')
     const { error: eB } = await invocarConError(
       b.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'De B', fecha_prevista: '2028-04-05', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'De B', fecha_prevista: '2028-04-05', hora_hasta: '18:00' }),
       }),
     )
     if (eB) throw new Error(eB.mensaje ?? 'fallo inesperado')
@@ -297,7 +311,7 @@ d('EXT-04: visitantes desde External', () => {
     const t = await prepararTenantConActorExterno('p6')
     const { data: creada, error: errorCrear } = await invocarConError(
       t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Usada Visitante', fecha_prevista: '2028-04-06', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Usada Visitante', fecha_prevista: '2028-04-06', hora_hasta: '18:00' }),
       }),
     )
     if (errorCrear) throw new Error(errorCrear.mensaje ?? 'fallo inesperado')
@@ -335,7 +349,7 @@ d('EXT-04: visitantes desde External', () => {
 
     const { data: dataCrear, error: eCrear } = await invocarConError(
       a.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'Intruso', fecha_prevista: '2028-04-08', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'Intruso', fecha_prevista: '2028-04-08', hora_hasta: '18:00' }),
       }),
     )
     expect(dataCrear).toBeNull()
@@ -344,7 +358,7 @@ d('EXT-04: visitantes desde External', () => {
 
     const { data: autB, error: eCrearB } = await invocarConError(
       b.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'De B', fecha_prevista: '2028-04-08', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'De B', fecha_prevista: '2028-04-08', hora_hasta: '18:00' }),
       }),
     )
     if (eCrearB) throw new Error(eCrearB.mensaje ?? 'fallo inesperado')
@@ -389,10 +403,49 @@ d('EXT-04: visitantes desde External', () => {
 
     const { data, error } = await invocarConError(
       a.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
-        body: { vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'Ajeno', fecha_prevista: '2028-04-10', hora_hasta: '18:00' },
+        body: formVisita({ vinculo_id: b.actorExternoVinculoId, visitante_nombre: 'Ajeno', fecha_prevista: '2028-04-10', hora_hasta: '18:00' }),
       }),
     )
     expect(data).toBeNull()
     expect(error!.codigo).toBe('VINCULO_NO_PERTENECE')
+  }, 30_000)
+
+  // ── EXT-09 (Ola 2, M14): permanente + foto ──────────────────────────────────────────────
+  it('11. permanente=true omite fecha_prevista/hora y da un QR con vigencia de ~1 año, no de horas', async () => {
+    const t = await prepararTenantConActorExterno('p11')
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Empleada Fija', permanente: 'true' }),
+      }),
+    )
+    if (error) throw new Error(error.mensaje ?? 'fallo inesperado')
+    expect(data!.permanente).toBe(true)
+    expect(data!.fecha_prevista).toBeNull()
+    const vigenciaDias = (new Date(data!.qr_expira_at).getTime() - Date.now()) / (24 * 3600 * 1000)
+    expect(vigenciaDias).toBeGreaterThan(30)
+    expect(vigenciaDias).toBeLessThanOrEqual(366)
+  }, 30_000)
+
+  it('12. una foto JPEG válida se adjunta y queda como foto_url no nulo', async () => {
+    const t = await prepararTenantConActorExterno('p12')
+    const form = formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Con Foto', fecha_prevista: '2028-04-12', hora_hasta: '18:00' })
+    form.set('foto', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xdb])], 'rostro.jpg', { type: 'image/jpeg' }))
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', { body: form }),
+    )
+    if (error) throw new Error(error.mensaje ?? 'fallo inesperado')
+    expect(data!.foto_url).toBeTruthy()
+  }, 30_000)
+
+  it('13. una foto con MIME no permitido (PDF) se rechaza con 400 INVALID_PAYLOAD, sin crear nada', async () => {
+    const t = await prepararTenantConActorExterno('p13')
+    const form = formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'Foto Inválida', fecha_prevista: '2028-04-13', hora_hasta: '18:00' })
+    form.set('foto', new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'archivo.pdf', { type: 'application/pdf' }))
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', { body: form }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(400)
+    expect(error!.codigo).toBe('INVALID_PAYLOAD')
   }, 30_000)
 })

@@ -52,6 +52,13 @@ export default defineNuxtConfig({
           'Content-Security-Policy': csp,
         },
       },
+      // EXT-05 · portal-externo/* se reubicó a mi-copropiedad/* — cualquier enlace ya emitido
+      // (p. ej. por un correo transaccional pasado) sigue funcionando. Reglas explícitas, no un
+      // wildcard '/portal-externo/**': la reubicación no fue un simple cambio de prefijo (
+      // mis-vinculos.vue → vinculos.vue, nueva-solicitud.vue → solicitudes/nueva.vue).
+      '/portal-externo': { redirect: '/mi-copropiedad/login' },
+      '/portal-externo/mis-vinculos': { redirect: '/mi-copropiedad/vinculos' },
+      '/portal-externo/nueva-solicitud': { redirect: '/mi-copropiedad/solicitudes/nueva' },
     },
   },
 

@@ -5,6 +5,9 @@
 // preselecciona la primera de la lista (la más reciente — ver
 // cargarPresupuestos ORDER BY anio desc) en cuanto carga.
 const modelValue = defineModel<string | null>({ required: true })
+/** true en contenedores angostos (p. ej. el panel lateral de Periodos y vigencia) donde el ancho
+ * fijo `sm:w-[28rem]` pensado para la barra de encabezado no entra. */
+const { compacto = false } = defineProps<{ compacto?: boolean }>()
 const presupuestoStore = usePresupuestoStore()
 
 const opciones = computed(() =>
@@ -26,7 +29,7 @@ watch(
 </script>
 
 <template>
-  <UFormField label="Presupuesto" name="presupuesto" class="w-full sm:w-[28rem]">
+  <UFormField label="Presupuesto" name="presupuesto" :class="compacto ? 'w-full' : 'w-full sm:w-[28rem]'">
     <UiSelectorBuscable v-model="modelValue" :opciones="opciones" />
   </UFormField>
 </template>

@@ -1,0 +1,2577 @@
+{
+  "fuente": "https://claude.ai/artifact/3aPTLb4GaVTANbatnJQL5y",
+  "generadoAt": "2026-09-16",
+  "totalItems": 222,
+  "fases": [
+    {
+      "id": "f0",
+      "titulo": "Acceso y cuenta",
+      "desc": "Antes de tocar datos: entrar, salir, recuperar acceso, moverse entre copropiedades.",
+      "items": 14
+    },
+    {
+      "id": "f1",
+      "titulo": "Seguridad y usuarios",
+      "desc": "Definir quién puede hacer qué antes de cargar datos reales.",
+      "items": 8
+    },
+    {
+      "id": "f2",
+      "titulo": "Copropiedad: catálogos maestros",
+      "desc": "Inmuebles, propietarios y coeficientes — la base física y de propiedad de todo lo demás.",
+      "items": 27
+    },
+    {
+      "id": "f3",
+      "titulo": "Configuración transversal",
+      "desc": "Integraciones y políticas que usan varios módulos a la vez.",
+      "items": 8
+    },
+    {
+      "id": "f4",
+      "titulo": "Presupuesto",
+      "desc": "El presupuesto 2026 sembrado ya está vigente — usarlo como base y crear un segundo escenario.",
+      "items": 11
+    },
+    {
+      "id": "f5",
+      "titulo": "Contabilidad: configuración",
+      "desc": "Antes de que exista un solo movimiento — el marco y el plan de cuentas.",
+      "items": 10
+    },
+    {
+      "id": "f6",
+      "titulo": "Facturación y Recaudo",
+      "desc": "El ciclo del día a día: generar el cobro y recibirlo.",
+      "items": 12
+    },
+    {
+      "id": "f7",
+      "titulo": "Contabilidad operativa",
+      "desc": "Ya hay actividad real (liquidación, recaudo) para contabilizar.",
+      "items": 9
+    },
+    {
+      "id": "f8",
+      "titulo": "Cartera y Cobranza",
+      "desc": "Dejar vencer una cuota a propósito para tener mora real que gestionar.",
+      "items": 12
+    },
+    {
+      "id": "f9",
+      "titulo": "Finanzas",
+      "desc": "Tesorería, proveedores y conciliación bancaria.",
+      "items": 9
+    },
+    {
+      "id": "f10",
+      "titulo": "Fondos",
+      "desc": "El fondo de imprevistos ya nació con la copropiedad.",
+      "items": 4
+    },
+    {
+      "id": "f11",
+      "titulo": "Mantenimiento",
+      "desc": "Activos físicos, planes preventivos y la operación diaria sobre ellos.",
+      "items": 20
+    },
+    {
+      "id": "f12",
+      "titulo": "Gobierno",
+      "desc": "Órganos, reuniones, decisiones y régimen de convivencia.",
+      "items": 14
+    },
+    {
+      "id": "f13",
+      "titulo": "Comunidad",
+      "desc": "Lo que un residente consulta y usa día a día.",
+      "items": 9
+    },
+    {
+      "id": "f14",
+      "titulo": "Comunicaciones",
+      "desc": "El rastro de todo lo que salió por correo o SMS desde cualquier módulo.",
+      "items": 2
+    },
+    {
+      "id": "f15",
+      "titulo": "Portal externo",
+      "desc": "Flujo de autenticación aparte, para propietarios/arrendatarios sin cuenta de gestión.",
+      "items": 4
+    },
+    {
+      "id": "f16",
+      "titulo": "Transversales",
+      "desc": "Auditoría, bandeja de trabajo, plataforma y accesibilidad — cruzan todo lo anterior.",
+      "items": 8
+    },
+    {
+      "id": "f17",
+      "titulo": "Aislamiento multi-tenant",
+      "desc": "Que el tenant A jamás vea ni toque un dato del tenant B — probado módulo por módulo, no solo una vez.",
+      "items": 11
+    },
+    {
+      "id": "f18",
+      "titulo": "Concurrencia y condiciones de carrera",
+      "desc": "Dos personas (o dos clics) tocando lo mismo al mismo tiempo.",
+      "items": 6
+    },
+    {
+      "id": "f19",
+      "titulo": "Documentos y adjuntos",
+      "desc": "Todo lo que se sube: escrituras, evidencias, extractos, actas.",
+      "items": 7
+    },
+    {
+      "id": "f20",
+      "titulo": "Casos límite y datos especiales",
+      "desc": "Los valores que casi nadie prueba a propósito, hasta que un usuario real los escribe.",
+      "items": 9
+    },
+    {
+      "id": "f21",
+      "titulo": "Ciclo completo de extremo a extremo",
+      "desc": "Encadenar varias fases anteriores en un solo recorrido real, sin atajos, y comprobar que las cifras finales cuadran entre sí.",
+      "items": 4
+    },
+    {
+      "id": "f22",
+      "titulo": "Recuperación de errores y resiliencia",
+      "desc": "Lo que pasa cuando algo sale mal a mitad de camino — la mitad de los bugs reales viven aquí.",
+      "items": 4
+    }
+  ],
+  "items": [
+    {
+      "codigo": "f0-01",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Registrar un usuario nuevo con correo y contraseña válidos",
+      "criterioAprobacion": "El usuario puede iniciar sesión de inmediato (o recibe el correo de verificación, según la configuración) y queda un registro nuevo en auth.users con ese correo — nunca dos.",
+      "rutas": [
+        "/register"
+      ]
+    },
+    {
+      "codigo": "f0-02",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Registrar un usuario con un correo que ya existe",
+      "criterioAprobacion": "Rechaza explícitamente por correo duplicado; NO crea una segunda cuenta ni sobrescribe la existente.",
+      "rutas": [
+        "/register"
+      ]
+    },
+    {
+      "codigo": "f0-03",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Iniciar sesión con correo y contraseña correctos",
+      "criterioAprobacion": "Redirige a /dashboard, o a /seleccionar-copropiedad si el usuario tiene más de un tenant; la sesión queda activa (persiste al recargar).",
+      "rutas": [
+        "/login"
+      ]
+    },
+    {
+      "codigo": "f0-04",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Iniciar sesión con la contraseña incorrecta",
+      "criterioAprobacion": "Muestra un error de credenciales inválidas y NO otorga sesión — verificar que ninguna cookie/token de sesión quedó escrita.",
+      "rutas": [
+        "/login"
+      ]
+    },
+    {
+      "codigo": "f0-05",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Solicitar recuperar contraseña con un correo existente",
+      "criterioAprobacion": "Llega un correo con un enlace de un solo uso que lleva a /reset-password; el enlace no funciona una segunda vez tras usarlo.",
+      "rutas": [
+        "/forgot-password"
+      ]
+    },
+    {
+      "codigo": "f0-06",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Definir la nueva contraseña desde el enlace recibido",
+      "criterioAprobacion": "La sesión con la contraseña vieja deja de aceptarse y solo la nueva permite iniciar sesión.",
+      "rutas": [
+        "/reset-password"
+      ]
+    },
+    {
+      "codigo": "f0-07",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Autenticación",
+      "accion": "Cerrar sesión y navegar por URL directa a una pantalla protegida (p. ej. /inmuebles)",
+      "criterioAprobacion": "Redirige a /login sin exponer ningún dato de la pantalla protegida, ni siquiera por un instante antes del redirect.",
+      "rutas": [
+        "/login"
+      ]
+    },
+    {
+      "codigo": "f0-08",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Crear una copropiedad nueva desde el onboarding guiado",
+      "criterioAprobacion": "El usuario queda como rol \"administrador\" de esa copropiedad y aterriza en un dashboard vacío — sin ningún dato de otra copropiedad visible.",
+      "rutas": [
+        "/onboarding/create-tenant"
+      ]
+    },
+    {
+      "codigo": "f0-09",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Repetir el alta usando el mismo slug de una copropiedad existente",
+      "criterioAprobacion": "Rechaza por slug duplicado antes de crear el tenant — no queda un registro a medias.",
+      "rutas": [
+        "/onboarding/create-tenant"
+      ]
+    },
+    {
+      "codigo": "f0-10",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Con dos o más copropiedades, cambiar la activa en el selector",
+      "criterioAprobacion": "Todas las pantallas (inmuebles, presupuesto, etc.) muestran exclusivamente datos del tenant recién seleccionado — cero filas del anterior.",
+      "rutas": [
+        "/copropiedades",
+        "/seleccionar-copropiedad"
+      ]
+    },
+    {
+      "codigo": "f0-11",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Editar nombre y avatar en el perfil propio",
+      "criterioAprobacion": "El cambio se refleja de inmediato en el encabezado/menú de usuario sin recargar la página.",
+      "rutas": [
+        "/perfil"
+      ]
+    },
+    {
+      "codigo": "f0-12",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Aceptar una invitación logueado con el correo exacto invitado",
+      "criterioAprobacion": "La membresía queda activa con el rol exacto que se asignó al invitar — verificable en /usuarios.",
+      "rutas": [
+        "/invite"
+      ]
+    },
+    {
+      "codigo": "f0-13",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Aceptar la misma invitación logueado con un correo distinto al invitado",
+      "criterioAprobacion": "Rechaza explícitamente por correo no coincidente (INV_EMAIL_MISMATCH) y NO crea la membresía.",
+      "rutas": [
+        "/invite"
+      ]
+    },
+    {
+      "codigo": "f0-14",
+      "fase": "f0",
+      "faseTitulo": "Acceso y cuenta",
+      "grupo": "Tenant y perfil",
+      "accion": "Repetir login y navegación básica del menú en viewport ~400px",
+      "criterioAprobacion": "No aparece scroll horizontal en ningún punto; el menú colapsa a un patrón usable (drawer o acordeón) y todo el texto es legible sin cortes.",
+      "rutas": [
+        "/login"
+      ]
+    },
+    {
+      "codigo": "f1-01",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Invitar tres usuarios: uno auxiliar, uno auditor, uno administrador",
+      "criterioAprobacion": "Los tres reciben el correo de invitación y, al aceptar, cada uno queda con exactamente el rol con el que se le invitó — visible en /usuarios.",
+      "rutas": [
+        "/usuarios"
+      ]
+    },
+    {
+      "codigo": "f1-02",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Como auditor, intentar crear o editar un registro en un módulo operativo (p. ej. un inmueble)",
+      "criterioAprobacion": "La acción de escritura está deshabilitada o la rechaza el backend — el auditor puede leer todo el tenant pero no escribir nada.",
+      "rutas": [
+        "/inmuebles"
+      ]
+    },
+    {
+      "codigo": "f1-03",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Como auxiliar, hacer esa misma escritura",
+      "criterioAprobacion": "Se completa sin error — el auxiliar sí puede operar.",
+      "rutas": [
+        "/inmuebles"
+      ]
+    },
+    {
+      "codigo": "f1-04",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Con un solo auxiliar/administrador activo, intentar revocarlo o degradarlo a auditor",
+      "criterioAprobacion": "Rechaza explícitamente citando que es el último con rol operativo activo — la copropiedad nunca puede quedar sin nadie que la opere (LAST_AGENT).",
+      "rutas": [
+        "/seguridad"
+      ]
+    },
+    {
+      "codigo": "f1-05",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Asignar solo el rol funcional \"financiero\" a un usuario y volver a entrar con esa cuenta",
+      "criterioAprobacion": "El menú lateral de ese usuario NO muestra Mantenimiento, Gobierno ni Cartera — solo los módulos cubiertos por el rol asignado.",
+      "rutas": [
+        "/seguridad"
+      ]
+    },
+    {
+      "codigo": "f1-06",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Ese mismo usuario entra por URL directa a una pantalla de un módulo no asignado",
+      "criterioAprobacion": "Bloquea o redirige — ocultar del menú no basta, la ruta también debe rechazar.",
+      "rutas": [
+        "/mantenimiento/activos"
+      ]
+    },
+    {
+      "codigo": "f1-07",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Roles y accesos",
+      "accion": "Revocar todos los roles funcionales de un usuario (dejarlo sin ninguno asignado)",
+      "criterioAprobacion": "Vuelve a ver todos los módulos — \"sin roles funcionales asignados\" es equivalente a acceso total (comportamiento documentado), no a acceso cero.",
+      "rutas": [
+        "/seguridad"
+      ]
+    },
+    {
+      "codigo": "f1-08",
+      "fase": "f1",
+      "faseTitulo": "Seguridad y usuarios",
+      "grupo": "Auditoría de la configuración inicial",
+      "accion": "Cambiar el rol de un usuario y luego buscar esa acción en auditoría",
+      "criterioAprobacion": "Aparece con actor (quién lo hizo), fecha/hora, y el valor anterior y el nuevo del rol — no solo \"rol modificado\".",
+      "rutas": [
+        "/auditoria"
+      ]
+    },
+    {
+      "codigo": "f2-01",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Guardar el NIT con un dígito de verificación correcto",
+      "criterioAprobacion": "Lo acepta y lo muestra formateado (NIT-DV) en toda pantalla que lo cite.",
+      "rutas": [
+        "/configuracion"
+      ]
+    },
+    {
+      "codigo": "f2-02",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Guardar el NIT con un dígito de verificación que NO corresponde al algoritmo DIAN",
+      "criterioAprobacion": "Rechaza o advierte antes de guardar — nunca persiste un NIT con DV matemáticamente inválido sin avisar.",
+      "rutas": [
+        "/configuracion"
+      ]
+    },
+    {
+      "codigo": "f2-03",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Marcar \"responsable de IVA\" y \"explota bienes comunes\" en la configuración general",
+      "criterioAprobacion": "Contabilidad → Configuración y Tributario ya reflejan esos indicadores sin tener que repetirlos — un solo lugar de verdad.",
+      "rutas": [
+        "/configuracion",
+        "/contabilidad/configuracion"
+      ]
+    },
+    {
+      "codigo": "f2-04",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Crear 4 agrupaciones (torres)",
+      "criterioAprobacion": "Las 4 aparecen disponibles como opción de \"agrupación\" al crear o editar cualquier inmueble.",
+      "rutas": [
+        "/configuracion/agrupaciones"
+      ]
+    },
+    {
+      "codigo": "f2-05",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Crear una zona común y marcarla de uso exclusivo de un inmueble puntual",
+      "criterioAprobacion": "Aparece listada en \"zonas exclusivas\" SOLO en la ficha de ese inmueble — en la de cualquier otro no aparece.",
+      "rutas": [
+        "/configuracion/zonas-comunes"
+      ]
+    },
+    {
+      "codigo": "f2-06",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Crear una zona común de uso general (piscina, salón social)",
+      "criterioAprobacion": "No genera ninguna línea de liquidación individual por inmueble, pero sí queda disponible para reservar desde Comunidad.",
+      "rutas": [
+        "/configuracion/zonas-comunes"
+      ]
+    },
+    {
+      "codigo": "f2-07",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Agregar un valor nuevo a un catálogo ampliable del tenant (lista_tipos) sin pedir una migración",
+      "criterioAprobacion": "El valor nuevo aparece disponible SOLO en este tenant — no contamina catálogos globales ni aparece en otra copropiedad de prueba.",
+      "rutas": [
+        "/configuracion/catalogos"
+      ]
+    },
+    {
+      "codigo": "f2-08",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Crear un motivo de novedad propio",
+      "criterioAprobacion": "Queda disponible como opción al registrar una novedad nueva en Facturación y Recaudo.",
+      "rutas": [
+        "/configuracion/motivos-novedad"
+      ]
+    },
+    {
+      "codigo": "f2-09",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Configuración de la copropiedad",
+      "accion": "Revisar el siguiente consecutivo de un tipo de documento y emitir uno real",
+      "criterioAprobacion": "El número que realmente recibe el documento emitido coincide exactamente con el que la pantalla mostraba como \"siguiente\" antes de emitirlo.",
+      "rutas": [
+        "/configuracion/consecutivos"
+      ]
+    },
+    {
+      "codigo": "f2-10",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Crear un inmueble con un código ya usado en el tenant",
+      "criterioAprobacion": "Rechaza por código duplicado — inmuebles_codigo_unico se respeta.",
+      "rutas": [
+        "/inmuebles/nuevo"
+      ]
+    },
+    {
+      "codigo": "f2-11",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Crear un inmueble completando todos los campos opcionales (matrícula, área común, estado legal, habitabilidad, uso del predio, tipo de gravamen)",
+      "criterioAprobacion": "Los siete campos quedan guardados y visibles tal cual en la ficha — ninguno se pierde ni se trunca.",
+      "rutas": [
+        "/inmuebles/nuevo"
+      ]
+    },
+    {
+      "codigo": "f2-12",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Importar 5 inmuebles nuevos por la plantilla de carga masiva",
+      "criterioAprobacion": "Los 5 aparecen en el listado con los valores exactos del archivo — mismo código, área y tipo.",
+      "rutas": [
+        "/inmuebles"
+      ]
+    },
+    {
+      "codigo": "f2-13",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Reimportar el MISMO archivo con el área de un inmueble corregida",
+      "criterioAprobacion": "Actualiza ESE inmueble (mismo código = mismo registro) en vez de crear un duplicado — el listado no crece.",
+      "rutas": [
+        "/inmuebles"
+      ]
+    },
+    {
+      "codigo": "f2-14",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Abrir la ficha de uno de los 20 inmuebles sembrados",
+      "criterioAprobacion": "El histórico muestra al menos el evento \"inmueble registrado\" y el coeficiente vigente mostrado coincide con el sembrado por el script (proporcional al área).",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-15",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Editar el área privada de un inmueble ya sembrado",
+      "criterioAprobacion": "El coeficiente vigente del inmueble NO cambia solo — coeficientes y área son independientes hasta que se active un set de coeficientes nuevo.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-16",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Inactivar (dar de baja) un inmueble sin cargos pendientes",
+      "criterioAprobacion": "Cambia a estado \"inactivo\" y deja de ofrecerse como destino en pantallas de alta nueva (novedades, liquidación), pero su histórico sigue siendo consultable.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-17",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Inmuebles",
+      "accion": "Intentar inactivar un inmueble CON saldo pendiente",
+      "criterioAprobacion": "Verificar el comportamiento real: si lo permite igual, el saldo debe seguir siendo exigible; si lo bloquea, debe explicar por qué. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-18",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Terceros",
+      "accion": "Crear un tercero natural sin primer apellido",
+      "criterioAprobacion": "Rechaza — un tercero natural exige primer_nombre y primer_apellido.",
+      "rutas": [
+        "/terceros"
+      ]
+    },
+    {
+      "codigo": "f2-19",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Terceros",
+      "accion": "Crear un tercero jurídico sin razón social",
+      "criterioAprobacion": "Rechaza — un tercero jurídico exige razón social.",
+      "rutas": [
+        "/terceros"
+      ]
+    },
+    {
+      "codigo": "f2-20",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Terceros",
+      "accion": "Crear dos terceros con el mismo tipo y número de documento",
+      "criterioAprobacion": "El segundo intento rechaza explícitamente por documento duplicado dentro del tenant.",
+      "rutas": [
+        "/terceros"
+      ]
+    },
+    {
+      "codigo": "f2-21",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Terceros",
+      "accion": "Vincular un tercero a un inmueble como copropietario y marcarlo pagador",
+      "criterioAprobacion": "Aparece en el estado de cuenta de ESE inmueble como responsable del pago; el campo es_pagador queda en verdadero.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-22",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Terceros",
+      "accion": "Vincular un segundo tercero al mismo inmueble con rol arrendatario",
+      "criterioAprobacion": "Ambos vínculos coexisten en la ficha, cada uno con su propio rol y su propia vigencia — no se pisan entre sí.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-23",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Transferencias y coeficientes",
+      "accion": "Registrar la transferencia de propiedad de un inmueble a un tercero nuevo",
+      "criterioAprobacion": "El titular anterior queda con vigente_hasta = fecha de la transferencia; el nuevo, con vigente_desde esa misma fecha — nunca un vínculo sin fecha de cierre.",
+      "rutas": [
+        "/cartera/transferencias"
+      ]
+    },
+    {
+      "codigo": "f2-24",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Transferencias y coeficientes",
+      "accion": "Consultar el histórico del inmueble después de la transferencia",
+      "criterioAprobacion": "Se ven AMBOS propietarios (el anterior y el nuevo) con sus rangos de vigencia — no solo el titular actual.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f2-25",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Transferencias y coeficientes",
+      "accion": "Crear un set de coeficientes cuya suma dé 0.98 e intentar activarlo",
+      "criterioAprobacion": "Rechaza explícitamente citando que la suma no da 1 — nunca deja \"vigente\" un set descuadrado.",
+      "rutas": [
+        "/coeficientes"
+      ]
+    },
+    {
+      "codigo": "f2-26",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Transferencias y coeficientes",
+      "accion": "Corregir el set hasta que la suma dé exactamente 1.0000000000 y activarlo",
+      "criterioAprobacion": "Pasa a estado \"vigente\".",
+      "rutas": [
+        "/coeficientes"
+      ]
+    },
+    {
+      "codigo": "f2-27",
+      "fase": "f2",
+      "faseTitulo": "Copropiedad: catálogos maestros",
+      "grupo": "Transferencias y coeficientes",
+      "accion": "Verificar el set anterior (el sembrado con los 20 inmuebles) después de activar el nuevo",
+      "criterioAprobacion": "Pasó a estado \"histórica\" automáticamente — nunca hay dos sets en estado \"vigente\" al mismo tiempo.",
+      "rutas": [
+        "/coeficientes"
+      ]
+    },
+    {
+      "codigo": "f3-01",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Definir la política financiera vigente: redondeo HALF_UP, escala 0, método de residual \"mayor resto\"",
+      "criterioAprobacion": "La próxima liquidación reparte en pesos enteros (sin decimales) y el residual del redondeo lo absorbe exactamente un inmueble, no se pierde ni se duplica.",
+      "rutas": [
+        "/politicas"
+      ]
+    },
+    {
+      "codigo": "f3-02",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Intentar tener dos políticas financieras en estado \"vigente\" a la vez",
+      "criterioAprobacion": "Rechaza, o retira automáticamente la anterior al activar la nueva — mismo patrón que coeficientes y presupuesto: nunca dos vigentes simultáneas.",
+      "rutas": [
+        "/politicas"
+      ]
+    },
+    {
+      "codigo": "f3-03",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Pasarela de pago: guardar credenciales inválidas y pulsar \"probar conexión\"",
+      "criterioAprobacion": "La prueba falla con un mensaje claro y la pasarela NO queda activable hasta que la prueba pase.",
+      "rutas": [
+        "/configuracion/pasarela"
+      ]
+    },
+    {
+      "codigo": "f3-04",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Con credenciales válidas, probar conexión y activar la pasarela",
+      "criterioAprobacion": "Queda disponible como medio de pago real en Recaudo — un residente ya podría pagar por ahí.",
+      "rutas": [
+        "/configuracion/pasarela"
+      ]
+    },
+    {
+      "codigo": "f3-05",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Configurar el proveedor de IA con credenciales inválidas y probar conexión",
+      "criterioAprobacion": "La prueba falla y NO permite activar — mismo patrón que la pasarela (guardar ≠ verificar ≠ activar, son tres pasos distintos).",
+      "rutas": [
+        "/configuracion/ia"
+      ]
+    },
+    {
+      "codigo": "f3-06",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Con credenciales válidas, guardar cada uno de los 4 proveedores (Anthropic, OpenAI, Google, OpenRouter), probar y activar",
+      "criterioAprobacion": "En NINGÚN momento la credencial guardada se vuelve a mostrar en pantalla ni aparece en la respuesta de red (Network) — solo se ve enmascarada.",
+      "rutas": [
+        "/configuracion/ia"
+      ]
+    },
+    {
+      "codigo": "f3-07",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Crear una plantilla de correo con una variable, p. ej. {{nombre_inmueble}}",
+      "criterioAprobacion": "Al enviarse un correo real que la use, la variable se reemplaza por el valor real del inmueble destinatario — nunca queda el literal {{nombre_inmueble}} en el correo recibido.",
+      "rutas": [
+        "/configuracion/plantillas-email"
+      ]
+    },
+    {
+      "codigo": "f3-08",
+      "fase": "f3",
+      "faseTitulo": "Configuración transversal",
+      "grupo": null,
+      "accion": "Editar de nuevo esa misma plantilla (una segunda versión)",
+      "criterioAprobacion": "Queda un historial de versiones — la anterior sigue consultable, no se pierde al guardar la nueva.",
+      "rutas": [
+        "/configuracion/plantillas-email"
+      ]
+    },
+    {
+      "codigo": "f4-01",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Crear un fundamento normativo nuevo y vincularlo a un rubro",
+      "criterioAprobacion": "El rubro muestra ese fundamento citado en su detalle — no es solo un campo de texto libre suelto.",
+      "rutas": [
+        "/fundamentos/nuevo"
+      ]
+    },
+    {
+      "codigo": "f4-02",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Sobre el árbol ya sembrado, crear una cuenta hija bajo una cuenta que hoy es hoja (es_hoja=true)",
+      "criterioAprobacion": "La cuenta padre deja de admitir movimiento directo al ganar su primer hijo (permite_movimiento se apaga sola) — mismo criterio que el árbol contable.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-03",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Reparentar una cuenta de naturaleza \"ingreso\" bajo un padre de naturaleza \"egreso\"",
+      "criterioAprobacion": "Rechaza — el árbol nunca mezcla naturalezas entre padre e hijo.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-04",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Reparentar una cuenta de forma que algún descendiente supere el nivel 4 de profundidad",
+      "criterioAprobacion": "Rechaza explícitamente ANTES de mover nada (CUENTA_PROFUNDIDAD_EXCEDIDA) — no queda el árbol a medio mover.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-05",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Crear el presupuesto 2027, cargar rubros que NO reconcilian contra el monto_total, e intentar activarlo",
+      "criterioAprobacion": "Rechaza explícitamente (BUDGET_NOT_RECONCILED) — nunca queda \"vigente\" un presupuesto descuadrado.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-06",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Ajustar los rubros hasta que Σrubros = monto_total y activar con acta de asamblea",
+      "criterioAprobacion": "Pasa a \"vigente\" y el presupuesto 2026 (u otro vigente del mismo año) pasa a \"cerrado\" automáticamente — nunca dos vigentes del mismo año.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-07",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Intentar editar un rubro de un presupuesto YA vigente",
+      "criterioAprobacion": "Rechaza — un presupuesto vigente es inmutable; hay que retirarlo primero para corregirlo.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-08",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Registrar una fuente de financiación con valor_aplicado mayor al valor_disponible",
+      "criterioAprobacion": "Rechaza — no se puede aplicar más financiación de la que la fuente realmente tiene disponible.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-09",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Previsualizar la distribución del presupuesto por coeficiente",
+      "criterioAprobacion": "La suma de \"valor_asignado\" de los 20 inmuebles coincide centavo a centavo con la necesidad financiera total — el residual del redondeo no se pierde ni sobra.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f4-10",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Cerrar el periodo actual y abrir el siguiente",
+      "criterioAprobacion": "El periodo cerrado deja de aceptar nuevos movimientos presupuestales; el siguiente queda abierto y disponible.",
+      "rutas": [
+        "/presupuesto/periodos"
+      ]
+    },
+    {
+      "codigo": "f4-11",
+      "fase": "f4",
+      "faseTitulo": "Presupuesto",
+      "grupo": null,
+      "accion": "Revisar Control y validaciones con el fondo de imprevistos en saldo 0",
+      "criterioAprobacion": "Muestra la alerta correspondiente de forma visible — nunca lo presenta como \"todo en regla\" cuando el fondo está vacío.",
+      "rutas": [
+        "/presupuesto/control"
+      ]
+    },
+    {
+      "codigo": "f5-01",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Clasificar el marco contable como Grupo 3 (microempresa)",
+      "criterioAprobacion": "Estados Financieros exige exactamente 3 estados — ni más, ni menos.",
+      "rutas": [
+        "/contabilidad/configuracion"
+      ]
+    },
+    {
+      "codigo": "f5-02",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Reclasificar el marco a Grupo 2 (pyme)",
+      "criterioAprobacion": "Estados Financieros ahora exige exactamente 5 estados.",
+      "rutas": [
+        "/contabilidad/configuracion"
+      ]
+    },
+    {
+      "codigo": "f5-03",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Pulsar \"Instalar plan base\" por primera vez sobre el tenant",
+      "criterioAprobacion": "Se crean las cuentas del plan base con jerarquía coherente por prefijo de código (cada cuenta hija extiende el código del padre).",
+      "rutas": [
+        "/contabilidad/plan-de-cuentas"
+      ]
+    },
+    {
+      "codigo": "f5-04",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Volver a pulsar \"Instalar plan base\" sobre el MISMO tenant",
+      "criterioAprobacion": "No duplica ninguna cuenta — mismo número de cuentas que antes (operación idempotente).",
+      "rutas": [
+        "/contabilidad/plan-de-cuentas"
+      ]
+    },
+    {
+      "codigo": "f5-05",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Pulsar \"Agregar cuentas opcionales\"",
+      "criterioAprobacion": "Solo agrega las cuentas de clase 6/8 y fondo de reserva que faltaban — no toca ni duplica las ya instaladas ni las que el usuario ya personalizó.",
+      "rutas": [
+        "/contabilidad/plan-de-cuentas"
+      ]
+    },
+    {
+      "codigo": "f5-06",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Mapear una cuenta presupuestal a una cuenta contable de naturaleza incompatible",
+      "criterioAprobacion": "Rechaza el mapeo — la naturaleza (ingreso/egreso) del origen y el destino deben ser compatibles.",
+      "rutas": [
+        "/contabilidad/mapeo"
+      ]
+    },
+    {
+      "codigo": "f5-07",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Mapear correctamente una cuenta presupuestal, un fondo y una cuenta bancaria a sus cuentas contables",
+      "criterioAprobacion": "Las tres quedan visibles en el mapeo con su cuenta contable de destino — sin la cual la contabilización automática no tendría dónde asentar.",
+      "rutas": [
+        "/contabilidad/mapeo"
+      ]
+    },
+    {
+      "codigo": "f5-08",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Crear una política de deterioro de cartera y simularla",
+      "criterioAprobacion": "La simulación muestra el efecto sobre la cartera SIN escribir nada todavía — es reversible, se puede simular otra vez con otros parámetros.",
+      "rutas": [
+        "/contabilidad/deterioro"
+      ]
+    },
+    {
+      "codigo": "f5-09",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Activar la política de deterioro simulada",
+      "criterioAprobacion": "A partir de ese momento sí afecta el cálculo real de deterioro — la simulación anterior no se aplicó sola.",
+      "rutas": [
+        "/contabilidad/deterioro"
+      ]
+    },
+    {
+      "codigo": "f5-10",
+      "fase": "f5",
+      "faseTitulo": "Contabilidad: configuración",
+      "grupo": null,
+      "accion": "Definir método y vida útil por defecto para una categoría de activo, luego crear un activo nuevo de esa categoría",
+      "criterioAprobacion": "El formulario de alta del activo PRECARGA método y vida útil sugeridos, pero el usuario puede sobreescribirlos — no queda en solo lectura.",
+      "rutas": [
+        "/contabilidad/depreciacion",
+        "/mantenimiento/activos"
+      ]
+    },
+    {
+      "codigo": "f6-01",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Crear el concepto CUOTA_ADMIN en modo distribución con la fórmula AEL real",
+      "criterioAprobacion": "Al liquidar, el total repartido entre los 20 inmuebles coincide con PARAMETER.PRESUPUESTO_ANUAL menos otros ingresos — no con un valor inventado ni hardcodeado.",
+      "rutas": [
+        "/estado-cuenta/conceptos"
+      ]
+    },
+    {
+      "codigo": "f6-02",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Crear un concepto nuevo repitiendo el código de uno existente",
+      "criterioAprobacion": "Rechaza por código duplicado dentro del tenant.",
+      "rutas": [
+        "/estado-cuenta/conceptos"
+      ]
+    },
+    {
+      "codigo": "f6-03",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Crear una dependencia circular entre dos conceptos (A depende de B, B depende de A)",
+      "criterioAprobacion": "Rechaza explícitamente ANTES de guardar la segunda dependencia — nunca queda un ciclo persistido.",
+      "rutas": [
+        "/conceptos/dependencias"
+      ]
+    },
+    {
+      "codigo": "f6-04",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Registrar una novedad (recargo/descuento/ajuste) y aprobarla con el MISMO usuario que la creó",
+      "criterioAprobacion": "Rechaza — maker-checker exige que el aprobador sea distinto de quien la creó.",
+      "rutas": [
+        "/estado-cuenta/novedades"
+      ]
+    },
+    {
+      "codigo": "f6-05",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Aprobar esa novedad con un usuario distinto",
+      "criterioAprobacion": "Pasa a estado \"aprobada\" y queda reflejada en la próxima liquidación o en el estado de cuenta del inmueble.",
+      "rutas": [
+        "/estado-cuenta/novedades"
+      ]
+    },
+    {
+      "codigo": "f6-06",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Ejecutar la liquidación del periodo sobre los 20 inmuebles sembrados",
+      "criterioAprobacion": "La suma de las 20 líneas individuales coincide EXACTO con el monto total liquidado — ni un peso de diferencia; el residual del redondeo lo absorbe un único inmueble (mayor resto).",
+      "rutas": [
+        "/liquidacion"
+      ]
+    },
+    {
+      "codigo": "f6-07",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Ejecutar la MISMA liquidación una segunda vez sobre el mismo periodo",
+      "criterioAprobacion": "Rechaza, o la trata como no-operación — en ningún caso duplica el cobro a los 20 inmuebles.",
+      "rutas": [
+        "/liquidacion"
+      ]
+    },
+    {
+      "codigo": "f6-08",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Consultar el estado de cuenta de un inmueble justo después de liquidar",
+      "criterioAprobacion": "El saldo mostrado ya incluye la cuota recién liquidada — no hace falta recargar ni esperar un proceso aparte.",
+      "rutas": [
+        "/estado-cuenta"
+      ]
+    },
+    {
+      "codigo": "f6-09",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Registrar un recaudo manual por el saldo exacto pendiente de un inmueble",
+      "criterioAprobacion": "El inmueble queda en $0 pendiente y, si estaba en el dashboard de cartera por mora, sale de ahí de inmediato.",
+      "rutas": [
+        "/recaudo"
+      ]
+    },
+    {
+      "codigo": "f6-10",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Registrar un recaudo manual por MÁS del saldo pendiente",
+      "criterioAprobacion": "Verificar el comportamiento real: si lo acepta como anticipo debe quedar visible como tal; si lo rechaza debe explicar por qué. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/recaudo"
+      ]
+    },
+    {
+      "codigo": "f6-11",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Ver una transacción de pasarela ya aplicada a un pago",
+      "criterioAprobacion": "El estado de la transacción de pasarela y el del pago aplicado internamente coinciden — nunca uno dice \"pendiente\" y el otro \"aplicado\" a la vez.",
+      "rutas": [
+        "/pagos/transacciones"
+      ]
+    },
+    {
+      "codigo": "f6-12",
+      "fase": "f6",
+      "faseTitulo": "Facturación y Recaudo",
+      "grupo": null,
+      "accion": "Emitir un recibo de caja",
+      "criterioAprobacion": "Trae el consecutivo correcto (el que /configuracion/consecutivos mostraba como siguiente) y ese número no puede repetirse en un segundo recibo.",
+      "rutas": [
+        "/recibo-caja/[id]"
+      ]
+    },
+    {
+      "codigo": "f7-01",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Revisar los movimientos contables generados automáticamente tras la liquidación y el recaudo",
+      "criterioAprobacion": "Por cada hecho económico hay un movimiento con débito = crédito — la partida doble cuadra sin intervención manual.",
+      "rutas": [
+        "/contabilidad/movimientos"
+      ]
+    },
+    {
+      "codigo": "f7-02",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Crear un comprobante manual con débitos distintos de créditos",
+      "criterioAprobacion": "Rechaza ANTES de guardar — nunca queda un comprobante descuadrado en el sistema.",
+      "rutas": [
+        "/contabilidad/comprobantes"
+      ]
+    },
+    {
+      "codigo": "f7-03",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Crear un comprobante manual cuadrado (débitos = créditos)",
+      "criterioAprobacion": "Se contabiliza y aparece en el libro diario con el mismo número de comprobante que se le asignó al crearlo.",
+      "rutas": [
+        "/contabilidad/comprobantes"
+      ]
+    },
+    {
+      "codigo": "f7-04",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Consultar el balance de prueba del periodo",
+      "criterioAprobacion": "Σdébitos = Σcréditos exactamente — el balance cuadra.",
+      "rutas": [
+        "/contabilidad/libros"
+      ]
+    },
+    {
+      "codigo": "f7-05",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Cerrar el periodo contable actual",
+      "criterioAprobacion": "El periodo pasa a \"cerrado\" y el saldo final de cada cuenta transfiere como saldo inicial del periodo siguiente — ninguna cuenta arranca el nuevo periodo en $0 si tenía saldo.",
+      "rutas": [
+        "/contabilidad/cierres"
+      ]
+    },
+    {
+      "codigo": "f7-06",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Intentar registrar un movimiento con fecha dentro del periodo ya cerrado",
+      "criterioAprobacion": "Rechaza explícitamente citando que el periodo está cerrado — no permite alterar la historia contable ya cerrada.",
+      "rutas": [
+        "/contabilidad/movimientos"
+      ]
+    },
+    {
+      "codigo": "f7-07",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Generar los estados financieros del periodo cerrado",
+      "criterioAprobacion": "El Estado de Situación Financiera cuadra: Activo = Pasivo + Patrimonio.",
+      "rutas": [
+        "/contabilidad/estados-financieros"
+      ]
+    },
+    {
+      "codigo": "f7-08",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Revisar el resumen tributario con ica_aplica = false para este tenant",
+      "criterioAprobacion": "NO calcula ICA para este tenant — mismo criterio que IVA cuando responsable_iva = false.",
+      "rutas": [
+        "/contabilidad/tributario"
+      ]
+    },
+    {
+      "codigo": "f7-09",
+      "fase": "f7",
+      "faseTitulo": "Contabilidad operativa",
+      "grupo": null,
+      "accion": "Generar la rendición de cuentas del ejercicio",
+      "criterioAprobacion": "Los totales mostrados coinciden con los de los estados financieros del mismo periodo — una sola fuente de verdad, no un recálculo distinto.",
+      "rutas": [
+        "/contabilidad/rendicion"
+      ]
+    },
+    {
+      "codigo": "f8-01",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Dejar vencer una cuota liquidada sin pagar más allá del plazo configurado",
+      "criterioAprobacion": "El inmueble aparece en el dashboard de cartera clasificado según la política vigente (p. ej. \"mora temprana\"), con el monto y los días de mora correctos.",
+      "rutas": [
+        "/cartera"
+      ]
+    },
+    {
+      "codigo": "f8-02",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Pagar esa cuota vencida",
+      "criterioAprobacion": "El inmueble sale del dashboard de cartera en mora de inmediato, no al cierre del día ni tras un proceso batch.",
+      "rutas": [
+        "/cartera",
+        "/recaudo"
+      ]
+    },
+    {
+      "codigo": "f8-03",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Simular una corrida de cobranza sobre inmuebles en mora",
+      "criterioAprobacion": "Muestra qué acciones se ejecutarían SIN enviar ningún correo/SMS real y sin dejar rastro en el histórico de comunicaciones.",
+      "rutas": [
+        "/cartera/simulacion"
+      ]
+    },
+    {
+      "codigo": "f8-04",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Ejecutar una acción de cobranza real (recordatorio) sobre un inmueble en mora",
+      "criterioAprobacion": "Queda registrada en el histórico de Comunicaciones y visible en el expediente del inmueble — a diferencia de la simulación, esta sí deja rastro.",
+      "rutas": [
+        "/cartera/acciones"
+      ]
+    },
+    {
+      "codigo": "f8-05",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Escalar un caso al centro de escalamiento",
+      "criterioAprobacion": "Cambia de nivel/responsable y queda trazado quién lo escaló, cuándo y por qué motivo.",
+      "rutas": [
+        "/cartera/escalamiento"
+      ]
+    },
+    {
+      "codigo": "f8-06",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Revisar indicadores de cobranza después de las acciones anteriores",
+      "criterioAprobacion": "Reflejan el caso recién escalado y la acción recién ejecutada — no son una foto estática desconectada de lo que se acaba de hacer.",
+      "rutas": [
+        "/cartera/indicadores"
+      ]
+    },
+    {
+      "codigo": "f8-07",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Emitir una certificación de deuda para el inmueble en mora",
+      "criterioAprobacion": "El monto certificado coincide exactamente con el saldo real del inmueble en el momento de emitirla.",
+      "rutas": [
+        "/cartera/certificaciones"
+      ]
+    },
+    {
+      "codigo": "f8-08",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Abrir un caso jurídico sobre el inmueble en mora",
+      "criterioAprobacion": "El inmueble queda marcado con \"caso jurídico activo\" visible desde su ficha y desde el dashboard de cartera.",
+      "rutas": [
+        "/cartera/juridico"
+      ]
+    },
+    {
+      "codigo": "f8-09",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Registrar un acto interruptivo de prescripción sobre ese caso",
+      "criterioAprobacion": "La fecha de prescripción se recalcula hacia adelante desde la fecha de ese acto — no sigue contando desde el origen de la mora.",
+      "rutas": [
+        "/cartera/prescripcion"
+      ]
+    },
+    {
+      "codigo": "f8-10",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Registrar una promesa de pago con fecha futura sobre el inmueble en mora",
+      "criterioAprobacion": "Mientras esté vigente, el caso no escala a un nivel superior de cobranza aunque los días de mora sigan corriendo.",
+      "rutas": [
+        "/cartera/promesas-acuerdos"
+      ]
+    },
+    {
+      "codigo": "f8-11",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Dejar vencer esa promesa sin que se cumpla",
+      "criterioAprobacion": "El caso vuelve a quedar disponible para gestionar/escalar como incumplida — no queda protegida indefinidamente.",
+      "rutas": [
+        "/cartera/promesas-acuerdos"
+      ]
+    },
+    {
+      "codigo": "f8-12",
+      "fase": "f8",
+      "faseTitulo": "Cartera y Cobranza",
+      "grupo": null,
+      "accion": "Cambiar la política de clasificación de cartera (p. ej. los días que definen \"mora temprana\")",
+      "criterioAprobacion": "Los inmuebles YA en mora se reclasifican con la regla nueva en el próximo cálculo — no solo los casos que se abran de ahí en adelante.",
+      "rutas": [
+        "/cartera/configuracion"
+      ]
+    },
+    {
+      "codigo": "f9-01",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Revisar la posición de tesorería consolidada tras el recaudo registrado",
+      "criterioAprobacion": "El saldo consolidado sube exactamente en el monto recaudado — cifra por cifra, no aproximada.",
+      "rutas": [
+        "/finanzas/posicion"
+      ]
+    },
+    {
+      "codigo": "f9-02",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Registrar una factura de proveedor y aprobarla",
+      "criterioAprobacion": "Pasa a estado \"aprobada\" y queda disponible para incluir en un lote de pago — no antes.",
+      "rutas": [
+        "/finanzas/facturas"
+      ]
+    },
+    {
+      "codigo": "f9-03",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Registrar una segunda factura con retención en la fuente",
+      "criterioAprobacion": "El neto a pagar descuenta exactamente la retención calculada; la retención queda separada y disponible para el certificado tributario del periodo.",
+      "rutas": [
+        "/finanzas/facturas"
+      ]
+    },
+    {
+      "codigo": "f9-04",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Armar un lote de pago con las 2 facturas aprobadas",
+      "criterioAprobacion": "Exige el nivel de aprobación configurado en la política de tesorería — no lo puede aprobar en solitario quien lo creó, si esa es la política vigente.",
+      "rutas": [
+        "/finanzas/pagos"
+      ]
+    },
+    {
+      "codigo": "f9-05",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Ejecutar el lote de pago ya aprobado",
+      "criterioAprobacion": "Las 2 facturas pasan a estado \"pagadas\" y se genera el movimiento de tesorería correspondiente por el monto total del lote.",
+      "rutas": [
+        "/finanzas/pagos"
+      ]
+    },
+    {
+      "codigo": "f9-06",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Cargar un extracto bancario y conciliar Recaudo (banco↔residente)",
+      "criterioAprobacion": "Cada pago de residente que aparece en el extracto queda emparejado con su registro interno; lo que NO coincide queda señalado como pendiente — nada se pierde en silencio.",
+      "rutas": [
+        "/finanzas/conciliacion"
+      ]
+    },
+    {
+      "codigo": "f9-07",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Conciliar Contable (banco↔libro) sobre el mismo extracto",
+      "criterioAprobacion": "El saldo en libros de la cuenta bancaria termina exactamente igual al saldo del extracto una vez conciliadas todas las partidas.",
+      "rutas": [
+        "/finanzas/conciliacion-bancaria"
+      ]
+    },
+    {
+      "codigo": "f9-08",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Revisar el flujo de caja proyectado",
+      "criterioAprobacion": "Incluye el ingreso esperado según el presupuesto vigente, no solo lo ya recaudado a la fecha.",
+      "rutas": [
+        "/finanzas/flujo-proyectado"
+      ]
+    },
+    {
+      "codigo": "f9-09",
+      "fase": "f9",
+      "faseTitulo": "Finanzas",
+      "grupo": null,
+      "accion": "Revisar el tablero de finanzas consolidado",
+      "criterioAprobacion": "Los números coinciden exactamente con los de las pantallas individuales (posición, facturas, flujo) — nunca dos cifras distintas para el mismo dato.",
+      "rutas": [
+        "/finanzas/tablero"
+      ]
+    },
+    {
+      "codigo": "f10-01",
+      "fase": "f10",
+      "faseTitulo": "Fondos",
+      "grupo": null,
+      "accion": "Ver el fondo de imprevistos recién creado",
+      "criterioAprobacion": "Existe desde el alta del tenant, con saldo_actual = 0 y naturaleza \"imprevistos\" — nadie tuvo que crearlo a mano.",
+      "rutas": [
+        "/fondos"
+      ]
+    },
+    {
+      "codigo": "f10-02",
+      "fase": "f10",
+      "faseTitulo": "Fondos",
+      "grupo": null,
+      "accion": "Solicitar un uso del fondo por más del saldo disponible",
+      "criterioAprobacion": "Rechaza, o queda pendiente de una fuente adicional — nunca deja el fondo en saldo negativo sin explicarlo.",
+      "rutas": [
+        "/fondos"
+      ]
+    },
+    {
+      "codigo": "f10-03",
+      "fase": "f10",
+      "faseTitulo": "Fondos",
+      "grupo": null,
+      "accion": "Autorizar un uso dentro del saldo disponible",
+      "criterioAprobacion": "El saldo baja exactamente en el monto autorizado y el compromiso/movimiento queda trazado con quién lo autorizó.",
+      "rutas": [
+        "/fondos"
+      ]
+    },
+    {
+      "codigo": "f10-04",
+      "fase": "f10",
+      "faseTitulo": "Fondos",
+      "grupo": null,
+      "accion": "Cerrar el fondo a fin de periodo con remanente positivo",
+      "criterioAprobacion": "El remanente queda explícito y disponible como saldo inicial del periodo siguiente — no se pierde ni se resetea a cero.",
+      "rutas": [
+        "/fondos"
+      ]
+    },
+    {
+      "codigo": "f11-01",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Activos y salud",
+      "accion": "Registrar un activo con categoría, vida útil y método de depreciación",
+      "criterioAprobacion": "El cálculo de depreciación mensual mostrado corresponde exactamente al método elegido (p. ej. línea recta: valor/vida_útil÷12).",
+      "rutas": [
+        "/mantenimiento/activos"
+      ]
+    },
+    {
+      "codigo": "f11-02",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Activos y salud",
+      "accion": "Registrar una incidencia grave sobre un activo y revisar su salud después",
+      "criterioAprobacion": "El puntaje o semáforo de salud del activo empeora tras la incidencia — no queda estático ignorando lo recién reportado.",
+      "rutas": [
+        "/mantenimiento/salud"
+      ]
+    },
+    {
+      "codigo": "f11-03",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Activos y salud",
+      "accion": "Ver el mapa de riesgo tras ese cambio de salud",
+      "criterioAprobacion": "Ese mismo activo aparece ubicado en la zona de riesgo que corresponde a su puntaje actual, no al que tenía antes del incidente.",
+      "rutas": [
+        "/mantenimiento/salud/mapa-riesgo"
+      ]
+    },
+    {
+      "codigo": "f11-04",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Activos y salud",
+      "accion": "Construir un escenario reparar-vs-reemplazar para un activo con historial de reparaciones",
+      "criterioAprobacion": "Compara el costo real acumulado de reparaciones contra el valor de reemplazo del activo — cifras trazables, no inventadas.",
+      "rutas": [
+        "/mantenimiento/salud/escenarios"
+      ]
+    },
+    {
+      "codigo": "f11-05",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Activos y salud",
+      "accion": "Cambiar un umbral en la configuración de salud",
+      "criterioAprobacion": "El puntaje de los activos ya existentes se recalcula con el umbral nuevo — no solo aplica a activos futuros.",
+      "rutas": [
+        "/mantenimiento/salud/configuracion"
+      ]
+    },
+    {
+      "codigo": "f11-06",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Crear un plan de mantenimiento preventivo con frecuencia mensual",
+      "criterioAprobacion": "Genera automáticamente la programación de tareas para los próximos periodos, sin tener que crear cada tarea a mano.",
+      "rutas": [
+        "/mantenimiento/planes"
+      ]
+    },
+    {
+      "codigo": "f11-07",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Vincular ese plan a un requisito de cumplimiento normativo",
+      "criterioAprobacion": "El requisito aparece reflejado en Cumplimiento como cubierto por ese plan.",
+      "rutas": [
+        "/mantenimiento/cumplimiento"
+      ]
+    },
+    {
+      "codigo": "f11-08",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Dejar vencer un requisito de cumplimiento sin registrar su renovación",
+      "criterioAprobacion": "Dispara una alerta visible ANTES o el mismo día del vencimiento — nunca después de ya vencido sin avisar.",
+      "rutas": [
+        "/mantenimiento/cumplimiento"
+      ]
+    },
+    {
+      "codigo": "f11-09",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Reportar una incidencia sobre un activo con matriz de prioridad ya configurada",
+      "criterioAprobacion": "La prioridad asignada corresponde a la matriz (criticidad del activo × severidad reportada) — no un valor por defecto genérico.",
+      "rutas": [
+        "/mantenimiento/incidencias"
+      ]
+    },
+    {
+      "codigo": "f11-10",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Generar una orden de trabajo desde esa incidencia",
+      "criterioAprobacion": "La incidencia queda vinculada a la orden y su estado cambia a \"en atención\".",
+      "rutas": [
+        "/mantenimiento/ordenes-trabajo"
+      ]
+    },
+    {
+      "codigo": "f11-11",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Cerrar la orden de trabajo con mediciones y evidencias",
+      "criterioAprobacion": "La incidencia original pasa a \"resuelta\" automáticamente — no hace falta cerrarla aparte.",
+      "rutas": [
+        "/mantenimiento/ordenes-trabajo"
+      ]
+    },
+    {
+      "codigo": "f11-12",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Registrar una inspección con un formato que tiene ítems reprobados",
+      "criterioAprobacion": "Genera un hallazgo automáticamente por cada ítem reprobado del formato — no hay que crearlos a mano después.",
+      "rutas": [
+        "/mantenimiento/inspecciones"
+      ]
+    },
+    {
+      "codigo": "f11-13",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Operación",
+      "accion": "Crear una acción correctiva sobre uno de esos hallazgos",
+      "criterioAprobacion": "El hallazgo queda en estado \"en tratamiento\" hasta que la acción correctiva se cierre.",
+      "rutas": [
+        "/mantenimiento/inspecciones"
+      ]
+    },
+    {
+      "codigo": "f11-14",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Proveedores y recursos",
+      "accion": "Registrar un proveedor/contratista sin habilitación vigente e intentar asignarlo a una orden de trabajo que exige proveedor habilitado",
+      "criterioAprobacion": "Verificar el comportamiento real: rechaza la asignación, o la permite con advertencia. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/mantenimiento/proveedores"
+      ]
+    },
+    {
+      "codigo": "f11-15",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Proveedores y recursos",
+      "accion": "Vencer la habilitación de un proveedor ya asignado a un contrato activo",
+      "criterioAprobacion": "Queda visible en el contrato o dispara una alerta — no pasa desapercibido.",
+      "rutas": [
+        "/mantenimiento/contratos"
+      ]
+    },
+    {
+      "codigo": "f11-16",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Proveedores y recursos",
+      "accion": "Crear un contrato con una garantía y dejarla vencer",
+      "criterioAprobacion": "Aparece en Cumplimiento/alertas como garantía vencida.",
+      "rutas": [
+        "/mantenimiento/contratos"
+      ]
+    },
+    {
+      "codigo": "f11-17",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Proveedores y recursos",
+      "accion": "Registrar consumo de un repuesto por una orden de trabajo por encima del stock disponible",
+      "criterioAprobacion": "Verificar el comportamiento real: rechaza, o queda en negativo explícito y visible. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/mantenimiento/inventario"
+      ]
+    },
+    {
+      "codigo": "f11-18",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Proveedores y recursos",
+      "accion": "Consumir un repuesto hasta cruzar su punto de reorden configurado",
+      "criterioAprobacion": "Dispara la alerta de stock bajo configurada para ese repuesto — antes de llegar a cero, no después.",
+      "rutas": [
+        "/mantenimiento/inventario"
+      ]
+    },
+    {
+      "codigo": "f11-19",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Indicadores y configuración",
+      "accion": "Revisar MTTR/MTBF/disponibilidad tras cerrar 2-3 órdenes de trabajo",
+      "criterioAprobacion": "Los indicadores reflejan los tiempos reales entre apertura y cierre de esas órdenes — no un placeholder en cero.",
+      "rutas": [
+        "/mantenimiento/indicadores"
+      ]
+    },
+    {
+      "codigo": "f11-20",
+      "fase": "f11",
+      "faseTitulo": "Mantenimiento",
+      "grupo": "Indicadores y configuración",
+      "accion": "Cambiar la configuración general de mantenimiento",
+      "criterioAprobacion": "El cambio aplica a partir de ese momento sin romper los planes u órdenes que ya existían antes.",
+      "rutas": [
+        "/mantenimiento/configuracion"
+      ]
+    },
+    {
+      "codigo": "f12-01",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Crear un órgano de gobierno y asignarle un miembro con vigencia fuera del periodo del órgano",
+      "criterioAprobacion": "Rechaza o advierte — un miembro no puede estar vigente fuera del periodo de vigencia del órgano al que pertenece.",
+      "rutas": [
+        "/gobierno/organos"
+      ]
+    },
+    {
+      "codigo": "f12-02",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Convocar una reunión con la antelación mínima exigida por la regla configurada",
+      "criterioAprobacion": "La convocatoria queda válida sin advertencias.",
+      "rutas": [
+        "/gobierno/reuniones"
+      ]
+    },
+    {
+      "codigo": "f12-03",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Convocar otra reunión con MENOS antelación de la exigida",
+      "criterioAprobacion": "Advierte o exige segunda convocatoria según la regla configurada — no la trata igual que una convocatoria normal.",
+      "rutas": [
+        "/gobierno/reuniones"
+      ]
+    },
+    {
+      "codigo": "f12-04",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Registrar asistencia con poderes de algunos inmuebles ausentes",
+      "criterioAprobacion": "El quórum calculado incluye correctamente los coeficientes representados por poder, sumados a los presentes físicamente.",
+      "rutas": [
+        "/gobierno/reuniones/[id]"
+      ]
+    },
+    {
+      "codigo": "f12-05",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Votar una decisión que exige mayoría calificada, con menos votos a favor de los necesarios",
+      "criterioAprobacion": "Queda \"no aprobada\" aunque los votos a favor superen a los votos en contra — la mayoría calificada exige un umbral específico, no solo ganar.",
+      "rutas": [
+        "/gobierno/reuniones/[id]/votaciones"
+      ]
+    },
+    {
+      "codigo": "f12-06",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Votar la misma decisión con los votos suficientes para la mayoría calificada exigida",
+      "criterioAprobacion": "Queda \"aprobada\".",
+      "rutas": [
+        "/gobierno/reuniones/[id]/votaciones"
+      ]
+    },
+    {
+      "codigo": "f12-07",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Generar el acta de la reunión",
+      "criterioAprobacion": "Incluye el orden del día, los asistentes reales y el resultado real de cada votación — no un resumen genérico desconectado de lo que pasó.",
+      "rutas": [
+        "/gobierno/actas/[id]"
+      ]
+    },
+    {
+      "codigo": "f12-08",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Intentar suscribir el acta con un usuario que NO es presidente ni secretario de esa reunión",
+      "criterioAprobacion": "Rechaza explícitamente (ACTA_SUSCRIPTOR_NO_AUTORIZADO) — solo el presidente y el secretario de ESA reunión pueden suscribir.",
+      "rutas": [
+        "/gobierno/actas/[id]"
+      ]
+    },
+    {
+      "codigo": "f12-09",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Registrar una decisión con fecha límite de ejecución y dejarla vencer sin marcarla ejecutada",
+      "criterioAprobacion": "El semáforo de seguimiento la muestra en rojo/vencida — no la deja en estado neutro indefinidamente.",
+      "rutas": [
+        "/gobierno/decisiones"
+      ]
+    },
+    {
+      "codigo": "f12-10",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Dar seguimiento a un compromiso y dejarlo vencer sin cerrarlo",
+      "criterioAprobacion": "Aparece en la vista de vencidos del responsable asignado, visible sin tener que buscarlo caso por caso.",
+      "rutas": [
+        "/gobierno/compromisos"
+      ]
+    },
+    {
+      "codigo": "f12-11",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Abrir un expediente de convivencia por una infracción e intentar sancionar sin agotar el debido proceso",
+      "criterioAprobacion": "Rechaza o advierte — la sanción exige haber cumplido el debido proceso configurado (notificación, plazo de descargos) antes de poder aplicarse.",
+      "rutas": [
+        "/gobierno/convivencia"
+      ]
+    },
+    {
+      "codigo": "f12-12",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Agotar el debido proceso y aplicar la sanción",
+      "criterioAprobacion": "La sanción queda registrada y visible en el expediente, con la fecha y el fundamento que la originó.",
+      "rutas": [
+        "/gobierno/convivencia"
+      ]
+    },
+    {
+      "codigo": "f12-13",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Impugnar una decisión dentro del plazo configurado",
+      "criterioAprobacion": "La decisión queda marcada \"impugnada\" SIN perder su estado original hasta que la impugnación se resuelva.",
+      "rutas": [
+        "/gobierno/impugnaciones"
+      ]
+    },
+    {
+      "codigo": "f12-14",
+      "fase": "f12",
+      "faseTitulo": "Gobierno",
+      "grupo": null,
+      "accion": "Radicar una solicitud de atención al propietario SIN sesión iniciada",
+      "criterioAprobacion": "La puede radicar un visitante anónimo, pero solo puede ver el estado de SU propia solicitud (por token/enlace) — no las de nadie más.",
+      "rutas": [
+        "/atencion"
+      ]
+    },
+    {
+      "codigo": "f13-01",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Publicar un anuncio con fecha de vigencia futura",
+      "criterioAprobacion": "NO aparece en el listado público hasta llegar esa fecha.",
+      "rutas": [
+        "/anuncios"
+      ]
+    },
+    {
+      "codigo": "f13-02",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Publicar un anuncio ya vigente",
+      "criterioAprobacion": "Aparece visible de inmediato para cualquier miembro del tenant, sin demora.",
+      "rutas": [
+        "/anuncios"
+      ]
+    },
+    {
+      "codigo": "f13-03",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Registrar un negocio en el directorio",
+      "criterioAprobacion": "Aparece buscable por nombre y por categoría desde el buscador del directorio.",
+      "rutas": [
+        "/directorio"
+      ]
+    },
+    {
+      "codigo": "f13-04",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Publicar algo en el marketplace y luego eliminarlo",
+      "criterioAprobacion": "Deja de ser visible para otros de inmediato, sin dejar un enlace roto donde antes aparecía.",
+      "rutas": [
+        "/marketplace"
+      ]
+    },
+    {
+      "codigo": "f13-05",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Registrar un vehículo con una placa ya registrada en OTRO inmueble",
+      "criterioAprobacion": "Verificar el comportamiento real: lo permite (mismo vehículo, dos residentes distintos) o lo rechaza. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/movilidad"
+      ]
+    },
+    {
+      "codigo": "f13-06",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Reservar una zona común dentro del cupo disponible de esa franja",
+      "criterioAprobacion": "La reserva queda confirmada y el cupo restante de esa franja baja exactamente en 1.",
+      "rutas": [
+        "/mantenimiento/reservas"
+      ]
+    },
+    {
+      "codigo": "f13-07",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Intentar reservar la misma franja ya sin cupo disponible",
+      "criterioAprobacion": "Rechaza explícitamente — nunca permite sobrecupo aunque el formulario se haya enviado dos veces rápido.",
+      "rutas": [
+        "/mantenimiento/reservas"
+      ]
+    },
+    {
+      "codigo": "f13-08",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Registrar el ingreso de un visitante en portería",
+      "criterioAprobacion": "Queda con hora de entrada y sin hora de salida — el registro queda \"pendiente\" hasta que se cierre.",
+      "rutas": [
+        "/mantenimiento/acceso"
+      ]
+    },
+    {
+      "codigo": "f13-09",
+      "fase": "f13",
+      "faseTitulo": "Comunidad",
+      "grupo": null,
+      "accion": "Registrar la salida de ese visitante",
+      "criterioAprobacion": "Cierra el registro con la hora de salida real; queda visible completo en el histórico de portería.",
+      "rutas": [
+        "/mantenimiento/acceso"
+      ]
+    },
+    {
+      "codigo": "f14-01",
+      "fase": "f14",
+      "faseTitulo": "Comunicaciones",
+      "grupo": null,
+      "accion": "Enviar un anuncio y aprobar una novedad (dos módulos distintos) y revisar el histórico de comunicaciones",
+      "criterioAprobacion": "Aparecen AMBOS envíos en la misma lista unificada, cada uno con su módulo de origen identificable — no hay que ir módulo por módulo a buscarlos.",
+      "rutas": [
+        "/comunicaciones"
+      ]
+    },
+    {
+      "codigo": "f14-02",
+      "fase": "f14",
+      "faseTitulo": "Comunicaciones",
+      "grupo": null,
+      "accion": "Abrir el enlace citado en una notificación real recién enviada",
+      "criterioAprobacion": "Carga la pantalla correcta sin dar 404, incluso si el destinatario no tiene sesión iniciada cuando el enlace es de un solo uso.",
+      "rutas": [
+        "/comunicaciones"
+      ]
+    },
+    {
+      "codigo": "f15-01",
+      "fase": "f15",
+      "faseTitulo": "Portal externo",
+      "grupo": null,
+      "accion": "Iniciar sesión en el portal externo con el correo vinculado a un inmueble",
+      "criterioAprobacion": "Entra y ve exactamente los inmuebles a los que está vinculado — ninguno más, ningún dato de otra copropiedad.",
+      "rutas": [
+        "/portal-externo"
+      ]
+    },
+    {
+      "codigo": "f15-02",
+      "fase": "f15",
+      "faseTitulo": "Portal externo",
+      "grupo": null,
+      "accion": "Radicar una solicitud desde el portal",
+      "criterioAprobacion": "Aparece del lado administrativo (Atención al propietario / Mis asuntos) lista para gestionar, con los datos que el externo diligenció.",
+      "rutas": [
+        "/portal-externo/nueva-solicitud"
+      ]
+    },
+    {
+      "codigo": "f15-03",
+      "fase": "f15",
+      "faseTitulo": "Portal externo",
+      "grupo": null,
+      "accion": "Ver \"mis vínculos\" en el portal",
+      "criterioAprobacion": "Lista todas las copropiedades/inmuebles donde el usuario tiene un rol vigente, con el rol correcto de cada uno (propietario, arrendatario, etc.).",
+      "rutas": [
+        "/portal-externo/mis-vinculos"
+      ]
+    },
+    {
+      "codigo": "f15-04",
+      "fase": "f15",
+      "faseTitulo": "Portal externo",
+      "grupo": null,
+      "accion": "Intentar acceder por URL directa a un inmueble ajeno (sin vínculo) desde el portal",
+      "criterioAprobacion": "Rechaza con 403/404 — no expone ningún dato del inmueble ajeno, ni siquiera su existencia.",
+      "rutas": [
+        "/portal-externo"
+      ]
+    },
+    {
+      "codigo": "f16-01",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Buscar en auditoría una acción por un rango de fechas",
+      "criterioAprobacion": "Todos los resultados devueltos quedan estrictamente dentro del rango pedido — ninguno antes ni después.",
+      "rutas": [
+        "/auditoria"
+      ]
+    },
+    {
+      "codigo": "f16-02",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Exportar un informe de auditoría",
+      "criterioAprobacion": "El archivo exportado contiene exactamente los mismos registros que se veían en pantalla, en el mismo orden.",
+      "rutas": [
+        "/auditoria/informes/[id]"
+      ]
+    },
+    {
+      "codigo": "f16-03",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Generar pendientes en 2+ módulos distintos (p. ej. una novedad por aprobar y una incidencia asignada) y revisar \"Mis asuntos\"",
+      "criterioAprobacion": "Ambos pendientes aparecen juntos en la misma bandeja unificada — no hay que entrar módulo por módulo a buscarlos.",
+      "rutas": [
+        "/asuntos"
+      ]
+    },
+    {
+      "codigo": "f16-04",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Como admin de plataforma, ver el panel cross-tenant",
+      "criterioAprobacion": "Muestra metadatos de TODAS las copropiedades (nombre, estado, plan) sin exponer ningún dato operativo o financiero de ninguna — SEC-10: solo metadatos, nunca datos de negocio.",
+      "rutas": [
+        "/plataforma"
+      ]
+    },
+    {
+      "codigo": "f16-05",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Ver las tasas de referencia de plataforma",
+      "criterioAprobacion": "Son exactamente las mismas para todos los tenants — es un dato global, no se puede personalizar por copropiedad.",
+      "rutas": [
+        "/plataforma/tasas-referencia"
+      ]
+    },
+    {
+      "codigo": "f16-06",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Buscar un artículo del centro de ayuda y abrirlo",
+      "criterioAprobacion": "El contenido mostrado corresponde al título buscado, y se puede abrir sin necesitar permisos de administrador.",
+      "rutas": [
+        "/ayuda"
+      ]
+    },
+    {
+      "codigo": "f16-07",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Repetir el recorrido crítico completo (inmuebles → liquidación → recaudo) en viewport ~400px",
+      "criterioAprobacion": "Cada paso se completa igual que en escritorio — ningún botón queda cortado ni ninguna tabla ilegible u obligando a zoom.",
+      "rutas": []
+    },
+    {
+      "codigo": "f16-08",
+      "fase": "f16",
+      "faseTitulo": "Transversales",
+      "grupo": null,
+      "accion": "Cambiar a modo oscuro y revisar una tabla densa (movimientos contables o dashboard de cartera)",
+      "criterioAprobacion": "Todo el texto mantiene contraste legible — ninguna celda queda con texto oscuro sobre fondo oscuro, ni claro sobre claro.",
+      "rutas": []
+    },
+    {
+      "codigo": "f17-01",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Como miembro del tenant A, abrir por URL directa la ficha de un inmueble del tenant B (id copiado a mano)",
+      "criterioAprobacion": "404/403 — no carga ningún dato del inmueble ajeno, ni siquiera el nombre o el código.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f17-02",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Con las herramientas de red del navegador, repetir una petición de listado de terceros cambiando el tenant_id por el de otro tenant",
+      "criterioAprobacion": "La API rechaza o devuelve vacío — la RLS filtra en el servidor, no solo el filtro visual del cliente.",
+      "rutas": [
+        "/terceros"
+      ]
+    },
+    {
+      "codigo": "f17-03",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Ver por URL directa el estado de cuenta de un inmueble de otro tenant",
+      "criterioAprobacion": "Rechaza — ni el saldo ni el histórico de ese inmueble son visibles.",
+      "rutas": [
+        "/estado-cuenta"
+      ]
+    },
+    {
+      "codigo": "f17-04",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Intentar aprobar por API una novedad de otro tenant (id copiado)",
+      "criterioAprobacion": "Rechaza — la RLS de novedades exige mismo tenant_id entre el actor y el registro.",
+      "rutas": [
+        "/estado-cuenta/novedades"
+      ]
+    },
+    {
+      "codigo": "f17-05",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Ver el plan de cuentas contable de otro tenant",
+      "criterioAprobacion": "Vacío o rechazado — cada plan de cuentas es una copia propia del tenant, nunca compartida.",
+      "rutas": [
+        "/contabilidad/plan-de-cuentas"
+      ]
+    },
+    {
+      "codigo": "f17-06",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Ver movimientos contables o libros oficiales de otro tenant",
+      "criterioAprobacion": "Vacío o rechazado.",
+      "rutas": [
+        "/contabilidad/movimientos",
+        "/contabilidad/libros"
+      ]
+    },
+    {
+      "codigo": "f17-07",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Intentar registrar un recaudo contra un inmueble de otro tenant",
+      "criterioAprobacion": "Rechaza — no se puede aplicar plata a un inmueble que no pertenece al tenant activo.",
+      "rutas": [
+        "/recaudo"
+      ]
+    },
+    {
+      "codigo": "f17-08",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Ver el dashboard de cartera de otro tenant",
+      "criterioAprobacion": "Vacío o rechazado — ni siquiera el admin de plataforma ve el consolidado operativo de otra copropiedad, solo metadatos (SEC-10).",
+      "rutas": [
+        "/cartera"
+      ]
+    },
+    {
+      "codigo": "f17-09",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Ver fondos, presupuesto o el árbol de gobierno (órganos/actas) de otro tenant por URL directa",
+      "criterioAprobacion": "Vacío o rechazado en los tres.",
+      "rutas": [
+        "/fondos",
+        "/presupuesto",
+        "/gobierno/organos"
+      ]
+    },
+    {
+      "codigo": "f17-10",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Buscar en el buscador global un término que solo existe en datos de OTRO tenant",
+      "criterioAprobacion": "No aparece en los resultados — el buscador también respeta el límite de tenant, no busca en todo el sistema.",
+      "rutas": []
+    },
+    {
+      "codigo": "f17-11",
+      "fase": "f17",
+      "faseTitulo": "Aislamiento multi-tenant",
+      "grupo": null,
+      "accion": "Intentar usar el token de invitación de un tenant para unirse a OTRO tenant distinto",
+      "criterioAprobacion": "Rechaza o vincula exclusivamente al tenant que el token codifica — nunca dejarlo elegir un tenant distinto.",
+      "rutas": [
+        "/invite"
+      ]
+    },
+    {
+      "codigo": "f18-01",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Reservar la MISMA franja de una zona común desde dos pestañas/usuarios casi al mismo tiempo",
+      "criterioAprobacion": "Solo una de las dos reservas se confirma; la otra ve el rechazo por sobrecupo — nunca un cupo negativo.",
+      "rutas": [
+        "/mantenimiento/reservas"
+      ]
+    },
+    {
+      "codigo": "f18-02",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Activar dos sets de coeficientes distintos casi simultáneamente desde dos sesiones",
+      "criterioAprobacion": "Solo uno queda \"vigente\" al final; nunca quedan dos vigentes ni el estado queda inconsistente.",
+      "rutas": [
+        "/coeficientes"
+      ]
+    },
+    {
+      "codigo": "f18-03",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Hacer doble clic rápido sobre \"Ejecutar liquidación\" (un solo submit disparado dos veces por el navegador)",
+      "criterioAprobacion": "No duplica el cobro — mismo resultado que enviar la petición dos veces a mano, pero disparado por interacción real de UI.",
+      "rutas": [
+        "/liquidacion"
+      ]
+    },
+    {
+      "codigo": "f18-04",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Dos aprobadores distintos intentan aprobar la misma novedad casi al mismo tiempo",
+      "criterioAprobacion": "La novedad queda aprobada una sola vez; la segunda aprobación no la duplica ni la deja en un estado intermedio raro.",
+      "rutas": [
+        "/estado-cuenta/novedades"
+      ]
+    },
+    {
+      "codigo": "f18-05",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Editar el mismo inmueble desde dos pestañas con valores distintos en el mismo campo y guardar ambas",
+      "criterioAprobacion": "Verificar el comportamiento real: la segunda sobrescribe limpio a la primera (last-write-wins sin mezclar campos a medias), o el sistema avisa del conflicto antes de guardar. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f18-06",
+      "fase": "f18",
+      "faseTitulo": "Concurrencia y condiciones de carrera",
+      "grupo": null,
+      "accion": "Aprobar un lote de pago mientras otro usuario edita una de las facturas que ya quedó incluida en ese lote",
+      "criterioAprobacion": "Verificar el comportamiento real: rechaza la edición de una factura ya en un lote aprobado, o el lote se recalcula solo. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/finanzas/pagos"
+      ]
+    },
+    {
+      "codigo": "f19-01",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Subir un documento a la ficha de un inmueble (p. ej. la escritura)",
+      "criterioAprobacion": "Queda listado y descargable en la ficha, visible solo para miembros de ese tenant.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f19-02",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Intentar subir un archivo de un tipo no permitido (p. ej. .exe) como documento",
+      "criterioAprobacion": "Rechaza ANTES de subirlo, con un mensaje que dice qué tipos sí se aceptan.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f19-03",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Intentar subir un archivo que excede el tamaño máximo permitido",
+      "criterioAprobacion": "Rechaza con un mensaje claro citando el límite — no un error genérico de red.",
+      "rutas": [
+        "/inmuebles/[id]"
+      ]
+    },
+    {
+      "codigo": "f19-04",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Adjuntar evidencia fotográfica al cerrar una orden de trabajo de mantenimiento",
+      "criterioAprobacion": "La evidencia queda vinculada a ESA orden específica y visible en su detalle, no en una galería genérica sin relación.",
+      "rutas": [
+        "/mantenimiento/ordenes-trabajo"
+      ]
+    },
+    {
+      "codigo": "f19-05",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Cargar un extracto bancario (PDF o CSV) para conciliación",
+      "criterioAprobacion": "El sistema extrae las líneas del extracto y las deja disponibles para conciliar una por una — no hay que digitarlas a mano.",
+      "rutas": [
+        "/finanzas/conciliacion-bancaria"
+      ]
+    },
+    {
+      "codigo": "f19-06",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Descargar el acta ya generada de una reunión de gobierno",
+      "criterioAprobacion": "El archivo descargado corresponde exactamente al contenido que se ve en pantalla — mismos asistentes, mismo resultado de votación.",
+      "rutas": [
+        "/gobierno/actas/[id]"
+      ]
+    },
+    {
+      "codigo": "f19-07",
+      "fase": "f19",
+      "faseTitulo": "Documentos y adjuntos",
+      "grupo": null,
+      "accion": "Como usuario de otro tenant, intentar acceder por URL directa a un documento subido en este tenant",
+      "criterioAprobacion": "Rechaza — los documentos heredan el mismo aislamiento por tenant que cualquier otro dato.",
+      "rutas": []
+    },
+    {
+      "codigo": "f20-01",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Crear un inmueble o tercero con tildes, ñ y un apóstrofe en el nombre (p. ej. «Peña O'Higgins»)",
+      "criterioAprobacion": "Se guarda y se muestra exactamente igual en toda pantalla que lo cite — sin mojibake ni caracteres rotos.",
+      "rutas": [
+        "/terceros"
+      ]
+    },
+    {
+      "codigo": "f20-02",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Registrar un coeficiente con más decimales de los que el campo admite (p. ej. 0.123456789 en vez de 10 decimales exactos)",
+      "criterioAprobacion": "Trunca o redondea de forma consistente con la política declarada, nunca lo acepta silenciosamente con una precisión falsa que después no cuadra en la suma.",
+      "rutas": [
+        "/coeficientes"
+      ]
+    },
+    {
+      "codigo": "f20-03",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Registrar un movimiento justo en el límite de un periodo (31 dic 23:59 vs 1 ene 00:00), respetando la zona_horaria configurada del tenant",
+      "criterioAprobacion": "Cae en el periodo correcto según la zona horaria del TENANT, no en UTC — un movimiento de las 11pm en Bogotá no se cuela al día siguiente.",
+      "rutas": [
+        "/contabilidad/movimientos"
+      ]
+    },
+    {
+      "codigo": "f20-04",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Dejar vacíos todos los campos opcionales al crear un inmueble",
+      "criterioAprobacion": "Se crea sin error — ningún campo opcional se comporta como obligatorio por accidente.",
+      "rutas": [
+        "/inmuebles/nuevo"
+      ]
+    },
+    {
+      "codigo": "f20-05",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Escribir un texto de varios miles de caracteres en un campo de descripción libre",
+      "criterioAprobacion": "Lo acepta hasta el límite real de la columna, o lo rechaza/trunca con un aviso explícito — nunca lo corta en silencio perdiendo información sin decir nada.",
+      "rutas": []
+    },
+    {
+      "codigo": "f20-06",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Crear un presupuesto con monto_total = 0",
+      "criterioAprobacion": "Verificar el comportamiento real: lo permite como presupuesto vacío válido, o lo rechaza explícitamente. Documentar cuál de las dos ocurre.",
+      "rutas": [
+        "/presupuesto"
+      ]
+    },
+    {
+      "codigo": "f20-07",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Ejecutar una liquidación en un periodo donde ningún inmueble tiene conceptos aplicables",
+      "criterioAprobacion": "No falla — liquida en $0 o informa con claridad que no hay nada que liquidar, nunca un error críptico.",
+      "rutas": [
+        "/liquidacion"
+      ]
+    },
+    {
+      "codigo": "f20-08",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Pegar en un campo numérico un valor con formato de miles/decimales distinto (p. ej. \"1.234,56\")",
+      "criterioAprobacion": "Lo interpreta correctamente según el formato esperado (COP) o rechaza con aviso — nunca lo interpreta al revés en silencio (1.234,56 leído como 1234560).",
+      "rutas": []
+    },
+    {
+      "codigo": "f20-09",
+      "fase": "f20",
+      "faseTitulo": "Casos límite y datos especiales",
+      "grupo": null,
+      "accion": "Crear un periodo o evento en un año bisiesto que incluya el 29 de febrero",
+      "criterioAprobacion": "La fecha se guarda y se calcula correctamente — ningún cálculo de \"un mes después\" ni de días de mora se rompe cruzando esa fecha.",
+      "rutas": [
+        "/presupuesto/periodos"
+      ]
+    },
+    {
+      "codigo": "f21-01",
+      "fase": "f21",
+      "faseTitulo": "Ciclo completo de extremo a extremo",
+      "grupo": null,
+      "accion": "Ciclo de un mes completo: liquidar → recaudar parcialmente (dejando el resto en mora) → contabilizar → cerrar el periodo → generar estados financieros",
+      "criterioAprobacion": "El saldo de cartera pendiente en el dashboard coincide EXACTO con (liquidado − recaudado), y ese mismo número aparece como cuentas por cobrar en los estados financieros — una sola cifra de verdad en dos pantallas distintas.",
+      "rutas": [
+        "/liquidacion",
+        "/cartera",
+        "/contabilidad/estados-financieros"
+      ]
+    },
+    {
+      "codigo": "f21-02",
+      "fase": "f21",
+      "faseTitulo": "Ciclo completo de extremo a extremo",
+      "grupo": null,
+      "accion": "Repetir el ciclo anterior un segundo mes consecutivo",
+      "criterioAprobacion": "El saldo inicial del segundo mes hereda correctamente el pendiente del primero — ningún mes arranca en cero ignorando la mora previa.",
+      "rutas": [
+        "/contabilidad/cierres"
+      ]
+    },
+    {
+      "codigo": "f21-03",
+      "fase": "f21",
+      "faseTitulo": "Ciclo completo de extremo a extremo",
+      "grupo": null,
+      "accion": "Desde una copropiedad recién creada: instalar plan de cuentas → cargar inmuebles/coeficientes/presupuesto → liquidar → recaudar → cerrar, usando EXCLUSIVAMENTE la interfaz (sin ningún ajuste manual en la base de datos)",
+      "criterioAprobacion": "Todo el ciclo se completa solo con lo que ofrece la UI — si hace falta tocar la base a mano en algún paso, ese paso es un hallazgo, no un atajo válido.",
+      "rutas": []
+    },
+    {
+      "codigo": "f21-04",
+      "fase": "f21",
+      "faseTitulo": "Ciclo completo de extremo a extremo",
+      "grupo": null,
+      "accion": "Transferir un inmueble a mitad de un periodo ya liquidado y volver a liquidar el periodo siguiente",
+      "criterioAprobacion": "El propietario nuevo responde solo por las cuotas desde su fecha de ingreso; el anterior, solo por las suyas — sin duplicar ni perder ninguna cuota entre los dos.",
+      "rutas": [
+        "/cartera/transferencias",
+        "/liquidacion"
+      ]
+    },
+    {
+      "codigo": "f22-01",
+      "fase": "f22",
+      "faseTitulo": "Recuperación de errores y resiliencia",
+      "grupo": null,
+      "accion": "Simular pérdida de conexión a mitad de un guardado (throttling/offline del navegador) y reconectar",
+      "criterioAprobacion": "Informa con claridad que la operación falló; al reconectar no queda un registro a medias — ni duplicado, ni corrupto, ni \"a medio guardar\".",
+      "rutas": []
+    },
+    {
+      "codigo": "f22-02",
+      "fase": "f22",
+      "faseTitulo": "Recuperación de errores y resiliencia",
+      "grupo": null,
+      "accion": "Cerrar la pestaña a mitad de un formulario largo (p. ej. alta de inmueble con muchos campos) y volver a entrar",
+      "criterioAprobacion": "Verificar el comportamiento real: recupera un borrador de lo ya escrito, o simplemente no guardó nada. En ningún caso queda un registro parcial ya persistido en la base.",
+      "rutas": []
+    },
+    {
+      "codigo": "f22-03",
+      "fase": "f22",
+      "faseTitulo": "Recuperación de errores y resiliencia",
+      "grupo": null,
+      "accion": "Dejar la sesión abierta más allá del tiempo de expiración del token y luego intentar guardar algo",
+      "criterioAprobacion": "Pide reautenticación de forma clara — y si es posible, no pierde lo que el usuario ya había escrito en el formulario al volver a entrar.",
+      "rutas": []
+    },
+    {
+      "codigo": "f22-04",
+      "fase": "f22",
+      "faseTitulo": "Recuperación de errores y resiliencia",
+      "grupo": null,
+      "accion": "Provocar un error real de servidor (p. ej. una Edge Function caída) y observar el mensaje mostrado",
+      "criterioAprobacion": "Muestra un mensaje entendible para el usuario final — nunca un stack trace ni un JSON crudo del error interno.",
+      "rutas": []
+    }
+  ]
+}

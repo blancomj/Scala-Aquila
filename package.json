@@ -26,8 +26,11 @@
     "db:types:prod": "node scripts/db-types.mjs --prod",
     "dev:login": "node scripts/dev-login.mjs",
     "seed:qa": "node scripts/seed-qa-tenant.mjs",
-    "test:edge": "deno test --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs",
-    "test:e2e": "playwright test"
+    "test:edge": "deno test --no-config --no-check --coverage=coverage/edge supabase/functions/_shared/ && deno coverage coverage/edge --lcov --output=coverage/edge/lcov.info && node scripts/check-edge-coverage.mjs",
+    "test:e2e": "playwright test",
+    "seed:qa-suite": "node scripts/qa/seed-qa-suite.mjs",
+    "qa:estado": "node scripts/qa/estado.mjs",
+    "qa:exportar": "node scripts/qa/exportar-artefacto.mjs"
   },
   "dependencies": {
     "@aquila/financial-kernel": "workspace:*",
@@ -54,5 +57,8 @@
     "vitest": "^2.1.8",
     "vue": "3.5.41"
   },
-  "workspaces": ["packages/*", "apps/*"]
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }

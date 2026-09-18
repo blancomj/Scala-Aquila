@@ -8712,3 +8712,149 @@ historial, «**Expiró el 15/9/2026**» junto a los «33 KB» de los que siguen 
 del módulo en verde, `deno check` limpio, lint sin errores.
 
 **Queda solo una cosa para cerrar RPT-05:** un envío real por Brevo, que no se hace sin pedirlo.
+
+## D-142
+
+**Mi Copropiedad Ola 1 (EXT-05/06/07) — Fundación + Finanzas.** Primera ola de la extensión
+mobile-first para actores externos (propietario/residente/tenedor), sobre la superficie que ya
+existía como `portal-externo` (EXT-01/02). Nace de un análisis externo (18 documentos + exploración
+de la competencia Vecindapp) fusionado con criterio propio y verificado contra el código real
+(`PLAN_MI_COPROPIEDAD.md`); el `PROMPT_MI_COPROPIEDAD_FASE1.md` es el contrato de ejecución de este
+corte. Registra aquí las decisiones de producto de `PLAN_MI_COPROPIEDAD.md` §4, ya respondidas por
+el usuario:
+
+```text
+P-01  apps/mobile              → se congela (sin desarrollo nuevo); sus pantallas se reescriben
+                                  como referencia de UX corte por corte (EXT-08/09/10), nunca su
+                                  código React Native.
+P-02  Nombre/dominio            → app.aquila.co (fuera de este plan: configuración de despliegue).
+P-03  Llamados de atención      → NO se desarrolla — decisión de producto, no una brecha técnica.
+P-04  Correspondencia/paquetería → SÍ se implementa — EXT-12, Ola 2.
+P-05  Mudanzas + Contactos      → SÍ se implementan ambas — EXT-13/EXT-14, Ola 2.
+       de emergencia
+P-06  Vecitienda (marketplace)  → sigue descartada (sin objeción explícita); no se construye salvo
+                                  que se pida.
+P-07  Orden de actores          → sin cambios: Propietario → Residente → Solicitante → Junta →
+                                  Portería → Proveedor.
+```
+
+**Lo que ya existía se reutilizó, no se reconstruyó.** El análisis externo señalaba varios "gaps"
+(solicitudes, reservas, visitas+QR, documentos, notificaciones, gobierno, estado de cuenta/pagos,
+rate limiting) que en realidad ya estaban resueltos por EXT-01/02/03/04 y la serie EXS —
+`PLAN_MI_COPROPIEDAD.md` corrige esa lectura antes de planear nada nuevo. Lo genuinamente nuevo de
+esta ola es la superficie `mi-copropiedad/*` (antes `portal-externo/*`), el estado de cuenta en
+vivo y el pago del propio propietario.
+
+**`ExecutionContext` formal para actor externo.** `_shared/actor_externo_context.ts` resuelve, del
+lado del servidor, con qué `actor_externo_vinculo` está actuando el llamador (nunca confía en
+`tenant_id`/`inmueble_id` que mande el cliente) — mismo principio que `crear-intencion-pago` ya
+aplicaba para su vía `sesion`, generalizado aquí para un actor que por diseño (AD-37) **nunca** es
+`tenant_member`. Usa `403 VINCULO_NO_PERTENECE` con el texto fijo que ya comparten las 11 Edge
+Functions `external-*` preexistentes — no se inventó un segundo código para "este vínculo no es
+tuyo".
+
+**"Estado de cuenta en vivo" ≠ "comprobante formal".** `external-cuenta-resumen` (nueva) es una
+vista de trabajo sobre `v_cargo_saldo`, consultada on-demand, sin folio ni hash. El comprobante
+formal notariado (`estados_cuenta_generados` + `ver-estado-cuenta`, D-27/D-28) sigue exactamente
+igual — esta ola no lo toca, son dos contratos distintos con propósitos distintos (uno es
+constancia sellada al corte, el otro es "cuánto debo ahora mismo").
+
+**Pagar es la misma regla de oro, una vía más.** `crear-intencion-pago` gana una tercera rama
+`via: 'actor_externo'` en su `discriminatedUnion` junto a `token`/`sesion`; todo lo que sigue
+después de resolver `tenantId`/`inmuebleId` (rate limit, cálculo de saldo, `money()`, adaptador de
+pasarela) no cambia una línea — es la prueba de que el monto lo sigue decidiendo el servidor sin
+importar la vía de entrada. `ver-intencion-pago`/`pago/resultado.vue` no necesitaron ningún cambio:
+ya eran agnósticos a la vía (el capability token es el propio `intencion_id`, no algo atado a
+`via`).
+
+**Badges de conteo (patrón Vecindapp, adaptado a lo que Ola 1 puede contar sin inventar dominio.)**
+Finanzas: `saldo_total > 0`. Solicitudes: cuenta las "abiertas" (`nueva`/`asignada`/`en_atencion`/
+`en_espera`) — el FSM de GOB-8 no tiene un estado que signifique literalmente "requiere tu
+respuesta"; asumir esa semántica sin verificarla habría sido inventar una regla no cerrada en el
+plan. Ambos se derivan de datos que las Edge Functions ya devuelven — cero tablas de "contadores"
+nuevas.
+
+**Dos bugs reales, hallados al verificar en navegador con datos QA reales — no con los fixtures
+de prueba, que siempre rellenan todos los campos:**
+
+```text
+1. external-cuenta-resumen fallaba 500 ("invalid input syntax for type uuid: null") cuando un
+   inmueble tenía cargos sin concepto_id (nullable en el esquema — p. ej. intereses de mora,
+   origen_tipo='interes'): el .in('id', conceptoIds) mandaba ese null dentro del array. Corregido
+   filtrando nulls antes de construir conceptoIds; test de regresión en cuenta-resumen.test.ts.
+
+2. Los tres componentes de components/mi-copropiedad/ (creados como Mic*.vue) nunca resolvían en
+   el navegador — Nuxt solo dedupea el prefijo de directorio en el nombre de tag si el archivo
+   empieza con el PascalCase COMPLETO del directorio ("MiCopropiedad", no la abreviatura "Mic").
+   Renombrados a MiCopropiedadSaldoCard/MiCopropiedadAsuntoRow/MiCopropiedadSelectorVinculo.vue,
+   siguiendo la misma convención que ya usan Ui*.vue y Presupuesto*.vue en el resto del proyecto.
+```
+
+**Verificado:** `_shared/actor_externo_context.test.ts` (100% cobertura), `tests/external/
+cuenta-resumen.test.ts` (7/7, incluida la regresión del bug #1) y `tests/tenancy/
+crear-intencion-pago.test.ts` (10/10, las vías `token`/`sesion` sin regresión) — 17/17 en verde.
+`lint`/`build`/`nuxt typecheck` de `apps/web` en verde. **En navegador**, con un vínculo real del
+tenant QA (`andrea.gomez@qa.test`, copropietario en QA Torres del Parque, OTP generado localmente
+porque el docker local no envía correo): login → "Mis asuntos" con saldo real ($561.457) y badge de
+Finanzas encendido → "¿Por qué debo esto?" despliega el desglose real (5 obligaciones, 2 con nombre
+de concepto y 3 con el rótulo genérico "Concepto" — confirmando el fix del bug #1) → Finanzas sin
+botón "Pagar ahora" porque este tenant QA no tiene pasarela activa (comportamiento correcto, no un
+hueco). Redirects `/portal-externo/*` → `/mi-copropiedad/*` verificados para enlaces ya emitidos.
+
+**Cero migraciones en esta ola** (EXT-05/06/07 no cambian el esquema) — sin fila nueva en
+`MIGRACIONES_LEDGER.md`.
+
+## D-143
+
+**Mi Copropiedad Ola 2 (EXT-08b/09/10/12/13/14) — Visitas, Documentos, Contactos de emergencia,
+Correspondencia, Notificaciones, Mudanzas.** Segunda ola de la extensión mobile-first, contrato de
+ejecución `PROMPT_MI_COPROPIEDAD_FASE2.md` §11, nueve unidades (U1-U9) implementadas de forma
+secuencial en la misma sesión de trabajo, cada una con su propio ciclo migración → `db:push` →
+`db:types` → código → pruebas → `lint`/`typecheck`/`build`:
+
+```text
+U1-U3  Selector de vínculo múltiple + ajustes de UX ya cubiertos por trabajo previo a este corte.
+U4     EXT-09 — visita permanente con foto (extensión de visitas existentes).
+U5     Documentos del inmueble (lectura + URL firmada de Storage).
+U6     EXT-14 — Contactos de emergencia: tabla por INMUEBLE (no por persona/vínculo — cualquier
+       residente del mismo inmueble gestiona los mismos contactos), sin RLS de escritura, todo por
+       Edge Function con service_role.
+U7     EXT-12 — Correspondencia: lista_tipos TIPO_CORRESPONDENCIA, CHECK de consistencia
+       entrega/entregada_a/entregada_at, cero RLS de escritura (ni para staff) — un único punto de
+       entrada (`correspondencia-registrar`) réplica `has_role` a mano porque `admin`/service_role
+       no tiene `auth.uid()`.
+U8     EXT-08b — Notificaciones IN-APP al actor externo: tabla `notificaciones_actor_externo`
+       (deliberadamente aparte de `exs2_notificaciones` de staff, cero RLS incluso de lectura),
+       `fn_notificar_actor_externo` idempotente. Decisión de diseño que se aparta de la lectura
+       literal del spec §7.10: la clave de idempotencia usa el `id` de la propia actuación-
+       respuesta, no el de la solicitud — con `solicitud_id` como llave, una segunda respuesta del
+       staff a la misma solicitud habría colisionado con `ON CONFLICT DO NOTHING` y jamás se
+       habría notificado. Verificado con una prueba dedicada (dos respuestas → dos notificaciones).
+U9     EXT-13 — Mudanzas con horario semanal: tabla `mant_zona_horario_semanal`, tercer
+       `CREATE OR REPLACE` de `guard_mant_reserva()` (tras MANT-10 y EXT-03, mismo criterio de diff
+       mínimo: se copia el cuerpo vigente y se agrega un solo bloque). Una zona sin ninguna fila
+       configurada se comporta exactamente igual que antes — verificado con prueba de regresión
+       explícita, igual que `external-reservas-disponibilidad`, que solo agrega la clave
+       `franjas_validas` cuando existe configuración (ausente, no `null`/`[]`, para cualquier otra
+       zona). Bug real encontrado y corregido en el camino: `external-reservas-crear` no tenía el
+       nuevo código `RESERVA_FUERA_DE_HORARIO_SEMANAL` en su mapa código→status HTTP y habría caído
+       al 500 genérico por defecto.
+```
+
+**Patrón "una función, varios verbos" para dominios CRUD pequeños** (`accion:
+'listar'|'crear'|'eliminar'`, etc.) — usado en U6/U7/U8 para evitar una Edge Function por verbo
+cuando el dominio es chico; ya establecido antes de esta ola, reforzado aquí con tres casos más.
+
+**Verificado:** `tests/external/contactos-emergencia.test.ts` (9), `tests/external/
+correspondencia.test.ts` (9), `tests/external/notificaciones.test.ts` (7) y `tests/external/
+mudanzas.test.ts` (6) — nuevos, todos en verde; suite completa `tests/external/` (12 archivos,
+125 pruebas) sin regresión, incluida `tests/gobierno/atencion.test.ts` y `tests/gobierno/
+solicitudes-triage-externo.test.ts` (el trigger nuevo de U8 sobre `solicitud_actuaciones` no rompe
+el flujo de GOB-8). `lint`/`build`/`nuxt typecheck` en verde tras cada unidad. U1-U8 verificadas
+también en navegador con un tenant QA sembrado y limpiado al terminar.
+
+**Migraciones de esta ola** (ver `MIGRACIONES_LEDGER.md`): EXT-09 (U4, `20260943000000`), EXT-14
+(U6, `20260944000000`), EXT-12 (U7, `20260945000000`), EXT-08b (U8, `20260946000000`), EXT-13 (U9,
+`20260947000000`) — cinco migraciones nuevas aplicadas en local; **pendiente decidir con el
+usuario** cuándo empujar el backlog acumulado (estas cinco más las que ya esperaban de antes de
+esta ola) a producción.
