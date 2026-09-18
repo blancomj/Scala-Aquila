@@ -15,6 +15,10 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
+import { enforceRateLimit } from '../_shared/rate_limit.ts'
+
+const RATE_LIMIT_MAX_HITS = 60
+const RATE_LIMIT_VENTANA = '1 hour'
 
 interface VinculoFila {
   vinculo_id: string
@@ -87,6 +91,11 @@ Deno.serve(async (req) => {
       'Este vínculo no existe, no es tuyo, o ya no está vigente.', undefined, correlationId,
     )
   }
+
+  const bloqueo = await enforceRateLimit(
+    cliente, `reservas_disponibilidad_vinculo:${vinculo.vinculo_id}`, RATE_LIMIT_MAX_HITS, RATE_LIMIT_VENTANA, correlationId,
+  )
+  if (bloqueo) return bloqueo
 
   const admin = createClient<Database>(supabaseUrl, serviceKey)
 

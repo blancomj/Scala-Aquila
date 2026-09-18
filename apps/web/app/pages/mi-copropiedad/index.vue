@@ -174,6 +174,13 @@ onMounted(async () => {
             <UIcon name="i-lucide-phone" class="size-6 text-primary-600 dark:text-primary-400" />
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Contactos</span>
           </NuxtLink>
+          <NuxtLink
+            to="/mi-copropiedad/gobierno"
+            class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
+          >
+            <UIcon name="i-lucide-landmark" class="size-6 text-primary-600 dark:text-primary-400" />
+            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Gobierno</span>
+          </NuxtLink>
         </div>
       </div>
 

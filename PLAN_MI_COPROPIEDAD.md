@@ -33,7 +33,7 @@ el propio proyecto ya tiene a medio camino.
 | Autorización de visitas + QR | `autorizacion-visita-crear`, `mant_autorizaciones_visita`, `_shared/link_token.ts` (HMAC firmado) (EXT-04) | Falta tipo de visitante, foto, autorización permanente (ver §7) |
 | Documentos con enlace firmado | `generar-enlace-documento`/`ver-documento`, legal hold | Signed URL temporal, autorización transitiva ya resuelta |
 | **Notificaciones** | `exs2_notificaciones` (migración `20260933010000`, serie EXS cerrada) | **Corrige al análisis externo**, que lo marca como gap ("solo `audit_log`+cookie"). Ya es dominio formal: pasa de `CREATE` a `REUSE` |
-| Gobierno (juntas/reuniones/votaciones) | 8 stores de gobierno, serie CO-9 cerrada y en remoto | Elegibilidad de voto ya resuelta por el Core |
+| Gobierno (juntas/reuniones/votaciones) | 9 stores de gobierno, serie **GOB0-9** cerrada y en remoto (corrige la atribución original a "CO-9", que es de Contabilidad — ver §12.1) | Elegibilidad de voto ya resuelta por el Core |
 | Estado de cuenta / pagos | `ver-estado-cuenta`, `crear-intencion-pago`, `ver-intencion-pago`, `ver-recibo-caja` | Primera vertical financiera lista para exponerse tal cual |
 | Rate limiting / tokens firmados | `_shared/rate_limit.ts` + `check_rate_limit`, `_shared/link_token.ts` | No se reinventa ninguno de los dos |
 | Middleware `tenant.ts` | ya contempla actor externo sin membership (líneas 70-83, comentario "AD-37") | Base del `ExecutionContext` — se adapta, no se reescribe |
@@ -276,3 +276,130 @@ igual aquí si se decide ligarlo a un vínculo puntual en vez de al inmueble com
 
 Estas tres decisiones se responden antes de escribir `PROMPT_MI_COPROPIEDAD_FASE2.md` — mismo
 criterio que P-01..P-07 en §4 para Ola 1.
+
+## 12. Ola 3 — verificación contra el código real (2026-09-18)
+
+Ola 2 (EXT-08/09/10/12/13/14) cerró completa el 2026-09-18, verificada en navegador en su
+totalidad (D-143, incluido el addendum de U9/Mudanzas). Antes de detallar un prompt de ejecución
+para Ola 3, se auditaron sus 3 cortes (EXT-11/15/16) contra el código real — mismo criterio que
+evitó reconstruir cosas ya resueltas en Ola 1/2. A diferencia de Ola 2 (seis cortes de tamaño
+razonablemente parejo), **Ola 3 es muy despareja**: un corte de reuso real, un corte que exige una
+pieza de arquitectura nueva no trivial, y un corte de seguridad con dos gaps concretos y baratos
+de cerrar.
+
+### 12.1 EXT-11 (Gobierno) — reuso real, pero cero superficie externa hoy
+
+El dominio no es "CO-9" (Contabilidad) como decía §2 antes de esta auditoría — es la serie
+**GOB0-9**, cerrada y en remoto: `gobierno_organos/atribuciones/miembros` (GOB-1),
+`gobierno_reuniones/convocatorias/agenda/poderes/asistencia` (GOB-2), `gobierno_votaciones/votos`
+(GOB-3), `gobierno_actas/acta_consecutivo` (GOB-4), decisiones/convivencia/impugnaciones (GOB-5..9,
+Atención/PQRS de GOB-9 es un dominio distinto ya cubierto por EXT-08). 9 stores en
+`apps/web/app/stores/gobierno*.ts` (no 8 — Tablero es un dashboard agregador).
+
+**Cero superficie externa existe**: ningún `external-gobierno-*`/`external-reuniones-*`/
+`external-votaciones-*`, ninguna página bajo `pages/mi-copropiedad/`, y todas las tablas de
+gobierno tienen una única policy SELECT (`is_member(tenant_id)`) — un actor externo no puede leer
+nada hoy.
+
+**Elegibilidad de voto ya resuelta por el Core, confirmado línea por línea**: vive en el trigger
+`guard_gobierno_voto()` (`20260931530000_gob3_votaciones.sql`) — exige una fila vigente en
+`gobierno_asistencia`, congela `coeficiente` desde ahí (nunca del cliente), evita duplicados. Es
+reusable tal cual (el plan §8 ya prohíbe reimplementar esta regla) pero **hoy solo `auxiliar`
+puede insertar en `gobierno_asistencia`/`gobierno_votos`** — la brecha real es exponerlo vía una
+RPC `security definer` nueva con el mismo patrón de `_shared/actor_externo_context.ts`, no
+reconstruir la regla. `gobierno_asistencia.modalidad_asistencia` ya contempla el valor `'remota'`
+sin ningún flujo que lo use desde fuera — pieza a medio construir, no gap desde cero.
+
+**Actas probablemente ya se resuelven con Ola 2, sin construir nada**: usan la tabla general
+`documentos` (`fn_gobierno_vincular_documento_acta`, `inmueble_id null` = documento de
+copropiedad) — el mismo mecanismo que ya expone `external-documentos-listar` (EXT-10). Falta
+confirmar en la implementación que el `tipo_documento` de un acta pasa el filtro de esa función
+sin heredar los problemas de visibilidad por propietario que esa misma auditoría (§10.3) ya
+detectó para documentos en general.
+
+**Gaps reales**: (a) lectura de reuniones/convocatorias/agenda/resultados de votación — ninguna
+función existe; (b) asistencia y voto remotos — falta la RPC puente, la regla de negocio ya existe.
+
+### 12.2 EXT-15 (Proveedor/contratista) — el backend es maduro, el puente actor-externo no existe
+
+No hay tabla `proveedores`/`contratistas` — se modela como **satélite sobre `terceros`**, ya
+construido por la serie MANT-5 (no es trabajo de Ola 3, ya existe y está maduro): rol
+`PERSONA_COPROPIEDAD.proveedor`/`.contratista` vía `tenant_tercero_rol`, más
+`mant_proveedor_perfil` (categorías/especialidades), `mant_proveedor_habilitacion` (certificaciones
+con semáforo vigente/próximo/vencida), `mant_contratos`, `mant_ordenes_trabajo` (con validación de
+habilitación vigente del contratista asignado), garantías y evaluación de proveedor. Cero
+`cotización`, cero Edge Functions — toda esa serie es staff-facing por RLS/RPC directas.
+
+**El gap real y no trivial es estructural, no de superficie**: `actor_externo_vinculo` (Ola 1)
+referencia **directamente** `inmueble_persona_rol.id` — un rol atado a un inmueble
+(`PERSONA_PREDIO`: copropietario/inquilino/apoderado). Un proveedor se vincula al **tenant
+completo** vía `tenant_tercero_rol` (catálogo `PERSONA_COPROPIEDAD`), una tabla distinta sin
+relación con `inmueble_persona_rol` ni con `actor_externo_vinculo` (confirmado por el comentario
+de cabecera de `tenant_tercero_rol.sql`: "esos conceptos son de propiedad de un inmueble").
+**EXT-15 no puede reusar el mecanismo de identidad de EXT-01 tal cual** — necesita una variante
+nueva del patrón (vínculo a nivel tenant, no a nivel inmueble), replicando OTP/sesión/RLS pero
+sobre una relación distinta. Es la primera vez en toda la iniciativa que esto pasa.
+
+### 12.3 EXT-16 (Hardening) — dos gaps concretos, dos preocupaciones ya resueltas
+
+Auditados IDOR, replay, revocación de vínculo y rollout gradual contra las 16 Edge Functions
+`external-*`/`actor-externo-*` existentes:
+
+- **IDOR — cubierto, sin excepción encontrada**: todas resuelven `tenant_id`/`inmueble_id`
+  server-side vía `fn_actor_externo_mis_vinculos` (directo o vía `resolverContextoActorExterno`),
+  nunca del body del cliente.
+- **Revocación de vínculo — cubierto de forma centralizada**: `fn_actor_externo_mis_vinculos` es
+  el único punto de origen del dato y ya filtra `vigente_hasta`; como todas las funciones dependen
+  de esa RPC, un vínculo revocado desaparece de toda la superficie a la vez, sin doble-chequeo que
+  pueda desalinearse.
+- **Replay — diseño intencional, no bug**: `_shared/link_token.ts` expira pero es reusable hasta
+  ese vencimiento (documentado en su propio comentario de cabecera) — correcto para enlaces de
+  solo lectura (estado de cuenta, documentos). Solo sería un gap si el negocio exige semántica de
+  un solo uso para algún enlace puntual — a confirmar, no a asumir.
+- **Rate limiting — gap real, con una corrección al implementar**: cubierto en 7 funciones de
+  *lectura* (OTP, cuenta-resumen, documentos-listar, contactos, correspondencia-listar,
+  notificaciones-listar) y en 1 de *escritura* (`external-solicitudes-crear`, vía
+  `fn_solicitud_recibir_externa`, 5/hora — invisible al grep original que solo miraba los
+  `index.ts`, encontrado al implementar `PROMPT_MI_COPROPIEDAD_FASE3.md` §7.2). Realmente
+  **ausente en 10 funciones de escritura/creación**, no 11
+  (`external-reservas-crear/cancelar/disponibilidad/listar`,
+  `external-solicitudes-cancelar/catalogo/listar`, `external-visitas-crear/listar/revocar`) —
+  exactamente las más expuestas a abuso (spam de solicitudes, agotar cupos de reserva, generar QRs
+  en volumen). El patrón ya existe (`check_rate_limit`) y es una llamada de pocas líneas por
+  función.
+- **Rollout gradual — gap real y total**: no existe ninguna columna/tabla/feature-flag que
+  controle activación de `mi-copropiedad/*` por copropiedad — la superficie está disponible para
+  cualquier tenant con vínculos vigentes, sin forma de habilitar un piloto antes de abrir a todas.
+
+## 13. Decisiones abiertas de Ola 3 — pendientes de respuesta antes del prompt de ejecución
+
+| # | Pregunta | Recomendación |
+| --- | --- | --- |
+| P3-01 | **Gobierno (EXT-11)**: dado que la lectura (reuniones/convocatorias/actas/resultados) es reuso de patrones ya probados pero la asistencia/voto remoto exige una RPC puente nueva sobre una regla de negocio sensible (quórum/mayoría), ¿se construyen ambas piezas en el mismo corte, o EXT-11 de esta ola se limita a lectura (agenda/actas/resultados ya cerrados) y el voto/asistencia remotos se difieren a un corte propio, con más tiempo de revisión sobre `guard_gobierno_voto`? | Separar: EXT-11 = solo lectura esta ola (menor riesgo, reuso real, entrega observable rápido — mismo criterio "solo-UI primero" de P2-03). Voto/asistencia remotos a un corte propio posterior, dado que toca una regla de quórum/mayoría que el plan §8 protege explícitamente. |
+| P3-02 | **Proveedor (EXT-15)**: dado que no existe ningún vínculo actor-externo a nivel tenant (solo a nivel inmueble) y habría que diseñar esa pieza desde cero — el backend de gestión de proveedor ya es maduro y staff-facing —, ¿se construye igual esta ola, o se pospone EXT-15 hasta que haya una necesidad real confirmada de que un proveedor necesite login propio (vs. seguir gestionándolo el staff internamente, que es como funciona hoy)? | Posponer. Mismo criterio que ya usó Ola 2 con Mudanzas/horario semanal (P2-02): no construir una pieza de arquitectura nueva (vínculo a nivel tenant) para un problema sin demanda confirmada — el staff ya puede gestionar proveedores de punta a punta sin esta pieza. |
+| P3-03 | **Hardening (EXT-16)**: rate limiting en las 11 funciones de escritura es barato y no depende de que EXT-11/15 avancen — ¿se aplica ya, como corte independiente, en vez de esperar al resto de Ola 3? El rollout gradual (feature flag por tenant) sí es una decisión de producto (¿por columna en `tenants`? ¿tabla de configuración aparte?) — ¿se diseña ahora o se decide cuando haya una fecha real de apertura a copropiedades reales? | Rate limiting: aplicar ya, corte independiente y rápido. Rollout gradual: diferir el diseño hasta que haya una fecha de apertura real — construirlo ahora sin esa fecha es "inventar una regla no cerrada en el plan" (mismo criterio de EXT-08 con badges, §8.4 original). |
+
+Estas tres decisiones se responden antes de escribir `PROMPT_MI_COPROPIEDAD_FASE3.md` — mismo
+criterio que P-01..P-07 (§4) y P2-01..03 (§11).
+
+**Respondidas por el usuario el 2026-09-18** (se registran como D-144 en `DECISIONES.md` en cuanto
+cierre el primer corte real de esta ola, mismo criterio que D-142/D-143):
+
+```text
+P3-01  EXT-11 Gobierno    → Solo lectura esta ola (agenda/convocatorias/actas/resultados de
+                            votación). Voto/asistencia remota se difiere a un corte propio.
+P3-02  EXT-15 Proveedor   → Pospuesto por completo. No entra en el alcance de Ola 3.
+P3-03  EXT-16 Hardening   → Rate limiting en las 11 funciones de escritura, corte independiente
+                            YA (no espera al resto de Ola 3). Rollout gradual (feature flag por
+                            tenant) diferido hasta que haya fecha real de apertura.
+```
+
+**Alcance resultante de Ola 3, tras estas decisiones**: dos cortes, no tres — **EXT-11 (solo
+lectura de gobierno)** y **EXT-16 (solo rate limiting)**. EXT-15 queda fuera del backlog activo
+hasta que haya demanda confirmada; el voto/asistencia remota de EXT-11 y el rollout gradual de
+EXT-16 quedan como brechas conocidas y documentadas (§12.1/§12.3), no como trabajo pendiente de
+esta ola. `PROMPT_MI_COPROPIEDAD_FASE3.md` cubre únicamente estos dos cortes — **escrito
+2026-09-18**, con un hallazgo adicional al verificar `acta_estado_t` línea por línea: el enum
+tiene 4 valores (`borrador`/`en_verificacion`/`suscrita`/`publicada`), no 2 como se asumía al
+escribir este §13 — un acta solo debe exponerse al actor externo en estado `publicada` (puesta a
+disposición, art. 47), nunca solo por estar `suscrita`. Ver ese documento §7.1/§9 para el detalle.

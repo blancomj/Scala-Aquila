@@ -8853,8 +8853,79 @@ solicitudes-triage-externo.test.ts` (el trigger nuevo de U8 sobre `solicitud_act
 el flujo de GOB-8). `lint`/`build`/`nuxt typecheck` en verde tras cada unidad. U1-U8 verificadas
 también en navegador con un tenant QA sembrado y limpiado al terminar.
 
+**U9 (Mudanzas, horario semanal) verificado en navegador el 2026-09-18**, en sesión aparte —
+quedó fuera del barrido U1-U8 de arriba. Con `mant_zona_horario_semanal` sembrado para "Salon
+Comunal QA" (tenant QA Torres del Parque, viernes 08:00-12:00): `franjas_validas` se muestra
+correctamente en `reservas/nueva.vue` ("Horario permitido: 08:00–12:00"), una reserva dentro de
+la franja (09:00-10:00) queda `aprobada` de inmediato, una reserva fuera de franja (14:00-15:00,
+mismo día) es rechazada por `guard_mant_reserva()` y `external-reservas-crear` la devuelve como
+`400 Bad Request` (no `500` — confirma en vivo el fix del bug de mapeo de códigos que ya señalaba
+D-143 arriba) y un día sin ninguna fila configurada (sábado) muestra la alerta "Esta zona no tiene
+horario habilitado para el día elegido" y deshabilita "Reservar". Datos de prueba limpiados al
+terminar (reserva, fila de horario y OTP sin usar). **Con esto, las nueve unidades de Ola 2 quedan
+verificadas en navegador**, mismo estándar que Ola 1 (D-142).
+
 **Migraciones de esta ola** (ver `MIGRACIONES_LEDGER.md`): EXT-09 (U4, `20260943000000`), EXT-14
 (U6, `20260944000000`), EXT-12 (U7, `20260945000000`), EXT-08b (U8, `20260946000000`), EXT-13 (U9,
 `20260947000000`) — cinco migraciones nuevas aplicadas en local; **pendiente decidir con el
 usuario** cuándo empujar el backlog acumulado (estas cinco más las que ya esperaban de antes de
 esta ola) a producción.
+
+## D-144
+
+**Mi Copropiedad Ola 3 (EXT-11 lectura + EXT-16 rate limiting) — M21 + M20.** Tercera ola de la
+extensión mobile-first, contrato de ejecución `PROMPT_MI_COPROPIEDAD_FASE3.md`. A diferencia de
+Ola 1/2, esta ola nació de una auditoría de 3 cortes originales (`PLAN_MI_COPROPIEDAD.md` §12)
+que el usuario redujo a 2 mediante las decisiones P3-01/02/03 (§13 del mismo plan):
+
+```text
+P3-01  EXT-11 Gobierno    → Solo lectura esta ola (agenda/convocatorias/actas/resultados de
+                            votación). Voto/asistencia remota diferido a un corte propio.
+P3-02  EXT-15 Proveedor   → Pospuesto por completo — sin demanda confirmada, requeriría un
+                            mecanismo de vínculo actor-externo nuevo a nivel TENANT (el actual
+                            solo funciona a nivel inmueble).
+P3-03  EXT-16 Hardening   → Solo rate limiting en las funciones de escritura, ya. Rollout gradual
+                            (feature flag por tenant) diferido hasta fecha real de apertura.
+```
+
+**M21 (rate limiting)**: `enforceRateLimit` agregado a 10 de las 11 funciones `external-*` de
+escritura identificadas en la auditoría — `external-solicitudes-crear` se excluyó al descubrirse
+que ya tenía su propio límite (5/hora) dentro de `fn_solicitud_recibir_externa` (SQL, invisible al
+grep original que solo miraba los `index.ts`; protegido por `tests/external/solicitudes.test.ts`
+prueba #10). Límites: 20/hora crear, 30/hora cancelar/revocar, 60/hora lectura — propuestos por
+precedente (documentado en `PROMPT_MI_COPROPIEDAD_FASE3.md` §7.2), no cerrados explícitamente por
+el usuario (queda abierto si se quieren ajustar antes de producción). 10 pruebas nuevas (una por
+función) confirman el bloqueo `429 RATE_LIMITED` exactamente en el cupo configurado.
+
+**M20 (gobierno de solo lectura)**: `external-gobierno-listar` (Edge Function nueva, sin
+migraciones — reusa las tablas GOB0-9 ya existentes vía admin client +
+`_shared/actor_externo_context.ts`, mismo patrón que `external-documentos-listar`),
+`pages/mi-copropiedad/gobierno/{index,[id]}.vue`, `MiCopropiedadResultadoVotacion.vue` y el tile
+"Gobierno" en `mi-copropiedad/index.vue`. El dominio es TENANT-COMPLETO (ninguna tabla
+`gobierno_*` tiene `inmueble_id`) — el filtro es solo `tenant_id`. **Límite de alcance explícito y
+verificado**: `gobierno_poderes` y `gobierno_votos` (el voto individual de cada miembro/inmueble)
+nunca se exponen — solo el resultado agregado de una votación cerrada; es la primera vez en la
+iniciativa que se maneja un dato potencialmente sensible de otros propietarios. Un acta solo se
+expone en estado `publicada` (puesta a disposición real, art. 47) — nunca en `borrador`/
+`en_verificacion`/`suscrita` (`acta_estado_t` tiene 4 valores, no 2 como se asumía al escribir el
+plan original; corregido antes de implementar).
+
+**Verificado:** `tests/external/gobierno.test.ts` (6 pruebas nuevas: filtro de estado en listado,
+detalle con convocatoria/agenda/resultado agregado, acta solo en `publicada`, aislamiento entre
+tenants, `VINCULO_NO_PERTENECE`, rate limit) — suite completa `tests/external/`+`tests/gobierno/`
+en verde (22 archivos, 266 pruebas, sin regresión). `deno check`/`nuxt typecheck`/`eslint`/
+`tsc --noEmit` sin errores. **En navegador**, contra el tenant QA real "QA Torres del Parque"
+(una reunión cerrada con 2 votaciones ya resueltas y un acta en `borrador`): listado y detalle
+renderizan con datos reales, acta muestra "todavía no está disponible" — confirma en vivo que la
+condición es `publicada`, no `suscrita`.
+
+**Hallazgo operativo, no de código**: al correr `supabase functions serve` para que el runtime
+local reconociera la función nueva y luego interrumpirlo, el contenedor `supabase_edge_runtime`
+quedó eliminado por completo (no solo detenido). Se recuperó relanzándolo como proceso de fondo
+persistente (sin interrumpirlo), que recreó el contenedor y sirvió de nuevo las ~96 funciones
+existentes con normalidad — sin ninguna pérdida de datos (Postgres nunca se tocó). Ver nota en
+memoria del proyecto para la próxima sesión que agregue una función nueva.
+
+**Sin migraciones en esta ola** (M20/M21 no tocan el esquema) — sin fila nueva en
+`MIGRACIONES_LEDGER.md`. **Ola 3 completa con esto** — EXT-15 queda fuera del backlog activo hasta
+que haya demanda confirmada.

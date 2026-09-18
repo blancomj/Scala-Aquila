@@ -448,4 +448,67 @@ d('EXT-04: visitantes desde External', () => {
     expect(error!.status).toBe(400)
     expect(error!.codigo).toBe('INVALID_PAYLOAD')
   }, 30_000)
+
+  // ── EXT-16 (Ola 3, M21): rate limiting — mismo criterio que reservas.test.ts/solicitudes.test.ts:
+  // enforceRateLimit corre antes de la RPC/insert, así que el intento cuenta sin importar si el
+  // negocio lo acepta o lo rechaza.
+  it('14. rate limit: crear bloquea después de 20 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p14rl')
+    for (let i = 0; i < 20; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
+          body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: `RL ${String(i)}`, permanente: 'true' }),
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-crear', {
+        body: formVisita({ vinculo_id: t.actorExternoVinculoId, visitante_nombre: 'RL 20', permanente: 'true' }),
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 60_000)
+
+  it('15. rate limit: listar bloquea después de 60 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p15rl')
+    for (let i = 0; i < 60; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaListado[]>('external-visitas-listar', {
+          body: { vinculo_id: t.actorExternoVinculoId },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaListado[]>('external-visitas-listar', {
+        body: { vinculo_id: t.actorExternoVinculoId },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 90_000)
+
+  it('16. rate limit: revocar bloquea después de 30 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p16rl')
+    for (let i = 0; i < 30; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-revocar', {
+          body: { vinculo_id: t.actorExternoVinculoId, autorizacion_id: crypto.randomUUID() },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaAutorizacion>('external-visitas-revocar', {
+        body: { vinculo_id: t.actorExternoVinculoId, autorizacion_id: crypto.randomUUID() },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 60_000)
 })

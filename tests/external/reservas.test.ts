@@ -476,4 +476,89 @@ d('EXT-03: reservas desde External', () => {
     expect(data!.estado).toBe('aprobada')
     expect(data!.cargo_id).not.toBeNull()
   }, 30_000)
+
+  // ── EXT-16 (Ola 3, M21): rate limiting — enforceRateLimit corre ANTES de la RPC, así que cuenta
+  // el intento sin importar si el negocio lo acepta o lo rechaza; por eso estas pruebas no montan
+  // una regla de reserva (cada intento falla igual por RESERVA_ZONA_SIN_REGLA_VIGENTE/INEXISTENTE,
+  // lo único que importa es que NINGUNO de los intentos dentro del cupo sea RATE_LIMITED y que el
+  // siguiente sí lo sea).
+  it('13. rate limit: crear bloquea después de 20 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p13rl')
+    for (let i = 0; i < 20; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaReserva>('external-reservas-crear', {
+          body: { vinculo_id: t.actorExternoVinculoId, zona_comun_id: t.zonaComunId, fecha: '2028-05-01', hora_inicio: '10:00', hora_fin: '11:00' },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaReserva>('external-reservas-crear', {
+        body: { vinculo_id: t.actorExternoVinculoId, zona_comun_id: t.zonaComunId, fecha: '2028-05-01', hora_inicio: '10:00', hora_fin: '11:00' },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 60_000)
+
+  it('14. rate limit: cancelar bloquea después de 30 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p14rl')
+    for (let i = 0; i < 30; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaReserva>('external-reservas-cancelar', {
+          body: { vinculo_id: t.actorExternoVinculoId, reserva_id: crypto.randomUUID() },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaReserva>('external-reservas-cancelar', {
+        body: { vinculo_id: t.actorExternoVinculoId, reserva_id: crypto.randomUUID() },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 60_000)
+
+  it('15. rate limit: disponibilidad bloquea después de 60 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p15rl')
+    for (let i = 0; i < 60; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaDisponibilidad>('external-reservas-disponibilidad', {
+          body: { vinculo_id: t.actorExternoVinculoId },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaDisponibilidad>('external-reservas-disponibilidad', {
+        body: { vinculo_id: t.actorExternoVinculoId },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 90_000)
+
+  it('16. rate limit: listar bloquea después de 60 intentos en una hora', async () => {
+    const t = await prepararTenantConActorExterno('p16rl')
+    for (let i = 0; i < 60; i += 1) {
+      const { error } = await invocarConError(
+        t.clienteExterno.functions.invoke<RespuestaListado[]>('external-reservas-listar', {
+          body: { vinculo_id: t.actorExternoVinculoId },
+        }),
+      )
+      expect(error?.codigo).not.toBe('RATE_LIMITED')
+    }
+    const { data, error } = await invocarConError(
+      t.clienteExterno.functions.invoke<RespuestaListado[]>('external-reservas-listar', {
+        body: { vinculo_id: t.actorExternoVinculoId },
+      }),
+    )
+    expect(data).toBeNull()
+    expect(error!.status).toBe(429)
+    expect(error!.codigo).toBe('RATE_LIMITED')
+  }, 90_000)
 })

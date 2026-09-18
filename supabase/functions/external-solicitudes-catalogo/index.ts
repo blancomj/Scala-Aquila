@@ -7,10 +7,21 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../../packages/shared/src/database.generated.ts'
 import { errorResponse, jsonResponse, respuestaPreflight } from '../_shared/http.ts'
+import { enforceRateLimit } from '../_shared/rate_limit.ts'
+
+const RATE_LIMIT_MAX_HITS = 60
+const RATE_LIMIT_VENTANA = '1 hour'
 
 interface VinculoFila {
   vinculo_id: string
   tenant_id: string
+}
+
+interface CatalogoFila {
+  id: string
+  tipo: string
+  codigo: string
+  nombre: string
 }
 
 Deno.serve(async (req) => {
@@ -68,6 +79,11 @@ Deno.serve(async (req) => {
     )
   }
 
+  const bloqueo = await enforceRateLimit(
+    cliente, `solicitudes_catalogo_vinculo:${vinculo.vinculo_id}`, RATE_LIMIT_MAX_HITS, RATE_LIMIT_VENTANA, correlationId,
+  )
+  if (bloqueo) return bloqueo
+
   const admin = createClient<Database>(supabaseUrl, serviceKey)
   const { data: filas, error: errorCatalogo } = await admin
     .from('lista_tipos')
@@ -80,10 +96,11 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'INTERNAL_ERROR', errorCatalogo.message, undefined, correlationId)
   }
 
+  const filasCatalogo = filas as CatalogoFila[] | null
   return jsonResponse(
     {
-      tipos: (filas ?? []).filter((f) => f.tipo === 'TIPO_SOLICITUD'),
-      categorias: (filas ?? []).filter((f) => f.tipo === 'CATEGORIA_SOLICITUD'),
+      tipos: (filasCatalogo ?? []).filter((f) => f.tipo === 'TIPO_SOLICITUD'),
+      categorias: (filasCatalogo ?? []).filter((f) => f.tipo === 'CATEGORIA_SOLICITUD'),
     },
     200, correlationId,
   )

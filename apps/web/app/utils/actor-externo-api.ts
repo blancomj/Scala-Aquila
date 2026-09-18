@@ -631,3 +631,78 @@ export async function marcarNotificacionExternaLeida(
   if (!data) throw new Error('No se pudo marcar la notificación como leída.')
   return data
 }
+
+// ── EXT-11 (Ola 3, M20) — Gobierno de solo lectura ──────────────────────────────────────────
+// Nunca expone gobierno_poderes ni gobierno_votos (el voto individual) — solo el resultado
+// agregado de una votación cerrada. Ver PROMPT_MI_COPROPIEDAD_FASE3.md §7.1/§9.
+export interface ReunionGobierno {
+  id: string
+  organo_nombre: string
+  tipo_nombre: string
+  modalidad: string
+  fecha_hora: string
+  lugar: string | null
+  medio: string | null
+  estado: string
+}
+
+export async function listarReunionesGobierno(vinculoId: string): Promise<ReunionGobierno[]> {
+  const cliente = useSupabaseClient<Database>()
+  const { data, error } = await cliente.functions.invoke<{ reuniones: ReunionGobierno[] }>(
+    'external-gobierno-listar',
+    { body: { vinculo_id: vinculoId, accion: 'reuniones' } },
+  )
+  if (error) throw await extraerErrorFuncion(error)
+  return data?.reuniones ?? []
+}
+
+export interface ConvocatoriaGobierno {
+  emitida_at: string
+  fecha_limite_respuesta: string | null
+  documento_id: string | null
+  orden_del_dia_congelado: unknown
+}
+export interface AgendaPuntoGobierno {
+  id: string
+  orden: number
+  titulo: string
+  descripcion: string | null
+  requiere_decision: boolean
+}
+export interface ActaGobierno {
+  id: string
+  numero: number | null
+  anio: number
+  documento_id: string | null
+  suscrita_at: string | null
+  puesta_a_disposicion_at: string | null
+}
+export interface VotacionGobierno {
+  id: string
+  pregunta: string
+  materia_nombre: string
+  resultado: string | null
+  coeficiente_total: string | null
+  coeficiente_representado: string | null
+  coeficiente_favor: string | null
+  coeficiente_contra: string | null
+  coeficiente_abstencion: string | null
+}
+export interface ReunionGobiernoDetalle {
+  reunion: ReunionGobierno
+  convocatoria: ConvocatoriaGobierno | null
+  agenda: AgendaPuntoGobierno[]
+  acta: ActaGobierno | null
+  votaciones: VotacionGobierno[]
+}
+
+export async function obtenerReunionGobierno(vinculoId: string, reunionId: string): Promise<ReunionGobiernoDetalle> {
+  const cliente = useSupabaseClient<Database>()
+  const { data, error } = await cliente.functions.invoke<ReunionGobiernoDetalle>(
+    'external-gobierno-listar',
+    { body: { vinculo_id: vinculoId, accion: 'detalle', reunion_id: reunionId } },
+  )
+  if (error) throw await extraerErrorFuncion(error)
+  if (!data) throw new Error('No se pudo cargar esta reunión.')
+  return data
+}
