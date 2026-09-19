@@ -9,6 +9,7 @@
 // de dominio) — esas usan funciones transaccionales que todavía no tienen UI.
 import type { Database } from '@aquila/shared'
 import type { ActivoListado } from '~/stores/activos'
+import { generarChips, type CampoFiltro, type ValorFiltro } from '~/composables/useFiltros'
 
 type ActivoRow = Database['public']['Tables']['activos']['Row']
 
@@ -101,30 +102,115 @@ function pctDelTotal(n: number): number {
 const resumenExpandido = useCookie<boolean>('activos-resumen-expandido', { default: () => true })
 
 // ── Filtros combinables (§8.3) ───────────────────────────────────────────
+// Migrado al panel de filtros reutilizable (ver CLAUDE.md, "Panel de filtros reutilizable") —
+// esta pantalla tenía 9 filtros y ya había tenido que inventar su propio "Más filtros" a mano
+// (una segunda fila oculta tras un botón) porque no cabían en línea; ese parche desaparece acá.
 const busqueda = ref('')
-const filtroTipo = ref<number | null>(null)
-const filtroCategoria = ref<number | null>(null)
-const filtroEstado = ref<string | null>(null)
-const filtroUbicacion = ref<string | null>(null)
-const filtroCriticidad = ref<string | null>(null)
-const mostrarMasFiltros = ref(false)
-const filtroNaturaleza = ref<string | null>(null)
-const filtroOrigen = ref<string | null>(null)
-const filtroCapitalizado = ref<'todos' | 'si' | 'no'>('todos')
-const filtroFabricante = ref<string | null>(null)
 
+// Hasta 3 filtros "fijos" quedan fuera del panel, visibles siempre en la barra con su
+// comportamiento original (USelect de un solo valor, instantáneo) — los demás (antes 6 más,
+// ahora también rango de vida útil y valor neto) viven en el panel. Tipo/Categoría/Estado se
+// eligieron por ser las 3 dimensiones más usadas para ubicar un activo; el resto encaja mejor
+// como filtro ocasional/avanzado.
+interface FiltrosActivos extends Record<string, ValorFiltro> {
+  tipo: number | null
+  categoria: number | null
+  estado: string | null
+  ubicacion: Array<string | number>
+  criticidad: Array<string | number>
+  naturaleza: Array<string | number>
+  origen: Array<string | number>
+  capitalizado: Array<string | number>
+  fabricante: Array<string | number>
+  vidaUtilRestante: { min: number | null; max: number | null }
+  valorNeto: { min: number | null; max: number | null }
+}
+
+const FILTROS_INICIALES: FiltrosActivos = {
+  tipo: null,
+  categoria: null,
+  estado: null,
+  ubicacion: [],
+  criticidad: [],
+  naturaleza: [],
+  origen: [],
+  capitalizado: [],
+  fabricante: [],
+  vidaUtilRestante: { min: null, max: null },
+  valorNeto: { min: null, max: null },
+}
+
+const filtros = useFiltros<FiltrosActivos>(FILTROS_INICIALES)
+const panelFiltrosAbierto = ref(false)
+
+// Los 3 fijos se leen/escriben directo sobre `filtros.aplicados` (sin pasar por
+// borrador→aplicar) vía `actualizarInmediato` — mismo comportamiento instantáneo que tenían
+// antes de que existiera este composable. Mantiene `borrador` sincronizado, así que abrir el
+// panel después no muestra un valor viejo para estos 3 campos.
+const filtroTipo = computed({
+  get: () => filtros.aplicados.value.tipo,
+  set: (v: number | null) => filtros.actualizarInmediato('tipo', v),
+})
+const filtroCategoria = computed({
+  get: () => filtros.aplicados.value.categoria,
+  set: (v: number | null) => filtros.actualizarInmediato('categoria', v),
+})
+const filtroEstado = computed({
+  get: () => filtros.aplicados.value.estado,
+  set: (v: string | null) => filtros.actualizarInmediato('estado', v),
+})
+
+// Todos los campos del panel son `multiselect` — ninguno de un solo valor. `UiPanelFiltros`
+// decide sola si un campo se ve como checkboxes (menos de 4 opciones, ej. Capitalización con 2 o
+// Naturaleza del bien con 3) o como buscador + chips (4 o más, ej. Estado con 9); Ubicación y
+// Fabricante son catálogos abiertos por tenant, así que su widget real depende de cuántos
+// valores distintos tenga la data en ese momento. Nuevo en esta ola: rango de vida útil restante
+// y de valor neto (antes solo existían como KPI de solo lectura arriba).
 const opcionesUbicacion = computed(() => {
   const vistas = new Set(filas.value.map((f) => f.ubicacion).filter((u): u is string => !!u))
-  return [...vistas].sort().map((u) => ({ label: u, value: u }))
-})
-const opcionesCriticidad = computed(() => {
-  const vistas = new Set(filas.value.map((f) => f.criticidad_banda).filter((b): b is string => !!b))
-  return [...vistas].sort().map((b) => ({ label: b, value: b }))
+  return [...vistas].sort().map((u) => ({ valor: u, etiqueta: u }))
 })
 const opcionesFabricante = computed(() => {
   const vistas = new Set(filas.value.map((f) => f.fabricante).filter((v): v is string => !!v))
-  return [...vistas].sort().map((v) => ({ label: v, value: v }))
+  return [...vistas].sort().map((v) => ({ valor: v, etiqueta: v }))
 })
+const opcionesCriticidad = computed(() => {
+  const vistas = new Set(filas.value.map((f) => f.criticidad_banda).filter((b): b is string => !!b))
+  return [...vistas].sort().map((b) => ({ valor: b, etiqueta: b }))
+})
+
+const schemaFiltros = computed<CampoFiltro[]>(() => [
+  {
+    clave: 'ubicacion', etiqueta: 'Ubicación', tipo: 'multiselect', icono: 'i-lucide-map-pin',
+    opciones: opcionesUbicacion.value, mensajeVacio: 'Todavía no hay activos con ubicación registrada',
+  },
+  {
+    clave: 'criticidad', etiqueta: 'Criticidad', tipo: 'multiselect', icono: 'i-lucide-alert-triangle',
+    opciones: opcionesCriticidad.value, mensajeVacio: 'Todavía no hay activos con criticidad evaluada',
+  },
+  {
+    clave: 'naturaleza', etiqueta: 'Naturaleza del bien', tipo: 'multiselect', icono: 'i-lucide-layers',
+    opciones: Object.entries(NATURALEZA_LABEL).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  },
+  {
+    clave: 'origen', etiqueta: 'Origen', tipo: 'multiselect', icono: 'i-lucide-git-branch',
+    opciones: Object.entries(ORIGEN_LABEL).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  },
+  {
+    clave: 'capitalizado', etiqueta: 'Capitalización', tipo: 'multiselect', icono: 'i-lucide-coins',
+    opciones: [{ valor: 'si', etiqueta: 'Capitalizados' }, { valor: 'no', etiqueta: 'No capitalizados' }],
+  },
+  {
+    clave: 'fabricante', etiqueta: 'Fabricante', tipo: 'multiselect', icono: 'i-lucide-factory',
+    opciones: opcionesFabricante.value, mensajeVacio: 'Todavía no hay activos con fabricante registrado',
+  },
+  { clave: 'vidaUtilRestante', etiqueta: 'Vida útil restante (meses)', tipo: 'rango', icono: 'i-lucide-clock', formato: 'numero' },
+  { clave: 'valorNeto', etiqueta: 'Valor neto', tipo: 'rango', icono: 'i-lucide-banknote', formato: 'moneda' },
+])
+
+// Solo cubre los campos del panel a propósito: Tipo/Categoría/Estado ya están siempre visibles
+// en su propio USelect — un chip para ellos sería redundante con lo que el usuario ya ve ahí.
+const chipsFiltros = computed(() => generarChips(schemaFiltros.value, filtros.aplicados.value, FILTROS_INICIALES))
 
 let debounceId: ReturnType<typeof setTimeout> | undefined
 const busquedaAplicada = ref('')
@@ -135,19 +221,23 @@ watch(busqueda, () => {
 
 const filasFiltradas = computed(() => {
   const q = busquedaAplicada.value
-  return filas.value.filter((f) => {
-    if (filtroTipo.value !== null && f.tipoId !== filtroTipo.value) return false
-    if (filtroCategoria.value !== null && f.categoriaId !== filtroCategoria.value) return false
-    if (filtroEstado.value && f.estado !== filtroEstado.value) return false
-    if (filtroUbicacion.value && f.ubicacion !== filtroUbicacion.value) return false
-    if (filtroCriticidad.value && f.criticidad_banda !== filtroCriticidad.value) return false
-    if (filtroNaturaleza.value && f.naturalezaBien !== filtroNaturaleza.value) return false
-    if (filtroOrigen.value && f.origen !== filtroOrigen.value) return false
-    if (filtroCapitalizado.value === 'si' && !f.capitalizado) return false
-    if (filtroCapitalizado.value === 'no' && f.capitalizado) return false
-    if (filtroFabricante.value && f.fabricante !== filtroFabricante.value) return false
+  const f = filtros.aplicados.value
+  return filas.value.filter((fila) => {
+    if (f.tipo !== null && fila.tipoId !== f.tipo) return false
+    if (f.categoria !== null && fila.categoriaId !== f.categoria) return false
+    if (f.estado && fila.estado !== f.estado) return false
+    if (f.ubicacion.length > 0 && (!fila.ubicacion || !f.ubicacion.includes(fila.ubicacion))) return false
+    if (f.criticidad.length > 0 && (!fila.criticidad_banda || !f.criticidad.includes(fila.criticidad_banda))) return false
+    if (f.naturaleza.length > 0 && (!fila.naturalezaBien || !f.naturaleza.includes(fila.naturalezaBien))) return false
+    if (f.origen.length > 0 && (!fila.origen || !f.origen.includes(fila.origen))) return false
+    if (f.capitalizado.length > 0 && !f.capitalizado.includes(fila.capitalizado ? 'si' : 'no')) return false
+    if (f.fabricante.length > 0 && (!fila.fabricante || !f.fabricante.includes(fila.fabricante))) return false
+    if (f.vidaUtilRestante.min !== null && (fila.vida_util_restante_meses === null || fila.vida_util_restante_meses < f.vidaUtilRestante.min)) return false
+    if (f.vidaUtilRestante.max !== null && (fila.vida_util_restante_meses === null || fila.vida_util_restante_meses > f.vidaUtilRestante.max)) return false
+    if (f.valorNeto.min !== null && (fila.valor_neto === null || fila.valor_neto < f.valorNeto.min)) return false
+    if (f.valorNeto.max !== null && (fila.valor_neto === null || fila.valor_neto > f.valorNeto.max)) return false
     if (q) {
-      const texto = [f.codigo, f.nombre, f.descripcion, f.marca, f.modelo, f.numeroSerie, f.fabricante, f.ubicacion]
+      const texto = [fila.codigo, fila.nombre, fila.descripcion, fila.marca, fila.modelo, fila.numeroSerie, fila.fabricante, fila.ubicacion]
         .filter((v): v is string => !!v)
         .join(' ')
         .toLowerCase()
@@ -157,18 +247,12 @@ const filasFiltradas = computed(() => {
   })
 })
 
-function limpiarFiltros(): void {
+/** Además de los filtros estructurados del panel, limpia la búsqueda libre — mismo alcance que
+ * el botón "Limpiar" único que existía antes de la migración. */
+function limpiarTodo(): void {
   busqueda.value = ''
   busquedaAplicada.value = ''
-  filtroTipo.value = null
-  filtroCategoria.value = null
-  filtroEstado.value = null
-  filtroUbicacion.value = null
-  filtroCriticidad.value = null
-  filtroNaturaleza.value = null
-  filtroOrigen.value = null
-  filtroCapitalizado.value = 'todos'
-  filtroFabricante.value = null
+  filtros.limpiarTodo()
 }
 
 // ── Paginación (patrón de asuntos/index.vue) ─────────────────────────────
@@ -343,7 +427,11 @@ async function alGuardar(): Promise<void> {
       </div>
     </div>
 
-    <!-- Búsqueda (§8.4) y filtros (§8.3) -->
+    <!-- Búsqueda (§8.4) y filtros (§8.3) — 3 filtros fijos (Tipo/Categoría/Estado, como antes de
+         migrar: instantáneos, sin pasar por el panel) + el resto en el panel reutilizable (ver
+         CLAUDE.md, "Panel de filtros reutilizable"). La búsqueda libre queda fuera de ambos a
+         propósito: busca a la vez en 8 campos de texto (código/nombre/descripción/marca/modelo/
+         serial/fabricante/ubicación), es un caso distinto a un filtro estructurado de un campo. -->
     <div class="space-y-3">
       <div class="flex items-center gap-2 flex-wrap">
         <UInput
@@ -362,46 +450,29 @@ async function alGuardar(): Promise<void> {
           v-model="filtroEstado" class="w-44" placeholder="Estado"
           :items="[{ label: 'Todos los estados', value: null }, ...Object.entries(ESTADO_LABEL).map(([value, label]) => ({ label, value }))]"
         />
-        <USelect
-          v-model="filtroUbicacion" class="w-44" placeholder="Ubicación"
-          :items="[{ label: 'Todas las ubicaciones', value: null }, ...opcionesUbicacion]"
-        />
-        <USelect
-          v-model="filtroCriticidad" class="w-40" placeholder="Criticidad"
-          :items="[{ label: 'Todas', value: null }, ...opcionesCriticidad]"
-        />
-        <UButton
-          variant="outline" size="sm" icon="i-lucide-sliders-horizontal"
-          @click="mostrarMasFiltros = !mostrarMasFiltros"
-        >
-          Más filtros
+        <UButton variant="outline" size="sm" icon="i-lucide-sliders-horizontal" @click="panelFiltrosAbierto = true">
+          Filtros
+          <UBadge v-if="chipsFiltros.length > 0" size="xs" color="primary" variant="solid">{{ chipsFiltros.length }}</UBadge>
         </UButton>
-        <UButton variant="ghost" size="sm" @click="limpiarFiltros()">Limpiar</UButton>
+        <UButton v-if="filtros.activos.value || busqueda" variant="ghost" size="sm" @click="limpiarTodo()">Limpiar</UButton>
       </div>
 
-      <div v-if="mostrarMasFiltros" class="flex items-center gap-2 flex-wrap rounded-lg border border-default p-3">
-        <USelect
-          v-model="filtroNaturaleza" class="w-56" placeholder="Naturaleza del bien"
-          :items="[{ label: 'Toda naturaleza', value: null }, ...Object.entries(NATURALEZA_LABEL).map(([value, label]) => ({ label, value }))]"
-        />
-        <USelect
-          v-model="filtroOrigen" class="w-44" placeholder="Origen"
-          :items="[{ label: 'Todo origen', value: null }, ...Object.entries(ORIGEN_LABEL).map(([value, label]) => ({ label, value }))]"
-        />
-        <USelect
-          v-model="filtroCapitalizado" class="w-44"
-          :items="[
-            { label: 'Capitalización: todos', value: 'todos' },
-            { label: 'Capitalizados', value: 'si' },
-            { label: 'No capitalizados', value: 'no' },
-          ]"
-        />
-        <USelect
-          v-model="filtroFabricante" class="w-44" placeholder="Fabricante"
-          :items="[{ label: 'Todo fabricante', value: null }, ...opcionesFabricante]"
-        />
-      </div>
+      <UiChipsFiltros
+        :chips="chipsFiltros"
+        :total="filasFiltradas.length"
+        @quitar="filtros.quitar($event as keyof FiltrosActivos)"
+        @limpiar="filtros.limpiarTodo()"
+      />
     </div>
+
+    <UiPanelFiltros
+      v-model:abierto="panelFiltrosAbierto"
+      v-model="filtros.borrador.value"
+      :schema="schemaFiltros"
+      titulo="Filtros de activos"
+      @aplicar="filtros.aplicar()"
+      @limpiar="filtros.limpiarTodo()"
+    />
 
     <!-- Tabla (§8.5) -->
     <div class="rounded-lg border border-default overflow-x-auto">

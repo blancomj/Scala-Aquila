@@ -104,6 +104,40 @@
 
   --ael-literal: var(--color-neutral-700);
   --ael-estructura: var(--color-neutral-500);
+
+  /* ── Puente de mando — figura 1: cartera vencida por edad ────────────
+     Rampa secuencial de un solo tono (ámbar), claro→oscuro según la edad
+     del tramo (PROMPT_PUENTE_DE_MANDO.md §6.1). No es categórica: la
+     oscuridad codifica severidad creciente. Validada por el skill dataviz
+     (monotonía de luminosidad + separación CVD ≥10 ΔE entre pasos
+     adyacentes). El modo oscuro NO es un volteo automático — se invierte
+     porque sobre fondo oscuro lo más claro es lo que pesa. */
+  --chart-cartera-edad-1: #f9dcb0;
+  --chart-cartera-edad-2: #f0b562;
+  --chart-cartera-edad-3: #dd8a21;
+  --chart-cartera-edad-4: #a0640f;
+  --chart-cartera-edad-5: #7d430a;
+
+  /* ── Puente de mando — figura 3: recaudo por forma de pago (§6.3) ────
+     Dos tonos de un mismo azul (no arcoíris categórico): lo que entra
+     solo (PSE/débito/transferencia) vs. lo que pasa por ventanilla
+     (efectivo/cheque), más un gris neutro para "sin forma registrada".
+     Validado: separación CVD 25,2 ΔE claro / 23,2 ΔE oscuro. */
+  --chart-recaudo-automatico: #2f6bd8;
+  --chart-recaudo-ventanilla: #9fbdf0;
+  --chart-recaudo-sin-forma: #d9d9de;
+}
+
+.dark {
+  --chart-cartera-edad-1: #5a3f18;
+  --chart-cartera-edad-2: #8a6022;
+  --chart-cartera-edad-3: #b98428;
+  --chart-cartera-edad-4: #dca747;
+  --chart-cartera-edad-5: #f5cb7e;
+
+  --chart-recaudo-automatico: #7ba4f0;
+  --chart-recaudo-ventanilla: #3f5f96;
+  --chart-recaudo-sin-forma: #343438;
 }
 
 .dark {

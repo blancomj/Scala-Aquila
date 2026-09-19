@@ -59,7 +59,7 @@ watchEffect(() => {
 })
 
 onMounted(() => {
-  membersStore.cargarCatalogoRolesFuncionales()
+  membersStore.cargarCatalogoRolesFuncionales(tenantStore.activeTenant?.id)
 })
 
 async function alternarRolFuncional(rolFuncionalId: number): Promise<void> {

@@ -29,6 +29,14 @@
     "./prueba-formula": {
       "types": "./dist/prueba-formula.d.ts",
       "default": "./dist/prueba-formula.js"
+    },
+    "./cartera-indicadores": {
+      "types": "./dist/cartera-indicadores.d.ts",
+      "default": "./dist/cartera-indicadores.js"
+    },
+    "./cartera-indicadores-supabase": {
+      "types": "./dist/cartera-indicadores-supabase.d.ts",
+      "default": "./dist/cartera-indicadores-supabase.js"
     }
   },
   "scripts": {

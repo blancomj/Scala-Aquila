@@ -78,13 +78,13 @@ async function abrir(documentoId: string): Promise<void> {
 
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
-    <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mis documentos</h1>
+    <h1 class="text-lg font-semibold text-highlighted">Mis documentos</h1>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="documentos.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="documentos.length === 0" class="text-sm text-muted">
       No hay documentos disponibles todavía.
     </p>
 
@@ -97,8 +97,8 @@ async function abrir(documentoId: string): Promise<void> {
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ d.nombre_archivo }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
+            <p class="truncate text-sm font-medium text-highlighted">{{ d.nombre_archivo }}</p>
+            <p class="text-xs text-muted">
               {{ d.tipo_documento }} · {{ formatearTamano(d.tamano_bytes) }}
               <template v-if="d.alcance === 'copropiedad'"> · Copropiedad</template>
             </p>
@@ -109,7 +109,7 @@ async function abrir(documentoId: string): Promise<void> {
           >Vence {{ formatoFecha(d.fecha_vencimiento) }}</span>
         </div>
 
-        <p v-if="d.descripcion" class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ d.descripcion }}</p>
+        <p v-if="d.descripcion" class="mt-2 text-xs text-muted">{{ d.descripcion }}</p>
 
         <UButton
           class="mt-3" variant="soft" size="sm" block

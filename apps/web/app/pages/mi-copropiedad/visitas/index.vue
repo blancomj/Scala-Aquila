@@ -96,15 +96,15 @@ async function revocar(autorizacionId: string): Promise<void> {
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
     <div class="flex items-center justify-between gap-3">
-      <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mis visitas</h1>
+      <h1 class="text-lg font-semibold text-highlighted">Mis visitas</h1>
       <UButton to="/mi-copropiedad/visitas/nueva" icon="i-lucide-plus" size="sm">Nueva</UButton>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="visitas.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="visitas.length === 0" class="text-sm text-muted">
       No has autorizado ninguna visita todavía.
     </p>
 
@@ -117,8 +117,8 @@ async function revocar(autorizacionId: string): Promise<void> {
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ v.visitante_nombre }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
+            <p class="truncate text-sm font-medium text-highlighted">{{ v.visitante_nombre }}</p>
+            <p class="text-xs text-muted">
               {{ formatoFecha(v.fecha_prevista) }}
               <template v-if="v.tipo_id && tiposVisita.has(v.tipo_id)"> · {{ tiposVisita.get(v.tipo_id) }}</template>
             </p>
@@ -127,14 +127,14 @@ async function revocar(autorizacionId: string): Promise<void> {
             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
             :class="{
               'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400': v.estado === 'vigente',
-              'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300': v.estado === 'usada',
+              'bg-elevated text-toned': v.estado === 'usada',
               'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400': v.estado === 'vencida',
               'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400': v.estado === 'revocada',
             }"
           >{{ ETIQUETA_ESTADO[v.estado] }}</span>
         </div>
 
-        <p v-if="v.ingreso_at" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p v-if="v.ingreso_at" class="mt-2 text-xs text-muted">
           Ingresó {{ new Date(v.ingreso_at).toLocaleString('es-CO') }}
           <template v-if="v.egreso_at"> · Salió {{ new Date(v.egreso_at).toLocaleString('es-CO') }}</template>
         </p>

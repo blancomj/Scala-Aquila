@@ -225,6 +225,6 @@ export default {
       meta: { anuncioId: anuncio.id, destinatarios: lista.length, enviados, fallidos, sinCorreo },
     })
 
-    return jsonResponse(200, { enviados, fallidos, sin_correo: sinCorreo, destinatarios: lista.length }, correlationId)
+    return jsonResponse({ enviados, fallidos, sin_correo: sinCorreo, destinatarios: lista.length }, 200, correlationId)
   },
 }

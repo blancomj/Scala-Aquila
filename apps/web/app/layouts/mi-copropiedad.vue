@@ -36,15 +36,15 @@ async function cerrarSesion(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+  <div class="min-h-screen flex flex-col bg-muted">
     <header
-      class="shrink-0 sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between gap-3"
+      class="shrink-0 sticky top-0 z-20 bg-default border-b border-default px-4 py-3 flex items-center justify-between gap-3"
     >
       <div class="min-w-0">
         <MiCopropiedadSelectorVinculo v-if="actorExterno.tieneMultiplesVinculos" />
         <span
           v-else
-          class="block truncate text-sm font-medium text-gray-900 dark:text-white"
+          class="block truncate text-sm font-medium text-highlighted"
         >
           {{ actorExterno.vinculoActivo?.tenant_nombre ?? 'Mi Copropiedad' }}
         </span>
@@ -67,7 +67,7 @@ async function cerrarSesion(): Promise<void> {
     </main>
 
     <nav
-      class="shrink-0 fixed bottom-0 inset-x-0 z-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 grid grid-cols-4"
+      class="shrink-0 fixed bottom-0 inset-x-0 z-20 bg-default border-t border-default grid grid-cols-4"
       style="padding-bottom: env(safe-area-inset-bottom, 0px)"
     >
       <NuxtLink
@@ -78,7 +78,7 @@ async function cerrarSesion(): Promise<void> {
         :class="
           esRutaActiva(item.to)
             ? 'text-primary-600 dark:text-primary-400'
-            : 'text-gray-500 dark:text-gray-400'
+            : 'text-muted'
         "
       >
         <UIcon :name="item.icon" class="size-5" />

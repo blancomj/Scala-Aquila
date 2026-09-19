@@ -95,15 +95,15 @@ async function cancelar(reservaId: string): Promise<void> {
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
     <div class="flex items-center justify-between gap-3">
-      <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mis reservas</h1>
+      <h1 class="text-lg font-semibold text-highlighted">Mis reservas</h1>
       <UButton to="/mi-copropiedad/reservas/nueva" icon="i-lucide-plus" size="sm">Nueva</UButton>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="reservas.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="reservas.length === 0" class="text-sm text-muted">
       No has hecho ninguna reserva todavía.
     </p>
 
@@ -116,10 +116,10 @@ async function cancelar(reservaId: string): Promise<void> {
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+            <p class="truncate text-sm font-medium text-highlighted">
               {{ nombreZona.get(r.zona_comun_id) ?? 'Zona común' }}
             </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
+            <p class="text-xs text-muted">
               {{ formatoFecha(r.fecha) }} · {{ formatoHora(r.hora_inicio) }}–{{ formatoHora(r.hora_fin) }}
             </p>
           </div>
@@ -128,7 +128,7 @@ async function cancelar(reservaId: string): Promise<void> {
             :class="{
               'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400': r.estado === 'solicitada',
               'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400': r.estado === 'aprobada' || r.estado === 'completada',
-              'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300': r.estado === 'cancelada',
+              'bg-elevated text-toned': r.estado === 'cancelada',
               'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400': r.estado === 'rechazada' || r.estado === 'no_show',
             }"
           >{{ ETIQUETA_ESTADO[r.estado] }}</span>
@@ -137,7 +137,7 @@ async function cancelar(reservaId: string): Promise<void> {
         <p v-if="r.penalizada" class="mt-2 text-xs text-red-600 dark:text-red-400">
           Cancelación tardía — puede aplicar penalidad.
         </p>
-        <p v-if="r.motivo_rechazo" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p v-if="r.motivo_rechazo" class="mt-2 text-xs text-muted">
           {{ r.motivo_rechazo }}
         </p>
 

@@ -17292,6 +17292,30 @@ export type Database = {
           },
         ]
       }
+      modulo: {
+        Row: {
+          activo: boolean
+          codigo: string
+          descripcion: string | null
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          descripcion?: string | null
+          nombre: string
+          orden?: number
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          descripcion?: string | null
+          nombre?: string
+          orden?: number
+        }
+        Relationships: []
+      }
       movilidad_config: {
         Row: {
           created_at: string
@@ -20663,14 +20687,17 @@ export type Database = {
       }
       rol_funcional_modulo: {
         Row: {
+          accion: Database["public"]["Enums"]["rol_funcional_accion_t"]
           lista_tipos_id: number
           modulo: string
         }
         Insert: {
+          accion?: Database["public"]["Enums"]["rol_funcional_accion_t"]
           lista_tipos_id: number
           modulo: string
         }
         Update: {
+          accion?: Database["public"]["Enums"]["rol_funcional_accion_t"]
           lista_tipos_id?: number
           modulo?: string
         }
@@ -20681,6 +20708,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lista_tipos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rol_funcional_modulo_modulo_fk"
+            columns: ["modulo"]
+            isOneToOne: false
+            referencedRelation: "modulo"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "rol_funcional_modulo_modulo_fk"
+            columns: ["modulo"]
+            isOneToOne: false
+            referencedRelation: "v_modulo_cobertura"
+            referencedColumns: ["codigo"]
           },
         ]
       }
@@ -22919,6 +22960,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_modulo_cobertura: {
+        Row: {
+          codigo: string | null
+          nombre: string | null
+          orden: number | null
+          tiene_rol_que_lo_cubre: boolean | null
+        }
+        Insert: {
+          codigo?: string | null
+          nombre?: string | null
+          orden?: number | null
+          tiene_rol_que_lo_cubre?: never
+        }
+        Update: {
+          codigo?: string | null
+          nombre?: string | null
+          orden?: number | null
+          tiene_rol_que_lo_cubre?: never
+        }
+        Relationships: []
       }
       vr_cartera_inmueble: {
         Row: {
@@ -27741,6 +27803,10 @@ export type Database = {
           monto_acumulado: number
         }[]
       }
+      puede_actuar_en_modulo: {
+        Args: { p_modulo: string; p_tenant: string }
+        Returns: boolean
+      }
       puede_ver_modulo: {
         Args: { p_modulo: string; p_tenant: string }
         Returns: boolean
@@ -28278,6 +28344,7 @@ export type Database = {
         | "universal_sin_convocatoria"
       reunion_estado_t: "convocada" | "instalada" | "cerrada" | "cancelada"
       reunion_modalidad_t: "presencial" | "no_presencial" | "mixta"
+      rol_funcional_accion_t: "ver" | "actuar"
       severidad_t: "critico" | "mayor" | "menor" | "observacion"
       solicitud_estado_t:
         | "nueva"
@@ -28928,6 +28995,7 @@ export const Constants = {
       ],
       reunion_estado_t: ["convocada", "instalada", "cerrada", "cancelada"],
       reunion_modalidad_t: ["presencial", "no_presencial", "mixta"],
+      rol_funcional_accion_t: ["ver", "actuar"],
       severidad_t: ["critico", "mayor", "menor", "observacion"],
       solicitud_estado_t: [
         "nueva",

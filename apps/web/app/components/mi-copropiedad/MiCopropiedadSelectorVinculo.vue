@@ -26,38 +26,38 @@ function alPerderFoco(evento: FocusEvent): void {
   <div ref="contenedorRef" class="relative" @focusout="alPerderFoco">
     <button
       type="button"
-      class="flex items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white"
+      class="flex items-center gap-1.5 text-sm font-medium text-highlighted"
       :aria-expanded="abierto"
       @click="alternar"
     >
       <span class="truncate max-w-[10rem]">
         {{ actorExterno.vinculoActivo?.tenant_nombre ?? 'Selecciona un vínculo' }}
       </span>
-      <UIcon name="i-lucide-chevron-down" class="size-4 shrink-0 text-gray-400" />
+      <UIcon name="i-lucide-chevron-down" class="size-4 shrink-0 text-dimmed" />
     </button>
 
     <div
       v-if="abierto"
-      class="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-xl z-40 overflow-hidden"
+      class="absolute top-full left-0 mt-2 w-72 bg-default border border-default rounded-lg shadow-xl z-40 overflow-hidden"
     >
-      <p class="text-[10.5px] uppercase tracking-wide text-gray-400 font-mono px-3 pt-2.5 pb-1">
+      <p class="text-[10.5px] uppercase tracking-wide text-dimmed font-mono px-3 pt-2.5 pb-1">
         Tus vínculos
       </p>
       <button
         v-for="v in actorExterno.vinculos"
         :key="v.vinculo_id"
         type="button"
-        class="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-muted"
         :class="
           v.vinculo_id === actorExterno.vinculoActivoId
             ? 'font-medium'
-            : 'text-gray-600 dark:text-gray-300'
+            : 'text-toned'
         "
         @click="seleccionar(v.vinculo_id)"
       >
         <span class="min-w-0">
           <span class="block truncate">{{ v.tenant_nombre }}</span>
-          <span class="block text-xs text-gray-400">{{ v.rol_codigo }}</span>
+          <span class="block text-xs text-dimmed">{{ v.rol_codigo }}</span>
         </span>
         <UIcon
           v-if="v.vinculo_id === actorExterno.vinculoActivoId"

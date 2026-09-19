@@ -9,20 +9,25 @@
  * coincide con lo que dice `hasPermission()`. Si alguien cambia la matriz
  * TS o la política SQL sin tocar la otra, este test lo detecta.
  *
- * Cobertura parcial a propósito — solo permisos con una tabla/operación 1:1:
- *   - `users:read`    → SELECT memberships
- *   - `users:manage`  → UPDATE memberships
- *   - `data:read`     → SELECT tenants
- *   - `settings:manage` → UPDATE tenants
- *   - `audit:view`    → SELECT audit_log
- * Fuera de alcance (documentado, no inventado):
- *   - `users:invite`, `tenant:delete` → solo Edge Function / sin política de
- *     mutación implementada aún (create-tenant es la única Edge Function que
- *     existe hoy, D-19); no hay operación RLS que ejecutar.
- *   - `data:create/update/delete` → "data" no es una tabla única; se prueba
- *     por tabla de dominio en tests/rls/domain-isolation.test.ts (SEC-11).
- *   - `dashboard:view`, `metrics:view` → visibilidad de UI, no una operación
- *     de base de datos.
+ * Cobertura de los 12 permisos de `Permission` (permissions.ts) — auditado en
+ * PROMPT_PERMISOS_CAPA2.md §1.7/§A4. Cinco tienen una comparación RLS 1:1
+ * directa aquí; los otros siete están fuera de alcance POR DISEÑO, cada uno
+ * con su razón, no por omisión:
+ *   - `users:read`    → SELECT memberships (comparado abajo)
+ *   - `users:manage`  → UPDATE memberships (comparado abajo)
+ *   - `data:read`     → SELECT tenants (comparado abajo)
+ *   - `settings:manage` → UPDATE tenants (comparado abajo)
+ *   - `audit:view`    → SELECT audit_log (comparado abajo)
+ *   - `tenant:delete` → sin política de DELETE en `tenants` (§1.6): la
+ *     operación debe fallar para los 3 roles, sin excepción — comparado
+ *     abajo como "esto no se puede", no omitido.
+ *   - `users:invite`  → solo Edge Function (create-tenant, D-19); no hay
+ *     política de mutación RLS que ejecutar como test 1:1.
+ *   - `data:create/update/delete` → "data" no es una tabla única; cada tabla
+ *     de dominio tiene su propia policy y su propio test en tests/rls/*
+ *     (~90 archivos, uno o más por dominio, p.ej. cartera-cobranza.test.ts).
+ *   - `dashboard:view`, `metrics:view` → visibilidad de UI (qué tarjeta se
+ *     muestra), no una operación de base de datos que RLS pueda negar.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -199,5 +204,47 @@ d('T-MATRIX — ROLE_PERMISSIONS (TS) coincide con las políticas RLS', () => {
       .eq('tenant_id', tenant.id)
     expect(errorAdministrador).toBeNull()
     expect(datosAdministrador!.length > 0).toBe(hasPermission('administrador', 'audit:view'))
+  })
+
+  it('tenant:delete — DELETE tenants falla para los 3 roles (sin política, PROMPT_PERMISOS_CAPA2.md §1.6/§B2)', async () => {
+    // Sin policy de DELETE en tenants (20260813190300: "Sin INSERT... ni
+    // DELETE"), con FORCE RLS el resultado es 0 filas afectadas, no un error
+    // 42501 — mismo comportamiento que UPDATE contra RLS sin fila que
+    // satisfaga el USING implícito (false). Se prueba el efecto (el tenant
+    // sigue existiendo), no el error, igual que el resto de este archivo.
+    const { data: datosAgent, error: errorAgent } = await clienteAgent
+      .from('tenants')
+      .delete()
+      .eq('id', tenant.id)
+      .select('id')
+    expect(errorAgent).toBeNull()
+    expect(datosAgent).toEqual([])
+
+    const { data: datosAuditor, error: errorAuditor } = await clienteAuditor
+      .from('tenants')
+      .delete()
+      .eq('id', tenant.id)
+      .select('id')
+    expect(errorAuditor).toBeNull()
+    expect(datosAuditor).toEqual([])
+
+    const { data: datosAdministrador, error: errorAdministrador } = await clienteAdministrador
+      .from('tenants')
+      .delete()
+      .eq('id', tenant.id)
+      .select('id')
+    expect(errorAdministrador).toBeNull()
+    expect(datosAdministrador).toEqual([])
+
+    // Los 3 roles tienen tenant:delete en ROLE_PERMISSIONS (permissions.ts),
+    // pero la RLS real lo niega para los 3 — la matriz TS documenta una
+    // capacidad que la base de datos no concede (§B2, decisión del usuario:
+    // dejarlo así, documentado — no romper ni inventar una política nueva).
+    const { data: sigueExistiendo, error: errorAdmin } = await admin
+      .from('tenants')
+      .select('id')
+      .eq('id', tenant.id)
+    expect(errorAdmin).toBeNull()
+    expect(sigueExistiendo).toHaveLength(1)
   })
 })

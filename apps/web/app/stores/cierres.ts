@@ -18,6 +18,10 @@ export const useCierresStore = defineStore('cierres', () => {
   const hallazgos = shallowRef<Hallazgo[]>([])
   const correcciones = shallowRef<CorreccionRow[]>([])
   const reaperturas = shallowRef<AuditLogRow[]>([])
+  /** true si el tenant tiene algún periodo, en CUALQUIER año — distingue "este año no tiene
+   * periodos porque nunca se abrió" (copropiedad nueva) de "este año no tiene porque se está
+   * mirando uno vacío entre ejercicios ya existentes". */
+  const hayHistorial = ref(true)
   const loading = ref(false)
   const loadingHallazgos = ref(false)
   const procesando = ref(false)
@@ -26,14 +30,14 @@ export const useCierresStore = defineStore('cierres', () => {
     loading.value = true
     try {
       const cliente = useSupabaseClient<Database>()
-      const { data, error } = await cliente
-        .from('periodos')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('anio', anio)
-        .order('mes')
+      const [{ data, error }, { data: algunPeriodo, error: errorHistorial }] = await Promise.all([
+        cliente.from('periodos').select('*').eq('tenant_id', tenantId).eq('anio', anio).order('mes'),
+        cliente.from('periodos').select('id').eq('tenant_id', tenantId).limit(1).maybeSingle(),
+      ])
       if (error) throw error
+      if (errorHistorial) throw errorHistorial
       periodos.value = data ?? []
+      hayHistorial.value = algunPeriodo !== null
     } finally {
       loading.value = false
     }
@@ -161,7 +165,7 @@ export const useCierresStore = defineStore('cierres', () => {
   }
 
   return {
-    periodos, hallazgos, correcciones, reaperturas, loading, loadingHallazgos, procesando,
+    periodos, hallazgos, correcciones, reaperturas, hayHistorial, loading, loadingHallazgos, procesando,
     cargarPeriodos, cargarValidacion, cerrarPeriodo, reabrirPeriodo, cerrarEjercicio,
     abrirEjercicio, corregirError, cargarHistorial,
   }

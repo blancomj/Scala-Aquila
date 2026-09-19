@@ -13,6 +13,7 @@
 // trivial; si la copropiedad crece a miles, ese costo habría que revisarlo,
 // pero no antes).
 import type { OrdenTabla } from '~/components/ui/UiTabla.vue'
+import { generarChips, type CampoFiltro, type ValorFiltro } from '~/composables/useFiltros'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:read' })
 
@@ -54,6 +55,28 @@ const { data: habitabilidades } = await useAsyncData(
     const tenantId = tenantStore.activeTenant?.id
     if (!tenantId) return []
     return cargarListaTipos(tenantId, 'HABITABILIDAD_PREDIO')
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+/** Estado legal (ESTADO_LEGAL_PREDIO) y tipo de gravamen (TIPO_GRAVAMEN) — mismos catálogos que
+ * InmuebleDatosBase.vue para `estado_legal_id`/`gravamen_tipo_id`. Antes solo se veían en la
+ * ficha individual; acá pasan a ser filtro del panel (ver CLAUDE.md, "Panel de filtros
+ * reutilizable"). */
+const { data: estadosLegales } = await useAsyncData(
+  'inmuebles-estados-legales',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return cargarListaTipos(tenantId, 'ESTADO_LEGAL_PREDIO')
+  },
+  { watch: [() => tenantStore.activeTenant?.id] },
+)
+const { data: tiposGravamen } = await useAsyncData(
+  'inmuebles-tipos-gravamen',
+  async () => {
+    const tenantId = tenantStore.activeTenant?.id
+    if (!tenantId) return []
+    return cargarListaTipos(tenantId, 'TIPO_GRAVAMEN')
   },
   { watch: [() => tenantStore.activeTenant?.id] },
 )
@@ -122,43 +145,133 @@ const resumen = computed(() => {
 })
 
 // ── filtros ──────────────────────────────────────────────────────────────
+// Migrado al panel de filtros reutilizable (ver CLAUDE.md, "Panel de filtros reutilizable") —
+// esta pantalla ya tenía 5 controles (búsqueda + 4 selects) compartiendo fila con el menú
+// "Acciones", y le sobraban 6 dimensiones reales sin explotar: Estado (activo/inactivo, hoy solo
+// KPI de solo lectura), Estado legal y Gravamen (solo visibles en la ficha individual, nunca
+// filtrables en el listado) y 3 rangos numéricos (saldo pendiente, Σ coeficiente, área privada)
+// que hoy solo se ven sumados/leídos, nunca acotan la tabla.
 const SIN_AGRUPAR = '__sin_agrupar__'
 const busqueda = ref('')
-const filtroTipoId = ref<number | null>(null)
-const filtroAgrupacionId = ref<string | null>(null)
-const filtroUsoPredioId = ref<number | null>(null)
-const filtroHabitabilidadId = ref<number | null>(null)
 
-const hayFiltrosActivos = computed(
-  () =>
-    busqueda.value.trim().length > 0 ||
-    filtroTipoId.value !== null ||
-    filtroAgrupacionId.value !== null ||
-    filtroUsoPredioId.value !== null ||
-    filtroHabitabilidadId.value !== null,
-)
+interface FiltrosInmuebles extends Record<string, ValorFiltro> {
+  tipo: number | null
+  agrupacion: string | null
+  usoPredio: Array<string | number>
+  habitabilidad: Array<string | number>
+  estado: Array<string | number>
+  estadoLegal: Array<string | number>
+  gravamen: Array<string | number>
+  saldo: { min: number | null; max: number | null }
+  coeficiente: { min: number | null; max: number | null }
+  areaPrivada: { min: number | null; max: number | null }
+}
+
+const FILTROS_INICIALES: FiltrosInmuebles = {
+  tipo: null,
+  agrupacion: null,
+  usoPredio: [],
+  habitabilidad: [],
+  estado: [],
+  estadoLegal: [],
+  gravamen: [],
+  saldo: { min: null, max: null },
+  coeficiente: { min: null, max: null },
+  areaPrivada: { min: null, max: null },
+}
+
+const filtros = useFiltros<FiltrosInmuebles>(FILTROS_INICIALES)
+const panelFiltrosAbierto = ref(false)
+
+// Tipo y Agrupación quedan fijos fuera del panel, instantáneos, como antes de migrar — los 2
+// más usados para ubicar una unidad. Agrupación de paso pasa de USelect a UiSelectorBuscable:
+// `arbolPlano` son rutas largas (Torre > Piso > Unidad), exactamente el catálogo largo que la
+// regla "Selectores de catálogo" de CLAUDE.md ya pedía no dejar en un USelect nativo.
+const filtroTipoId = computed({
+  get: () => filtros.aplicados.value.tipo,
+  set: (v: number | null) => filtros.actualizarInmediato('tipo', v),
+})
+const filtroAgrupacionId = computed({
+  get: () => filtros.aplicados.value.agrupacion,
+  set: (v: string | null) => filtros.actualizarInmediato('agrupacion', v),
+})
+const opcionesAgrupacion = computed(() => [
+  { valor: null, etiqueta: 'Toda agrupación' },
+  { valor: SIN_AGRUPAR, etiqueta: 'Sin agrupar' },
+  ...agrupacionesStore.arbolPlano.map((n) => ({ valor: n.id, etiqueta: n.ruta })),
+])
+
+// Estado (activo/inactivo) es un enum fijo de 2 valores → checkbox en el panel. El resto son
+// catálogos lista_tipos reales, igual que Uso de predio/Habitabilidad.
+const OPCIONES_ESTADO_INMUEBLE = [
+  { valor: 'activo', etiqueta: 'Activo' },
+  { valor: 'inactivo', etiqueta: 'Inactivo' },
+]
+
+const schemaFiltros = computed<CampoFiltro[]>(() => [
+  {
+    clave: 'usoPredio', etiqueta: 'Uso de predio', tipo: 'multiselect', icono: 'i-lucide-home',
+    opciones: (usosPredio.value ?? []).map((u) => ({ valor: u.id, etiqueta: u.nombre })),
+  },
+  {
+    clave: 'habitabilidad', etiqueta: 'Estado físico', tipo: 'multiselect', icono: 'i-lucide-hammer',
+    opciones: (habitabilidades.value ?? []).map((h) => ({ valor: h.id, etiqueta: h.nombre })),
+  },
+  { clave: 'estado', etiqueta: 'Estado', tipo: 'multiselect', icono: 'i-lucide-power', opciones: OPCIONES_ESTADO_INMUEBLE },
+  {
+    clave: 'estadoLegal', etiqueta: 'Estado legal', tipo: 'multiselect', icono: 'i-lucide-scale',
+    opciones: (estadosLegales.value ?? []).map((e) => ({ valor: e.id, etiqueta: e.nombre })),
+  },
+  {
+    clave: 'gravamen', etiqueta: 'Gravamen', tipo: 'multiselect', icono: 'i-lucide-lock',
+    opciones: (tiposGravamen.value ?? []).map((g) => ({ valor: g.id, etiqueta: g.nombre })),
+  },
+  { clave: 'saldo', etiqueta: 'Saldo pendiente', tipo: 'rango', icono: 'i-lucide-circle-dollar-sign', formato: 'moneda' },
+  { clave: 'coeficiente', etiqueta: 'Σ Coeficiente', tipo: 'rango', icono: 'i-lucide-percent', formato: 'numero' },
+  { clave: 'areaPrivada', etiqueta: 'Área privada (m²)', tipo: 'rango', icono: 'i-lucide-ruler', formato: 'numero' },
+])
+
+// Solo cubre los campos del panel a propósito: Tipo/Agrupación ya están siempre visibles en su
+// propio control — un chip para ellos sería redundante (mismo criterio que en
+// mantenimiento/activos/index.vue y comunicaciones/index.vue).
+const chipsFiltros = computed(() => generarChips(schemaFiltros.value, filtros.aplicados.value, FILTROS_INICIALES))
+
+const hayFiltrosActivos = computed(() => busqueda.value.trim().length > 0 || filtros.activos.value)
 
 function limpiarFiltros(): void {
   busqueda.value = ''
-  filtroTipoId.value = null
-  filtroAgrupacionId.value = null
-  filtroUsoPredioId.value = null
-  filtroHabitabilidadId.value = null
+  filtros.limpiarTodo()
 }
 
 const filasFiltradas = computed(() => {
   const q = busqueda.value.trim().toLowerCase()
+  const f = filtros.aplicados.value
   return cuentaStore.inmuebles.filter((i) => {
-    if (filtroTipoId.value !== null && i.tipo_id !== filtroTipoId.value) return false
-    if (filtroUsoPredioId.value !== null && i.uso_predio_id !== filtroUsoPredioId.value) return false
-    if (filtroHabitabilidadId.value !== null && i.habitabilidad_id !== filtroHabitabilidadId.value) {
-      return false
-    }
-    if (filtroAgrupacionId.value === SIN_AGRUPAR) {
+    if (f.tipo !== null && i.tipo_id !== f.tipo) return false
+    if (f.agrupacion === SIN_AGRUPAR) {
       if (i.agrupacion_id) return false
-    } else if (filtroAgrupacionId.value && i.agrupacion_id !== filtroAgrupacionId.value) {
+    } else if (f.agrupacion && i.agrupacion_id !== f.agrupacion) {
       return false
     }
+    if (f.usoPredio.length > 0 && (i.uso_predio_id === null || !f.usoPredio.includes(i.uso_predio_id))) return false
+    if (f.habitabilidad.length > 0 && (i.habitabilidad_id === null || !f.habitabilidad.includes(i.habitabilidad_id))) {
+      return false
+    }
+    if (f.estado.length > 0 && !f.estado.includes(i.estado)) return false
+    if (f.estadoLegal.length > 0 && (i.estado_legal_id === null || !f.estadoLegal.includes(i.estado_legal_id))) {
+      return false
+    }
+    if (f.gravamen.length > 0 && (i.gravamen_tipo_id === null || !f.gravamen.includes(i.gravamen_tipo_id))) {
+      return false
+    }
+    const saldo = saldoPorInmueble.value.get(i.id) ?? 0
+    if (f.saldo.min !== null && saldo < f.saldo.min) return false
+    if (f.saldo.max !== null && saldo > f.saldo.max) return false
+    const coeficiente = coeficientesStore.valoresVigentes.get(i.id) ?? 0
+    if (f.coeficiente.min !== null && coeficiente < f.coeficiente.min) return false
+    if (f.coeficiente.max !== null && coeficiente > f.coeficiente.max) return false
+    if (f.areaPrivada.min !== null && (i.area_privada === null || i.area_privada < f.areaPrivada.min)) return false
+    if (f.areaPrivada.max !== null && (i.area_privada === null || i.area_privada > f.areaPrivada.max)) return false
     if (q) {
       const propietario = cuentaStore.propietariosPorInmueble.get(i.id) ?? ''
       if (!i.codigo.toLowerCase().includes(q) && !propietario.toLowerCase().includes(q)) return false
@@ -503,7 +616,9 @@ function exportarCSV(): void {
         </div>
       </div>
 
-      <!-- ── filtros ──────────────────────────────────────────────────── -->
+      <!-- ── filtros (mismo patrón que mantenimiento/activos/index.vue y
+           comunicaciones/index.vue — ver CLAUDE.md, "Panel de filtros reutilizable"):
+           Tipo/Agrupación fijos e instantáneos, el resto al panel. ──────── -->
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <div class="flex items-center gap-2 flex-wrap">
           <UInput
@@ -532,33 +647,16 @@ function exportarCSV(): void {
             class="w-36"
           />
 
-          <USelect
+          <UiSelectorBuscable
             v-model="filtroAgrupacionId"
-            :items="[
-              { label: 'Toda agrupación', value: null },
-              { label: 'Sin agrupar', value: SIN_AGRUPAR },
-              ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
-            ]"
-            value-key="value"
-            size="sm"
+            :opciones="opcionesAgrupacion"
             class="w-40"
           />
 
-          <USelect
-            v-model="filtroUsoPredioId"
-            :items="[{ label: 'Todo uso', value: null }, ...(usosPredio ?? []).map((u) => ({ label: u.nombre, value: u.id }))]"
-            value-key="value"
-            size="sm"
-            class="w-36"
-          />
-
-          <USelect
-            v-model="filtroHabitabilidadId"
-            :items="[{ label: 'Todo estado físico', value: null }, ...(habitabilidades ?? []).map((h) => ({ label: h.nombre, value: h.id }))]"
-            value-key="value"
-            size="sm"
-            class="w-36"
-          />
+          <UButton variant="outline" size="sm" icon="i-lucide-sliders-horizontal" @click="panelFiltrosAbierto = true">
+            Filtros
+            <UBadge v-if="chipsFiltros.length > 0" size="xs" color="primary" variant="solid">{{ chipsFiltros.length }}</UBadge>
+          </UButton>
 
           <UButton
             v-if="hayFiltrosActivos"
@@ -574,6 +672,22 @@ function exportarCSV(): void {
           <UButton size="sm" variant="soft" trailing-icon="i-lucide-chevron-down">Acciones</UButton>
         </UDropdownMenu>
       </div>
+
+      <UiChipsFiltros
+        :chips="chipsFiltros"
+        :total="filasFiltradas.length"
+        @quitar="filtros.quitar($event as keyof FiltrosInmuebles)"
+        @limpiar="filtros.limpiarTodo()"
+      />
+
+      <UiPanelFiltros
+        v-model:abierto="panelFiltrosAbierto"
+        v-model="filtros.borrador.value"
+        :schema="schemaFiltros"
+        titulo="Filtros de inmuebles"
+        @aplicar="filtros.aplicar()"
+        @limpiar="filtros.limpiarTodo()"
+      />
 
       <!-- ── barra de selección ───────────────────────────────────────── -->
       <div

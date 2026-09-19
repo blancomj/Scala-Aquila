@@ -96,30 +96,30 @@ async function cancelar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
     <template v-else-if="solicitud">
       <div class="rounded-xl border border-default bg-elevated p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="text-xs text-gray-500 dark:text-gray-400">#{{ solicitud.numero }}/{{ solicitud.anio }}</p>
-            <h1 class="text-base font-semibold text-gray-900 dark:text-white">{{ solicitud.asunto }}</h1>
+            <p class="text-xs text-muted">#{{ solicitud.numero }}/{{ solicitud.anio }}</p>
+            <h1 class="text-base font-semibold text-highlighted">{{ solicitud.asunto }}</h1>
           </div>
           <span
             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
             :class="
               ESTADOS_ABIERTOS.has(solicitud.estado)
                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                : 'bg-elevated text-toned'
             "
           >{{ ETIQUETA_ESTADO[solicitud.estado] ?? solicitud.estado }}</span>
         </div>
 
-        <p v-if="solicitud.descripcion" class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+        <p v-if="solicitud.descripcion" class="mt-3 text-sm text-toned">
           {{ solicitud.descripcion }}
         </p>
 
-        <dl class="mt-4 space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <dl class="mt-4 space-y-1.5 text-xs text-muted">
           <div class="flex justify-between gap-2">
             <dt>Radicada</dt>
             <dd>{{ formatoFecha(solicitud.created_at) }}</dd>
@@ -154,15 +154,15 @@ async function cancelar(): Promise<void> {
       </div>
 
       <div v-if="solicitud.actuaciones.length > 0">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Respuestas</p>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-dimmed">Respuestas</p>
         <div class="space-y-2">
           <div
             v-for="(a, i) in solicitud.actuaciones"
             :key="i"
             class="rounded-xl border border-default bg-elevated p-3"
           >
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatoFecha(a.created_at) }}</p>
-            <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{{ a.descripcion }}</p>
+            <p class="text-xs text-muted">{{ formatoFecha(a.created_at) }}</p>
+            <p class="mt-1 text-sm text-default">{{ a.descripcion }}</p>
           </div>
         </div>
       </div>

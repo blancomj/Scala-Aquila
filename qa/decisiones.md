@@ -10,6 +10,11 @@ aprobó cada caso ambiguo.
 
 ## Pendientes
 
+(ninguna — las 6 dudas de esta sección bajaron a Resueltas el 2026-09-18; ver ese apartado para
+lo que falta EJECUTAR, no solo decidir.)
+
+## Resueltas (2026-09-18)
+
 ### Observación sin veredicto — cambio inesperado de sesión durante F22 (no bloqueó ningún ítem, pero podría ser un hallazgo real)
 
 Durante f22-02, al navegar de `/inmuebles/nuevo` a `/dashboard` y de vuelta, el navegador de esta
@@ -26,6 +31,41 @@ cuando el mismo navegador acumula tokens de más de una cuenta a lo largo de una
 misma pestaña, sin intervención de scripts) para confirmar si es un bug real de sesión, o se
 descarta como artefacto de mis propias pruebas? No se registró como fallido en ningún ítem del
 plan porque no hay un caso que lo cubra directamente y no pude aislar la causa.
+
+**Respuesta del usuario (2026-09-18):** sí, reproducir en limpio.
+
+**Estado:** ejecutado 2026-09-18, en una sesión de navegador limpia (sin ningún parche de
+`window.fetch` ni script de la suite corriendo en el navegador — la única automatización fue leer
+el OTP en claro desde el backend con `fn_actor_externo_solicitar_otp` vía `service_role`, exactamente
+como ya se hizo en f15-01/f15-03, porque el dominio `@qa.test` no tiene bandeja real; el navegador
+en sí se usó tal como lo haría una persona). Pasos: sesión ya activa como `qa.aprobador@aquila.test`
+(administrador, tenant "QA Ciclo Completo F21-03") → se navegó entre `/inmuebles/nuevo` y
+`/dashboard` un par de veces → en la MISMA pestaña, se fue a `/mi-copropiedad/login` y se inició
+sesión como `andrea.gomez@qa.test` (residente/propietaria real de T1, cuenta ya usada en f15) con
+el flujo real de OTP por correo.
+
+**Resultado: el login B reemplazó limpiamente al login A, sin rastros.** Verificado en tres
+niveles:
+1. La cookie de sesión de Supabase (`sb-127-auth-token`) quedó con el JWT de `andrea.gomez@qa.test`
+   (`sub` = su propio `auth.users.id`), no con el de `qa.aprobador`.
+2. La cookie `vinculo-activo-sesion` apuntaba a `2a1c0e04-8866-4fb9-87e7-d17d6ed35969` — se verificó
+   contra `actor_externo_vinculo` que ese id **es uno de los dos vínculos reales de la propia
+   Andrea** (T1-101, propietaria) — no un vínculo de otra cuenta ni un residuo de la sesión
+   anterior de `qa.aprobador`.
+3. Navegar después a `/dashboard` (ruta de administrador) no mostró ningún dato de
+   `qa.aprobador`/F21-03 ni crasheó: redirigió limpiamente a la vista de portal (`/mi-copropiedad`,
+   con los datos reales y propios de Andrea — saldo $697.914, su solicitud `#1/2026`, etc.).
+   `localStorage` no tenía ningún residuo relevante.
+
+**Conclusión:** no se reprodujo contaminación de sesión en este escenario simple (login → login,
+en la misma pestaña, sin builds intermedias raras). El incidente original de f22-02 —terminar
+autenticado como `qa-browser-04124819@aquila.test` sin haber hecho login explícito— sigue sin
+explicación confirmada, pero esta prueba acota la causa: no es un defecto genérico y fácil de
+disparar en "iniciar sesión A, luego B, en la misma pestaña" (el mecanismo real de reemplazo de
+sesión —`setSession()`— funciona correctamente). Es más probable que haya sido, como ya se
+sospechaba, un efecto colateral de los parches de `window.fetch` que esa misma sesión tenía
+activos momentos antes (f22-01/f22-04) u otro artefacto propio de esa corrida larga con muchas
+cuentas acumuladas — no un bug reproducible del producto. Se cierra sin hallazgo nuevo.
 
 ### f21-03 — ciclo completo por interfaz: bloqueado en la activación del presupuesto (requiere archivo real o flujo de gobierno completo)
 
@@ -65,6 +105,45 @@ Quedó registrado como `bloqueado` en `qa/resultados.jsonl`, no como `fallido`: 
 ningún paso del ciclo que exigiera tocar la base de datos a mano; el bloqueo es de la herramienta
 de automatización (sin diálogo nativo de archivos), no del producto.
 
+**Respuesta del usuario (2026-09-18):** (2) — autorizar construir el flujo de gobierno completo
+(órgano → reunión → votación → decisión) como parte de este caso. El submódulo ya existe en el
+producto (no es una feature nueva); lo que falta es ejercitarlo por UI dentro de este tenant de
+prueba: crear el órgano, programar la reunión, registrar la votación, cerrarla/aprobarla, y usar
+la decisión de gobierno resultante para completar la activación del presupuesto que quedó
+pendiente.
+
+**Estado:** ejecutado 2026-09-18. Se corrió el flujo completo de gobierno en "QA Ciclo Completo
+F21-03": creado el órgano Asamblea General, agregados Presidente y Secretario (miembros del
+órgano — imprescindibles porque "Instalar reunión" solo ofrece candidatos con esos roles),
+programada y convocada una reunión (Asamblea Ordinaria), un punto de agenda con "Requiere
+decisión" marcado, e instalada. Al revisar el quórum se encontró un requisito legal real que el
+tenant no podía cumplir todavía: **art. 45 exige pluralidad de propietarios** (más de una persona
+distinta presente) además de coeficientes — con el único inmueble A-01 sembrado originalmente,
+`hay_pluralidad` siempre daba `false` y `fn_gobierno_abrir_votacion` rechazaba con
+`VOTACION_SIN_QUORUM` sin importar el coeficiente. Se agregó un segundo inmueble real (A-02, con
+su propio propietario) por UI, y una nueva versión de coeficientes (v2, A-01=0.59/A-02=0.41,
+Σ=1) activada para reemplazar la v1 (que solo cubría A-01) — ambos pasos son prerrequisitos de
+datos, no el caso bajo prueba. Con los dos propietarios presentes (quórum deliberatorio: sí, 2
+personas), se abrió una votación de "Decisión ordinaria" sobre la pregunta de activar el
+presupuesto 2026 v1, ambos votaron a favor, se cerró la votación (aprobada) y se creó la
+decisión de gobierno GOB-5 (1/2026, vigente). Se activó el presupuesto 2026 v1 usando esa
+decisión como respaldo (Ley 675 art. 51) — pasó de borrador a **vigente**. Este era el bloqueo
+original de f21-03 y quedó resuelto íntegramente por UI.
+
+Siguiendo el ciclo (crear periodo de liquidación → liquidar → recaudar) se encontró un bloqueo
+NUEVO y real, esta vez un hallazgo del producto, no una decisión pendiente: en
+`/contabilidad/cierres` la única acción que crea periodos (`fn_contable_abrir_ejercicio`, la que
+inserta las 12 filas de `periodos`) vive detrás del botón "Abrir ejercicio {año+1}", que el
+frontend deshabilita mientras el año *actualmente seleccionado* no tenga sus 12 periodos en
+`contable_estado=bloqueado` (`ejercicioBloqueado`, cierres.vue:62-64/240). Para un tenant sin
+ningún periodo previo (como cualquier copropiedad recién creada), esa condición es imposible de
+cumplir — no hay un año anterior que cerrar. La función SQL en sí no impone esa restricción (solo
+genera los 12 periodos vía `generate_series` y un comprobante de apertura); es una restricción
+exclusiva del frontend. No hay ninguna otra vía de escritura: la política RLS de `periodos`
+exige rol `agent`, que ningún usuario humano tiene. Registrado como hallazgo real (f21-03,
+`fallido`, severidad alta) — ver `qa/resultados.jsonl`. El ciclo se detuvo exactamente ahí, sin
+tocar la base de datos a mano, tal como exige el criterio del caso.
+
 ### f8-09 — ¿el criterio exige que exista un cálculo de fecha de prescripción, o solo que el acto quede registrado?
 
 **Qué dice el plan.** «Registrar un acto interruptivo de prescripción sobre ese caso → La
@@ -86,7 +165,12 @@ quede registrado con su fecha (se aprueba, el cálculo es una pieza futura fuera
 mientras VER-CAR-05 siga abierto); o (b) el plan exige que el cálculo exista ya — hallazgo/gap
 real contra VER-CAR-05.
 
-**Estado:** bloqueado en `qa/resultados.jsonl` (f8-09).
+**Respuesta del usuario (2026-09-18):** (a) — se aprueba con el criterio de que basta con que el
+acto quede registrado con su fecha; el cálculo de la fecha de prescripción es una pieza futura
+fuera de alcance mientras VER-CAR-05 siga abierto.
+
+**Estado:** resuelto y aprobado — ver nueva fila en `qa/resultados.jsonl` (f8-09, `aprobado`,
+2026-09-18).
 
 ### f7-02 — ¿un comprobante manual descuadrado debe rechazarse al guardar el borrador, o basta con que nunca llegue a contabilizarse?
 
@@ -110,8 +194,12 @@ descuadrado" — coincide con el diseño actual, se aprueba el caso; o (b) el pl
 literalmente que ni siquiera el borrador debería poder guardarse descuadrado — hay que
 agregar una validación en el guardado del borrador (bug/gap a corregir).
 
-**Estado:** bloqueado en `qa/resultados.jsonl` (f7-02). El comprobante de prueba se eliminó
-tras verificar, no quedó residuo en T1.
+**Respuesta del usuario (2026-09-18):** (a) — se aprueba el diseño actual: el criterio real que
+importa es "nunca queda CONTABILIZADO descuadrado"; el borrador puede quedar descuadrado
+temporalmente sin que eso sea un bug.
+
+**Estado:** resuelto y aprobado — ver nueva fila en `qa/resultados.jsonl` (f7-02, `aprobado`,
+2026-09-18). El comprobante de prueba se eliminó tras verificar, no quedó residuo en T1.
 
 ### f7-05 — ¿cerrar el periodo contable de septiembre en T1, sabiendo que exige cerrar antes los 8 meses previos?
 
@@ -137,8 +225,13 @@ deterioro como parte de este caso; o (b) montar el flujo en un tenant descartabl
 (mismo criterio ya usado para f4-05/f4-06), con datos mínimos ya conciliados para poder cerrar
 un periodo limpio sin la cadena de meses previos.
 
-**Estado:** bloqueado en `qa/resultados.jsonl` (f7-05). T1 no se tocó — septiembre sigue
-`contable_estado=abierto`.
+**Respuesta del usuario (2026-09-18):** (b) — montar el flujo en un tenant descartable aparte,
+mismo criterio ya usado para f4-05/f4-06; no tocar T1.
+
+**Estado:** resuelto. Pendiente de ejecución: crear un tenant descartable con datos mínimos ya
+conciliados, contabilizar y cerrar sus periodos previos en orden hasta poder ejercitar un cierre
+limpio sin la cadena de 8 meses de T1, y registrar f7-05 con el tenant que corresponda. T1 no se
+toca — septiembre sigue `contable_estado=abierto` sin cambios.
 
 ### f14-01 — ¿"aprobar una novedad" debería generar una entrada en el histórico de comunicaciones?
 
@@ -175,8 +268,50 @@ HTTP con `RangeError: The status provided (0) is not equal to 101 and outside th
 envió a los 32 destinatarios reales. Se registra f14-01 como **fallido** por este bug en sí mismo,
 independientemente de cómo se resuelva la duda de la novedad.
 
-**Estado:** bloqueado en `qa/resultados.jsonl` (f14-01) — fallido además por el bug de
-`enviar-anuncio`.
+**Respuesta del usuario (2026-09-18):** (a) — se aprueba la sustitución; la unificación
+multi-módulo ya quedó demostrada con anuncios+cobranza, no hace falta que "aprobar novedad"
+específicamente despache una comunicación.
+
+**Estado:** la duda queda resuelta, pero el veredicto del ítem NO cambia — sigue `fallido` en
+`qa/resultados.jsonl` (f14-01) por el bug real de `enviar-anuncio` en sí mismo, que es motivo
+suficiente independiente de esta decisión.
+
+### f8-10 — ¿una PROMESA de pago debería congelar el escalamiento de cobranza igual que un ACUERDO? (faltaba en este archivo — solo estaba registrada como bloqueada en `qa/resultados.jsonl`)
+
+**Qué dice el plan.** «Mientras esté vigente [la promesa de pago], el caso no escala a un nivel
+superior de cobranza aunque los días de mora sigan corriendo.»
+
+**Qué hace hoy el sistema.** Se registró una promesa de pago real (T1-402, $1.034.691, fecha
+prometida 2026-09-30, estado Pendiente) vía `/cartera/promesas-acuerdos`. Al re-correr
+`cartera-recalcular` en modo simulación acotado a ese inmueble, `decisionEscalamiento` siguió
+devolviendo `{tipo: bloqueado, requisitoFaltante: "Acciones administrativas sin agotar"}` — nunca
+pasó a `{tipo: congelar}`. En el código (`evaluarEscalamiento`,
+`packages/liquidation-engine/src/cartera-escalamiento.ts:124`; `tieneAcuerdoVigente`,
+`cartera-job-supabase.ts:58-70`) el freeze de escalamiento solo se activa por un registro vigente
+en `acuerdos_pago` (un ACUERDO formal, pestaña separada) — "promesa" no aparece en ningún punto de
+`evaluarEscalamiento`. Una promesa solo se marca "incumplida" si vence sin cumplirse (eso es
+f8-11), pero no tiene ningún efecto sobre el escalamiento mientras está vigente.
+
+**La duda.** (a) el plan usó "promesa" en sentido genérico refiriéndose en realidad a "acuerdo de
+pago" — hay que repetir la prueba con un acuerdo, no una promesa, y el caso se aprueba con esa
+aclaración; o (b) es un hallazgo real: una promesa también debería frenar el escalamiento y hoy no
+lo hace.
+
+**Respuesta del usuario (2026-09-18):** (b) — gap real. Una promesa de pago vigente también debe
+congelar el escalamiento de cobranza; que solo lo haga un acuerdo formal es un hallazgo a corregir
+en el motor de cartera.
+
+**Corrección (2026-09-18, misma sesión, antes de tocar código):** al ir a implementar el cambio se
+encontró que `Docs/Motor de gestion de cartera/CAR_00_Guia_Oficial.md` §12.1 tiene una tabla
+explícita "Promesa de pago vs Acuerdo de pago" con la fila **"Efecto en escalamiento: Ninguno; solo
+pospone la siguiente acción"** para promesa, contra **"Congela la etapa"** para acuerdo — es una
+distinción de negocio deliberada y documentada, no un vacío. El código actual (`tieneAcuerdoVigente`,
+`cartera-job-supabase.ts:58-70`) ya implementa esa distinción correctamente. Se le mostró esto al
+usuario, que revirtió su respuesta: **f8-10 queda aprobado**, la interpretación correcta era (a) —
+el plan usó "promesa" en sentido genérico por "acuerdo". No se modificó ningún código.
+
+**Estado:** resuelto y aprobado — ver nueva fila en `qa/resultados.jsonl` (f8-10, `aprobado`,
+2026-09-18, corrige la fila `fallido` anterior del mismo día).
 
 ## Resueltas
 

@@ -48,7 +48,7 @@ function elegir(vinculoId: string): void {
   <div class="p-4 max-w-md mx-auto">
     <h1 class="text-lg font-semibold mb-4">¿Con cuál vínculo quieres continuar?</h1>
 
-    <p v-if="cargando" class="text-sm text-gray-500">Cargando…</p>
+    <p v-if="cargando" class="text-sm text-muted">Cargando…</p>
     <UAlert v-else-if="error" color="error" variant="soft" :title="error" />
 
     <div v-else class="space-y-2">

@@ -25,9 +25,9 @@ const ETIQUETA_ESTADO: Record<'vencido' | 'pendiente', string> = {
 
 <template>
   <div class="rounded-xl border border-default bg-elevated p-4">
-    <p class="text-xs text-gray-500 dark:text-gray-400">Saldo pendiente</p>
+    <p class="text-xs text-muted">Saldo pendiente</p>
 
-    <div v-if="cargando" class="mt-1.5 h-8 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+    <div v-if="cargando" class="mt-1.5 h-8 w-32 animate-pulse rounded bg-elevated" />
 
     <template v-else-if="resumen">
       <p
@@ -35,12 +35,12 @@ const ETIQUETA_ESTADO: Record<'vencido' | 'pendiente', string> = {
         :class="
           resumen.saldo_total > 0
             ? 'text-primary-700 dark:text-primary-400'
-            : 'text-gray-900 dark:text-white'
+            : 'text-highlighted'
         "
       >
         {{ formatoMoneda(resumen.saldo_total) }}
       </p>
-      <p v-if="resumen.saldo_total <= 0" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+      <p v-if="resumen.saldo_total <= 0" class="mt-1 text-xs text-muted">
         Estás al día.
       </p>
 
@@ -58,7 +58,7 @@ const ETIQUETA_ESTADO: Record<'vencido' | 'pendiente', string> = {
             :key="i"
             class="flex items-center justify-between gap-2 py-1.5 text-xs"
           >
-            <span class="text-gray-600 dark:text-gray-300">{{ o.concepto }} · {{ o.periodo }}</span>
+            <span class="text-toned">{{ o.concepto }} · {{ o.periodo }}</span>
             <span class="flex shrink-0 items-center gap-1.5">
               <span
                 v-if="o.estado === 'vencido'"
@@ -75,6 +75,6 @@ const ETIQUETA_ESTADO: Record<'vencido' | 'pendiente', string> = {
       </div>
     </template>
 
-    <p v-else class="mt-1 text-sm text-gray-500 dark:text-gray-400">No se pudo cargar el saldo.</p>
+    <p v-else class="mt-1 text-sm text-muted">No se pudo cargar el saldo.</p>
   </div>
 </template>

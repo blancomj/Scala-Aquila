@@ -23,7 +23,9 @@ import {
   ETIQUETA_TIPO_NOVEDAD,
   mesAnioTexto,
   type NovedadTipo,
+  type RepeticionNovedad,
 } from '~/utils/novedad-labels'
+import { generarChips, type CampoFiltro, type ValorFiltro } from '~/composables/useFiltros'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
@@ -81,31 +83,132 @@ const conteoPorFiltro = computed<Record<ClaveFiltro, number>>(() => ({
   todas: cuentaStore.novedades.length,
 }))
 
-// Arranca en Pendientes solo si hay algo que atender; si no, mostrar una
-// tabla vacía por defecto sería desconcertante.
-const filtro = ref<ClaveFiltro>(conteoPorFiltro.value.pendiente > 0 ? 'pendiente' : 'todas')
 const busqueda = ref('')
 const SIN_AGRUPAR = '__sin_agrupar__'
-const filtroAgrupacionId = ref<string | null>(null)
-const filtroFecha = ref('')
+
+/** Fecha, no rango numérico: `RangoFiltro` de useFiltros.ts es solo `{min,max}` numérico, así que
+ * el rango de fechas se queda fuera del composable, mismo criterio que comunicaciones/index.vue.
+ * Reemplaza al `filtroFecha` original, que comparaba contra `created_at` — un bug real, porque la
+ * columna "Periodo" que se ve en la tabla es `fecha_efectiva` (ver mesAnioTexto en la plantilla).
+ * `fecha_efectiva` es `date` puro (sin hora), así que comparar los strings ISO alcanza: no hace
+ * falta pasar por `Date` ni preocuparse por zona horaria. */
+const fechaDesde = ref('')
+const fechaHasta = ref('')
+
+function claveRepeticion(novedad: Novedad): RepeticionNovedad {
+  if (novedad.permanente) return 'permanente'
+  if (novedad.prorrateable) return 'prorrateable'
+  return 'ninguna'
+}
+
+// ── panel de filtros (ver CLAUDE.md, "Panel de filtros reutilizable") ──────
+// Estado y Agrupación quedan fijos fuera del panel, instantáneos, como antes de migrar — Estado
+// además conserva sus conteos dinámicos en la etiqueta ("Pendientes (3)"), que solo tienen
+// sentido como control de un único valor. El resto va al panel: Tipo y Motivo (tipo_novedad_id)
+// se veían en la descripción pero nunca eran filtrables, igual que Repetición (ninguna/
+// permanente/prorrateable, ya visible en su propia columna) y Monto (rango).
+interface FiltrosNovedades extends Record<string, ValorFiltro> {
+  estado: ClaveFiltro
+  agrupacion: string | null
+  tipo: Array<string | number>
+  tipoNovedadId: Array<string | number>
+  repeticion: Array<string | number>
+  monto: { min: number | null; max: number | null }
+}
+
+// El default de "Estado" depende de los datos ya cargados (arranca en Pendientes solo si hay algo
+// que atender) — se evalúa acá, después del useAsyncData de arriba, igual que antes de migrar.
+const FILTROS_INICIALES: FiltrosNovedades = {
+  estado: conteoPorFiltro.value.pendiente > 0 ? 'pendiente' : 'todas',
+  agrupacion: null,
+  tipo: [],
+  tipoNovedadId: [],
+  repeticion: [],
+  monto: { min: null, max: null },
+}
+
+const filtros = useFiltros<FiltrosNovedades>(FILTROS_INICIALES)
+const panelFiltrosAbierto = ref(false)
+
+const filtroEstado = computed({
+  get: () => filtros.aplicados.value.estado,
+  set: (v: ClaveFiltro) => filtros.actualizarInmediato('estado', v),
+})
+const filtroAgrupacionId = computed({
+  get: () => filtros.aplicados.value.agrupacion,
+  set: (v: string | null) => filtros.actualizarInmediato('agrupacion', v),
+})
+
+const OPCIONES_REPETICION: Array<{ valor: string; etiqueta: string }> = [
+  { valor: 'ninguna', etiqueta: ETIQUETA_REPETICION.ninguna },
+  { valor: 'permanente', etiqueta: ETIQUETA_REPETICION.permanente },
+  { valor: 'prorrateable', etiqueta: ETIQUETA_REPETICION.prorrateable },
+]
+
+const schemaFiltros = computed<CampoFiltro[]>(() => [
+  {
+    clave: 'tipo', etiqueta: 'Tipo de movimiento', tipo: 'multiselect', icono: 'i-lucide-tag',
+    opciones: Object.entries(ETIQUETA_TIPO_NOVEDAD).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  },
+  {
+    clave: 'tipoNovedadId', etiqueta: 'Motivo', tipo: 'multiselect', icono: 'i-lucide-list',
+    opciones: cuentaStore.tiposNovedad.map((t) => ({ valor: t.id, etiqueta: t.nombre })),
+    mensajeVacio: 'Esta copropiedad todavía no tiene motivos de novedad registrados.',
+  },
+  { clave: 'repeticion', etiqueta: 'Repetición', tipo: 'multiselect', icono: 'i-lucide-repeat', opciones: OPCIONES_REPETICION },
+  { clave: 'monto', etiqueta: 'Monto', tipo: 'rango', icono: 'i-lucide-circle-dollar-sign', formato: 'moneda' },
+])
+
+// Solo cubre los campos del panel a propósito — Estado y Agrupación ya están siempre visibles en
+// su propio control, un chip para ellos sería redundante (mismo criterio que en inmuebles/index.vue).
+const chipsFiltros = computed(() => generarChips(schemaFiltros.value, filtros.aplicados.value, FILTROS_INICIALES))
+
+const hayFiltrosActivos = computed(
+  () => busqueda.value.trim().length > 0 || fechaDesde.value !== '' || fechaHasta.value !== '' || filtros.activos.value,
+)
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  fechaDesde.value = ''
+  fechaHasta.value = ''
+  filtros.limpiarTodo()
+}
 
 const novedadesFiltradas = computed<Novedad[]>(() => {
-  const porEstado =
-    filtro.value === 'todas'
-      ? cuentaStore.novedades
-      : cuentaStore.novedades.filter((n) => n.estado === filtro.value)
+  const f = filtros.aplicados.value
+
+  const porEstado = f.estado === 'todas' ? cuentaStore.novedades : cuentaStore.novedades.filter((n) => n.estado === f.estado)
 
   const porAgrupacion = porEstado.filter((n) => {
-    if (filtroAgrupacionId.value === null) return true
+    if (f.agrupacion === null) return true
     const agrupacionId = agrupacionPorInmueble.value.get(n.inmueble_id)
-    return filtroAgrupacionId.value === SIN_AGRUPAR
-      ? !agrupacionId
-      : agrupacionId === filtroAgrupacionId.value
+    return f.agrupacion === SIN_AGRUPAR ? !agrupacionId : agrupacionId === f.agrupacion
   })
 
-  const porFecha = !filtroFecha.value
-    ? porAgrupacion
-    : porAgrupacion.filter((n) => n.created_at.slice(0, 10) === filtroFecha.value)
+  const porTipo = f.tipo.length === 0 ? porAgrupacion : porAgrupacion.filter((n) => f.tipo.includes(n.tipo))
+
+  const porTipoNovedad =
+    f.tipoNovedadId.length === 0
+      ? porTipo
+      : porTipo.filter((n) => n.tipo_novedad_id !== null && f.tipoNovedadId.includes(n.tipo_novedad_id))
+
+  const porRepeticion =
+    f.repeticion.length === 0
+      ? porTipoNovedad
+      : porTipoNovedad.filter((n) => f.repeticion.includes(claveRepeticion(n)))
+
+  const porMonto = porRepeticion.filter((n) => {
+    const monto = Number(n.monto)
+    if (f.monto.min !== null && monto < f.monto.min) return false
+    if (f.monto.max !== null && monto > f.monto.max) return false
+    return true
+  })
+
+  const porFecha = porMonto.filter((n) => {
+    if (fechaDesde.value && n.fecha_efectiva < fechaDesde.value) return false
+    if (fechaHasta.value && n.fecha_efectiva > fechaHasta.value) return false
+    return true
+  })
 
   const texto = busqueda.value.trim().toLowerCase()
   if (!texto) return porFecha
@@ -237,22 +340,20 @@ function saldoProrrateable(novedad: Novedad): number | null {
           </UFormField>
 
           <UFormField label="Agrupación">
-            <USelect
+            <UiSelectorBuscable
               v-model="filtroAgrupacionId"
-              :items="[
-                { label: 'Toda agrupación', value: null },
-                { label: 'Sin agrupar', value: SIN_AGRUPAR },
-                ...agrupacionesStore.arbolPlano.map((n) => ({ label: n.ruta, value: n.id })),
+              :opciones="[
+                { valor: null, etiqueta: 'Toda agrupación' },
+                { valor: SIN_AGRUPAR, etiqueta: 'Sin agrupar' },
+                ...agrupacionesStore.arbolPlano.map((n) => ({ valor: n.id, etiqueta: n.ruta })),
               ]"
-              value-key="value"
-              size="sm"
               class="w-56"
             />
           </UFormField>
 
           <UFormField label="Estado">
             <USelect
-              v-model="filtro"
+              v-model="filtroEstado"
               :items="FILTROS.map((f) => ({ label: `${f.etiqueta} (${conteoPorFiltro[f.clave]})`, value: f.clave }))"
               value-key="value"
               size="sm"
@@ -260,13 +361,46 @@ function saldoProrrateable(novedad: Novedad): number | null {
             />
           </UFormField>
 
-          <UFormField label="Fecha de creación">
-            <UInput v-model="filtroFecha" type="date" size="sm" class="w-40" />
+          <UFormField label="Periodo desde">
+            <UInput v-model="fechaDesde" type="date" size="sm" class="w-40" />
           </UFormField>
+          <UFormField label="Periodo hasta">
+            <UInput v-model="fechaHasta" type="date" size="sm" class="w-40" />
+          </UFormField>
+
+          <UButton variant="outline" size="sm" icon="i-lucide-sliders-horizontal" @click="panelFiltrosAbierto = true">
+            Filtros
+            <UBadge v-if="chipsFiltros.length > 0" size="xs" color="primary" variant="solid">{{ chipsFiltros.length }}</UBadge>
+          </UButton>
+
+          <UButton
+            v-if="hayFiltrosActivos"
+            size="sm"
+            variant="ghost"
+            icon="i-lucide-x"
+            title="Limpiar filtros"
+            @click="limpiarFiltros"
+          />
         </div>
 
         <UButton size="sm" to="/novedades/nueva">Nueva novedad</UButton>
       </div>
+
+      <UiChipsFiltros
+        :chips="chipsFiltros"
+        :total="novedadesFiltradas.length"
+        @quitar="filtros.quitar($event as keyof FiltrosNovedades)"
+        @limpiar="filtros.limpiarTodo()"
+      />
+
+      <UiPanelFiltros
+        v-model:abierto="panelFiltrosAbierto"
+        v-model="filtros.borrador.value"
+        :schema="schemaFiltros"
+        titulo="Filtros de novedades"
+        @aplicar="filtros.aplicar()"
+        @limpiar="filtros.limpiarTodo()"
+      />
 
       <UAlert v-if="errorAccion" color="error" variant="soft" :title="errorAccion" />
 

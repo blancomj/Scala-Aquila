@@ -21,31 +21,31 @@ function formatoCoeficiente(valor: string | null): string {
 <template>
   <div class="rounded-xl border border-default bg-elevated p-4">
     <div class="flex items-start justify-between gap-3">
-      <p class="min-w-0 text-sm font-medium text-gray-900 dark:text-white">{{ votacion.pregunta }}</p>
+      <p class="min-w-0 text-sm font-medium text-highlighted">{{ votacion.pregunta }}</p>
       <span
         v-if="votacion.resultado"
         class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
         :class="
           votacion.resultado === 'aprobada'
             ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+            : 'bg-elevated text-toned'
         "
       >{{ ETIQUETA_RESULTADO[votacion.resultado] ?? votacion.resultado }}</span>
     </div>
-    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ votacion.materia_nombre }}</p>
+    <p class="mt-1 text-xs text-muted">{{ votacion.materia_nombre }}</p>
 
     <dl class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
       <div>
-        <dt class="text-gray-400">A favor</dt>
-        <dd class="font-medium text-gray-700 dark:text-gray-200">{{ formatoCoeficiente(votacion.coeficiente_favor) }}</dd>
+        <dt class="text-dimmed">A favor</dt>
+        <dd class="font-medium text-default">{{ formatoCoeficiente(votacion.coeficiente_favor) }}</dd>
       </div>
       <div>
-        <dt class="text-gray-400">En contra</dt>
-        <dd class="font-medium text-gray-700 dark:text-gray-200">{{ formatoCoeficiente(votacion.coeficiente_contra) }}</dd>
+        <dt class="text-dimmed">En contra</dt>
+        <dd class="font-medium text-default">{{ formatoCoeficiente(votacion.coeficiente_contra) }}</dd>
       </div>
       <div>
-        <dt class="text-gray-400">Abstención</dt>
-        <dd class="font-medium text-gray-700 dark:text-gray-200">{{ formatoCoeficiente(votacion.coeficiente_abstencion) }}</dd>
+        <dt class="text-dimmed">Abstención</dt>
+        <dd class="font-medium text-default">{{ formatoCoeficiente(votacion.coeficiente_abstencion) }}</dd>
       </div>
     </dl>
   </div>

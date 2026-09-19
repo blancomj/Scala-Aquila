@@ -53,13 +53,13 @@ onMounted(cargar)
 
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
-    <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mi correspondencia</h1>
+    <h1 class="text-lg font-semibold text-highlighted">Mi correspondencia</h1>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="correspondencia.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="correspondencia.length === 0" class="text-sm text-muted">
       No tienes correspondencia registrada.
     </p>
 
@@ -71,24 +71,24 @@ onMounted(cargar)
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+            <p class="truncate text-sm font-medium text-highlighted">
               {{ c.remitente }}<template v-if="c.tipo"> · {{ c.tipo }}</template>
             </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Para {{ c.destino }} · {{ formatoFecha(c.created_at) }}</p>
+            <p class="text-xs text-muted">Para {{ c.destino }} · {{ formatoFecha(c.created_at) }}</p>
           </div>
           <span
             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
             :class="
               c.entregada
-                ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                ? 'bg-elevated text-toned'
                 : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
             "
           >{{ c.entregada ? 'Entregada' : 'En portería' }}</span>
         </div>
 
-        <p v-if="c.descripcion" class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ c.descripcion }}</p>
+        <p v-if="c.descripcion" class="mt-2 text-xs text-muted">{{ c.descripcion }}</p>
 
-        <p v-if="c.entregada && c.entregada_at" class="mt-2 text-xs text-gray-400">
+        <p v-if="c.entregada && c.entregada_at" class="mt-2 text-xs text-dimmed">
           Recogida el {{ formatoFecha(c.entregada_at) }}<template v-if="c.entregada_a"> por {{ c.entregada_a }}</template>
         </p>
       </div>

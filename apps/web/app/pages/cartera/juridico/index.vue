@@ -9,6 +9,7 @@ import { useCertificacionesStore } from '~/stores/certificaciones'
 import { useCuentaCorrienteStore } from '~/stores/cuentaCorriente'
 import { useTercerosStore } from '~/stores/terceros'
 import { formatoMoneda } from '~/utils/formato'
+import { generarChips, type CampoFiltro, type ValorFiltro } from '~/composables/useFiltros'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'data:create' })
 
@@ -91,6 +92,120 @@ const opcionesAbogado = computed(() => [
     .filter((p) => p.rol.codigo === 'abogado' && (p.vigente_hasta === null || p.vigente_hasta >= hoyISO()))
     .map((p) => ({ valor: p.tercero_id, etiqueta: p.tercero.nombre_completo ?? p.tercero_id })),
 ])
+
+// ── filtros (ver CLAUDE.md, "Panel de filtros reutilizable") ──────────
+// Esta pantalla no tenía NINGÚN filtro sobre una tabla de 7 columnas — imposible de acotar con
+// más de un puñado de casos. Abogado queda fijo e instantáneo (el lookup más común: "mis casos
+// asignados"), con su propio set de opciones — `null` significa "todos" acá, no "sin asignar"
+// como en `opcionesAbogado` del modal de creación, así que "sin asignar" necesita su propio
+// sentinel (mismo criterio que SIN_AGRUPAR en inmuebles/novedades). El resto va al panel: Estado
+// (enum real de 12 valores, nunca filtrable hoy), Ciudad (derivada de los valores reales ya
+// cargados, no hay catálogo formal), Monto de la pretensión (rango) y "Solo sin radicar" (booleano
+// sobre numero_radicado, útil para ubicar casos pendientes de una acción).
+const busqueda = ref('')
+const SIN_ABOGADO = '__sin_abogado__'
+
+const opcionesFiltroAbogado = computed(() => [
+  { valor: null, etiqueta: 'Todos los abogados' },
+  { valor: SIN_ABOGADO, etiqueta: 'Sin asignar' },
+  ...tercerosStore.personasTenant
+    .filter((p) => p.rol.codigo === 'abogado' && (p.vigente_hasta === null || p.vigente_hasta >= hoyISO()))
+    .map((p) => ({ valor: p.tercero_id, etiqueta: p.tercero.nombre_completo ?? p.tercero_id })),
+])
+
+const OPCIONES_ESTADO_FILTRO: Array<{ valor: string; etiqueta: string }> = Object.entries(ETIQUETA_ESTADO).map(
+  ([valor, etiqueta]) => ({ valor, etiqueta }),
+)
+
+const opcionesCiudadFiltro = computed(() => {
+  const vistas = new Set<string>()
+  for (const c of casosStore.casos) if (c.ciudad) vistas.add(c.ciudad)
+  return Array.from(vistas)
+    .sort()
+    .map((ciudad) => ({ valor: ciudad, etiqueta: ciudad }))
+})
+
+interface FiltrosJuridico extends Record<string, ValorFiltro> {
+  abogado: string | null
+  estado: Array<string | number>
+  ciudad: Array<string | number>
+  montoPretension: { min: number | null; max: number | null }
+  sinRadicar: boolean
+}
+
+const FILTROS_INICIALES: FiltrosJuridico = {
+  abogado: null,
+  estado: [],
+  ciudad: [],
+  montoPretension: { min: null, max: null },
+  sinRadicar: false,
+}
+
+const filtros = useFiltros<FiltrosJuridico>(FILTROS_INICIALES)
+const panelFiltrosAbierto = ref(false)
+
+const filtroAbogadoId = computed({
+  get: () => filtros.aplicados.value.abogado,
+  set: (v: string | null) => filtros.actualizarInmediato('abogado', v),
+})
+
+const schemaFiltros = computed<CampoFiltro[]>(() => [
+  { clave: 'estado', etiqueta: 'Estado', tipo: 'multiselect', icono: 'i-lucide-scale', opciones: OPCIONES_ESTADO_FILTRO },
+  {
+    clave: 'ciudad', etiqueta: 'Ciudad', tipo: 'multiselect', icono: 'i-lucide-map-pin',
+    opciones: opcionesCiudadFiltro.value,
+    mensajeVacio: 'Todavía no hay casos con ciudad registrada.',
+  },
+  {
+    clave: 'montoPretension', etiqueta: 'Monto de la pretensión', tipo: 'rango', icono: 'i-lucide-circle-dollar-sign',
+    formato: 'moneda',
+  },
+  { clave: 'sinRadicar', etiqueta: 'Solo sin radicar', tipo: 'boolean', icono: 'i-lucide-file-x' },
+])
+
+// Solo cubre los campos del panel a propósito — Abogado ya está siempre visible en su propio
+// control, un chip para él sería redundante (mismo criterio que en inmuebles/novedades).
+const chipsFiltros = computed(() => generarChips(schemaFiltros.value, filtros.aplicados.value, FILTROS_INICIALES))
+
+const hayFiltrosActivos = computed(() => busqueda.value.trim().length > 0 || filtros.activos.value)
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  filtros.limpiarTodo()
+}
+
+const casosFiltrados = computed(() => {
+  const f = filtros.aplicados.value
+
+  const porAbogado = casosStore.casos.filter((c) => {
+    if (f.abogado === null) return true
+    if (f.abogado === SIN_ABOGADO) return !c.abogado_tercero_id
+    return c.abogado_tercero_id === f.abogado
+  })
+
+  const porEstado = f.estado.length === 0 ? porAbogado : porAbogado.filter((c) => f.estado.includes(c.estado))
+
+  const porCiudad = f.ciudad.length === 0 ? porEstado : porEstado.filter((c) => c.ciudad !== null && f.ciudad.includes(c.ciudad))
+
+  const porMonto = porCiudad.filter((c) => {
+    const monto = Number(c.monto_pretension)
+    if (f.montoPretension.min !== null && monto < f.montoPretension.min) return false
+    if (f.montoPretension.max !== null && monto > f.montoPretension.max) return false
+    return true
+  })
+
+  const porRadicado = f.sinRadicar ? porMonto.filter((c) => !c.numero_radicado) : porMonto
+
+  const texto = busqueda.value.trim().toLowerCase()
+  if (!texto) return porRadicado
+  return porRadicado.filter(
+    (c) =>
+      (c.consecutivo ?? '').toLowerCase().includes(texto) ||
+      (inmueblePorId.value.get(c.inmueble_id) ?? '').toLowerCase().includes(texto) ||
+      (c.numero_radicado ?? '').toLowerCase().includes(texto) ||
+      (c.juzgado ?? '').toLowerCase().includes(texto),
+  )
+})
 
 // ── nuevo caso ────────────────────────────────────────────────────────
 const modalNuevoAbierto = ref(false)
@@ -191,7 +306,64 @@ async function crearCaso(): Promise<void> {
       :description="errorCarga"
     />
 
+    <!-- ── filtros (ver CLAUDE.md, "Panel de filtros reutilizable"): Abogado fijo e
+         instantáneo, el resto al panel. ──────────────────────────────────────── -->
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap">
+        <UInput
+          v-model="busqueda"
+          size="sm"
+          icon="i-lucide-search"
+          placeholder="Buscar por caso, inmueble, radicado o juzgado…"
+          class="w-64"
+        >
+          <template v-if="busqueda" #trailing>
+            <UButton size="xs" variant="ghost" icon="i-lucide-x" title="Limpiar búsqueda" @click="busqueda = ''" />
+          </template>
+        </UInput>
+
+        <UiSelectorBuscable v-model="filtroAbogadoId" :opciones="opcionesFiltroAbogado" class="w-48" />
+
+        <UButton variant="outline" size="sm" icon="i-lucide-sliders-horizontal" @click="panelFiltrosAbierto = true">
+          Filtros
+          <UBadge v-if="chipsFiltros.length > 0" size="xs" color="primary" variant="solid">{{ chipsFiltros.length }}</UBadge>
+        </UButton>
+
+        <UButton
+          v-if="hayFiltrosActivos"
+          size="sm"
+          variant="ghost"
+          icon="i-lucide-x"
+          title="Limpiar filtros"
+          @click="limpiarFiltros"
+        />
+      </div>
+    </div>
+
+    <UiChipsFiltros
+      :chips="chipsFiltros"
+      :total="casosFiltrados.length"
+      @quitar="filtros.quitar($event as keyof FiltrosJuridico)"
+      @limpiar="filtros.limpiarTodo()"
+    />
+
+    <UiPanelFiltros
+      v-model:abierto="panelFiltrosAbierto"
+      v-model="filtros.borrador.value"
+      :schema="schemaFiltros"
+      titulo="Filtros de casos jurídicos"
+      @aplicar="filtros.aplicar()"
+      @limpiar="filtros.limpiarTodo()"
+    />
+
+    <p v-if="casosStore.casos.length === 0" class="text-neutral-500 text-sm">
+      Todavía no se ha remitido ningún caso a jurídico.
+    </p>
+    <p v-else-if="casosFiltrados.length === 0" class="text-neutral-500 text-sm">
+      Ningún caso coincide con este filtro.
+    </p>
     <UiTabla
+      v-else
       variante="tailwind"
       :columnas="[
         { clave: 'consecutivo', etiqueta: 'Caso' },
@@ -202,7 +374,7 @@ async function crearCaso(): Promise<void> {
         { clave: 'pretension', etiqueta: 'Pretensión', alinear: 'derecha' },
         { clave: 'recuperado', etiqueta: 'Recuperado', alinear: 'derecha' },
       ]"
-      :filas="casosStore.casos"
+      :filas="casosFiltrados"
       :clave-fila="(fila) => fila.id"
       :cargando="casosStore.loading"
       vacio="Todavía no se ha remitido ningún caso a jurídico."

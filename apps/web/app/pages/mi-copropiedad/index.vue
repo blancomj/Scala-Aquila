@@ -97,8 +97,8 @@ onMounted(async () => {
 <template>
   <div class="mx-auto max-w-md space-y-5 p-4">
     <div>
-      <p class="text-xs text-gray-500 dark:text-gray-400">Hola</p>
-      <h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
+      <p class="text-xs text-muted">Hola</p>
+      <h1 class="truncate text-lg font-semibold text-highlighted">
         {{ actorExterno.vinculoActivo?.tenant_nombre ?? 'Mi Copropiedad' }}
       </h1>
     </div>
@@ -111,14 +111,14 @@ onMounted(async () => {
       </NuxtLink>
 
       <div>
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Accesos rápidos</p>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-dimmed">Accesos rápidos</p>
         <div class="grid grid-cols-2 gap-3">
           <NuxtLink
             to="/mi-copropiedad/finanzas"
             class="relative flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-wallet" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Finanzas</span>
+            <span class="text-xs font-medium text-default">Finanzas</span>
             <span
               v-if="badgeFinanzas > 0"
               class="absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white"
@@ -129,7 +129,7 @@ onMounted(async () => {
             class="relative flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-message-square" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Solicitudes</span>
+            <span class="text-xs font-medium text-default">Solicitudes</span>
             <span
               v-if="badgeSolicitudes > 0"
               class="absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white"
@@ -140,28 +140,28 @@ onMounted(async () => {
             class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-qr-code" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Visitas</span>
+            <span class="text-xs font-medium text-default">Visitas</span>
           </NuxtLink>
           <NuxtLink
             to="/mi-copropiedad/reservas"
             class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-calendar-check" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Reservas</span>
+            <span class="text-xs font-medium text-default">Reservas</span>
           </NuxtLink>
           <NuxtLink
             to="/mi-copropiedad/documentos"
             class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-file-text" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Documentos</span>
+            <span class="text-xs font-medium text-default">Documentos</span>
           </NuxtLink>
           <NuxtLink
             to="/mi-copropiedad/correspondencia"
             class="relative flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-package" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Correspondencia</span>
+            <span class="text-xs font-medium text-default">Correspondencia</span>
             <span
               v-if="badgeCorrespondencia > 0"
               class="absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white"
@@ -172,28 +172,28 @@ onMounted(async () => {
             class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-phone" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Contactos</span>
+            <span class="text-xs font-medium text-default">Contactos</span>
           </NuxtLink>
           <NuxtLink
             to="/mi-copropiedad/gobierno"
             class="flex flex-col items-center gap-1.5 rounded-xl border border-default bg-elevated py-4"
           >
             <UIcon name="i-lucide-landmark" class="size-6 text-primary-600 dark:text-primary-400" />
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Gobierno</span>
+            <span class="text-xs font-medium text-default">Gobierno</span>
           </NuxtLink>
         </div>
       </div>
 
       <div v-if="!cargando">
         <div class="mb-2 flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Solicitudes recientes</p>
+          <p class="text-xs font-semibold uppercase tracking-wide text-dimmed">Solicitudes recientes</p>
           <NuxtLink
             v-if="solicitudes.length > 0"
             to="/mi-copropiedad/solicitudes"
             class="text-xs font-medium text-primary-600 dark:text-primary-400"
           >Ver todas</NuxtLink>
         </div>
-        <p v-if="solicitudesRecientes.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+        <p v-if="solicitudesRecientes.length === 0" class="text-sm text-muted">
           No has hecho ninguna solicitud todavía.
         </p>
         <div v-else class="divide-y divide-default rounded-xl border border-default bg-elevated px-4">

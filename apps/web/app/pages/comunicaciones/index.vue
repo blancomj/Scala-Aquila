@@ -11,6 +11,7 @@
 import type { ColumnaTabla } from '~/components/ui/UiTabla.vue'
 import { textoLegible, ETIQUETA_CANAL } from '~/utils/mensaje-cobranza'
 import { ETIQUETA_MODULO, type ComunicacionEnvio } from '~/stores/comunicaciones'
+import { generarChips, type CampoFiltro, type ValorFiltro } from '~/composables/useFiltros'
 
 definePageMeta({ layout: 'default', middleware: ['tenant', 'rbac'], permiso: 'audit:view' })
 
@@ -20,10 +21,45 @@ const errorCarga = ref<string | null>(null)
 const busqueda = ref('')
 const fechaDesde = ref('')
 const fechaHasta = ref('')
-const filtroModulo = ref<string>('todos')
-const filtroCanal = ref<string>('todos')
-const filtroAutomatico = ref<'todos' | 'si' | 'no'>('todos')
-const filtroEstado = ref<string>('todos')
+
+// Migrado al panel de filtros reutilizable (ver CLAUDE.md, "Panel de filtros reutilizable") —
+// esta pantalla ya tenía 7 controles apretados en una fila (búsqueda + 2 fechas + 4 selects), la
+// segunda candidata después de mantenimiento/activos/index.vue. Búsqueda y Desde/Hasta quedan
+// fuera de useFiltros del todo (mismo criterio que en activos: no hay tipo `rango-fecha` en el
+// composable todavía) — Módulo y Estado de entrega son los otros 2 filtros "fijos", los más
+// consultados para diagnosticar un envío, y se quedan como USelect de un solo valor e
+// instantáneo. Canal y Origen (antes selects de 2-3 opciones) más Plantilla y Proveedor (nuevos:
+// existían en el modelo — ComunicacionEnvio.plantillaCodigo/proveedor — pero no se podían
+// filtrar) van al panel.
+interface FiltrosComunicaciones extends Record<string, ValorFiltro> {
+  modulo: string
+  estado: string
+  canal: Array<string | number>
+  automatico: Array<string | number>
+  plantilla: Array<string | number>
+  proveedor: Array<string | number>
+}
+
+const FILTROS_INICIALES: FiltrosComunicaciones = {
+  modulo: 'todos',
+  estado: 'todos',
+  canal: [],
+  automatico: [],
+  plantilla: [],
+  proveedor: [],
+}
+
+const filtros = useFiltros<FiltrosComunicaciones>(FILTROS_INICIALES)
+const panelFiltrosAbierto = ref(false)
+
+const filtroModulo = computed({
+  get: () => filtros.aplicados.value.modulo,
+  set: (v: string) => filtros.actualizarInmediato('modulo', v),
+})
+const filtroEstado = computed({
+  get: () => filtros.aplicados.value.estado,
+  set: (v: string) => filtros.actualizarInmediato('estado', v),
+})
 
 const detalleAbierto = ref(false)
 const envioDetalle = ref<ComunicacionEnvio | null>(null)
@@ -83,18 +119,6 @@ const OPCIONES_MODULO = [
   { label: 'Recibo de caja', value: 'recibo_caja' },
 ]
 
-const OPCIONES_CANAL = [
-  { label: 'Todos los canales', value: 'todos' },
-  { label: 'Correo', value: 'email' },
-  { label: 'SMS', value: 'sms' },
-]
-
-const OPCIONES_AUTOMATICO = [
-  { label: 'Todos', value: 'todos' },
-  { label: 'Automático', value: 'si' },
-  { label: 'Manual', value: 'no' },
-]
-
 const OPCIONES_ESTADO = [
   { label: 'Todos los estados', value: 'todos' },
   { label: 'Sin acuse todavía', value: 'sin_acuse' },
@@ -105,6 +129,45 @@ const OPCIONES_ESTADO = [
   { label: 'Fallido', value: 'fallido' },
   { label: 'No entregable', value: 'no_entregable' },
 ]
+
+// Canal y Origen tienen 2 opciones reales cada uno → UiPanelFiltros los pinta como checkboxes.
+// Plantilla y Proveedor son catálogos derivados de la data real (igual que Ubicación/Fabricante
+// en mantenimiento/activos/index.vue) — su widget real depende de cuántos valores distintos haya
+// en el histórico cargado.
+const opcionesCanal = [
+  { valor: 'email', etiqueta: 'Correo' },
+  { valor: 'sms', etiqueta: 'SMS' },
+]
+const opcionesAutomatico = [
+  { valor: 'si', etiqueta: 'Automático' },
+  { valor: 'no', etiqueta: 'Manual' },
+]
+const opcionesPlantilla = computed(() => {
+  const vistas = new Set(comunicacionesStore.envios.map((e) => e.plantillaCodigo).filter((v): v is string => !!v))
+  return [...vistas].sort().map((v) => ({ valor: v, etiqueta: v }))
+})
+const opcionesProveedor = computed(() => {
+  const vistas = new Set(comunicacionesStore.envios.map((e) => e.proveedor).filter((v): v is string => !!v))
+  return [...vistas].sort().map((v) => ({ valor: v, etiqueta: v }))
+})
+
+const schemaFiltros = computed<CampoFiltro[]>(() => [
+  { clave: 'canal', etiqueta: 'Canal', tipo: 'multiselect', icono: 'i-lucide-send', opciones: opcionesCanal },
+  { clave: 'automatico', etiqueta: 'Origen', tipo: 'multiselect', icono: 'i-lucide-bot', opciones: opcionesAutomatico },
+  {
+    clave: 'plantilla', etiqueta: 'Plantilla', tipo: 'multiselect', icono: 'i-lucide-file-text',
+    opciones: opcionesPlantilla.value, mensajeVacio: 'Todavía no hay comunicaciones con plantilla registrada',
+  },
+  {
+    clave: 'proveedor', etiqueta: 'Proveedor', tipo: 'multiselect', icono: 'i-lucide-server',
+    opciones: opcionesProveedor.value, mensajeVacio: 'Todavía no hay comunicaciones con proveedor registrado',
+  },
+])
+
+// Solo cubre los campos del panel a propósito: Módulo/Estado ya están siempre visibles en su
+// propio USelect — un chip para ellos sería redundante con lo que el usuario ya ve ahí (mismo
+// criterio que Tipo/Categoría/Estado en mantenimiento/activos/index.vue).
+const chipsFiltros = computed(() => generarChips(schemaFiltros.value, filtros.aplicados.value, FILTROS_INICIALES))
 
 const resumen = computed(() => {
   const total = comunicacionesStore.envios.length
@@ -131,34 +194,41 @@ const filas = computed(() => {
   const texto = busqueda.value.trim().toLowerCase()
   const desde = fechaDesde.value ? new Date(fechaDesde.value) : null
   const hasta = fechaHasta.value ? new Date(`${fechaHasta.value}T23:59:59`) : null
+  const f = filtros.aplicados.value
 
-  return comunicacionesStore.envios.filter((f) => {
-    if (filtroModulo.value !== 'todos' && moduloDe(f) !== filtroModulo.value) return false
-    if (filtroCanal.value !== 'todos' && f.canal !== filtroCanal.value) return false
-    if (filtroAutomatico.value === 'si' && !f.esAutomatico) return false
-    if (filtroAutomatico.value === 'no' && f.esAutomatico) return false
-    if (filtroEstado.value === 'sin_acuse' && f.ultimoAcuse !== null) return false
-    if (
-      filtroEstado.value !== 'todos' &&
-      filtroEstado.value !== 'sin_acuse' &&
-      f.ultimoAcuse?.estado !== filtroEstado.value
-    )
-      return false
-    const enviado = new Date(f.enviadoAt)
+  return comunicacionesStore.envios.filter((fila) => {
+    if (f.modulo !== 'todos' && moduloDe(fila) !== f.modulo) return false
+    if (f.canal.length > 0 && !f.canal.includes(fila.canal)) return false
+    if (f.automatico.length > 0 && !f.automatico.includes(fila.esAutomatico ? 'si' : 'no')) return false
+    if (f.plantilla.length > 0 && !f.plantilla.includes(fila.plantillaCodigo)) return false
+    if (f.proveedor.length > 0 && !f.proveedor.includes(fila.proveedor)) return false
+    if (f.estado === 'sin_acuse' && fila.ultimoAcuse !== null) return false
+    if (f.estado !== 'todos' && f.estado !== 'sin_acuse' && fila.ultimoAcuse?.estado !== f.estado) return false
+    const enviado = new Date(fila.enviadoAt)
     if (desde && enviado < desde) return false
     if (hasta && enviado > hasta) return false
     if (
       texto &&
       !(
-        f.destinatarioContacto.toLowerCase().includes(texto) ||
-        (f.asunto ?? '').toLowerCase().includes(texto) ||
-        f.plantillaCodigo.toLowerCase().includes(texto)
+        fila.destinatarioContacto.toLowerCase().includes(texto) ||
+        (fila.asunto ?? '').toLowerCase().includes(texto) ||
+        fila.plantillaCodigo.toLowerCase().includes(texto)
       )
     )
       return false
     return true
   })
 })
+
+/** `filtros.limpiarTodo()` ya resetea Módulo/Estado (viven en el mismo `FiltrosComunicaciones`
+ * que el panel, solo que "fijos" fuera de él) — acá solo falta lo que quedó totalmente fuera del
+ * composable: búsqueda y el rango de fechas (sin tipo `rango-fecha` en useFiltros todavía). */
+function limpiarTodo(): void {
+  busqueda.value = ''
+  fechaDesde.value = ''
+  fechaHasta.value = ''
+  filtros.limpiarTodo()
+}
 
 const columnas: ColumnaTabla<ComunicacionEnvio>[] = [
   {
@@ -236,7 +306,10 @@ function abrirDetalle(fila: ComunicacionEnvio): void {
       </div>
     </div>
 
-    <!-- ── filtros ──────────────────────────────────────────────────── -->
+    <!-- ── filtros (§8.3 activos, mismo patrón) ────────────────────────
+         Búsqueda/Desde/Hasta quedan fuera de useFiltros (sin tipo rango-fecha todavía);
+         Módulo/Estado son los 2 fijos, instantáneos; Canal/Origen/Plantilla/Proveedor van al
+         panel — ver CLAUDE.md, "Panel de filtros reutilizable". -->
     <div class="flex flex-wrap items-end gap-3">
       <UFormField label="Buscar">
         <UInput
@@ -256,15 +329,19 @@ function abrirDetalle(fila: ComunicacionEnvio): void {
       <UFormField label="Módulo">
         <USelect v-model="filtroModulo" :items="OPCIONES_MODULO" value-key="value" size="sm" class="w-48" />
       </UFormField>
-      <UFormField label="Canal">
-        <USelect v-model="filtroCanal" :items="OPCIONES_CANAL" value-key="value" size="sm" class="w-40" />
-      </UFormField>
-      <UFormField label="Origen">
-        <USelect v-model="filtroAutomatico" :items="OPCIONES_AUTOMATICO" value-key="value" size="sm" class="w-36" />
-      </UFormField>
       <UFormField label="Estado de entrega">
         <USelect v-model="filtroEstado" :items="OPCIONES_ESTADO" value-key="value" size="sm" class="w-48" />
       </UFormField>
+      <UButton variant="outline" size="sm" icon="i-lucide-sliders-horizontal" @click="panelFiltrosAbierto = true">
+        Filtros
+        <UBadge v-if="chipsFiltros.length > 0" size="xs" color="primary" variant="solid">{{ chipsFiltros.length }}</UBadge>
+      </UButton>
+      <UButton
+        v-if="filtros.activos.value || busqueda || fechaDesde || fechaHasta"
+        variant="ghost" size="sm" @click="limpiarTodo()"
+      >
+        Limpiar
+      </UButton>
       <UButton
         icon="i-lucide-refresh-cw"
         size="sm"
@@ -276,6 +353,22 @@ function abrirDetalle(fila: ComunicacionEnvio): void {
         Actualizar
       </UButton>
     </div>
+
+    <UiChipsFiltros
+      :chips="chipsFiltros"
+      :total="filas.length"
+      @quitar="filtros.quitar($event as keyof FiltrosComunicaciones)"
+      @limpiar="filtros.limpiarTodo()"
+    />
+
+    <UiPanelFiltros
+      v-model:abierto="panelFiltrosAbierto"
+      v-model="filtros.borrador.value"
+      :schema="schemaFiltros"
+      titulo="Filtros de comunicaciones"
+      @aplicar="filtros.aplicar()"
+      @limpiar="filtros.limpiarTodo()"
+    />
 
     <p class="text-xs text-neutral-400">
       El histórico arranca desde COM-1 (2026-09-09) hacia adelante — correos enviados antes de esa

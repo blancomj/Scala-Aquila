@@ -62,6 +62,12 @@ const los12Cerrados = computed(() =>
 const ejercicioBloqueado = computed(() =>
   cierresStore.periodos.length === 12 && cierresStore.periodos.every((p) => p.contable_estado === 'bloqueado'),
 )
+/** Copropiedad recién creada: nunca tuvo NINGÚN periodo, en ningún año — no hay "ejercicio
+ * anterior" que exigirle bloqueado. Se abre directamente el ejercicio que se está mirando
+ * (`anio`), no el siguiente. */
+const esPrimerEjercicio = computed(() => cierresStore.periodos.length === 0 && !cierresStore.hayHistorial)
+const puedeAbrirEjercicio = computed(() => ejercicioBloqueado.value || esPrimerEjercicio.value)
+const anioAperturaSugerida = computed(() => (esPrimerEjercicio.value ? anio.value : anio.value + 1))
 
 function colorEstado(estado: string): 'neutral' | 'warning' | 'success' {
   if (estado === 'abierto') return 'neutral'
@@ -226,9 +232,10 @@ watch(anio, () => { void cargar() })
       <!-- Acciones de ejercicio -->
       <div class="flex items-center gap-2 flex-wrap rounded-lg border border-default p-4">
         <p class="text-sm text-muted mr-2">
-          {{ los12Cerrados ? 'Los 12 periodos están cerrados — listo para cerrar el ejercicio.'
-            : ejercicioBloqueado ? 'Ejercicio ya cerrado y bloqueado.'
-              : 'Cierre y apertura de ejercicio, acciones separadas y explícitas.' }}
+          {{ esPrimerEjercicio ? 'Copropiedad sin ejercicios previos — puede abrir su primer ejercicio.'
+            : los12Cerrados ? 'Los 12 periodos están cerrados — listo para cerrar el ejercicio.'
+              : ejercicioBloqueado ? 'Ejercicio ya cerrado y bloqueado.'
+                : 'Cierre y apertura de ejercicio, acciones separadas y explícitas.' }}
         </p>
         <UButton
           color="error" :disabled="!los12Cerrados" icon="i-lucide-lock"
@@ -237,10 +244,10 @@ watch(anio, () => { void cargar() })
           Cerrar ejercicio {{ anio }}
         </UButton>
         <UButton
-          color="primary" variant="soft" icon="i-lucide-unlock" :disabled="!ejercicioBloqueado"
-          @click="anioAperturaNueva = anio + 1; modalAbrirEjercicio = true"
+          color="primary" variant="soft" icon="i-lucide-unlock" :disabled="!puedeAbrirEjercicio"
+          @click="anioAperturaNueva = anioAperturaSugerida; modalAbrirEjercicio = true"
         >
-          Abrir ejercicio {{ anio + 1 }}
+          Abrir ejercicio {{ anioAperturaSugerida }}
         </UButton>
       </div>
 
@@ -395,9 +402,14 @@ watch(anio, () => { void cargar() })
     </UModal>
 
     <!-- Modal: abrir ejercicio -->
-    <UModal v-model:open="modalAbrirEjercicio" title="Abrir ejercicio siguiente">
+    <UModal v-model:open="modalAbrirEjercicio" title="Abrir ejercicio">
       <template #body>
-        <p class="text-sm">
+        <p v-if="esPrimerEjercicio" class="text-sm">
+          Primer ejercicio de esta copropiedad — no hay un ejercicio anterior del cual reproducir
+          saldos. Se creará un comprobante de apertura vacío y los 12 periodos de
+          {{ anioAperturaNueva }}, listos para liquidar desde cero.
+        </p>
+        <p v-else class="text-sm">
           Se generará el comprobante de apertura con los saldos de balance (clases 1, 2 y 3) al
           cierre de {{ anio }}, y se crearán los 12 periodos de {{ anioAperturaNueva }}.
         </p>

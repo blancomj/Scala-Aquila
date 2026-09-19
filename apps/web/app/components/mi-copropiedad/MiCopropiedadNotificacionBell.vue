@@ -65,7 +65,7 @@ async function abrir(notificacion: NotificacionExterna): Promise<void> {
   <div ref="contenedorRef" class="relative" @focusout="alPerderFoco">
     <button
       type="button"
-      class="relative flex items-center justify-center rounded-full p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+      class="relative flex items-center justify-center rounded-full p-1.5 text-muted hover:bg-elevated"
       :aria-expanded="abierto"
       aria-label="Notificaciones"
       @click="alternar"
@@ -79,21 +79,21 @@ async function abrir(notificacion: NotificacionExterna): Promise<void> {
 
     <div
       v-if="abierto"
-      class="absolute top-full right-0 mt-2 w-80 max-w-[90vw] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-xl z-40 overflow-hidden"
+      class="absolute top-full right-0 mt-2 w-80 max-w-[90vw] bg-default border border-default rounded-lg shadow-xl z-40 overflow-hidden"
     >
-      <p class="text-[10.5px] uppercase tracking-wide text-gray-400 font-mono px-3 pt-2.5 pb-1">
+      <p class="text-[10.5px] uppercase tracking-wide text-dimmed font-mono px-3 pt-2.5 pb-1">
         Notificaciones
       </p>
-      <p v-if="cargando" class="px-3 pb-3 text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
-      <p v-else-if="notificaciones.length === 0" class="px-3 pb-3 text-sm text-gray-500 dark:text-gray-400">
+      <p v-if="cargando" class="px-3 pb-3 text-sm text-muted">Cargando…</p>
+      <p v-else-if="notificaciones.length === 0" class="px-3 pb-3 text-sm text-muted">
         No tienes notificaciones todavía.
       </p>
-      <div v-else class="max-h-80 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">
+      <div v-else class="max-h-80 divide-y divide-default overflow-y-auto">
         <button
           v-for="n in notificaciones"
           :key="n.id"
           type="button"
-          class="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+          class="w-full px-3 py-2.5 text-left hover:bg-muted"
           @click="abrir(n)"
         >
           <span class="flex items-start gap-2">
@@ -102,10 +102,10 @@ async function abrir(notificacion: NotificacionExterna): Promise<void> {
               :class="n.leida_at ? 'bg-transparent' : 'bg-primary-600 dark:bg-primary-400'"
             />
             <span class="min-w-0">
-              <span class="block truncate text-sm" :class="n.leida_at ? 'text-gray-600 dark:text-gray-300' : 'font-medium text-gray-900 dark:text-white'">
+              <span class="block truncate text-sm" :class="n.leida_at ? 'text-toned' : 'font-medium text-highlighted'">
                 {{ n.titulo }}
               </span>
-              <span v-if="n.cuerpo" class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ n.cuerpo }}</span>
+              <span v-if="n.cuerpo" class="block truncate text-xs text-muted">{{ n.cuerpo }}</span>
             </span>
           </span>
         </button>

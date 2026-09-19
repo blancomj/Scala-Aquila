@@ -175,6 +175,68 @@ Boundaries above are **enforced by `eslint.config.js`**, not just convention:
   usar un ancho fijo (`w-40`/`w-48`/`w-56`) igual que sus hermanos; dentro de
   una celda de tabla (`<td>`), usar un ancho fijo acorde al contenido de esa
   columna (nunca `w-full`, estiraría la columna entera).
+- **Panel de filtros reutilizable (`UiPanelFiltros` + `UiChipsFiltros` +
+  `useFiltros`).** Evaluado contra VecindApp/Vecitienda (2026-09-18) y
+  generalizado como convención transversal — usar en cualquier listado que
+  necesite más de ~4-5 dimensiones de filtro, o al menos una selección
+  múltiple sobre catálogo, o se quede sin espacio horizontal para selects en
+  línea. Para 2-4 filtros simples que caben en una fila (`inmuebles/index.vue`)
+  la barra de `USelect`/`UInput` reactivos en línea sigue siendo la opción por
+  defecto — no migrar esas pantallas solo por uniformidad. Con más filtros que
+  eso, `mantenimiento/activos/index.vue` es el ejemplo de referencia del
+  patrón híbrido: hasta 3 fijos en línea + el resto en el panel (ver el punto
+  siguiente).
+  - `apps/web/app/composables/useFiltros.ts` separa el estado **borrador**
+    (editable dentro del panel) del estado **aplicado** (el único que dispara
+    la consulta): nada cambia hasta `aplicar()`. `schema: CampoFiltro[]`
+    describe cada campo (`boolean` / `select` / `multiselect` / `rango` /
+    `texto`) de forma declarativa — el mismo componente sirve para cualquier
+    módulo sin reimplementar el drawer. Las funciones puras (`generarChips`,
+    `hayFiltrosActivos`, `etiquetaValorFiltro`, `esValorInicial`) están
+    separadas de la parte reactiva (que usa `ref`/`computed` auto-importados
+    de Nuxt) para poder probarlas sin contexto de app — mismo criterio que
+    `aplicarConfiguracionMenu` en `useMenuPersonalizado.ts`.
+  - **Hasta 3 filtros "fijos" fuera del panel** (evaluado con el usuario en la
+    migración de `mantenimiento/activos/index.vue`, 2026-09-18): los 2-3
+    campos más usados de un listado pueden quedarse en su `USelect`/`UInput`
+    de siempre, visibles en la barra, con el comportamiento instantáneo que
+    tenían antes de adoptar este patrón — el panel absorbe solo el resto.
+    `useFiltros().actualizarInmediato(clave, valor)` escribe ese campo en
+    `borrador` Y `aplicados` a la vez (sin pasar por `aplicar()`), así que
+    abrir el panel después no muestra un valor viejo para esos campos fijos,
+    y aplicar algo del panel no los pisa. `quitar()` es ahora un caso
+    particular de `actualizarInmediato` (reponer el valor inicial). El schema
+    del panel simplemente no incluye esos campos — no generan chip en
+    `UiChipsFiltros` porque ya son visibles en su propio control, un chip
+    sería redundante.
+  - `UiPanelFiltros.vue` (genérico sobre `TFiltros`) renderiza el schema
+    dentro de un `UiDrawer` — drawer lateral en desktop, pantalla completa en
+    mobile, gratis por el CSS que ya trae `UiDrawer`. Un campo `select` sigue
+    siendo de **un solo valor** — usa `USelect` o, si declara
+    `buscable: true`, `UiSelectorBuscable` (mismo criterio de catálogo largo
+    que el punto anterior).
+  - **`multiselect` con render adaptativo según cantidad de opciones**
+    (ajuste 2026-09-18): con menos de 4 opciones (`UMBRAL_CHECKBOX` en
+    `UiPanelFiltros.vue`) se pinta como grupo de `UCheckbox` — todas visibles,
+    sin buscador, porque con 2-3 opciones el buscador es puro overhead; con 4
+    o más usa el buscador + chips "seleccionadas"/"disponibles" (calcado de
+    VecindApp), resuelto directamente en este componente — no se extendió
+    `UiSelectorBuscable` con un modo multi para no arriesgar sus 20+ usos
+    existentes de un solo valor. El umbral se evalúa en vivo sobre
+    `campo.opciones.length`, así que un catálogo por tenant (ubicaciones,
+    fabricantes) puede cambiar de widget solo con que la data cambie — no hay
+    que declarar nada distinto en el schema. Para que un campo permita elegir
+    varios se declara `tipo: 'multiselect'`; `select` nunca se autoconvierte.
+  - `UiChipsFiltros.vue` vive **fuera** del drawer, pegado al listado: un chip
+    removible por cada filtro que se aparta de su valor inicial más el
+    contador de resultados. Quitar un chip dispara `useFiltros().quitar()`
+    directamente (sin reabrir el panel) — mismo comportamiento observado en
+    VecindApp.
+  - A diferencia de VecindApp, un campo `texto` del schema entra al mismo
+    ciclo borrador/aplicado que los demás (chip propio, lo limpia
+    `limpiarTodo()`) — ahí el buscador de texto libre quedaba fuera de ese
+    ciclo (no generaba chip, "Limpiar filtros" no lo tocaba, Enter no
+    disparaba la búsqueda); es un defecto de esa UI, no una pieza a replicar.
 
 ## Absolute prohibitions (PLAN §9.2 — no exceptions)
 

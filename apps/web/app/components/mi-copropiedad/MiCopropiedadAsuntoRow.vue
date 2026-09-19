@@ -17,14 +17,14 @@ withDefaults(
 <template>
   <div class="flex items-center justify-between gap-3 py-2.5">
     <div class="min-w-0">
-      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ titulo }}</p>
-      <p v-if="contexto" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ contexto }}</p>
+      <p class="truncate text-sm font-medium text-highlighted">{{ titulo }}</p>
+      <p v-if="contexto" class="truncate text-xs text-muted">{{ contexto }}</p>
     </div>
     <span
       v-if="etiqueta"
       class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
       :class="{
-        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300': etiquetaTono === 'neutral',
+        'bg-elevated text-toned': etiquetaTono === 'neutral',
         'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400': etiquetaTono === 'atencion',
         'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400': etiquetaTono === 'exito',
       }"

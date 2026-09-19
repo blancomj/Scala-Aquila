@@ -112,18 +112,18 @@ async function enviar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
     <template v-else-if="visitaCreada">
       <div class="rounded-xl border border-default bg-elevated p-4 text-center">
-        <p class="text-sm font-medium text-gray-900 dark:text-white">
+        <p class="text-sm font-medium text-highlighted">
           Autorización creada para {{ visitaCreada.visitante_nombre }}
         </p>
         <img v-if="qrImagenUrl" :src="qrImagenUrl" alt="Código QR de la visita" class="mx-auto mt-4 rounded-lg">
-        <p v-if="visitaCreada.qr_expira_at" class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        <p v-if="visitaCreada.qr_expira_at" class="mt-3 text-xs text-muted">
           Válido hasta {{ new Date(visitaCreada.qr_expira_at).toLocaleString('es-CO') }}
         </p>
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p class="mt-2 text-xs text-muted">
           Muestra este código en la portería para que tu visitante ingrese.
         </p>
       </div>
@@ -147,7 +147,7 @@ async function enviar(): Promise<void> {
             :class="
               tipoId === t.id
                 ? 'border-primary-600 bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
-                : 'border-default text-gray-600 dark:text-gray-300'
+                : 'border-default text-toned'
             "
             @click="tipoId = tipoId === t.id ? null : t.id"
           >{{ t.nombre }}</button>
@@ -156,7 +156,7 @@ async function enviar(): Promise<void> {
 
       <UFormField label="Autorización permanente (sin fecha de vencimiento)">
         <USwitch v-model="permanente" />
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p class="mt-1 text-xs text-muted">
           Para personal fijo (empleada doméstica, cuidador). El QR sigue expirando por seguridad
           (a 1 año), pero no atas la visita a una fecha puntual.
         </p>
@@ -180,7 +180,7 @@ async function enviar(): Promise<void> {
       <UFormField label="Foto del visitante (opcional)">
         <input
           type="file" accept="image/jpeg,image/png" capture="environment"
-          class="block w-full text-sm text-gray-600 dark:text-gray-300"
+          class="block w-full text-sm text-toned"
           @change="onFotoSeleccionada"
         >
       </UFormField>

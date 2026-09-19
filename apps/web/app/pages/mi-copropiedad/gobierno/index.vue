@@ -55,13 +55,13 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
-    <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Gobierno</h1>
+    <h1 class="text-lg font-semibold text-highlighted">Gobierno</h1>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="reuniones.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="reuniones.length === 0" class="text-sm text-muted">
       Todavía no hay reuniones disponibles.
     </p>
 
@@ -73,10 +73,10 @@ onMounted(async () => {
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ r.tipo_nombre }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ r.organo_nombre }} · {{ formatoFecha(r.fecha_hora) }}</p>
+            <p class="truncate text-sm font-medium text-highlighted">{{ r.tipo_nombre }}</p>
+            <p class="text-xs text-muted">{{ r.organo_nombre }} · {{ formatoFecha(r.fecha_hora) }}</p>
           </div>
-          <span class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <span class="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-xs font-medium text-toned">
             {{ ETIQUETA_ESTADO[r.estado] ?? r.estado }}
           </span>
         </div>

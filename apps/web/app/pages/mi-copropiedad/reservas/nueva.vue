@@ -103,14 +103,14 @@ async function enviar(): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
     <template v-else-if="reservaCreada">
       <div class="rounded-xl border border-default bg-elevated p-4 text-center">
-        <p class="text-sm font-medium text-gray-900 dark:text-white">
+        <p class="text-sm font-medium text-highlighted">
           {{ reservaCreada.estado === 'aprobada' ? 'Reserva confirmada' : 'Reserva enviada' }}
         </p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p class="mt-1 text-xs text-muted">
           {{ reservaCreada.estado === 'aprobada'
             ? 'Ya quedó confirmada.'
             : 'Queda pendiente de aprobación por la administración.' }}
@@ -119,7 +119,7 @@ async function enviar(): Promise<void> {
       <UButton to="/mi-copropiedad/reservas" block>Ver mis reservas</UButton>
     </template>
 
-    <p v-else-if="zonas.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="zonas.length === 0" class="text-sm text-muted">
       Esta copropiedad todavía no tiene zonas comunes habilitadas para reserva.
     </p>
 
@@ -132,7 +132,7 @@ async function enviar(): Promise<void> {
             :class="
               zonaId === z.id
                 ? 'border-primary-600 bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
-                : 'border-default text-gray-600 dark:text-gray-300'
+                : 'border-default text-toned'
             "
             @click="zonaId = z.id"
           >{{ z.nombre }}</button>
@@ -144,19 +144,19 @@ async function enviar(): Promise<void> {
       </UFormField>
 
       <template v-if="zonaId && fecha">
-        <p v-if="consultandoDisponibilidad" class="text-xs text-gray-500 dark:text-gray-400">Consultando disponibilidad…</p>
+        <p v-if="consultandoDisponibilidad" class="text-xs text-muted">Consultando disponibilidad…</p>
         <UAlert v-else-if="errorDisponibilidad" color="error" variant="soft" :title="errorDisponibilidad" />
         <template v-else-if="disponibilidad">
-          <p v-if="disponibilidad.ocupadas.length > 0" class="text-xs text-gray-500 dark:text-gray-400">
+          <p v-if="disponibilidad.ocupadas.length > 0" class="text-xs text-muted">
             Ya ocupado:
             <span v-for="(o, i) in disponibilidad.ocupadas" :key="i">
               {{ formatoHora(o.hora_inicio) }}–{{ formatoHora(o.hora_fin) }}<template v-if="i < disponibilidad.ocupadas.length - 1">, </template>
             </span>
           </p>
-          <p v-if="disponibilidad.regla?.genera_cargo && disponibilidad.regla.monto" class="text-xs text-gray-500 dark:text-gray-400">
+          <p v-if="disponibilidad.regla?.genera_cargo && disponibilidad.regla.monto" class="text-xs text-muted">
             Costo: {{ formatoMoneda(disponibilidad.regla.monto) }}
           </p>
-          <p v-if="disponibilidad.regla?.requiere_aprobacion" class="text-xs text-gray-500 dark:text-gray-400">
+          <p v-if="disponibilidad.regla?.requiere_aprobacion" class="text-xs text-muted">
             Esta reserva queda pendiente de aprobación por la administración.
           </p>
 
@@ -166,7 +166,7 @@ async function enviar(): Promise<void> {
               color="warning" variant="soft"
               title="Esta zona no tiene horario habilitado para el día elegido."
             />
-            <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+            <p v-else class="text-xs text-muted">
               Horario permitido:
               <span v-for="(f, i) in disponibilidad.franjas_validas" :key="i">
                 {{ formatoHora(f.hora_desde) }}–{{ formatoHora(f.hora_hasta) }}<template v-if="i < disponibilidad.franjas_validas.length - 1">, </template>

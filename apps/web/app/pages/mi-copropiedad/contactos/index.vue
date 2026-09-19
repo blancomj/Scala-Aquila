@@ -95,19 +95,19 @@ async function eliminar(contactoId: string): Promise<void> {
 
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
-    <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Contactos de emergencia</h1>
-    <p class="text-xs text-gray-500 dark:text-gray-400">
+    <h1 class="text-lg font-semibold text-highlighted">Contactos de emergencia</h1>
+    <p class="text-xs text-muted">
       Visibles para cualquier residente de tu inmueble — útil para portería en caso de emergencia.
     </p>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
     <template v-else>
-      <p v-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+      <p v-if="cargando" class="text-sm text-muted">Cargando…</p>
 
       <div v-else class="space-y-3">
         <p v-if="errorEliminar" class="text-xs text-red-600 dark:text-red-400">{{ errorEliminar }}</p>
-        <p v-if="contactos.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+        <p v-if="contactos.length === 0" class="text-sm text-muted">
           Todavía no hay contactos registrados.
         </p>
         <div
@@ -116,8 +116,8 @@ async function eliminar(contactoId: string): Promise<void> {
           class="flex items-center justify-between gap-3 rounded-xl border border-default bg-elevated p-4"
         >
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ c.nombre }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
+            <p class="truncate text-sm font-medium text-highlighted">{{ c.nombre }}</p>
+            <p class="text-xs text-muted">
               {{ c.telefono }}<template v-if="c.parentesco"> · {{ c.parentesco }}</template>
             </p>
           </div>
@@ -131,7 +131,7 @@ async function eliminar(contactoId: string): Promise<void> {
       </div>
 
       <form class="space-y-3 rounded-xl border border-default bg-elevated p-4" @submit.prevent="crear">
-        <p class="text-sm font-medium text-gray-900 dark:text-white">Agregar contacto</p>
+        <p class="text-sm font-medium text-highlighted">Agregar contacto</p>
         <UFormField label="Nombre" required>
           <UInput v-model="nombre" class="w-full" placeholder="Nombre completo" />
         </UFormField>

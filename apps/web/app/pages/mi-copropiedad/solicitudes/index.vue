@@ -67,15 +67,15 @@ onMounted(async () => {
 <template>
   <div class="mx-auto max-w-md space-y-4 p-4">
     <div class="flex items-center justify-between gap-3">
-      <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mis solicitudes</h1>
+      <h1 class="text-lg font-semibold text-highlighted">Mis solicitudes</h1>
       <UButton to="/mi-copropiedad/solicitudes/nueva" icon="i-lucide-plus" size="sm">Nueva</UButton>
     </div>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
-    <p v-else-if="solicitudes.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <p v-else-if="solicitudes.length === 0" class="text-sm text-muted">
       No has hecho ninguna solicitud todavía.
     </p>
 

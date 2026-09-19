@@ -77,18 +77,18 @@ async function abrirDocumento(documentoId: string): Promise<void> {
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
-    <p v-else-if="cargando" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</p>
+    <p v-else-if="cargando" class="text-sm text-muted">Cargando…</p>
 
     <template v-else-if="detalle">
       <div class="rounded-xl border border-default bg-elevated p-4">
-        <h1 class="text-base font-semibold text-gray-900 dark:text-white">{{ detalle.reunion.tipo_nombre }}</h1>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <h1 class="text-base font-semibold text-highlighted">{{ detalle.reunion.tipo_nombre }}</h1>
+        <p class="mt-1 text-xs text-muted">
           {{ detalle.reunion.organo_nombre }} · {{ formatoFecha(detalle.reunion.fecha_hora) }}
         </p>
-        <p v-if="detalle.reunion.lugar" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p v-if="detalle.reunion.lugar" class="mt-2 text-xs text-muted">
           Lugar: {{ detalle.reunion.lugar }}
         </p>
-        <p v-if="detalle.reunion.medio" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p v-if="detalle.reunion.medio" class="mt-1 text-xs text-muted">
           Medio: {{ detalle.reunion.medio }}
         </p>
       </div>
@@ -96,8 +96,8 @@ async function abrirDocumento(documentoId: string): Promise<void> {
       <p v-if="errorAbrir" class="text-xs text-red-600 dark:text-red-400">{{ errorAbrir }}</p>
 
       <div v-if="detalle.convocatoria" class="rounded-xl border border-default bg-elevated p-4">
-        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Convocatoria</p>
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p class="text-xs font-semibold uppercase tracking-wide text-dimmed">Convocatoria</p>
+        <p class="mt-2 text-xs text-muted">
           Emitida {{ formatoFecha(detalle.convocatoria.emitida_at) }}
         </p>
         <UButton
@@ -111,20 +111,20 @@ async function abrirDocumento(documentoId: string): Promise<void> {
       </div>
 
       <div v-if="detalle.agenda.length > 0">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Orden del día</p>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-dimmed">Orden del día</p>
         <div class="space-y-2">
           <div
             v-for="p in detalle.agenda" :key="p.id"
             class="rounded-xl border border-default bg-elevated p-3"
           >
-            <p class="text-sm text-gray-700 dark:text-gray-200">{{ p.orden }}. {{ p.titulo }}</p>
-            <p v-if="p.descripcion" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ p.descripcion }}</p>
+            <p class="text-sm text-default">{{ p.orden }}. {{ p.titulo }}</p>
+            <p v-if="p.descripcion" class="mt-1 text-xs text-muted">{{ p.descripcion }}</p>
           </div>
         </div>
       </div>
 
       <div class="rounded-xl border border-default bg-elevated p-4">
-        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Acta</p>
+        <p class="text-xs font-semibold uppercase tracking-wide text-dimmed">Acta</p>
         <template v-if="detalle.acta">
           <UButton
             v-if="detalle.acta.documento_id"
@@ -134,17 +134,17 @@ async function abrirDocumento(documentoId: string): Promise<void> {
           >
             {{ abriendoId === detalle.acta.documento_id ? 'Abriendo…' : 'Ver acta' }}
           </UButton>
-          <p v-else class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <p v-else class="mt-2 text-xs text-muted">
             El acta ya está publicada, pero todavía no tiene un documento adjunto.
           </p>
         </template>
-        <p v-else class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p v-else class="mt-2 text-xs text-muted">
           El acta todavía no está disponible.
         </p>
       </div>
 
       <div v-if="detalle.votaciones.length > 0">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Votaciones</p>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-dimmed">Votaciones</p>
         <div class="space-y-2">
           <MiCopropiedadResultadoVotacion v-for="v in detalle.votaciones" :key="v.id" :votacion="v" />
         </div>

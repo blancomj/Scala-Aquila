@@ -6,14 +6,9 @@
 // Cliente-only: ApexCharts depende de window/document, no renderiza en
 // SSR (mismo motivo que cualquier librería basada en el DOM del browser).
 import { defineAsyncComponent } from 'vue'
+import type { PuntoEvolucionDTO } from '~/stores/cartera'
 
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'))
-
-export interface PuntoEvolucionDTO {
-  mes: string
-  fechaSnapshot: string | null
-  deudaVencida: string | null
-}
 
 const props = defineProps<{
   puntos: PuntoEvolucionDTO[]
