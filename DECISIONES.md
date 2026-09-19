@@ -8893,8 +8893,8 @@ escritura identificadas en la auditoría — `external-solicitudes-crear` se exc
 que ya tenía su propio límite (5/hora) dentro de `fn_solicitud_recibir_externa` (SQL, invisible al
 grep original que solo miraba los `index.ts`; protegido por `tests/external/solicitudes.test.ts`
 prueba #10). Límites: 20/hora crear, 30/hora cancelar/revocar, 60/hora lectura — propuestos por
-precedente (documentado en `PROMPT_MI_COPROPIEDAD_FASE3.md` §7.2), no cerrados explícitamente por
-el usuario (queda abierto si se quieren ajustar antes de producción). 10 pruebas nuevas (una por
+precedente (documentado en `PROMPT_MI_COPROPIEDAD_FASE3.md` §7.2) y **confirmados sin cambios por
+el usuario** al cerrar la ola (2026-09-18, vía `AskUserQuestion`). 10 pruebas nuevas (una por
 función) confirman el bloqueo `429 RATE_LIMITED` exactamente en el cupo configurado.
 
 **M20 (gobierno de solo lectura)**: `external-gobierno-listar` (Edge Function nueva, sin
@@ -8929,3 +8929,127 @@ memoria del proyecto para la próxima sesión que agregue una función nueva.
 **Sin migraciones en esta ola** (M20/M21 no tocan el esquema) — sin fila nueva en
 `MIGRACIONES_LEDGER.md`. **Ola 3 completa con esto** — EXT-15 queda fuera del backlog activo hasta
 que haya demanda confirmada.
+
+## D-145
+
+**Permisos — cerrar la capa 2 de roles funcionales, Bloque A** (auditoría externa
+`Casos de uso/Seguridad Usuarios Roles/PROMPT_PERMISOS_CAPA2.md`). El documento fuente separaba el
+encargo en Bloque A (implementable sin decisión de producto) y Bloque B (4 decisiones bloqueadas
+por PLAN §9.2). Antes de implementar, se contrastó cada hallazgo del documento contra el estado
+real del repo — varias migraciones son posteriores a cuando se escribió:
+
+**El hallazgo "más grave" del documento (§1.2) ya no existía.** El documento afirmaba que
+`marketplace`/`movilidad`/`anuncios` tenían portón RLS sin ningún rol funcional que los cubriera, y
+que asignarle "Recepción" a alguien le ocultaba movilidad. Verificado: la serie EXS (cerrada
+2026-09-12, D-141 y anteriores) ya sembró los tres módulos para **todos** los roles funcionales
+existentes, con el mismo razonamiento que el documento usa para "descubrir" el problema
+(`20260933140000`/`330000`/`430000`). B3 del documento quedó sin objeto.
+
+**Bloque B — 3 decisiones reales, resueltas por el usuario (vía `AskUserQuestion`):**
+- **B1** (¿auxiliar administra?): **Sí administra** — el código está bien (`settings:manage` y
+  `tenant:delete` en su matriz, `tenants_update_agent` ya lo permite); lo que estaba mal era la
+  prosa de `20260830100000` ("pero no administra"). Se corrigió solo el `comment on type
+  tenant_role_t` (comentario vivo en la base), sin tocar `permissions.ts` ni ninguna política.
+- **B2** (`tenant:delete` sin política de DELETE): se deja en la matriz tal cual, documentado. Test
+  nuevo en `t-matrix.test.ts` confirma que el DELETE falla para los 3 roles — "esto no se puede"
+  queda probado, no roto.
+- **B4** (`jefe_mantenimiento→mantenimiento` y `recepcion→porteria`, mapeos sin ninguna política
+  que los gatee): se dejan como están — decisión de producto pendiente, documentada, sin tocar.
+
+**Bloque A implementado** (`20260949000000_modulo_catalogo.sql`,
+`20260950000000_roles_funcionales_builder_rls.sql`):
+- **A1** — tabla `public.modulo` (catálogo, FK desde `rol_funcional_modulo.modulo`), sembrada con
+  los **10** códigos realmente en uso (9 que documentaba el prompt + `gobierno`, usado por
+  `notificaciones.modulo` pero deliberadamente sin fila en `rol_funcional_modulo` — el catálogo lo
+  refleja como "sin cobertura" por diseño, no por bug).
+- **A2** — vista `v_modulo_cobertura` (`security_invoker`).
+- **A3** — builder de roles funcionales en `seguridad/index.vue` (no ruta nueva): crear/editar/
+  desactivar/eliminar un rol del tenant activo y marcar sus módulos, gateado a `administrador`
+  explícito (`tenantStore.role === 'administrador'`, mismo patrón que `cartera/acciones.vue`) tanto
+  en UI como en RLS. RLS: se **estrechó** (no se sumó) `lista_tipos_insert/update/delete_agent`
+  para exigir administrador cuando `tipo = 'ROL_FUNCIONAL'` — sumar una policy nueva no habría
+  bastado, las políticas del mismo comando se combinan con OR. Se agregaron las primeras policies
+  de escritura de `rol_funcional_modulo` (antes solo tenía SELECT). Auditoría de la *definición* de
+  un rol (`audit_rol_funcional_definicion_change`/`audit_rol_funcional_modulo_change`), simétrica a
+  la de *asignación* que ya existía (`20260830170000`).
+- **A4** — T-MATRIX: el documento pedía "ampliar a los 12 permisos" pero el propio docstring de
+  `t-matrix.test.ts` ya documentaba por qué 6 de los 7 restantes no tienen una comparación RLS 1:1
+  (UI-only o cubiertos por los ~90 archivos de `tests/rls/*`); el único hueco real era
+  `tenant:delete` (resuelto arriba, B2).
+- **A5** — `Docs/RECETA_MODULO_NUEVO.md`.
+
+**Tres bugs reales encontrados y corregidos durante la implementación** (no estaban en el
+diagnóstico del prompt, aparecieron al probar en navegador — ninguno llegó a producción):
+1. Los triggers de auditoría de la definición intentaban escribir el `id` bigint de `lista_tipos`
+   en `audit_log.entity_id` (uuid) → 42804. Corregido: el id va en `metadata`, no en `entity_id`.
+2. `rol_funcional_modulo.lista_tipos_id` no tenía `ON DELETE CASCADE` — como hasta este corte nada
+   podía borrar un rol funcional, nunca se había manifestado. Borrar un rol CON al menos un módulo
+   marcado (el caso normal) fallaba con violación de FK en vez de eliminarse. Corregido con
+   `ON DELETE CASCADE` (el guard real, "no borrar un rol asignado a alguien", sigue intacto:
+   `membership_roles_funcionales.rol_funcional_id` no lleva cascade a propósito). Test de
+   regresión con nombre propio en `roles-funcionales-builder.test.ts`.
+3. `cargarCatalogoRolesFuncionales()` (usado por `MiembroDrawer.vue` para el checklist de "asignar
+   rol funcional a un miembro") solo traía roles de **plataforma** — un rol recién creado por el
+   builder del propio tenant no aparecía nunca como asignable, quedaba huérfano. Corregido para
+   incluir también los roles `tenant_id` propios.
+
+**Verificado:** `pnpm build`/`typecheck`/`lint` en cero (un TS2589 "type instantiation excessively
+deep" en `dashboard/index.vue`, archivo no tocado por este corte, resultó ser `packages/shared/
+dist` desactualizado tras regenerar tipos sin rebuild — se resolvió con `pnpm build`, no con
+cambios de código). 13 pruebas nuevas/extendidas en verde
+(`tests/rls/roles-funcionales-builder.test.ts` ×7, `t-matrix.test.ts` ×1 nueva) contra Supabase
+local, incluida la regresión con nombre propio del §1.2 del prompt (`recepcion` ve `movilidad`) —
+**pasa hoy**, no falla, a diferencia de lo que el documento fuente asumía. En navegador, contra
+"QA Torres del Parque": crear/editar/eliminar un rol, marcar módulos, aviso de "no otorga nada" y
+de "módulos sin cobertura" (`porteria`/`mantenimiento`/`gobierno`), y el rol recién creado
+apareciendo en `MiembroDrawer` — verificado en claro y oscuro, tenant QA quedó sin residuos.
+
+**Sin `db:push:prod`** en este corte — migraciones solo en local, a la espera de que el usuario
+decida cuándo empujarlas (mismo criterio que otros cortes recientes sin urgencia de producción).
+
+## D-146
+
+**Unificar la plantilla de estado de cuenta en el portal Mi Copropiedad.** La pestaña "Finanzas"
+del portal externo (`mi-copropiedad/finanzas/index.vue`) mostraba una vista de trabajo propia
+(`MiCopropiedadSaldoCard`, sin folio, saldo calculado on-demand vía `external-cuenta-resumen`,
+EXT-07 §7.2) — deliberadamente distinta, según su propio comentario, del documento formal con folio
++ hash SHA-256 (`comprobante-cuenta/[id].vue`, D-27/D-28) que se envía por correo al mismo
+propietario/residente. A pedido explícito del usuario, ahora el portal muestra el MISMO documento
+formal en vez de dos representaciones distintas del mismo concepto.
+
+**El reto**: `ver-estado-cuenta` (que sirve `comprobante-cuenta/[id].vue`) solo acepta dos vías de
+autorización — token HMAC firmado, o sesión con `memberships` activa (staff). Un actor externo
+NUNCA es `tenant_member` (AD-37), así que no tenía forma de pasar por ninguna de las dos puertas.
+
+**Solución — nueva Edge Function `external-estado-cuenta-ver`** (sin migraciones nuevas:
+`estados_cuenta_generados.inmueble_id` ya existía con índice desde su creación): resuelve el
+contexto del actor externo vía `resolverContextoActorExterno` (mismo patrón que el resto de
+`external-*`), busca el `estados_cuenta_generados` más reciente para `inmueble_id`, y devuelve el
+mismo sobre `{datos, folio, contenido_hash, pago_habilitado}` que `ver-estado-cuenta`, envuelto en
+`{existe: true, ...}`. `{existe: false}` (200, no error) es la respuesta legítima cuando el tenant
+nunca ha corrido una liquidación — `fn_emitir_estados_cuenta` emite estos registros automáticamente
+en cada corte para TODAS las unidades del tenant, así que un inmueble sin ningún corte legítimamente
+no tiene ninguno.
+
+**Componente compartido nuevo** (sin precedente en el repo hasta ahora):
+`apps/web/app/components/finanzas/ComprobanteCuentaDocumento.vue` — se extrajo TODO el
+markup/estilos de `comprobante-cuenta/[id].vue` (cabecera, resumen, tabla de movimientos, notas,
+firmas, compartir/imprimir) a props (`datos`, `folio`, `contenidoHash`, `pagoHabilitado`, `pagando`,
+`errorPago`) + evento `pagar`, para que ambas páginas rendericen exactamente lo mismo sin duplicar
+CSS. `comprobante-cuenta/[id].vue` quedó reducido a orquestar `ver-estado-cuenta` +
+`crear-intencion-pago` (`via: 'token'`, sin cambios de contrato) y renderizar el componente — refactor
+puro, mismo comportamiento.
+
+**`mi-copropiedad/finanzas/index.vue`**: llama primero a `obtenerComprobanteCuenta` (nuevo wrapper en
+`actor-externo-api.ts`); si `existe: true` renderiza `ComprobanteCuentaDocumento` conectando `pagar`
+al flujo YA existente `crearIntencionPagoActorExterno` (`via: 'actor_externo'`, sin cambios); si
+`existe: false` cae de vuelta a `MiCopropiedadSaldoCard`/`external-cuenta-resumen` (sin tocar,
+siguen usándose también en el widget de saldo de la home) — un inmueble sin ningún corte emitido
+necesita alguna forma de ver su saldo pendiente y pagar, no una pantalla vacía.
+
+**Verificado**: `tests/external/estado-cuenta-ver.test.ts` (6 pruebas nuevas: documento existe y su
+hash coincide bit a bit con el que calcularía `ver-estado-cuenta` para el mismo registro,
+`existe:false` sin comprobante emitido, aislamiento entre inmuebles del mismo tenant, vínculo ajeno
+→ 403, sin autenticación → 401, rate limit 60/h). `crear-intencion-pago` no se tocó: sus tres vías
+(`token`/`sesion`/`actor_externo`) ya calculaban el monto igual del lado servidor, así que el pago
+en ambos contextos siguió funcionando sin cambios de código.

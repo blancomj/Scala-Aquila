@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// EXT-07 §6.1/§7.2/§8.3 — "estado de cuenta en vivo" + pagar. Distinto del comprobante formal con
-// folio y hash (comprobante-cuenta/[id].vue, D-27/D-28 — sin cambios): esa es una constancia
-// sellada al corte; esta es una vista de trabajo consultada on-demand, sin folio (ver §4.3 del
-// prompt de este corte).
+// Unificación de plantilla (D-14x): muestra el MISMO documento formal con folio+hash que ya recibe
+// el propietario/residente por correo (comprobante-cuenta/[id].vue, D-27/D-28), resuelto para el
+// vínculo autenticado vía external-estado-cuenta-ver — en vez de la vista de trabajo propia que
+// tenía esta pantalla antes (EXT-07 §7.2). Si el tenant nunca ha corrido una liquidación no existe
+// ningún estados_cuenta_generados que mostrar (estado legítimo, no un error): esta pantalla cae de
+// vuelta a MiCopropiedadSaldoCard/external-cuenta-resumen para que igual se vea el saldo pendiente.
 import type { Database } from '@aquila/shared'
 
 definePageMeta({ layout: 'mi-copropiedad', publico: true })
@@ -12,6 +14,10 @@ const cliente = useSupabaseClient<Database>()
 
 const cargando = ref(true)
 const error = ref<string | null>(null)
+const comprobante = ref<ComprobanteCuentaRespuesta | null>(null)
+// Estrecha la unión discriminada para el template (vue-tsc no infiere `existe: true` solo con un
+// v-if/v-else sobre una expresión compuesta) — null cuando aún no hay comprobante que mostrar.
+const comprobanteVisible = computed(() => (comprobante.value?.existe ? comprobante.value : null))
 const resumen = ref<CuentaResumen | null>(null)
 const pagando = ref(false)
 const errorPago = ref<string | null>(null)
@@ -40,7 +46,11 @@ async function cargar(): Promise<void> {
       return
     }
 
-    resumen.value = await obtenerCuentaResumen(actorExterno.vinculoActivo.vinculo_id)
+    const vinculoId = actorExterno.vinculoActivo.vinculo_id
+    comprobante.value = await obtenerComprobanteCuenta(vinculoId)
+    if (!comprobante.value.existe) {
+      resumen.value = await obtenerCuentaResumen(vinculoId)
+    }
   } catch (err) {
     error.value = mensajeError(err, 'No se pudo cargar tu estado de cuenta.')
   } finally {
@@ -70,8 +80,8 @@ async function pagar(): Promise<void> {
 </script>
 
 <template>
-  <div class="mx-auto max-w-md space-y-4 p-4">
-    <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Finanzas</h1>
+  <div v-if="!comprobanteVisible" class="mx-auto max-w-md space-y-4 p-4">
+    <h1 class="text-lg font-semibold text-highlighted">Finanzas</h1>
 
     <UAlert v-if="error" color="error" variant="soft" :title="error" />
 
@@ -84,4 +94,15 @@ async function pagar(): Promise<void> {
       </template>
     </MiCopropiedadSaldoCard>
   </div>
+
+  <FinanzasComprobanteCuentaDocumento
+    v-else
+    :datos="comprobanteVisible.datos"
+    :folio="comprobanteVisible.folio"
+    :contenido-hash="comprobanteVisible.contenido_hash"
+    :pago-habilitado="comprobanteVisible.pago_habilitado"
+    :pagando="pagando"
+    :error-pago="errorPago"
+    @pagar="pagar"
+  />
 </template>

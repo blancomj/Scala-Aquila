@@ -1687,6 +1687,22 @@ export const ERROR_CODES = {
   RPT_PROGRAMACION_CONTEXTO_INMUTABLE: 'RPT_PROGRAMACION_CONTEXTO_INMUTABLE',
   // fn_reporte_proxima_corrida: frecuencia fuera de una_vez/diaria/semanal/mensual.
   RPT_FRECUENCIA_INVALIDA: 'RPT_FRECUENCIA_INVALIDA',
+  // 20260941050000_rpt5_cron.sql: la programación referenciada por el cron ya no existe.
+  RPT_PROGRAMACION_NO_ENCONTRADA: 'RPT_PROGRAMACION_NO_ENCONTRADA',
+  // 20260947000000_ext13_mudanzas_horario_semanal.sql: la reserva cae fuera de toda franja del
+  // horario semanal configurado para la zona.
+  RESERVA_FUERA_DE_HORARIO_SEMANAL: 'RESERVA_FUERA_DE_HORARIO_SEMANAL',
+  // correspondencia-registrar/index.ts (EXT-12): marcar entregada una correspondencia inexistente.
+  CORRESPONDENCIA_NO_ENCONTRADA: 'CORRESPONDENCIA_NO_ENCONTRADA',
+  // correspondencia-registrar/index.ts (EXT-12): marcar entregada dos veces la misma correspondencia.
+  CORRESPONDENCIA_YA_ENTREGADA: 'CORRESPONDENCIA_YA_ENTREGADA',
+  // external-contactos-emergencia/index.ts (EXT-14): eliminar un contacto inexistente o ajeno.
+  CONTACTO_NO_ENCONTRADO: 'CONTACTO_NO_ENCONTRADO',
+  // external-gobierno-listar/index.ts (M20, Ola 3): la reunión consultada no pertenece al tenant
+  // del vínculo del actor externo.
+  GOBIERNO_REUNION_NO_PERTENECE: 'GOBIERNO_REUNION_NO_PERTENECE',
+  // external-notificaciones-listar/index.ts (EXT-08b): marcar leída una notificación inexistente.
+  NOTIFICACION_NO_ENCONTRADA: 'NOTIFICACION_NO_ENCONTRADA',
 } as const satisfies Record<string, string>
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]

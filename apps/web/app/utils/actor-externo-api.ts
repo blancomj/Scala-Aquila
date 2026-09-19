@@ -260,6 +260,28 @@ export async function obtenerCuentaResumen(vinculoId: string): Promise<CuentaRes
 }
 
 /**
+ * Unificación de plantilla (D-14x): el mismo documento formal con folio+hash que
+ * `comprobante-cuenta/[id].vue` ya muestra vía enlace de correo, resuelto aquí para el vínculo
+ * autenticado en vez de un token HMAC — ver `external-estado-cuenta-ver`. `existe: false` es un
+ * estado legítimo (el tenant nunca corrió una liquidación) que la pantalla de Finanzas usa para
+ * caer de vuelta a `obtenerCuentaResumen`, no un error.
+ */
+export type ComprobanteCuentaRespuesta =
+  | { existe: false }
+  | { existe: true; datos: EstadoCuentaDatos; folio: string | null; contenido_hash: string; pago_habilitado: boolean }
+
+export async function obtenerComprobanteCuenta(vinculoId: string): Promise<ComprobanteCuentaRespuesta> {
+  const cliente = useSupabaseClient<Database>()
+  const { data, error } = await cliente.functions.invoke<ComprobanteCuentaRespuesta>(
+    'external-estado-cuenta-ver',
+    { body: { vinculo_id: vinculoId } },
+  )
+  if (error) throw await extraerErrorFuncion(error)
+  if (!data) throw new Error('No se pudo cargar el comprobante de cuenta.')
+  return data
+}
+
+/**
  * EXT-07 §7.3/§8.3 — pagar el propio saldo: tercera vía `actor_externo` de `crear-intencion-pago`
  * (sin cambios en `ver-intencion-pago`/`pago/resultado.vue` — ese flujo ya es agnóstico a la vía
  * que creó la intención, ver cabecera de `ver-intencion-pago/index.ts`: el capability token es el
